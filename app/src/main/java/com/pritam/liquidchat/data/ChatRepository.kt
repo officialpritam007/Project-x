@@ -14,6 +14,7 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ChatRepository(private val context:Context,val backend:Backend,val db:LocalDatabase) {
     val dao=db.dao()
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
@@ -75,7 +76,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 val j=page.getJSONObject(i);val id=j.getString("id");val old=dao.chat(account,id)
                 chats+=Chat(account,id,if(j.getString("user_a")==account)j.getString("user_b") else j.getString("user_a"),j.getString("display_name"),j.getString("username"),
                     if(j.isNull("preview")) "" else j.getString("preview"),j.getLong("last_seq"),j.getInt("unread"),j.getBoolean("favorite"),j.getBoolean("archived"),j.getBoolean("muted"),
-                    old?.syncSeq ?: 0,j.getLong("deleted_seq"),j.getLong("peer_delivered_seq"),j.getLong("peer_read_seq"))
+                    old?.syncSeq ?: 0,j.getLong("deleted_seq"),j.getLong("peer_delivered_seq"),j.getLong("peer_read_seq"),
+                    if(j.isNull("last_at"))"" else j.optString("last_at"),if(j.isNull("avatar_id"))"" else j.optString("avatar_id"))
             }
             if(page.length()<100) break
             val last=page.getJSONObject(page.length()-1);before=last.getLong("last_seq");beforeId=last.getString("id")
@@ -170,6 +172,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 dao.put(parseMessage(j,expected).copy(localTime=m.localTime))
                 if(m.localImage.isNotEmpty())java.io.File(m.localImage).delete()
                 refresh()
+                // Durable server queue owns retries; FCM submission does not mark delivery.
+                runCatching {backend.request("/functions/v1/notify","POST",JSONObject())}
             } catch(e:CancellationException) {throw e}
             catch(e:Exception) {
                 val transient=e !is ApiException || e.status>=500 || e.status==429 || e.code=="P0001"

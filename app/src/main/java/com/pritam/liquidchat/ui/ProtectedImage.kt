@@ -12,9 +12,11 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.pritam.liquidchat.data.Backend
 import kotlinx.coroutines.CancellationException
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable fun ProtectedImage(backend:Backend,id:String,local:String="",description:String,modifier:Modifier=Modifier,scale:ContentScale=ContentScale.Fit) {
+    val session by backend.session.collectAsStateWithLifecycle()
     val context=LocalContext.current
     var url by remember(id,local) {mutableStateOf<String?>(local.ifEmpty {null})}
     var failed by remember(id,local) {mutableStateOf(false)}
@@ -26,7 +28,7 @@ import org.json.JSONObject
         catch(e:CancellationException){throw e}catch(_:Exception){failed=true;url=null}
     }
     Box(modifier) {
-        if(url!=null) AsyncImage(model=ImageRequest.Builder(context).data(url).memoryCacheKey("${backend.session.value?.userId}:$id:$local").diskCachePolicy(CachePolicy.DISABLED).build(),contentDescription=description,modifier=Modifier.fillMaxSize(),contentScale=scale,onError={failed=true})
+        if(url!=null) AsyncImage(model=ImageRequest.Builder(context).data(url).memoryCacheKey("${session?.userId}:$id:$local").diskCachePolicy(CachePolicy.DISABLED).build(),contentDescription=description,modifier=Modifier.fillMaxSize(),contentScale=scale,onError={failed=true})
         if(failed) TextButton(onClick={url=null;retry++}) {Text("Retry image")}
         else if(url==null) CircularProgressIndicator(Modifier.size(24.dp))
     }

@@ -20,7 +20,7 @@ import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 
 class ApiException(val status: Int, val code: String, message: String) : IOException(message)
-data class Session(val userId: String, val access: String, val refresh: String, val expires: Long)
+data class Session(val userId: String, val access: String, val refresh: String, val expires: Long,val email:String="")
 
 class Backend(private val store: SessionStore) {
     companion object {
@@ -41,7 +41,7 @@ class Backend(private val store: SessionStore) {
             restored=true
         }
     } }
-    private fun decode(j: JSONObject) = Session(j.getJSONObject("user").getString("id"),j.getString("access_token"),j.getString("refresh_token"),j.optLong("expires_at",System.currentTimeMillis()/1000+j.optLong("expires_in",3600)))
+    private fun decode(j: JSONObject) = Session(j.getJSONObject("user").getString("id"),j.getString("access_token"),j.getString("refresh_token"),j.optLong("expires_at",System.currentTimeMillis()/1000+j.optLong("expires_in",3600)),j.getJSONObject("user").optString("email"))
     private fun persist(j: JSONObject) {
         val s=decode(j)
         j.put("expires_at",s.expires)
@@ -95,14 +95,14 @@ class Backend(private val store: SessionStore) {
         persist(JSONObject(raw("/auth/v1/token?grant_type=password","POST",JSONObject().put("email",email.trim()).put("password",password),null)))
     } }
     suspend fun register(email: String,password: String): Boolean = withContext(Dispatchers.IO) { authMutex.withLock {
-        val j=JSONObject(raw("/auth/v1/signup","POST",JSONObject().put("email",email.trim()).put("password",password),null))
+        val j=JSONObject(raw("/auth/v1/signup?redirect_to="+Uri.encode(CALLBACK),"POST",JSONObject().put("email",email.trim()).put("password",password).put("code_challenge",beginPkce("verification")).put("code_challenge_method","s256"),null))
         if(j.has("access_token") && !j.isNull("access_token")) { persist(j); true } else false
     } }
     private fun beginPkce(purpose: String): String {
         val random=ByteArray(32).also { SecureRandom().nextBytes(it) }
         fun encode(b:ByteArray)=Base64.encodeToString(b,Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
         val verifier=encode(random)
-        store.write("pkce",JSONObject().put("verifier",verifier).put("purpose",purpose).put("created",System.currentTimeMillis()).toString())
+        store.write("pkce",JSONObject().put("verifier",verifier).put("purpose",purpose).put("expected_uid",_session.value?.userId.orEmpty()).put("created",System.currentTimeMillis()).toString())
         return encode(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()))
     }
     suspend fun googleUrl(): String = withContext(Dispatchers.IO) {
@@ -119,6 +119,11 @@ class Backend(private val store: SessionStore) {
         val pending=JSONObject(store.read("pkce") ?: throw IOException("Start sign-in again on this device."))
         if(System.currentTimeMillis()-pending.getLong("created")>600000) throw IOException("Sign-in expired. Try again.")
         val j=JSONObject(raw("/auth/v1/token?grant_type=pkce","POST",JSONObject().put("auth_code",code).put("code_verifier",pending.getString("verifier")),null))
+        val expected=pending.optString("expected_uid")
+        if(expected.isNotEmpty() && decode(j).userId!=expected) {
+            runCatching {raw("/auth/v1/logout","POST",null,j.getString("access_token"))}
+            throw IOException("Use the Google account already signed in here.")
+        }
         persist(j); store.write("pkce",null); _recovery.value=pending.getString("purpose")=="recovery"
     } }
     suspend fun updatePassword(password: String) { request("/auth/v1/user","PUT",JSONObject().put("password",password)); _recovery.value=false }
@@ -136,6 +141,9 @@ class Backend(private val store: SessionStore) {
             JSONObject(body)
         }
     }
+    suspend fun forgetLocal()=withContext(Dispatchers.IO) {authMutex.withLock {
+        store.write("session",null);store.write("pkce",null);_session.value=null;_recovery.value=false
+    }}
     suspend fun logout() = withContext(Dispatchers.IO) {
         val expected=_session.value?.let {validSession(it)}
         authMutex.withLock {

@@ -2,3 +2,10 @@ project_id = "liquid-chat"
 [functions.media]
 # JWTs are validated by Auth.getUser inside the function (also supports rotated signing keys).
 verify_jwt = false
+[functions.notify]
+# Auth.getUser for app invocations; constant-time Vault secret check for the database cron.
+verify_jwt = false
+[functions.account]
+verify_jwt = false
+[functions.media-cleanup]
+verify_jwt = false

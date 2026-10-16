@@ -13,8 +13,15 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.tasks.await
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
+    private val displayPrefs=app.getSharedPreferences("display",android.content.Context.MODE_PRIVATE)
+    val display=MutableStateFlow(com.pritam.liquidchat.ui.DisplayOptions(displayPrefs.getString("appearance","System") ?: "System",displayPrefs.getString("animation","Balanced") ?: "Balanced",displayPrefs.getBoolean("reducedMotion",false),displayPrefs.getBoolean("reducedTransparency",false)))
+    fun setDisplay(options:com.pritam.liquidchat.ui.DisplayOptions) {
+        displayPrefs.edit().putString("appearance",options.appearance).putString("animation",options.animation).putBoolean("reducedMotion",options.reducedMotion).putBoolean("reducedTransparency",options.reducedTransparency).apply();display.value=options
+    }
     val backend: Backend=(app as LiquidApplication).backend
     val repository=(app as LiquidApplication).repository
     val chats=repository.chats().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
@@ -42,7 +49,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { backend.restore(); _ready.value=true }
         viewModelScope.launch {
             session.map { it?.userId }.distinctUntilChanged().collectLatest { id ->
-                _profile.value=null; _profileLoaded.value=false
+                _profile.value=null; _profileLoaded.value=false;found.value=null;searchResults.value=emptyList();focusMessage.value=null
                 if(id!=null) loadProfile() else _profileLoaded.value=true
             }
         }
@@ -79,6 +86,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         backend.rpc("save_profile",JSONObject().put("p_username",username).put("p_name",name).put("p_bio",bio));loadProfile()
     }
     fun open(cid:String,messageId:String?=null) {
+        if(runCatching {java.util.UUID.fromString(cid)}.isFailure)return
         focusMessage.value=messageId;repository.active.value=cid
         repository.refresh()
     }
@@ -100,10 +108,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         searchJob?.cancel()
         searchJob=viewModelScope.launch {kotlinx.coroutines.delay(200);searchResults.value=if(query.isBlank())emptyList() else repository.search(query)}
     }
+    fun report(peer:String,reason:String)=action {backend.rpc("report_contact",JSONObject().put("p_target",peer).put("p_reason",reason));_notice.value="Report submitted."}
+    fun deleteAccount(password:String)=action {
+        val current=session.value ?: return@action
+        if(password.isNotEmpty())backend.signIn(current.email,password)
+        check(session.value?.userId==current.userId)
+        val result=JSONObject(backend.request("/functions/v1/account","POST",JSONObject().put("action","delete")))
+        backend.forgetLocal();repository.clearAccount(current.userId)
+        getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
+        _notice.value=if(result.optBoolean("pending"))"Account deletion requested. Media cleanup continues in the background." else "Your account has been deleted."
+    }
     fun logout()=action {
         val id=session.value?.userId
+        if(com.google.firebase.FirebaseApp.getApps(getApplication()).isNotEmpty()) {
+            val token=getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).getString("fcm_token",null)
+            if(token!=null) backend.rpc("register_device",JSONObject().put("p_token",token).put("p_remove",true))
+        }
         backend.logout()
         if(id!=null)repository.clearAccount(id)
+        getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
         found.value=null;searchResults.value=emptyList();focusMessage.value=null
     }
 }

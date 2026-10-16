@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,20 +37,24 @@ import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
 import kotlinx.coroutines.flow.collectLatest
 
-@Composable fun Avatar(name:String) {
+@Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null) {
     Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer,CircleShape),contentAlignment=Alignment.Center) {
-        Text(name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.onPrimaryContainer)
+        if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
+        else Text(name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
-@Composable fun ChatRow(chat:Chat,onClick:()->Unit) {
+@Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit) {
     Surface(onClick=onClick,shape=Glass.card,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Avatar(chat.name)
+            Avatar(chat.name,chat.avatarId,backend)
             Column(Modifier.weight(1f)) {
                 Text(chat.name,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium,maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if(chat.unread>0) Badge {Text(if(chat.unread>99)"99+" else chat.unread.toString())}
+            Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
+                if(chat.unread>0) Badge {Text(if(chat.unread>99)"99+" else chat.unread.toString())}
+            }
         }
     }
 }
@@ -60,14 +66,14 @@ import kotlinx.coroutines.flow.collectLatest
         Row(verticalAlignment=Alignment.CenterVertically) {Text("Liquid Chat",style=MaterialTheme.typography.headlineLarge,modifier=Modifier.weight(1f));IconButton(onClick={model.repository.refresh()}) {Icon(Icons.Outlined.Refresh,"Refresh")}}
         Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(query,{query=it;model.search(it)},label={Text("Search contacts & downloaded messages")},singleLine=true,shape=Glass.capsule,modifier=Modifier.fillMaxWidth())
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
             listOf("All","Favorite","Archive","Unread").forEachIndexed {i,title->FilterChip(selected=filter==i,onClick={filter=i},label={Text(title)})}
         }
         val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->it.unread>0&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=16.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
-            items(visible,key={"chat-${it.id}"}) {chat->ChatRow(chat){model.open(chat.id)}}
+            items(visible,key={"chat-${it.id}"}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}
             if(query.isNotBlank()) {
                 item {Text("Downloaded message history",style=MaterialTheme.typography.labelLarge)}
                 items(results,key={"result-${it.id}"}) {m->
@@ -93,7 +99,7 @@ import kotlinx.coroutines.flow.collectLatest
             Button(onClick={model.start(p.getString("id"))},enabled=!busy) {Text("Start conversation")}
         }}
         Text("Your conversations",style=MaterialTheme.typography.titleMedium)
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {items(chats,key={it.id}) {chat->ChatRow(chat){model.open(chat.id)}}}
+        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {items(chats,key={it.id}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}}
     }
 }
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
@@ -112,8 +118,12 @@ import kotlinx.coroutines.flow.collectLatest
         val image=Images.prepare(context,uri,account)
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    val display=LocalDisplayOptions.current
+    val sendScale by androidx.compose.animation.core.animateFloatAsState(if(body.isNotBlank())1.04f else 1f,animationSpec=if(display.reducedMotion)androidx.compose.animation.core.tween(0) else androidx.compose.animation.core.spring(stiffness=when(display.animation){"Normal"->400f;"Extra"->250f;else->650f}),label="Send readiness")
     var menu by remember {mutableStateOf(false)}
     var confirmDelete by remember {mutableStateOf(false)}
+    var report by remember {mutableStateOf(false)}
+    var reason by remember {mutableStateOf("")}
     BackHandler {model.closeChat()}
     // Read acknowledgments are emitted only after a foreground conversation frame exists.
     LaunchedEffect(cid,messages.lastOrNull()?.id,foreground) {
@@ -147,7 +157,7 @@ import kotlinx.coroutines.flow.collectLatest
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
-            if(chat!=null) Avatar(chat.name)
+            if(chat!=null) Avatar(chat.name,chat.avatarId,model.backend)
             Column(Modifier.weight(1f).padding(8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
@@ -157,6 +167,7 @@ import kotlinx.coroutines.flow.collectLatest
                         DropdownMenuItem(text={Text(if(c.muted)"Unmute" else "Mute")},onClick={menu=false;model.updateChat(c,muted=!c.muted)})
                         DropdownMenuItem(text={Text("Block contact")},onClick={menu=false;model.block(c.peer,true)})
                         DropdownMenuItem(text={Text("Unblock contact")},onClick={menu=false;model.block(c.peer,false)})
+                        DropdownMenuItem(text={Text("Report contact")},onClick={menu=false;report=true})
                         DropdownMenuItem(text={Text("Delete history for me")},onClick={menu=false;confirmDelete=true})
                     }
                 }
@@ -172,9 +183,10 @@ import kotlinx.coroutines.flow.collectLatest
         Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             IconButton(onClick={picker.launch("image/*")},enabled=!busy) {Icon(Icons.Outlined.AddPhotoAlternate,"Attach image")}
             OutlinedTextField(body,{body=it.take(4000)},label={Text("Message")},modifier=Modifier.weight(1f),shape=Glass.card,maxLines=5)
-            FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(52.dp)) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
+            FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(52.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
         }
     }
+    if(report&&chat!=null) AlertDialog(onDismissRequest={report=false},title={Text("Report contact")},text={Column {Text("Only your explanation is included. No messages are attached.");OutlinedTextField(reason,{reason=it.take(1000)},label={Text("Reason")})}},confirmButton={TextButton(onClick={report=false;model.report(chat.peer,reason)},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick={report=false}) {Text("Cancel")}})
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
         coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
         OutlinedTextField(body,{body=it.take(4000)},label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
@@ -184,6 +196,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable private fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean) {
     val mine=message.sender==message.account
     var expanded by remember(message.id) {mutableStateOf(false)}
+    var truncated by remember(message.id) {mutableStateOf(false)}
     val label=com.pritam.liquidchat.data.Delivery.label(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(shape=Glass.card,color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(mine)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.widthIn(max=320.dp)) {
@@ -192,9 +205,10 @@ import kotlinx.coroutines.flow.collectLatest
                     ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.width(280.dp).aspectRatio(if(message.imageHeight>0) message.imageWidth.toFloat()/message.imageHeight else 1f))
                     Spacer(Modifier.height(8.dp))
                 }
-                Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis)
-                if(message.body.length>700) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
-                if(mine) Text(label,style=MaterialTheme.typography.labelSmall,modifier=Modifier.align(Alignment.End))
+                Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(truncated||expanded) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
+                val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
+                Text(if(mine) "$time · $label" else time,style=MaterialTheme.typography.labelSmall,modifier=Modifier.align(Alignment.End))
                 if(message.status=="FAILED") {Text(message.error,style=MaterialTheme.typography.bodySmall);TextButton(onClick=onRetry) {Text("Retry")}}
             }
         }
@@ -205,6 +219,7 @@ import kotlinx.coroutines.flow.collectLatest
     val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {runCatching {model.repository.loadSettings()}}
     val unsent by model.unsent.collectAsStateWithLifecycle()
+    val display by model.display.collectAsStateWithLifecycle()
     val context=LocalContext.current
     val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
@@ -213,6 +228,8 @@ import kotlinx.coroutines.flow.collectLatest
     }}
     var confirm by remember {mutableStateOf(false)}
     var edit by remember {mutableStateOf(false)}
+    var deleteAccount by remember {mutableStateOf(false)}
+    var password by remember {mutableStateOf("")}
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Text("Settings",style=MaterialTheme.typography.headlineLarge)
@@ -228,6 +245,14 @@ import kotlinx.coroutines.flow.collectLatest
         }
         GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
         GlassCard(Modifier.fillMaxWidth()) {
+            Text("Appearance",style=MaterialTheme.typography.titleMedium)
+            Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
+            Text("Animation level",style=MaterialTheme.typography.labelLarge)
+            Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
+            Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
+            Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
+        }
+        GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
             listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -239,7 +264,14 @@ import kotlinx.coroutines.flow.collectLatest
             }
         }
         OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
+        TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
         Text("Developed by Pritam Pal\n© 2026 Liquid Chat",style=MaterialTheme.typography.bodySmall)
     }
+    if(deleteAccount) AlertDialog(onDismissRequest={deleteAccount=false;password=""},title={Text("Permanently delete account?")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
+        Text("Your profile, sessions, device tokens and owned media will be removed. Sent text remains in the other person's history under Deleted account. $unsent unsent messages will be discarded.")
+        Text("Enter your password to verify. For Google accounts, sign in with Google again, then return here and confirm within five minutes.")
+        PasswordField(password,{password=it},"Password (email accounts)")
+        TextButton(onClick={model.action {val url=model.backend.googleUrl();context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,android.net.Uri.parse(url)))}}) {Text("Verify with Google")}
+    }},confirmButton={TextButton(onClick={model.deleteAccount(password);password="";deleteAccount=false},enabled=!busy) {Text("Delete permanently")}},dismissButton={TextButton(onClick={deleteAccount=false;password=""}) {Text("Cancel")}})
     if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Sign out?")},text={Text(if(unsent>0)"$unsent unsent messages will be discarded. Saved local history, drafts and jobs will be removed from this device." else "Saved local history and account data will be removed from this device.")},confirmButton={TextButton(onClick={confirm=false;model.logout()}) {Text("Sign out")}},dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
 }

@@ -10,7 +10,8 @@ data class Chat(
     val account:String,val id:String,val peer:String,val name:String,val username:String,
     val preview:String="",val lastSeq:Long=0,val unread:Int=0,
     val favorite:Boolean=false,val archived:Boolean=false,val muted:Boolean=false,
-    val syncSeq:Long=0,val deletedSeq:Long=0,val peerDelivered:Long=0,val peerRead:Long=0
+    val syncSeq:Long=0,val deletedSeq:Long=0,val peerDelivered:Long=0,val peerRead:Long=0,
+    @ColumnInfo(defaultValue="''") val lastAt:String="",@ColumnInfo(defaultValue="''") val avatarId:String=""
 )
 @Immutable
 @Entity(tableName="messages",primaryKeys=["account","id"],indices=[Index(value=["account","conversation","seq"])])
@@ -53,6 +54,8 @@ abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }
 
 val Migration1To2=object:androidx.room.migration.Migration(1,2) {
     override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE chats ADD COLUMN lastAt TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE chats ADD COLUMN avatarId TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE messages ADD COLUMN mediaId TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE messages ADD COLUMN localImage TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE messages ADD COLUMN imageWidth INTEGER NOT NULL DEFAULT 0")

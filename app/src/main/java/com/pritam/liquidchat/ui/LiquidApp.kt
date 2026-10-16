@@ -14,6 +14,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 
 @Composable fun LiquidApp(model: AppViewModel) {
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val permission=androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
+    val display by model.display.collectAsStateWithLifecycle()
     val chats by model.chats.collectAsStateWithLifecycle()
     val active by model.active.collectAsStateWithLifecycle()
     val ready by model.ready.collectAsStateWithLifecycle()
@@ -26,8 +29,16 @@ import com.pritam.liquidchat.AppViewModel
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(notice) { notice?.let {snackbar.showSnackbar(it);model.clearNotice()} }
 
+    LaunchedEffect(session?.userId,loaded) {
+        if(session!=null&&loaded&&profile!=null&&android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(context).isNotEmpty()) {
+            val prefs=context.getSharedPreferences("device",android.content.Context.MODE_PRIVATE)
+            if(!prefs.getBoolean("asked_notifications",false)) {prefs.edit().putBoolean("asked_notifications",true).apply();permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)}
+        }
+    }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    LiquidTheme {
+    val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
+    CompositionLocalProvider(LocalDisplayOptions provides display) {
+    LiquidTheme(dark) {
         Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=MaterialTheme.colorScheme.background, bottomBar={
             if(session!=null && loaded && profile!=null && !recovery && active==null) NavigationBar(containerColor=MaterialTheme.colorScheme.surface, modifier=Modifier.navigationBarsPadding()) {
                 listOf("Chats", "Contacts", "Settings").forEachIndexed { i,title ->
@@ -45,5 +56,6 @@ import com.pritam.liquidchat.AppViewModel
                 when(tab) {0->ChatsScreen(model,chats);1->ContactsScreen(model,chats,busy);else->SettingsScreen(model,busy)}
             }
         }
+    }
     }
 }

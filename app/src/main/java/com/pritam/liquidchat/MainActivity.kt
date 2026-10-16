@@ -14,6 +14,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         intent?.data?.let(model::callback)
+        intent?.getStringExtra("conversationId")?.let {model.open(it)}
         setContent { LiquidApp(model) }
     }
     override fun onStart() {super.onStart();model.repository.foreground.value=true}
@@ -22,5 +23,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intent.data?.let(model::callback)
+        intent.getStringExtra("conversationId")?.let {model.open(it)}
     }
 }

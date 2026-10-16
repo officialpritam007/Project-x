@@ -41,3 +41,14 @@ No milestone is release-certified until the PRD device gates have passed.
 - Durable local image queue, caption preview, retry and aspect-ratio reservation; profile photo edit/remove.
 - Media Edge Function deployed, but intentionally returns 503 until Cloudinary secrets are configured. No public-media workaround.
 - Authorization regression tests passed for hidden presence and nonparticipant image denial. Real Cloudinary access/expiry tests remain blocked on secrets.
+
+## Step 4b — Trusted push and account lifecycle
+- FCM data-message receiver, exact foreground-conversation suppression, permission handling and stable notification IDs.
+- Durable Postgres notification outbox, leases, bounded retry, mute/block checks, invalid-token removal, immediate authenticated dispatch plus a Vault-authenticated five-minute cron.
+- Account erasure requires a session created in the last five minutes. Access is disabled immediately; owned images and Auth identity are removed through tracked jobs. Recipient text copies retain an anonymized sender.
+- Restricted report queue; reports include only explanation unless explicitly selected IDs are passed.
+- Revoked Auth sessions are rejected in both RPCs and table RLS. No service credentials enter the APK.
+- System/light/dark appearance, reduced effects, motion options, 200%-text-friendly filters, image dimensions reserved before download.
+- Abandoned upload cleanup is scheduled every 30 minutes only when work exists.
+- Database authorization tests passed for erasure, recent reauthentication, report isolation and dispatcher denial.
+- Cloudinary/FCM runtime tests remain blocked on owner-provided secrets/configuration; Google/email require dashboard setup. See BACKEND_SETUP.md.

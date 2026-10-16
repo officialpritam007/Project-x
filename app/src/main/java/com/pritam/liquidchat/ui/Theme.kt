@@ -25,7 +25,7 @@ private val Dark = darkColorScheme(primary=Color(0xFFA5C5FF), background=Color(0
 }
 /** Tinted fallback: avoids nested live blur and keeps text contrast predictable. */
 @Composable fun GlassCard(modifier: Modifier=Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier, shape=Glass.card, color=MaterialTheme.colorScheme.surface.copy(alpha=.96f), border=BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shadowElevation=2.dp) {
+    Surface(modifier, shape=Glass.card, color=MaterialTheme.colorScheme.surface.copy(alpha=if(LocalDisplayOptions.current.reducedTransparency)1f else .96f), border=BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shadowElevation=2.dp) {
         Column(Modifier.padding(20.dp), content=content)
     }
 }
