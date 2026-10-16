@@ -25,6 +25,7 @@ class LiquidMessagingService:FirebaseMessagingService() {
         val input=Data.Builder();data.forEach {(key,value)->input.putString(key,value)}
         data["token"]?.let {getSharedPreferences("device",Context.MODE_PRIVATE).edit().putString("fcm_token",it).apply()}
         val request=OneTimeWorkRequestBuilder<ReceiveWorker>().setInputData(input.build()).setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+        if(data.containsKey("token"))request.addTag("device-registration")
         data["recipientId"]?.let {request.addTag("account-$it")}
         WorkManager.getInstance(this).enqueue(request.build())
     }
@@ -35,7 +36,7 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         app.backend.restore()
         val account=app.backend.session.value?.userId ?: return Result.success()
         inputData.getString("token")?.let {token->
-            return try {app.backend.rpc("register_device",org.json.JSONObject().put("p_token",token));Result.success()}catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
+            return try {app.backend.registerDevice(token);Result.success()}catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
         }
         if(inputData.getString("recipientId")!=account)return Result.success()
         val cid=inputData.getString("conversationId") ?: return Result.failure()

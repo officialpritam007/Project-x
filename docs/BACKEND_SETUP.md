@@ -52,4 +52,10 @@ CI can prove compilation/lint and the small unit suite; the SQL suite proves the
 
 Before release, complete two physical-device journeys, offline/process-death/outbox/Room migration checks, real Cloudinary expiry, FCM delivery, real SMTP/Google flows, account erasure with owned media, TalkBack, 200% text, gesture/keyboard layouts and low-memory frame profiling. Confirm the remaining PRD policy defaults and current Play target SDK requirements. No P1 work is release-enabled.
 
-Development gaps to close during hardening: a dedicated contact-details/shared-media screen, fullscreen media viewer, saved contacts independent of conversations, device-tested loading/permission states and measured quota degradation behavior. The current glass treatment uses a tinted, readable fallback rather than nested backdrop blurs.
+The implemented contact-details/shared-media dialog and full-screen viewer operate on downloaded images. Saved contacts are stored independently of conversations. Remaining hardening work requires device-tested loading/permission states and measured quota degradation behavior. The current glass treatment uses a tinted, readable fallback rather than nested backdrop blurs.
+
+
+## Debug APK updates
+CI caches its generated development signing key. For durable signing across cache eviction, supply an owner-controlled `DEBUG_KEYSTORE_BASE64` GitHub Actions secret using the Android debug alias/password convention. A provided private key is never included in the public cache. Never use a production release key for debug APKs. Early APKs built before this cache setup may require uninstalling before an update; export/send pending messages first. Production signing and Play distribution are separate release work.
+
+The project is bound to the existing project URL/public key. To deploy elsewhere, update `Backend.kt` and project URLs/keys in cron migrations explicitly. Do not rerun already-applied migrations against the current database.

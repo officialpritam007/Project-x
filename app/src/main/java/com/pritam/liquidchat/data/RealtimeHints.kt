@@ -24,7 +24,7 @@ class RealtimeHints {
                 val j=runCatching {JSONObject(text)}.getOrNull() ?: return
                 when(j.optString("event")) {
                     "postgres_changes"->trySend(Unit)
-                    "phx_reply"->if(j.optJSONObject("payload")?.optString("status")=="ok") trySend(Unit)
+                    "phx_reply"->if(j.optString("topic")==topic && j.optJSONObject("payload")?.optString("status")=="ok") trySend(Unit)
                     "phx_error","phx_close"->close()
                 }
             }

@@ -8,6 +8,7 @@ android {
     namespace = "com.pritam.liquidchat"
     compileSdk = 35
     defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         applicationId = "com.pritam.liquidchat"
         minSdk = 29
         targetSdk = 35
@@ -15,8 +16,8 @@ android {
         buildConfigField("String","FCM_PROJECT_ID", "\"" + (System.getenv("FCM_PROJECT_ID") ?: "") + "\"")
         buildConfigField("String","FCM_API_KEY", "\"" + (System.getenv("FCM_API_KEY") ?: "") + "\"")
         buildConfigField("String","FCM_SENDER_ID", "\"" + (System.getenv("FCM_SENDER_ID") ?: "") + "\"")
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -40,5 +41,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.google.firebase:firebase-messaging:24.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
     testImplementation("junit:junit:4.13.2")
 }

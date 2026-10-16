@@ -4,7 +4,8 @@ const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data)
 Deno.serve(async req => {
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
   try {
-    const text = await req.text(); if (text.length > 4096) return reply({ error: "Invalid request" }, 400);
+    const reader = req.body?.getReader(); let text = "";
+    if (reader) while (true) { const { value, done } = await reader.read(); if (done) break; text += new TextDecoder().decode(value); if (text.length > 4096) { await reader.cancel(); return reply({ error: "Invalid request" }, 400); } }
     const body = JSON.parse(text);
     if (typeof body.cron_secret !== "string") return reply({ error: "Unauthorized" }, 401);
     const { data: expected, error } = await admin.rpc("dispatch_secret");

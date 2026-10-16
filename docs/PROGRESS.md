@@ -52,3 +52,13 @@ No milestone is release-certified until the PRD device gates have passed.
 - Abandoned upload cleanup is scheduled every 30 minutes only when work exists.
 - Database authorization tests passed for erasure, recent reauthentication, report isolation and dispatcher denial.
 - Cloudinary/FCM runtime tests remain blocked on owner-provided secrets/configuration; Google/email require dashboard setup. See BACKEND_SETUP.md.
+
+
+## Step 5 — Hardening and reviewable beta
+- Completed saved contacts, contact details, downloaded shared-media entry and full-screen image viewer.
+- Queued messages update the cached chat preview immediately; snapshots retain pending previews.
+- Added Room v1→v2→v3 migrations, account isolation, outbox ID/failure, sync-cursor gap, deletion watermark, literal-search and Keystore instrumentation tests.
+- Fixed a lint failure caused by reading StateFlow.value during composition; refreshes now observe lifecycle state.
+- Fixed heartbeat replies causing redundant history refreshes and serialized device registration with logout to prevent token reattachment races.
+- SQL tests passed after contacts and avatar-access corrections; security advisor returned zero findings. Four live Edge endpoints rejected anonymous requests with HTTP 401.
+- CI and emulator results for this final step are recorded after the run completes. Physical-device performance/acceptance and external credential setup remain release blockers.

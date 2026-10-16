@@ -10,6 +10,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 
@@ -19,6 +23,8 @@ import com.pritam.liquidchat.AppViewModel
     val display by model.display.collectAsStateWithLifecycle()
     val chats by model.chats.collectAsStateWithLifecycle()
     val active by model.active.collectAsStateWithLifecycle()
+    val logoutPrompt by model.logoutPrompt.collectAsStateWithLifecycle()
+    val unsent by model.unsent.collectAsStateWithLifecycle()
     val ready by model.ready.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
     val profile by model.profile.collectAsStateWithLifecycle()
@@ -39,11 +45,14 @@ import com.pritam.liquidchat.AppViewModel
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
-        Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=MaterialTheme.colorScheme.background, bottomBar={
-            if(session!=null && loaded && profile!=null && !recovery && active==null) NavigationBar(containerColor=MaterialTheme.colorScheme.surface, modifier=Modifier.navigationBarsPadding()) {
+        if(logoutPrompt) AlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
+        Scaffold(modifier=Modifier.background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha=.45f),MaterialTheme.colorScheme.background))),snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
+            if(session!=null && loaded && profile!=null && !recovery && active==null) Surface(modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp).navigationBarsPadding(),shape=Glass.capsule,color=MaterialTheme.colorScheme.surface.copy(alpha=if(display.reducedTransparency)1f else .88f),border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant),shadowElevation=8.dp) {
+              NavigationBar(containerColor=Color.Transparent,tonalElevation=0.dp,modifier=Modifier.heightIn(min=if(androidx.compose.ui.platform.LocalDensity.current.fontScale>1.6f)112.dp else 80.dp)) {
                 listOf("Chats", "Contacts", "Settings").forEachIndexed { i,title ->
                     NavigationBarItem(selected=tab==i, onClick={tab=i}, icon={ Icon(listOf(Icons.Outlined.ChatBubbleOutline,Icons.Outlined.PeopleOutline,Icons.Outlined.Settings)[i], title) }, label={Text(title)})
                 }
+              }
             }
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }

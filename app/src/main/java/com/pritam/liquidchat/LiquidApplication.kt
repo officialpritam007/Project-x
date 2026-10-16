@@ -18,12 +18,12 @@ class LiquidApplication : Application() {
             scope.launch {
                 backend.restore()
                 backend.session.map {it?.userId}.distinctUntilChanged().collectLatest {id->
-                    if(id!=null) runCatching {val token=com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await();getSharedPreferences("device",MODE_PRIVATE).edit().putString("fcm_token",token).apply();backend.rpc("register_device",org.json.JSONObject().put("p_token",token))}
+                    if(id!=null) runCatching {val token=com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await();getSharedPreferences("device",MODE_PRIVATE).edit().putString("fcm_token",token).apply();backend.registerDevice(token)}
                 }
             }
         }
     }
-    val database by lazy { androidx.room.Room.databaseBuilder(this,com.pritam.liquidchat.data.LocalDatabase::class.java,"liquid-chat-v1.db").addMigrations(com.pritam.liquidchat.data.Migration1To2).build() }
+    val database by lazy { androidx.room.Room.databaseBuilder(this,com.pritam.liquidchat.data.LocalDatabase::class.java,"liquid-chat-v1.db").addMigrations(com.pritam.liquidchat.data.Migration1To2,com.pritam.liquidchat.data.Migration2To3).build() }
     val repository by lazy { com.pritam.liquidchat.data.ChatRepository(this,backend,database) }
     val backend by lazy { Backend(SessionStore(this)) }
 }

@@ -11,7 +11,7 @@ data class Chat(
     val preview:String="",val lastSeq:Long=0,val unread:Int=0,
     val favorite:Boolean=false,val archived:Boolean=false,val muted:Boolean=false,
     val syncSeq:Long=0,val deletedSeq:Long=0,val peerDelivered:Long=0,val peerRead:Long=0,
-    @ColumnInfo(defaultValue="''") val lastAt:String="",@ColumnInfo(defaultValue="''") val avatarId:String=""
+    @ColumnInfo(defaultValue="''") val lastAt:String="",@ColumnInfo(defaultValue="''") val avatarId:String="",@ColumnInfo(defaultValue="0") val pendingAt:Long=0
 )
 @Immutable
 @Entity(tableName="messages",primaryKeys=["account","id"],indices=[Index(value=["account","conversation","seq"])])
@@ -21,11 +21,17 @@ data class Message(
     val status:String="QUEUED",val attempts:Int=0,val error:String="",
     @ColumnInfo(defaultValue="''") val mediaId:String="",@ColumnInfo(defaultValue="''") val localImage:String="",@ColumnInfo(defaultValue="0") val imageWidth:Int=0,@ColumnInfo(defaultValue="0") val imageHeight:Int=0
 )
+@Immutable
+@Entity(tableName="contacts",primaryKeys=["account","id"])
+data class Contact(val account:String,val id:String,val name:String,val username:String,val avatarId:String="",val bio:String="")
 @Entity(tableName="cached_profile",primaryKeys=["account"])
 data class CachedProfile(val account:String,val json:String)
 
 @Dao interface ChatDao {
-    @Query("select * from chats where account=:account order by lastSeq desc,id desc") fun chats(account:String):Flow<List<Chat>>
+    @Query("select * from contacts where account=:account order by name,id") fun contacts(account:String):Flow<List<Contact>>
+    @Query("delete from contacts where account=:account") suspend fun clearContacts(account:String)
+    @Upsert suspend fun putContacts(contacts:List<Contact>)
+    @Query("select * from chats where account=:account order by pendingAt desc,lastSeq desc,id desc") fun chats(account:String):Flow<List<Chat>>
     @Query("select * from chats where account=:account") suspend fun allChats(account:String):List<Chat>
     @Query("select * from chats where account=:account and id=:id") suspend fun chat(account:String,id:String):Chat?
     @Query("update chats set syncSeq=:seq where account=:account and id=:cid") suspend fun syncCursor(account:String,cid:String,seq:Long)
@@ -34,6 +40,8 @@ data class CachedProfile(val account:String,val json:String)
     @Query("select * from messages where account=:account and conversation=:cid order by case when seq=0 then 1 else 0 end, seq,localTime,id") fun messages(account:String,cid:String):Flow<List<Message>>
     @Query("select * from messages where account=:account and status in ('QUEUED','SENDING') order by localTime,id") suspend fun pending(account:String):List<Message>
     @Query("select count(*) from messages where account=:account and status in ('QUEUED','SENDING','FAILED')") fun unsent(account:String):Flow<Int>
+    @Query("update chats set preview=:preview,pendingAt=:time where account=:account and id=:cid") suspend fun pendingPreview(account:String,cid:String,preview:String,time:Long)
+    @Query("select * from messages where account=:account and conversation=:cid and status!='SENT' order by localTime desc,id desc limit 1") suspend fun latestUnsent(account:String,cid:String):Message?
     @Query("select * from messages where account=:account and id=:id") suspend fun message(account:String,id:String):Message?
     @Upsert suspend fun put(message:Message)
     @Upsert suspend fun putAll(messages:List<Message>)
@@ -49,7 +57,7 @@ data class CachedProfile(val account:String,val json:String)
     @Query("delete from chats where account=:account") suspend fun clearChats(account:String)
     @Query("delete from cached_profile where account=:account") suspend fun clearProfile(account:String)
 }
-@Database(entities=[Chat::class,Message::class,CachedProfile::class],version=2,exportSchema=false)
+@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class],version=3,exportSchema=false)
 abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }
 
 val Migration1To2=object:androidx.room.migration.Migration(1,2) {
@@ -60,5 +68,12 @@ val Migration1To2=object:androidx.room.migration.Migration(1,2) {
         db.execSQL("ALTER TABLE messages ADD COLUMN localImage TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE messages ADD COLUMN imageWidth INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE messages ADD COLUMN imageHeight INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val Migration2To3=object:androidx.room.migration.Migration(2,3) {
+    override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS contacts (account TEXT NOT NULL,id TEXT NOT NULL,name TEXT NOT NULL,username TEXT NOT NULL,avatarId TEXT NOT NULL,bio TEXT NOT NULL,PRIMARY KEY(account,id))")
+        db.execSQL("ALTER TABLE chats ADD COLUMN pendingAt INTEGER NOT NULL DEFAULT 0")
     }
 }

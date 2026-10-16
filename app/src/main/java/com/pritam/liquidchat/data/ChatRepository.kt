@@ -59,6 +59,13 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     fun refresh() {signals.tryEmit(Unit)}
     private fun account()=backend.session.value?.userId ?: throw IOException("Please sign in.")
     private fun checkAccount(expected:String) {if(backend.session.value?.userId!=expected) throw CancellationException("Account changed")}
+    fun contacts()=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id->if(id==null)flowOf(emptyList()) else dao.contacts(id).distinctUntilChanged()}
+    suspend fun loadContacts() {
+        val id=account();val a=JSONArray(backend.rpc("list_contacts"))
+        val contacts=(0 until a.length()).map {i->val j=a.getJSONObject(i);Contact(id,j.getString("id"),j.getString("display_name"),j.getString("username"),if(j.isNull("avatar_id"))"" else j.optString("avatar_id"),j.optString("bio"))}
+        checkAccount(id);db.withTransaction {dao.clearContacts(id);dao.putContacts(contacts)}
+    }
+    suspend fun saveContact(peer:String,saved:Boolean) {backend.rpc("save_contact",JSONObject().put("p_peer",peer).put("p_saved",saved));loadContacts()}
     fun chats()=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id-> if(id==null) flowOf(emptyList()) else dao.chats(id).distinctUntilChanged()}
     fun messages(cid:String)=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id->if(id==null) flowOf(emptyList()) else dao.messages(id,cid).distinctUntilChanged()}
     fun unsent()=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id->if(id==null) flowOf(0) else dao.unsent(id).distinctUntilChanged()}
@@ -73,11 +80,11 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         do {
             val page=JSONArray(backend.rpc("list_chats",JSONObject().put("p_before_seq",before).put("p_before_id",beforeId)))
             for(i in 0 until page.length()) {
-                val j=page.getJSONObject(i);val id=j.getString("id");val old=dao.chat(account,id)
+                val j=page.getJSONObject(i);val id=j.getString("id");val old=dao.chat(account,id);val pending=dao.latestUnsent(account,id)
                 chats+=Chat(account,id,if(j.getString("user_a")==account)j.getString("user_b") else j.getString("user_a"),j.getString("display_name"),j.getString("username"),
-                    if(j.isNull("preview")) "" else j.getString("preview"),j.getLong("last_seq"),j.getInt("unread"),j.getBoolean("favorite"),j.getBoolean("archived"),j.getBoolean("muted"),
+                    pending?.let {"${it.status.lowercase().replaceFirstChar {it.uppercase()}}: ${it.body.take(160)}"} ?: if(j.isNull("preview")) "" else j.getString("preview"),j.getLong("last_seq"),j.getInt("unread"),j.getBoolean("favorite"),j.getBoolean("archived"),j.getBoolean("muted"),
                     old?.syncSeq ?: 0,j.getLong("deleted_seq"),j.getLong("peer_delivered_seq"),j.getLong("peer_read_seq"),
-                    if(j.isNull("last_at"))"" else j.optString("last_at"),if(j.isNull("avatar_id"))"" else j.optString("avatar_id"))
+                    if(j.isNull("last_at"))"" else j.optString("last_at"),if(j.isNull("avatar_id"))"" else j.optString("avatar_id"),pending?.localTime ?: 0)
             }
             if(page.length()<100) break
             val last=page.getJSONObject(page.length()-1);before=last.getLong("last_seq");beforeId=last.getString("id")
@@ -131,12 +138,14 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun send(cid:String,body:String) {
         require(body.isNotBlank() && body.length<=4000)
         val account=account()
-        dao.put(Message(account,UUID.randomUUID().toString(),cid,account,body.trim()))
+        val message=Message(account,UUID.randomUUID().toString(),cid,account,body.trim())
+        db.withTransaction {dao.put(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)}
         enqueue(account)
     }
     suspend fun sendImage(cid:String,image:Images.Prepared,caption:String) {
         val account=account()
-        dao.put(Message(account,UUID.randomUUID().toString(),cid,account,caption.ifBlank {"Photo"},localImage=image.file.absolutePath,imageWidth=image.width,imageHeight=image.height))
+        val message=Message(account,UUID.randomUUID().toString(),cid,account,caption.ifBlank {"Photo"},localImage=image.file.absolutePath,imageWidth=image.width,imageHeight=image.height)
+        db.withTransaction {dao.put(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)}
         enqueue(account)
     }
     suspend fun retry(id:String) {
@@ -202,7 +211,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun clearAccount(account:String) {
         active.value=null;contactState.value=JSONObject();privateSettings.value=JSONObject()
         WorkManager.getInstance(context).cancelAllWorkByTag("account-$account")
-        syncMutex.withLock {drainMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearProfile(account)}}}
+        syncMutex.withLock {drainMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account)}}}
         java.io.File(context.filesDir,"media/$account").deleteRecursively()
         coil.Coil.imageLoader(context).memoryCache?.clear()
     }

@@ -26,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +39,7 @@ import com.pritam.liquidchat.data.Message
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null) {
-    Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer,CircleShape),contentAlignment=Alignment.Center) {
+    Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer,CircleShape),contentAlignment=Alignment.Center) {
         if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
         else Text(name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.onPrimaryContainer)
     }
@@ -89,6 +90,8 @@ import kotlinx.coroutines.flow.collectLatest
 }
 @Composable fun ContactsScreen(model:AppViewModel,chats:List<Chat>,busy:Boolean) {
     var username by rememberSaveable {mutableStateOf("")}
+    val contacts by model.contacts.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {model.action {model.repository.loadContacts()}}
     val found by model.found.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         Text("Contacts",style=MaterialTheme.typography.headlineLarge)
@@ -96,10 +99,26 @@ import kotlinx.coroutines.flow.collectLatest
         Button(onClick={model.find(username)},enabled=!busy&&username.matches(Regex("[a-z0-9_]{3,24}")),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Find contact")}
         found?.let {p->GlassCard(Modifier.fillMaxWidth()) {
             Text(p.optString("display_name"),style=MaterialTheme.typography.titleLarge);Text("@${p.optString("username")}")
-            Button(onClick={model.start(p.getString("id"))},enabled=!busy) {Text("Start conversation")}
+            Row {Button(onClick={model.start(p.getString("id"))},enabled=!busy) {Text("Start chat")};TextButton(onClick={model.action {model.repository.saveContact(p.getString("id"),true)}},enabled=!busy) {Text("Save contact")}}
+
         }}
-        Text("Your conversations",style=MaterialTheme.typography.titleMedium)
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {items(chats,key={it.id}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}}
+        Text("Saved contacts",style=MaterialTheme.typography.titleMedium)
+        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            if(contacts.isEmpty()) item {Text("Find someone by username and save them here.")}
+            items(contacts,key={"contact-${it.id}"}) {contact->
+                Surface(shape=Glass.card,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+                        Row(Modifier.weight(1f).clickable {val chat=chats.firstOrNull {it.peer==contact.id};if(chat!=null)model.open(chat.id) else model.start(contact.id)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                            Avatar(contact.name,contact.avatarId,model.backend)
+                            Column {Text(contact.name,style=MaterialTheme.typography.titleMedium);Text("@${contact.username}",style=MaterialTheme.typography.bodySmall)}
+                        }
+                        TextButton(onClick={model.action {model.repository.saveContact(contact.id,false)}},enabled=!busy) {Text("Remove")}
+                    }
+                }
+            }
+            item {Text("Recent conversations",style=MaterialTheme.typography.titleMedium)}
+            items(chats,key={"recent-${it.id}"}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}
+        }
     }
 }
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
@@ -123,6 +142,7 @@ import kotlinx.coroutines.flow.collectLatest
     var menu by remember {mutableStateOf(false)}
     var confirmDelete by remember {mutableStateOf(false)}
     var report by remember {mutableStateOf(false)}
+    var details by remember {mutableStateOf(false)}
     var reason by remember {mutableStateOf("")}
     BackHandler {model.closeChat()}
     // Read acknowledgments are emitted only after a foreground conversation frame exists.
@@ -157,11 +177,12 @@ import kotlinx.coroutines.flow.collectLatest
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
-            if(chat!=null) Avatar(chat.name,chat.avatarId,model.backend)
+            if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
             Column(Modifier.weight(1f).padding(8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
                     chat?.let { c->
+                        DropdownMenuItem(text={Text("Contact details & shared media")},onClick={menu=false;details=true})
                         DropdownMenuItem(text={Text(if(c.favorite)"Remove favorite" else "Favorite")},onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
                         DropdownMenuItem(text={Text(if(c.archived)"Unarchive" else "Archive")},onClick={menu=false;model.updateChat(c,archived=!c.archived)})
                         DropdownMenuItem(text={Text(if(c.muted)"Unmute" else "Mute")},onClick={menu=false;model.updateChat(c,muted=!c.muted)})
@@ -186,6 +207,13 @@ import kotlinx.coroutines.flow.collectLatest
             FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(52.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
         }
     }
+    if(details&&chat!=null) AlertDialog(onDismissRequest={details=false},title={Text(chat.name)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Avatar(chat.name,chat.avatarId,model.backend);Text("@${chat.username}")
+        TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}},enabled=!busy) {Text("Save contact")}
+        Text("Downloaded shared images",style=MaterialTheme.typography.titleMedium)
+        messages.filter {it.mediaId.isNotEmpty()}.forEach {m->ImagePreview(model,m)}
+        if(messages.none {it.mediaId.isNotEmpty()})Text("No downloaded shared images.")
+    }},confirmButton={TextButton(onClick={details=false}) {Text("Done")}})
     if(report&&chat!=null) AlertDialog(onDismissRequest={report=false},title={Text("Report contact")},text={Column {Text("Only your explanation is included. No messages are attached.");OutlinedTextField(reason,{reason=it.take(1000)},label={Text("Reason")})}},confirmButton={TextButton(onClick={report=false;model.report(chat.peer,reason)},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick={report=false}) {Text("Cancel")}})
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
         coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
@@ -202,7 +230,7 @@ import kotlinx.coroutines.flow.collectLatest
         Surface(shape=Glass.card,color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(mine)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.widthIn(max=320.dp)) {
             Column(Modifier.padding(horizontal=16.dp,vertical=12.dp)) {
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
-                    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.width(280.dp).aspectRatio(if(message.imageHeight>0) message.imageWidth.toFloat()/message.imageHeight else 1f))
+                    ImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
                 Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
@@ -217,7 +245,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
     val profile by model.profile.collectAsStateWithLifecycle()
     val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) {runCatching {model.repository.loadSettings()}}
+    LaunchedEffect(Unit) {model.action {model.repository.loadSettings()}}
     val unsent by model.unsent.collectAsStateWithLifecycle()
     val display by model.display.collectAsStateWithLifecycle()
     val context=LocalContext.current
@@ -235,7 +263,7 @@ import kotlinx.coroutines.flow.collectLatest
         Text("Settings",style=MaterialTheme.typography.headlineLarge)
         GlassCard(Modifier.fillMaxWidth()) {
             val avatar=profile?.optString("avatar_id")
-            if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp),scale=androidx.compose.ui.layout.ContentScale.Crop)
+            if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
             else Avatar(profile?.optString("display_name").orEmpty())
             Spacer(Modifier.height(12.dp))
             Text(profile?.optString("display_name").orEmpty(),style=MaterialTheme.typography.titleLarge)
@@ -254,6 +282,7 @@ import kotlinx.coroutines.flow.collectLatest
         }
         GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
+            if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
             listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Text(label,Modifier.weight(1f))
@@ -273,5 +302,18 @@ import kotlinx.coroutines.flow.collectLatest
         PasswordField(password,{password=it},"Password (email accounts)")
         TextButton(onClick={model.action {val url=model.backend.googleUrl();context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,android.net.Uri.parse(url)))}}) {Text("Verify with Google")}
     }},confirmButton={TextButton(onClick={model.deleteAccount(password);password="";deleteAccount=false},enabled=!busy) {Text("Delete permanently")}},dismissButton={TextButton(onClick={deleteAccount=false;password=""}) {Text("Cancel")}})
-    if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Sign out?")},text={Text(if(unsent>0)"$unsent unsent messages will be discarded. Saved local history, drafts and jobs will be removed from this device." else "Saved local history and account data will be removed from this device.")},confirmButton={TextButton(onClick={confirm=false;model.logout()}) {Text("Sign out")}},dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
+    if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Sign out?")},text={Text(if(unsent>0)"$unsent unsent messages will be discarded. Saved local history, drafts and jobs will be removed from this device." else "Saved local history and account data will be removed from this device.")},confirmButton={TextButton(onClick={confirm=false;model.finishLogout()}) {Text("Sign out")}},dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
+}
+
+@Composable private fun ImagePreview(model:AppViewModel,message:Message) {
+    var open by remember(message.id) {mutableStateOf(false)}
+    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.width(280.dp).aspectRatio(if(message.imageHeight>0)message.imageWidth.toFloat()/message.imageHeight else 1f).clickable {open=true})
+    if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+        Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
+            Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
+                TextButton(onClick={open=false}) {Text("Close image")}
+                ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.weight(1f).fillMaxWidth())
+            }
+        }
+    }
 }

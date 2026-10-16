@@ -24,6 +24,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     val backend: Backend=(app as LiquidApplication).backend
     val repository=(app as LiquidApplication).repository
+    val contacts=repository.contacts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val chats=repository.chats().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val messages=repository.active.flatMapLatest {if(it==null) flowOf(emptyList()) else repository.messages(it)}.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val active=repository.active.asStateFlow()
@@ -116,17 +117,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val result=JSONObject(backend.request("/functions/v1/account","POST",JSONObject().put("action","delete")))
         backend.forgetLocal();repository.clearAccount(current.userId)
         getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
+        androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
+        getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()
         _notice.value=if(result.optBoolean("pending"))"Account deletion requested. Media cleanup continues in the background." else "Your account has been deleted."
     }
-    fun logout()=action {
+    val logoutPrompt=MutableStateFlow(false)
+    fun dismissLogout() {logoutPrompt.value=false}
+    fun logout() {if(unsent.value>0)logoutPrompt.value=true else finishLogout()}
+    fun finishLogout()=action {
+        logoutPrompt.value=false
         val id=session.value?.userId
-        if(com.google.firebase.FirebaseApp.getApps(getApplication()).isNotEmpty()) {
-            val token=getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).getString("fcm_token",null)
-            if(token!=null) backend.rpc("register_device",JSONObject().put("p_token",token).put("p_remove",true))
-        }
         backend.logout()
         if(id!=null)repository.clearAccount(id)
         getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
+        androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
+        getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()
         found.value=null;searchResults.value=emptyList();focusMessage.value=null
     }
 }

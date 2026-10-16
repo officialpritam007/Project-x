@@ -30,6 +30,7 @@ class Backend(private val store: SessionStore) {
     }
     private val http = OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS).build()
     private val authMutex = Mutex()
+    private val deviceMutex=Mutex()
     private val _session = MutableStateFlow<Session?>(null)
     val session = _session.asStateFlow()
     private val _recovery = MutableStateFlow(false)
@@ -141,14 +142,21 @@ class Backend(private val store: SessionStore) {
             JSONObject(body)
         }
     }
-    suspend fun forgetLocal()=withContext(Dispatchers.IO) {authMutex.withLock {
-        store.write("session",null);store.write("pkce",null);_session.value=null;_recovery.value=false
-    }}
-    suspend fun logout() = withContext(Dispatchers.IO) {
+    suspend fun registerDevice(token:String,remove:Boolean=false)=deviceMutex.withLock {
+        rpc("register_device",JSONObject().put("p_token",token).put("p_remove",remove))
+        withContext(Dispatchers.IO) {store.write("device_token",if(remove)null else token)}
+    }
+    suspend fun forgetLocal()=deviceMutex.withLock {withContext(Dispatchers.IO) {authMutex.withLock {
+        store.write("session",null);store.write("pkce",null);store.write("device_token",null);_session.value=null;_recovery.value=false
+    }}}
+    suspend fun logout() = deviceMutex.withLock {withContext(Dispatchers.IO) {
         val expected=_session.value?.let {validSession(it)}
         authMutex.withLock {
-            if(expected!=null && _session.value?.userId==expected.userId) raw("/auth/v1/logout","POST",null,expected.access)
-            store.write("session",null);store.write("pkce",null);_session.value=null;_recovery.value=false
+            if(expected!=null && _session.value?.userId==expected.userId) {
+                store.read("device_token")?.let {token->raw("/rest/v1/rpc/register_device","POST",JSONObject().put("p_token",token).put("p_remove",true),expected.access)}
+                raw("/auth/v1/logout","POST",null,expected.access)
+            }
+            store.write("session",null);store.write("pkce",null);store.write("device_token",null);_session.value=null;_recovery.value=false
         }
-    }
+    }}
 }

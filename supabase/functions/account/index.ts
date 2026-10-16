@@ -18,15 +18,18 @@ async function processJob(id: string | null) {
   }
   const { data: remaining } = await admin.rpc("deletion_batch", { p_job: job.id });
   if (remaining?.images.length) return false;
-  const { error: eraseError } = await admin.auth.admin.deleteUser(job.user_id);
-  if (eraseError && eraseError.code !== "user_not_found") return false;
+  if (remaining?.auth_exists) {
+    const { error: eraseError } = await admin.auth.admin.deleteUser(job.user_id);
+    if (eraseError && eraseError.code !== "user_not_found") return false;
+  }
   const { data: done, error: doneError } = await admin.rpc("finish_deletion", { p_job: job.id });
   return !doneError && done === true;
 }
 Deno.serve(async req => {
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
   try {
-    const raw = await req.text(); if (raw.length > 4096) return reply({ error: "Invalid request" }, 400);
+    const reader = req.body?.getReader(); let raw = "";
+    if (reader) while (true) { const { value, done } = await reader.read(); if (done) break; raw += new TextDecoder().decode(value); if (raw.length > 4096) { await reader.cancel(); return reply({ error: "Invalid request" }, 400); } }
     const body = JSON.parse(raw || "{}");
     if (typeof body.cron_secret === "string") {
       const { data: secret, error } = await admin.rpc("dispatch_secret");

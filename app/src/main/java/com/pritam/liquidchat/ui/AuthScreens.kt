@@ -76,7 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
         OutlinedTextField(username,{username=it.lowercase().take(24)},label={Text("Unique username")},supportingText={Text("3–24 lowercase letters, numbers or underscores")},singleLine=true,modifier=Modifier.fillMaxWidth(),shape=Glass.compact)
         OutlinedTextField(bio,{bio=it.take(160)},label={Text("Bio (optional)")},modifier=Modifier.fillMaxWidth(),shape=Glass.compact)
         Button(onClick={model.saveProfile(username,name,bio)},enabled=!busy&&name.isNotBlank()&&username.matches(Regex("[a-z0-9_]{3,24}")),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text(if(busy) "Saving…" else "Continue")}
-        TextButton(onClick=model::logout,enabled=!busy) {Text("Sign out")}
+        if(profile==null) TextButton(onClick=model::logout,enabled=!busy) {Text("Sign out")}
     }
 }
 @Composable fun RecoveryScreen(model:AppViewModel,busy:Boolean) {
