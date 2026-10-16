@@ -168,15 +168,26 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
             var sending=m.copy(status="SENDING",attempts=m.attempts+1,error="")
             dao.put(sending)
             try {
-                if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
-                    val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation)
-                    sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"))
-                    currentCoroutineContext().ensureActive();checkAccount(expected);dao.put(sending)
+                var accepted:JSONObject?=null
+                if(sending.localImage.isNotEmpty()) {
+                    accepted=JSONArray(backend.request("/rest/v1/messages?id=eq.${m.id}&select=*&limit=1")).optJSONObject(0)
+                    if(accepted==null && sending.mediaId.isNotEmpty()) {
+                        try {backend.rpc("image_access",JSONObject().put("p_id",sending.mediaId))}
+                        catch(e:ApiException) {if(e.status==403 || e.code=="42501")sending=sending.copy(mediaId="") else throw e}
+                    }
                 }
-                val raw=if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
-                    else backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
-                val parsed=JSONTokener(raw).nextValue()
-                val j=if(parsed is JSONArray)parsed.getJSONObject(0) else parsed as JSONObject
+                if(accepted==null) {
+                    if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
+                        val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation)
+                        sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"))
+                        currentCoroutineContext().ensureActive();checkAccount(expected);dao.put(sending)
+                    }
+                    val raw=if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
+                        else backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
+                    val parsed=JSONTokener(raw).nextValue()
+                    accepted=if(parsed is JSONArray)parsed.getJSONObject(0) else parsed as JSONObject
+                }
+                val j=accepted ?: throw IOException("Message not accepted yet. Try again.")
                 currentCoroutineContext().ensureActive();checkAccount(expected)
                 dao.put(parseMessage(j,expected).copy(localTime=m.localTime))
                 if(m.localImage.isNotEmpty())java.io.File(m.localImage).delete()

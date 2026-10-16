@@ -105,3 +105,21 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           if-no-files-found: ignore
+
+  edge-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.5.4
+      - name: Type-check Edge Function sources
+        working-directory: supabase/functions
+        run: deno check --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-lock-${{ github.run_number }}
+          path: supabase/functions/deno.lock
+          if-no-files-found: ignore
