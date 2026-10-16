@@ -82,7 +82,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         focusMessage.value=messageId;repository.active.value=cid
         repository.refresh()
     }
-    fun closeChat() {repository.active.value=null;focusMessage.value=null;repository.refresh()}
+    fun closeChat() {
+        val cid=repository.active.value
+        if(cid!=null)viewModelScope.launch {runCatching {repository.typing(cid,false)}}
+        repository.active.value=null;focusMessage.value=null;repository.refresh()}
     fun send(cid:String,body:String) {viewModelScope.launch {try {repository.send(cid,body)} catch(e:Exception) {_notice.value=e.message}}}
     fun retry(id:String)=action {repository.retry(id)}
     fun older(cid:String)=action {if(!repository.loadOlder(cid)) _notice.value="All available history is loaded."}

@@ -39,6 +39,32 @@ do $$begin
  exception when insufficient_privilege then null; end;
 end$$;
 select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',true);
+select public.save_settings(false,true,true);
+select public.update_presence(true);
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',true);
+do $$declare state jsonb;begin
+ state:=public.contact_state(current_setting('liquid.test.cid')::uuid);
+ if (state->>'online')::boolean or state->>'last_seen' is not null then raise exception 'FAIL: hidden presence';end if;
+ begin
+  perform 1 from private.presence;
+  raise exception 'FAIL: heartbeat exposure';
+ exception when insufficient_privilege then null;end;
+end$$;
+select set_config('liquid.test.image',(public.prepare_image(current_setting('liquid.test.cid')::uuid)->>'id'),true);
+reset role;
+select public.finalize_image(current_setting('liquid.test.image')::uuid,'jpg',100,100,1234);
+set local role authenticated;
+select public.send_image('20000000-0000-0000-0000-000000000002',current_setting('liquid.test.image')::uuid,'Photo');
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',true);
+select public.image_access(current_setting('liquid.test.image')::uuid);
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000003',true);
+do $$begin
+ begin
+  perform public.image_access(current_setting('liquid.test.image')::uuid);
+  raise exception 'FAIL: nonparticipant image access';
+ exception when insufficient_privilege then null;end;
+end$$;
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000002',true);
 select public.set_block('10000000-0000-0000-0000-000000000001',true);
 do $$begin
  begin
@@ -58,5 +84,5 @@ do $$begin
  if exists(select 1 from public.messages) then raise exception 'FAIL: deletion watermark bypass'; end if;
 end$$;
 reset role;
-select 'PASS: uniqueness, pair identity, idempotency, spoof denial, nonparticipant isolation, both-way blocks, deletion watermark' as result;
+select 'PASS: uniqueness, pair identity, idempotency, spoof denial, nonparticipant isolation, both-way blocks, deletion watermark, hidden presence, private image access' as result;
 rollback;

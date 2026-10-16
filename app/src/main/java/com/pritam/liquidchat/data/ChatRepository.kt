@@ -19,6 +19,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
     private val syncMutex=Mutex()
     private val drainMutex=Mutex()
+    val contactState=MutableStateFlow(JSONObject())
+    val privateSettings=MutableStateFlow(JSONObject())
     val foreground=MutableStateFlow(false)
     val active=MutableStateFlow<String?>(null)
     private val _connection=MutableStateFlow("Connecting…")
@@ -31,6 +33,18 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 enqueue(account)
                 coroutineScope {
                     launch { while(isActive) {safeSync();delay(60000)} }
+                    launch {
+                        try {while(isActive) {runCatching {backend.rpc("update_presence",JSONObject().put("p_online",true))};delay(15000)}}
+                        finally {withContext(NonCancellable) {runCatching {backend.rpc("update_presence",JSONObject().put("p_online",false))};active.value?.let {runCatching {typing(it,false)}}}}
+                    }
+                    launch {active.collectLatest {cid->
+                        contactState.value=JSONObject()
+                        if(cid!=null) while(isActive) {
+                            try {contactState.value=JSONObject(backend.rpc("contact_state",JSONObject().put("p_conversation",cid)))}
+                            catch(e:CancellationException){throw e}catch(_:Exception){contactState.value=JSONObject()}
+                            delay(3000)
+                        }
+                    }}
                     launch { signals.collect {delay(180);safeSync()} }
                     launch {
                         backend.session.map {it?.access}.distinctUntilChanged().collectLatest { access ->
@@ -118,6 +132,11 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         dao.put(Message(account,UUID.randomUUID().toString(),cid,account,body.trim()))
         enqueue(account)
     }
+    suspend fun sendImage(cid:String,image:Images.Prepared,caption:String) {
+        val account=account()
+        dao.put(Message(account,UUID.randomUUID().toString(),cid,account,caption.ifBlank {"Photo"},localImage=image.file.absolutePath,imageWidth=image.width,imageHeight=image.height))
+        enqueue(account)
+    }
     suspend fun retry(id:String) {
         val account=account();val m=dao.message(account,id) ?: return
         if(m.status!="FAILED")return
@@ -131,23 +150,32 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     suspend fun drain(expected:String):Boolean=drainMutex.withLock {
         checkAccount(expected)
-        for(m in dao.pending(expected)) {
+        for(candidate in dao.pending(expected)) {
+            val m=dao.message(expected,candidate.id) ?: continue
+            if(m.status!="QUEUED" && m.status!="SENDING") continue
             currentCoroutineContext().ensureActive();checkAccount(expected)
-            val sending=m.copy(status="SENDING",attempts=m.attempts+1,error="")
+            var sending=m.copy(status="SENDING",attempts=m.attempts+1,error="")
             dao.put(sending)
             try {
-                val raw=backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
+                if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
+                    val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation)
+                    sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"))
+                    currentCoroutineContext().ensureActive();checkAccount(expected);dao.put(sending)
+                }
+                val raw=if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
+                    else backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
                 val parsed=JSONTokener(raw).nextValue()
                 val j=if(parsed is JSONArray)parsed.getJSONObject(0) else parsed as JSONObject
                 currentCoroutineContext().ensureActive();checkAccount(expected)
                 dao.put(parseMessage(j,expected).copy(localTime=m.localTime))
+                if(m.localImage.isNotEmpty())java.io.File(m.localImage).delete()
                 refresh()
             } catch(e:CancellationException) {throw e}
             catch(e:Exception) {
                 val transient=e !is ApiException || e.status>=500 || e.status==429 || e.code=="P0001"
-                val retry=transient && sending.attempts<5
+                val retry=Delivery.retryable(sending.status,sending.attempts,transient)
                 currentCoroutineContext().ensureActive();checkAccount(expected)
-                dao.put(sending.copy(status=if(retry)"QUEUED" else "FAILED",error=e.message ?: "Send failed"))
+                if(dao.message(expected,m.id)?.status!="SENT") dao.put(sending.copy(status=if(retry)"QUEUED" else "FAILED",error=e.message ?: "Send failed"))
                 if(retry)return@withLock false
             }
         }
@@ -158,14 +186,25 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     suspend fun block(peer:String,blocked:Boolean) {backend.rpc("set_block",JSONObject().put("p_peer",peer).put("p_blocked",blocked))}
     suspend fun search(query:String)=dao.search(account(),query.replace("\\","\\\\").replace("%","\\%").replace("_","\\_"))
+    suspend fun typing(cid:String,typing:Boolean) {backend.rpc("update_typing",JSONObject().put("p_conversation",cid).put("p_typing",typing))}
+    suspend fun loadSettings() {
+        val id=account()
+        val a=JSONArray(backend.request("/rest/v1/settings?user_id=eq.$id&select=*&limit=1"))
+        checkAccount(id);privateSettings.value=a.optJSONObject(0) ?: JSONObject()
+    }
+    suspend fun settings(presence:Boolean,receipts:Boolean,previews:Boolean) {
+        backend.rpc("save_settings",JSONObject().put("p_presence",presence).put("p_receipts",receipts).put("p_previews",previews));loadSettings()
+    }
     suspend fun clearAccount(account:String) {
-        active.value=null
+        active.value=null;contactState.value=JSONObject();privateSettings.value=JSONObject()
         WorkManager.getInstance(context).cancelAllWorkByTag("account-$account")
         syncMutex.withLock {drainMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearProfile(account)}}}
+        java.io.File(context.filesDir,"media/$account").deleteRecursively()
+        coil.Coil.imageLoader(context).memoryCache?.clear()
     }
     private fun parseMessage(j:JSONObject,account:String):Message {
         val time=j.getString("created_at")
         return Message(account,j.getString("id"),j.getString("conversation_id"),j.getString("sender_id"),j.getString("body"),j.getLong("seq"),
-            runCatching {java.time.Instant.parse(time).toEpochMilli()}.getOrDefault(System.currentTimeMillis()),time,"SENT")
+            runCatching {java.time.Instant.parse(time).toEpochMilli()}.getOrDefault(System.currentTimeMillis()),time,"SENT",mediaId=if(j.isNull("media_id"))"" else j.optString("media_id"),imageWidth=j.optInt("image_width"),imageHeight=j.optInt("image_height"))
     }
 }

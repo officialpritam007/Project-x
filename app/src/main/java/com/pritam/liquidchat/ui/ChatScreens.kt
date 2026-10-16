@@ -1,6 +1,11 @@
 package com.pritam.liquidchat.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.ui.platform.LocalContext
+import com.pritam.liquidchat.data.Images
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable fun Avatar(name:String) {
     Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer,CircleShape),contentAlignment=Alignment.Center) {
@@ -92,11 +98,20 @@ import com.pritam.liquidchat.data.Message
 }
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
     val chat=chats.firstOrNull {it.id==cid}
-    val messages by model.messages.collectAsStateWithLifecycle()
+    val allMessages by model.messages.collectAsStateWithLifecycle()
+    val messages=remember(allMessages,cid) {allMessages.filter {it.conversation==cid}}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val focus by model.focusMessage.collectAsStateWithLifecycle()
+    val contact by model.repository.contactState.collectAsStateWithLifecycle()
     val list=rememberLazyListState()
     var body by remember(cid) {mutableStateOf("")}
+    val context=LocalContext.current
+    var prepared by remember(cid) {mutableStateOf<Images.Prepared?>(null)}
+    val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
+        val account=model.backend.session.value?.userId ?: return@action
+        val image=Images.prepare(context,uri,account)
+        if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
+    }}
     var menu by remember {mutableStateOf(false)}
     var confirmDelete by remember {mutableStateOf(false)}
     BackHandler {model.closeChat()}
@@ -104,19 +119,36 @@ import com.pritam.liquidchat.data.Message
     LaunchedEffect(cid,messages.lastOrNull()?.id,foreground) {
         if(foreground) {withFrameNanos { };runCatching {model.repository.acknowledge(cid,true)}}
     }
+    LaunchedEffect(cid,foreground) {
+        var lastSent=0L
+        if(foreground) try {
+            snapshotFlow {body}.collectLatest { text ->
+                val keyTime=android.os.SystemClock.elapsedRealtime()
+                if(text.isBlank()) runCatching {model.repository.typing(cid,false)}
+                else {
+                    kotlinx.coroutines.delay(maxOf(0L,2500-(keyTime-lastSent)))
+                    runCatching {model.repository.typing(cid,true)}
+                    lastSent=android.os.SystemClock.elapsedRealtime()
+                    kotlinx.coroutines.delay(maxOf(0L,4500-(lastSent-keyTime)))
+                    runCatching {model.repository.typing(cid,false)}
+                }
+            }
+        } finally {kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {runCatching {model.repository.typing(cid,false)}}}
+    }
+    var initialScroll by remember(cid) {mutableStateOf(false)}
     LaunchedEffect(cid,focus,messages.size) {
         if(focus!=null) {
             val i=messages.indexOfFirst {it.id==focus}
             if(i>=0) {list.scrollToItem(i+1);model.focusMessage.value=null}
-        } else if(messages.isNotEmpty() && list.firstVisibleItemIndex+list.layoutInfo.visibleItemsInfo.size>=messages.size-2) {
-            list.scrollToItem(messages.size)
+        } else if(messages.isNotEmpty() && (!initialScroll || list.firstVisibleItemIndex+list.layoutInfo.visibleItemsInfo.size>=messages.size-2)) {
+            list.scrollToItem(messages.size);initialScroll=true
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
             if(chat!=null) Avatar(chat.name)
-            Column(Modifier.weight(1f).padding(8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(chat?.username?.let {"@$it"}.orEmpty(),style=MaterialTheme.typography.bodySmall)}
+            Column(Modifier.weight(1f).padding(8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
                     chat?.let { c->
@@ -134,27 +166,32 @@ import com.pritam.liquidchat.data.Message
         LazyColumn(state=list,modifier=Modifier.weight(1f).fillMaxWidth(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             item(key="older") {TextButton(onClick={model.older(cid)},enabled=!busy) {Text("Load older messages")}}
             if(messages.isEmpty()) item(key="empty") {Text("Say hello. Your messages will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)}
-            items(messages.filter {it.conversation==cid},key={it.id}) {m->MessageBubble(m,chat,onRetry={model.retry(m.id)},highlight=m.id==focus)}
+            items(messages,key={it.id}) {m->MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus)}
+            if(contact.optBoolean("typing")) item(key="typing") {Text("Typing…",modifier=Modifier.padding(12.dp),color=MaterialTheme.colorScheme.onSurfaceVariant)}
         }
         Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            IconButton(onClick={picker.launch("image/*")},enabled=!busy) {Icon(Icons.Outlined.AddPhotoAlternate,"Attach image")}
             OutlinedTextField(body,{body=it.take(4000)},label={Text("Message")},modifier=Modifier.weight(1f),shape=Glass.card,maxLines=5)
             FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(52.dp)) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
         }
     }
+    prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
+        coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
+        OutlinedTextField(body,{body=it.take(4000)},label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
+    }},confirmButton={TextButton(onClick={model.action {model.repository.sendImage(cid,image,body);prepared=null;body=""}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
     if(confirmDelete&&chat!=null) AlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Send or retry any unsent messages before deleting.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
-@Composable private fun MessageBubble(message:Message,chat:Chat?,onRetry:()->Unit,highlight:Boolean) {
+@Composable private fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean) {
     val mine=message.sender==message.account
     var expanded by remember(message.id) {mutableStateOf(false)}
-    val label=when {
-        message.status!="SENT"->message.status.lowercase().replaceFirstChar {it.uppercase()}
-        message.seq>0&&(chat?.peerRead ?: 0)>=message.seq->"Read"
-        message.seq>0&&(chat?.peerDelivered ?: 0)>=message.seq->"Delivered"
-        else->"Sent"
-    }
+    val label=com.pritam.liquidchat.data.Delivery.label(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(shape=Glass.card,color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(mine)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.widthIn(max=320.dp)) {
             Column(Modifier.padding(horizontal=16.dp,vertical=12.dp)) {
+                if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
+                    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.width(280.dp).aspectRatio(if(message.imageHeight>0) message.imageWidth.toFloat()/message.imageHeight else 1f))
+                    Spacer(Modifier.height(8.dp))
+                }
                 Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis)
                 if(message.body.length>700) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
                 if(mine) Text(label,style=MaterialTheme.typography.labelSmall,modifier=Modifier.align(Alignment.End))
@@ -165,19 +202,42 @@ import com.pritam.liquidchat.data.Message
 }
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
     val profile by model.profile.collectAsStateWithLifecycle()
+    val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {runCatching {model.repository.loadSettings()}}
     val unsent by model.unsent.collectAsStateWithLifecycle()
+    val context=LocalContext.current
+    val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
+        val id=model.backend.session.value?.userId ?: return@action
+        val image=Images.prepare(context,uri,id)
+        try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
+    }}
     var confirm by remember {mutableStateOf(false)}
     var edit by remember {mutableStateOf(false)}
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Text("Settings",style=MaterialTheme.typography.headlineLarge)
         GlassCard(Modifier.fillMaxWidth()) {
-            Avatar(profile?.optString("display_name").orEmpty());Spacer(Modifier.height(12.dp))
+            val avatar=profile?.optString("avatar_id")
+            if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp),scale=androidx.compose.ui.layout.ContentScale.Crop)
+            else Avatar(profile?.optString("display_name").orEmpty())
+            Spacer(Modifier.height(12.dp))
             Text(profile?.optString("display_name").orEmpty(),style=MaterialTheme.typography.titleLarge)
             Text("@${profile?.optString("username").orEmpty()}");Text(profile?.optString("bio").orEmpty())
+            Row {TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text("Edit photo")};TextButton(onClick={model.action {model.backend.rpc("set_avatar");model.loadProfile()}},enabled=!busy) {Text("Remove photo")}}
             TextButton(onClick={edit=true}) {Text("Edit profile")}
         }
         GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
+        GlassCard(Modifier.fillMaxWidth()) {
+            Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
+            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").forEach { (key,label)->
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text(label,Modifier.weight(1f))
+                    Switch(checked=settings.optBoolean(key,true),enabled=!busy&&settings.has(key),onCheckedChange={checked->model.action {
+                        model.repository.settings(if(key=="show_presence")checked else settings.optBoolean("show_presence",true),if(key=="read_receipts")checked else settings.optBoolean("read_receipts",true),if(key=="notification_previews")checked else settings.optBoolean("notification_previews",true))
+                    }})
+                }
+            }
+        }
         OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         Text("Developed by Pritam Pal\n© 2026 Liquid Chat",style=MaterialTheme.typography.bodySmall)
     }

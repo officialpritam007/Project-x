@@ -17,7 +17,8 @@ data class Chat(
 data class Message(
     val account:String,val id:String,val conversation:String,val sender:String,val body:String,
     val seq:Long=0,val localTime:Long=System.currentTimeMillis(),val serverTime:String="",
-    val status:String="QUEUED",val attempts:Int=0,val error:String=""
+    val status:String="QUEUED",val attempts:Int=0,val error:String="",
+    @ColumnInfo(defaultValue="''") val mediaId:String="",@ColumnInfo(defaultValue="''") val localImage:String="",@ColumnInfo(defaultValue="0") val imageWidth:Int=0,@ColumnInfo(defaultValue="0") val imageHeight:Int=0
 )
 @Entity(tableName="cached_profile",primaryKeys=["account"])
 data class CachedProfile(val account:String,val json:String)
@@ -47,5 +48,14 @@ data class CachedProfile(val account:String,val json:String)
     @Query("delete from chats where account=:account") suspend fun clearChats(account:String)
     @Query("delete from cached_profile where account=:account") suspend fun clearProfile(account:String)
 }
-@Database(entities=[Chat::class,Message::class,CachedProfile::class],version=1,exportSchema=false)
+@Database(entities=[Chat::class,Message::class,CachedProfile::class],version=2,exportSchema=false)
 abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }
+
+val Migration1To2=object:androidx.room.migration.Migration(1,2) {
+    override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE messages ADD COLUMN mediaId TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE messages ADD COLUMN localImage TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE messages ADD COLUMN imageWidth INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE messages ADD COLUMN imageHeight INTEGER NOT NULL DEFAULT 0")
+    }
+}

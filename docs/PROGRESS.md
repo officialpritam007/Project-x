@@ -33,3 +33,11 @@ No milestone is release-certified until the PRD device gates have passed.
 - Server-persisted delete-for-me, archive/mute/favorite and block controls.
 - Authorization regression SQL passed again after owner-only preference policies.
 - Device/process-death/performance tests remain unmeasured; these are implemented behaviors, not release certification.
+
+## Step 4a — Presence, privacy and protected images
+- Private presence/typing RPCs; immediate background offline attempt, 30-second stale expiry; typing throttled and expired in bubble area.
+- Privacy preferences persist server-side. Hidden heartbeat metadata is inaccessible directly.
+- Server-proxied Cloudinary authenticated images; bounded size and decoded format checks; participant authorization and 60-second download URLs.
+- Durable local image queue, caption preview, retry and aspect-ratio reservation; profile photo edit/remove.
+- Media Edge Function deployed, but intentionally returns 503 until Cloudinary secrets are configured. No public-media workaround.
+- Authorization regression tests passed for hidden presence and nonparticipant image denial. Real Cloudinary access/expiry tests remain blocked on secrets.

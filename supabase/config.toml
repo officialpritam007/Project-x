@@ -1,0 +1,4 @@
+project_id = "liquid-chat"
+[functions.media]
+# JWTs are validated by Auth.getUser inside the function (also supports rotated signing keys).
+verify_jwt = false

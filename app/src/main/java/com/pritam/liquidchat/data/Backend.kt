@@ -12,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.security.MessageDigest
@@ -121,10 +122,25 @@ class Backend(private val store: SessionStore) {
         persist(j); store.write("pkce",null); _recovery.value=pending.getString("purpose")=="recovery"
     } }
     suspend fun updatePassword(password: String) { request("/auth/v1/user","PUT",JSONObject().put("password",password)); _recovery.value=false }
-    suspend fun logout() = withContext(Dispatchers.IO) { authMutex.withLock {
-        val s=_session.value
-        // Revoke first: if offline, retain the session and explain the retry to the user.
-        if(s!=null) raw("/auth/v1/logout","POST",null,s.access)
-        store.write("session",null);store.write("pkce",null);_session.value=null;_recovery.value=false
-    } }
+    suspend fun uploadImage(file:java.io.File,cid:String?):JSONObject = withContext(Dispatchers.IO) {
+        val original=_session.value ?: throw ApiException(401,"","Please sign in.")
+        val current=validSession(original)
+        val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart("file","photo.jpg",file.asRequestBody("image/jpeg".toMediaType()))
+        if(cid!=null)form.addFormDataPart("conversation_id",cid)
+        val req=Request.Builder().url(URL+"/functions/v1/media").header("apikey",PUBLIC_KEY).header("Authorization","Bearer ${current.access}").post(form.build()).build()
+        http.newCall(req).execute().use {res->
+            val body=res.body?.string().orEmpty()
+            if(!res.isSuccessful)throw ApiException(res.code,"",if(res.code==503)"Image sharing is temporarily unavailable." else "Image upload failed. Try again.")
+            if(_session.value?.userId!=original.userId)throw IOException("Account changed.")
+            JSONObject(body)
+        }
+    }
+    suspend fun logout() = withContext(Dispatchers.IO) {
+        val expected=_session.value?.let {validSession(it)}
+        authMutex.withLock {
+            if(expected!=null && _session.value?.userId==expected.userId) raw("/auth/v1/logout","POST",null,expected.access)
+            store.write("session",null);store.write("pkce",null);_session.value=null;_recovery.value=false
+        }
+    }
 }
