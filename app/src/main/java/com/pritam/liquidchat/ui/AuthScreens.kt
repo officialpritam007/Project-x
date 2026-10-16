@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable fun Brand() {
     Image(painterResource(R.drawable.ic_liquid),"Liquid Chat logo",Modifier.size(64.dp))
@@ -67,7 +68,8 @@ import com.pritam.liquidchat.R
     }
 }
 @Composable fun ProfileScreen(model:AppViewModel,busy:Boolean) {
-    var name by rememberSaveable { mutableStateOf("") };var username by rememberSaveable { mutableStateOf("") };var bio by rememberSaveable { mutableStateOf("") }
+    val profile by model.profile.collectAsStateWithLifecycle()
+    var name by rememberSaveable { mutableStateOf(profile?.optString("display_name").orEmpty()) };var username by rememberSaveable { mutableStateOf(profile?.optString("username").orEmpty()) };var bio by rememberSaveable { mutableStateOf(profile?.optString("bio").orEmpty()) }
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         Brand();Text("Make yourself at home",style=MaterialTheme.typography.titleLarge)
         OutlinedTextField(name,{name=it.take(60)},label={Text("Display name")},modifier=Modifier.fillMaxWidth(),shape=Glass.compact)

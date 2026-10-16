@@ -33,9 +33,13 @@ class Backend(private val store: SessionStore) {
     val session = _session.asStateFlow()
     private val _recovery = MutableStateFlow(false)
     val recovery = _recovery.asStateFlow()
-    suspend fun restore() = withContext(Dispatchers.IO) {
-        store.read("session")?.let { runCatching { _session.value = decode(JSONObject(it)) } }
-    }
+    private var restored=false
+    suspend fun restore() = withContext(Dispatchers.IO) { authMutex.withLock {
+        if(!restored) {
+            store.read("session")?.let { runCatching { _session.value = decode(JSONObject(it)) } }
+            restored=true
+        }
+    } }
     private fun decode(j: JSONObject) = Session(j.getJSONObject("user").getString("id"),j.getString("access_token"),j.getString("refresh_token"),j.optLong("expires_at",System.currentTimeMillis()/1000+j.optLong("expires_in",3600)))
     private fun persist(j: JSONObject) {
         val s=decode(j)

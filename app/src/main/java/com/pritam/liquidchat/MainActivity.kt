@@ -16,6 +16,8 @@ class MainActivity : ComponentActivity() {
         intent?.data?.let(model::callback)
         setContent { LiquidApp(model) }
     }
+    override fun onStart() {super.onStart();model.repository.foreground.value=true}
+    override fun onStop() {model.repository.foreground.value=false;super.onStop()}
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

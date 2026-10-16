@@ -1,0 +1,51 @@
+package com.pritam.liquidchat.data
+
+import androidx.compose.runtime.Immutable
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+
+@Immutable
+@Entity(tableName="chats",primaryKeys=["account","id"])
+data class Chat(
+    val account:String,val id:String,val peer:String,val name:String,val username:String,
+    val preview:String="",val lastSeq:Long=0,val unread:Int=0,
+    val favorite:Boolean=false,val archived:Boolean=false,val muted:Boolean=false,
+    val syncSeq:Long=0,val deletedSeq:Long=0,val peerDelivered:Long=0,val peerRead:Long=0
+)
+@Immutable
+@Entity(tableName="messages",primaryKeys=["account","id"],indices=[Index(value=["account","conversation","seq"])])
+data class Message(
+    val account:String,val id:String,val conversation:String,val sender:String,val body:String,
+    val seq:Long=0,val localTime:Long=System.currentTimeMillis(),val serverTime:String="",
+    val status:String="QUEUED",val attempts:Int=0,val error:String=""
+)
+@Entity(tableName="cached_profile",primaryKeys=["account"])
+data class CachedProfile(val account:String,val json:String)
+
+@Dao interface ChatDao {
+    @Query("select * from chats where account=:account order by lastSeq desc,id desc") fun chats(account:String):Flow<List<Chat>>
+    @Query("select * from chats where account=:account") suspend fun allChats(account:String):List<Chat>
+    @Query("select * from chats where account=:account and id=:id") suspend fun chat(account:String,id:String):Chat?
+    @Query("update chats set syncSeq=:seq where account=:account and id=:cid") suspend fun syncCursor(account:String,cid:String,seq:Long)
+    @Upsert suspend fun putChats(chats:List<Chat>)
+    @Query("delete from chats where account=:account and id=:id") suspend fun deleteChat(account:String,id:String)
+    @Query("select * from messages where account=:account and conversation=:cid order by case when seq=0 then 1 else 0 end, seq,localTime,id") fun messages(account:String,cid:String):Flow<List<Message>>
+    @Query("select * from messages where account=:account and status in ('QUEUED','SENDING') order by localTime,id") suspend fun pending(account:String):List<Message>
+    @Query("select count(*) from messages where account=:account and status in ('QUEUED','SENDING','FAILED')") fun unsent(account:String):Flow<Int>
+    @Query("select * from messages where account=:account and id=:id") suspend fun message(account:String,id:String):Message?
+    @Upsert suspend fun put(message:Message)
+    @Upsert suspend fun putAll(messages:List<Message>)
+    @Query("select coalesce(max(seq),0) from messages where account=:account and conversation=:cid") suspend fun maxSeq(account:String,cid:String):Long
+    @Query("select min(seq) from messages where account=:account and conversation=:cid and seq>0") suspend fun minSeq(account:String,cid:String):Long?
+    @Query("select coalesce(max(seq),0) from messages where account=:account and conversation=:cid and sender<>:account") suspend fun receivedSeq(account:String,cid:String):Long
+    @Query("delete from messages where account=:account and conversation=:cid and seq>0 and seq<=:watermark") suspend fun prune(account:String,cid:String,watermark:Long)
+    @Query("delete from messages where account=:account and conversation=:cid") suspend fun removeHistory(account:String,cid:String)
+    @Query("select * from messages where account=:account and body like '%' || :query || '%' escape '\\' order by localTime desc limit 100") suspend fun search(account:String,query:String):List<Message>
+    @Upsert suspend fun cacheProfile(profile:CachedProfile)
+    @Query("select * from cached_profile where account=:account") suspend fun profile(account:String):CachedProfile?
+    @Query("delete from messages where account=:account") suspend fun clearMessages(account:String)
+    @Query("delete from chats where account=:account") suspend fun clearChats(account:String)
+    @Query("delete from cached_profile where account=:account") suspend fun clearProfile(account:String)
+}
+@Database(entities=[Chat::class,Message::class,CachedProfile::class],version=1,exportSchema=false)
+abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }

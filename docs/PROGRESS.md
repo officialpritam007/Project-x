@@ -23,3 +23,13 @@ No milestone is release-certified until the PRD device gates have passed.
 - Live authorization.sql passed with rolled-back fixture users; no test accounts retained.
 - Google provider credentials and `liquidchat://auth/callback` redirect allow-list must be configured in Supabase dashboard before OAuth/device reset testing.
 - Real-user email delivery remains a release gate. No email provider or paid service was enabled.
+
+## Step 3 — Cached text messaging
+- Room is the UI source for messages and chat rows; immutable IDs and incremental upserts.
+- WorkManager durable outbox: bounded backoff, failed/manual retry, stable ID across retries, account-scoped cleanup.
+- Separate server sync cursor (never infer catch-up from the most recent locally accepted outgoing message).
+- RLS-authorized Realtime hints, authoritative catch-up, cursor pagination, conservative delivery/read acknowledgments.
+- Exact username discovery, All/Favorite/Archive/Unread filters, downloaded-message search with stable sender/conversation IDs.
+- Server-persisted delete-for-me, archive/mute/favorite and block controls.
+- Authorization regression SQL passed again after owner-only preference policies.
+- Device/process-death/performance tests remain unmeasured; these are implemented behaviors, not release certification.
