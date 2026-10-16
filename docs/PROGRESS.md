@@ -61,4 +61,13 @@ No milestone is release-certified until the PRD device gates have passed.
 - Fixed a lint failure caused by reading StateFlow.value during composition; refreshes now observe lifecycle state.
 - Fixed heartbeat replies causing redundant history refreshes and serialized device registration with logout to prevent token reattachment races.
 - SQL tests passed after contacts and avatar-access corrections; security advisor returned zero findings. Four live Edge endpoints rejected anonymous requests with HTTP 401.
-- CI and emulator results for this final step are recorded after the run completes. Physical-device performance/acceptance and external credential setup remain release blockers.
+- CI run 38954417697 passed: Android build/lint, 3 JVM tests, 7 Android 10 emulator tests and all 4 Edge Function type checks. The verified generated Deno dependency lockfile is committed. Physical-device performance/acceptance and external credential setup remain release blockers.
+
+
+## Verified beta artifact
+- Source commit: `80f52fb4d1da5383c93ee267439e9db66df71aa1`.
+- Validation run: https://github.com/officialpritam007/Project-x/actions/runs/38954417697
+- APK: version 0.3.0 (3), debug, Android 10+.
+- APK SHA-256: `eb14093eb7ffcfb741e26596cc96edeba3557d54bc1d5e2145ca8e475f8e49f3`.
+- No SQL fixture users/jobs were retained. SQL authorization suite and anonymous HTTP denial checks passed; latest security advisor had zero findings. One INFO about a fresh unused index is not a measured performance failure.
+- This is a reviewable beta baseline, not a public-release certification. Provider configuration, real media expiry/push/auth journeys, physical-device performance and backup restore rehearsal remain required.

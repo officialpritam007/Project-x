@@ -116,7 +116,7 @@ jobs:
           deno-version: v2.5.4
       - name: Type-check Edge Function sources
         working-directory: supabase/functions
-        run: deno check --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts
+        run: deno check --frozen --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
