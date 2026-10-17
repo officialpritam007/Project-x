@@ -35,3 +35,11 @@ Draft text/reply submissions carry persisted monotonic revision tokens. Room con
 Live provider blocker: 62 recorded HTTP503 responses explicitly match the notify function's missing-FCM_SERVICE_ACCOUNT_JSON path. 13 jobs were pending with zero attempts. Cron's 403 successful SQL executions only prove dispatch scheduling, not successful push. Credential configuration and real-device delivery are owner/provider gates. No secret values accessed.
 
 All three SQL suites passed and all fixture identities were verified absent. Baseline downloaded instrumentation XML contains 13 tests, zero failures/errors/skips; synthetic UI screenshots inspected. This does not establish physical-device reliability.
+
+## Phase 2 local-session reliability
+
+Offline logout now completes local encrypted-session, Room, media-cache, notification and work cleanup even if remote token deregistration or sign-out fails. Cancellation propagates only after local cleanup; storage cleanup failures are not reported as success. UI honestly reports unconfirmed server revocation. An isolated interceptor-backed Android test makes zero HTTP writes and verifies account/cache/token erasure plus other-account retention. Unit tests cover success/offline/cancellation/cleanup failure. Missing uncached profile offline now shows explicit error plus Retry/Sign out instead of an indefinite loading label. CI pending.
+
+Provider-bound auth email/Google/recovery/deletion journeys, FCM and physical lifecycle testing remain blocked or unverified; these are not certified by local signout tests. No deployed migration changed.
+
+Voice queuing now rechecks account identity inside its Room transaction so logout/account changes cannot enqueue an old-account recording after cache cleanup.

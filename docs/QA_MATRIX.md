@@ -20,3 +20,7 @@ New patch CI results must be appended with immutable head SHA and run URL before
 ## Phase 1 regression scope (pending changed-head CI)
 
 New tests: consume only the exact submitted draft revision (including edit-away/edit-back and reply/account isolation); persisted revision monotonicity; accepted UUID protected from stale QUEUED/SENDING/FAILED writes while subsequent server edits still apply; failed local send retains editor focus and editable text. Physical successful-send IME/rapid typing remains blocked. API35 instrumentation and unit/lint/Edge results must pass before merging.
+
+## Phase 2 regression scope (CI pending)
+
+LocalLogout unit tests: success, network failure, cancellation, storage failure. OfflineLogout instrumentation: real encrypted fixture SessionStore + injected offline OkHttp + real Room account cleanup; no real user or provider writes. SMTP, Google, expired/replayed recovery links, process death/reboot, actual account erasure and two physical devices remain unverified.

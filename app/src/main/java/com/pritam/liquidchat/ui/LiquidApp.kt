@@ -30,6 +30,7 @@ import com.pritam.liquidchat.AppViewModel
     val chats=remember(allChats,session?.userId) {allChats.filter {it.account==session?.userId}}
     val profile by model.profile.collectAsStateWithLifecycle()
     val loaded by model.profileLoaded.collectAsStateWithLifecycle()
+    val profileError by model.profileError.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val notice by model.notice.collectAsStateWithLifecycle()
     val recovery by model.recovery.collectAsStateWithLifecycle()
@@ -58,7 +59,7 @@ import com.pritam.liquidchat.AppViewModel
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
             else if(recovery) {Box(Modifier.padding(padding)) {RecoveryScreen(model,busy)}}
-            else if(!loaded||(profile!=null&&profile?.optString("id")!=session?.userId)) {Column(Modifier.padding(padding).padding(24.dp)) {Text("Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
+            else if(!loaded||(profile!=null&&profile?.optString("id")!=session?.userId)) {Column(Modifier.padding(padding).padding(24.dp)) {Text(profileError ?: "Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
             else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}
             else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {

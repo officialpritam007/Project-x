@@ -207,7 +207,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         require(duration in 500..120000 && file.isFile && file.length() in 1..2097152)
         require(file.canonicalPath.startsWith(java.io.File(context.filesDir,"media/$account").canonicalPath+java.io.File.separator))
         val message=Message(account,UUID.randomUUID().toString(),cid,account,"Voice message",localImage=file.absolutePath,mediaKind="voice",durationMs=duration)
-        db.withTransaction {putVisible(message);dao.pendingPreview(account,cid,"Queued: Voice message",message.localTime)}
+        db.withTransaction {checkAccount(account);putVisible(message);dao.pendingPreview(account,cid,"Queued: Voice message",message.localTime)}
         enqueue(account)
     }
     suspend fun discardUnsent(id:String) {

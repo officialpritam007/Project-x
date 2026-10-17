@@ -11,8 +11,8 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Tokens and pending PKCE verifiers are encrypted using a non-exportable Android key. */
-class SessionStore(context: Context) {
-    private val prefs = context.getSharedPreferences("auth_v1", Context.MODE_PRIVATE)
+class SessionStore(context: Context, preferenceName:String="auth_v1") {
+    private val prefs = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE)
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey("liquid_session", null) as? SecretKey)?.let { return it }
