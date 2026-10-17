@@ -66,3 +66,9 @@ Room v1→v7 upgrades preserve pending messages. New v5 drafts/appearance, v6 me
 P2 work remains deferred by the PRD: protected-media forwarding, documents, multi-selection, biometric chat lock, rich link previews, custom gallery wallpapers, playback speed/waveform, low-data auto-download preferences, disappearing messages and export. No disabled fake controls were added for those features. Devices/language/folders retain honest availability explanations.
 
 Hardware/provider acceptance still requires two physical accounts/devices; offline/reboot/process-death outbox and drafts; Gboard and OEM capitalization; Android 10/11 fallback; TalkBack/200% fonts; camera/microphone/OEM lifecycle; real FCM, SMTP and Google OAuth; quota/expiry degradation; backup/restore rehearsal and performance profiling. Older APKs do not understand new mutation catch-up; both participants should update for action rendering. No public production-release certification is made.
+
+## Requirement mapping
+
+Source implemented, with the verification limits above: FR-INBOX-01…06; FR-CHAT-01…12, 14, 16 and curated-palette portion of 17; FR-MEDIA-01 (gallery/camera only), 02 (bounded viewer and zoom), 05 (Media/Voice); FR-PRIV-02…04 and session-safe portions of 06; FR-SET-01 (Data and Storage), 02. FR-CHAT-06A is an IME sentence-capitalization hint, with physical keyboard acceptance pending.
+
+Preserved baseline and regression checked where stated: FR-INBOX-07, FR-MEDIA-03, FR-PRIV-01/07/08, FR-SOCIAL-01/02 and user-selected motion/transparency settings. No new physical-device pass is implied. Conditional P2 requirements and provider/device/backup gates are explicitly deferred above.
