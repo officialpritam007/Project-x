@@ -1,0 +1,89 @@
+name: Signed release candidate (no publishing)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: signed-release-candidate
+  cancel-in-progress: false
+jobs:
+  bundle:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FCM_APP_ID: ${{ vars.FCM_APP_ID }}
+      FCM_PROJECT_ID: ${{ vars.FCM_PROJECT_ID }}
+      FCM_API_KEY: ${{ vars.FCM_API_KEY }}
+      FCM_SENDER_ID: ${{ vars.FCM_SENDER_ID }}
+      RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/liquid-upload.jks
+      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require successful candidate checks for this main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/runs?branch=main&event=push&per_page=30" > "$RUNNER_TEMP/candidate-runs.json"
+          python3 - <<'PYGATE'
+          import json,os
+          from pathlib import Path
+          runs=json.loads((Path(os.environ['RUNNER_TEMP'])/'candidate-runs.json').read_text())['workflow_runs']
+          if not any(r['head_sha']==os.environ['GITHUB_SHA'] and r['status']=='completed' and r['conclusion']=='success' for r in runs):
+              raise SystemExit('Current main must pass every candidate CI job before signing.')
+          PYGATE
+      - name: Validate owner signing and public push configuration
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          python3 - <<'PYKEY'
+          import os,base64
+          from pathlib import Path
+          required=['RELEASE_KEYSTORE_BASE64','RELEASE_STORE_PASSWORD','RELEASE_KEY_ALIAS','RELEASE_KEY_PASSWORD','FCM_APP_ID','FCM_PROJECT_ID','FCM_API_KEY','FCM_SENDER_ID']
+          missing=[k for k in required if not os.environ.get(k)]
+          if missing: raise SystemExit('Missing configuration names: '+', '.join(missing))
+          target=Path(os.environ['RELEASE_KEYSTORE_PATH'])
+          target.write_bytes(base64.b64decode(os.environ['RELEASE_KEYSTORE_BASE64'],validate=True))
+          target.chmod(0o600)
+          PYKEY
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+          cache-disabled: true
+      - name: Build owner-signed bundle and release APK
+        run: gradle --no-daemon verifyReleaseSigning testReleaseUnitTest lintRelease bundleRelease assembleRelease
+      - name: Verify signatures, page alignment and checksums
+        run: |
+          set -o pipefail
+          LC_ALL=C jarsigner -verify app/build/outputs/bundle/release/app-release.aab | tee "$RUNNER_TEMP/bundle-signature-check.txt"
+          grep -q 'jar verified.' "$RUNNER_TEMP/bundle-signature-check.txt"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk > app/build/outputs/upload-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging app/build/outputs/apk/release/app-release.apk > app/build/outputs/release-package.txt
+          python3 scripts/verify_artifacts.py --signed-release app/build/outputs/bundle/release/app-release.aab app/build/outputs/apk/release/app-release.apk --output app/build/outputs/signed-candidate-metadata.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Liquid-Chat-owner-signed-candidate-${{ github.run_number }}
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/signed-candidate-metadata.*
+            app/build/outputs/upload-certificate.txt
+            app/build/outputs/release-package.txt
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove private signing material
+        if: always()
+        run: rm -f "$RELEASE_KEYSTORE_PATH"

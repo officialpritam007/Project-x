@@ -4,20 +4,37 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+val signingValues=listOf("RELEASE_KEYSTORE_PATH","RELEASE_STORE_PASSWORD","RELEASE_KEY_ALIAS","RELEASE_KEY_PASSWORD").map {System.getenv(it).orEmpty()}
+val hasReleaseSigning=signingValues.all {it.isNotBlank()}
+check(signingValues.all {it.isBlank()} || hasReleaseSigning) {"Release signing requires all four owner-controlled signing variables."}
 android {
     namespace = "com.pritam.liquidchat"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         applicationId = "com.pritam.liquidchat"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         buildConfigField("String","FCM_APP_ID", "\"" + (System.getenv("FCM_APP_ID") ?: "") + "\"")
         buildConfigField("String","FCM_PROJECT_ID", "\"" + (System.getenv("FCM_PROJECT_ID") ?: "") + "\"")
         buildConfigField("String","FCM_API_KEY", "\"" + (System.getenv("FCM_API_KEY") ?: "") + "\"")
         buildConfigField("String","FCM_SENDER_ID", "\"" + (System.getenv("FCM_SENDER_ID") ?: "") + "\"")
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 8
+        versionName = "1.0.0-rc1"
+    }
+    signingConfigs {
+        if(hasReleaseSigning)create("upload") {
+            storeFile=file(signingValues[0]);storePassword=signingValues[1]
+            keyAlias=signingValues[2];keyPassword=signingValues[3]
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled=true
+            isShrinkResources=true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"),"proguard-rules.pro")
+            if(hasReleaseSigning)signingConfig=signingConfigs.getByName("upload")
+        }
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -51,4 +68,11 @@ dependencies {
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:rules:1.6.1")
     testImplementation("junit:junit:4.13.2")
+}
+
+// The signed-candidate workflow must pass this task; debug signing is never reused.
+tasks.register("verifyReleaseSigning") {
+    doLast {
+        check(hasReleaseSigning && file(signingValues[0]).isFile) {"Owner upload signing credentials are required. No signed release was produced."}
+    }
 }

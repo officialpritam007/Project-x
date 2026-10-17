@@ -11,3 +11,5 @@ Phase 2 candidate: local sign-out clears this device even if server revocation f
 Phase 1 and Phase 2 CI passed and both fixes merged. Phase 7 candidate adds User Policy acceptance before sharing, message/Story/Post reporting and author block controls, preserving existing glass styling. New reporting SQL passed prototype rollback tests; owner moderation operations still require setup.
 
 Privacy follow-up: sign-out clears camera scratch and image disk cache and reports incomplete local media removal. The additive private reporting RPC passed deployed rollback tests; no user report data was created or read.
+
+Policy/reporting PR #6 passed CI and merged. Release-candidate phase targets API36, adds minified AAB and debug/release QA, API29/35/36 instrumentation, artifact provenance/native compatibility checks and a manual owner-key signing workflow without publishing. Branding icons/store assets and policy/Play/operations drafts are included. Candidate CI must pass before merge; signed/device/provider/Play gates are still open.

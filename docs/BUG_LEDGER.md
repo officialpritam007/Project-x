@@ -1,30 +1,24 @@
-# Bug ledger
+# Fixed / remaining bug ledger — 17 October 2026
 
-| ID | Severity / classification | Reproduction / evidence | Required fix / acceptance |
+| ID | Severity / status | Confirmed cause and outcome | Evidence / remaining acceptance |
 |---|---|---|---|
-| MSG-01 | P0 ALREADY FIXED, device acceptance open | PR #2 disabled focused field during queue; main keeps it enabled | Physical Gboard/Vivo consecutive sends |
-| MSG-02 | P0 SOURCE-CONFIRMED | Edit text/reply while send queues, restore identical text before completion; equality-only callback clears newer revision | FIXED / CI PASS in PR #4: versioned composer and atomic Room draft consumption; physical successful-send acceptance open |
-| AUTH-04 | P0 SOURCE-CONFIRMED | Sign out offline: Backend.logout throws before local cleanup; AppViewModel stops | Clear local session/cache/jobs despite remote failure; honest revocation notice |
-| BUILD-02 | P0 SOURCE-CONFIRMED | targetSdk=35; October 2026 new app/update needs 36 | Upgrade supported toolchain + API36 CI |
-| BUILD-04 | P0 SOURCE-CONFIRMED | No release signing config/workflow | Owner-controlled upload key; fail-closed release task |
-| SEC-06/07 | P0 SOURCE-CONFIRMED / partial | Report-user exists; no terms gate or content-report triage completion | UGC terms/content reporting/moderation before public release |
-| AUTH-10/SEC-09 | P0 SOURCE-CONFIRMED | No public deletion URL/privacy pack in repo | Prepare accurate drafts; host and test owner route |
-| PUSH-02 | P0 SOURCE-CONFIRMED, BLOCKED BY OWNER/PROVIDER | 62 pg_net HTTP503 responses contain Push delivery is temporarily unavailable; notify source emits this only when FCM_SERVICE_ACCOUNT_JSON is absent. 13 outbox jobs pending at attempts=0 | Configure server credential through Supabase secret settings, never chat/repo; verify actual two-device FCM |
-| PROVIDERS | P0 BLOCKED BY OWNER/PROVIDER | No physical devices/Play Console/provider acceptance evidence | Complete QA matrix with two accounts |
-| SEC-05 | P1 RISK / NEEDS TEST | Auth advisor leaked-password warning | Free-compatible password controls; provider settings review |
-| PERF-04 | P1 SOURCE-CONFIRMED cost risk | Active contact state polls every 3s; full sync/min | Measure quotas/battery before changing cadence |
-| MSG-04/08 | P0 RISK / NEEDS TEST | SQL watermarks exist; background device delivery unverified | Two-device reconnect/Doze/restart test |
-| UI/PERF | P1 RISK / NEEDS TEST | Existing glass/UI emulator tests pass at baseline | High-font/low-end/Android29–36 device acceptance |
-| UP-01..15 | DEFERRED P2 | Initial release not stabilized | Preserve separately from release blockers |
+| MSG-01 | P0 ALREADY FIXED | Focused editor was disabled during queue. PR #2 keeps it enabled; PR #4 adds failed-send focus/editability regression | PR #2/#4 CI PASS; real successful-send Gboard/Vivo test blocked |
+| MSG-02 | P0 FIXED | Equality-only send completion could clear a newer identical draft/reply. Persisted monotonic revision guards Room consumption and UI clearing, including image captions | PR #4 CI PASS; rapid typing on physical devices still open |
+| MSG-04/06/07 | P0 FIXED (selected race) | Sync-accepted UUID could be overwritten by stale worker SENDING/QUEUED/FAILED. Room protects acceptance; retry checks FAILED atomically | PR #4 Room tests PASS; end-to-end reconnect/background permutations remain open |
+| AUTH-04 | P0 FIXED | Offline remote logout stopped local cleanup. Non-cancellable cleanup clears encrypted session, Room, jobs and media; unconfirmed remote revocation is reported | PR #5 CI PASS; PR #6 adds camera/cache deletion and error checks, CI PASS |
+| AUTH-05 / MEDIA-04 | P0 FIXED (source) | Voice queue missed account recheck inside Room transaction; now matches text/image protection | PR #5 CI PASS; actual recorder/lifecycle/account-switch journey still open |
+| AUTH-07 | P0 FIXED | Missing uncached profile offline retained loading-only feedback; explicit recovery text plus Retry/Sign out now shown | PR #5 CI PASS; provider/physical scenarios open |
+| PUSH-02 | P0 BLOCKED BY OWNER/PROVIDER | 62 recorded HTTP503 responses match notify's missing FCM_SERVICE_ACCOUNT_JSON branch; 13 pending jobs had zero attempts | Configure private server credential via Supabase, confirm Android public vars and actual two-device delivery; do not send secrets in chat/repo |
+| BUILD-02 | P0 IMPLEMENTED, CI REQUIRED | Baseline target35 is below current new-submission requirement; candidate compile/target36 + AGP8.10.1 | Candidate API29/35/36 and release checks must pass before merge |
+| BUILD-04/05 | P0 BLOCKED signing / IMPLEMENTED pipeline | Manual main-only owner-key AAB/APK workflow added; no debug-key substitution or Play publishing | Signing credentials unavailable/unverified; signed artifact/runtime/upgrade acceptance open |
+| SEC-06/07 | P0 IMPLEMENTED; owner operations open | Versioned client consent, message/Story/Post reports, author block, restricted additive RPC and owner moderation guide | PR #6 CI PASS; deployed rollback reporting PASS. Owner triage/support/appeals and old-client policy adoption still required |
+| AUTH-10 / SEC-09/10/11 | P0 BLOCKED BY OWNER/PROVIDER | In-app erasure exists and SQL checks pass; final public privacy/deletion URL/support contact and Data Safety not submitted | Publication drafts/acceptance spec included; host and test real external route including Google-only accounts |
+| AUTH-01/02/03/09 | P0 UNVERIFIED / provider gate | SMTP, Google OAuth/recovery and actual account/media deletion not exercised with provider fixture accounts | Do not infer acceptance from build or rollback SQL |
+| MSG-04/08 / PUSH-03..11 | P0 RISK / NEEDS TEST | Server watermarks and fresh authorization pass SQL; actual background/Doze/restart delivery unverified | FCM config + two physical accounts required |
+| SEC-05 | P1 RISK / OWNER review | Auth advisor: leaked-password protection disabled | Review free-compatible controls; no paid upgrade authorized. https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection |
+| PERF-04/07/08 | P1 RISK / NEEDS MEASUREMENT | Active contact polls every3s; minute sync and large UI/repository files remain | Measure quotas/recomposition/jank/battery before risky refactors; no performance certification |
+| UI / QA | P1 PARTIAL / device gate | Existing Liquid Glass retained; adaptive/themed/notification icons added in candidate | Baseline and phased UI tests PASS; all-screen 200% font/TalkBack/low-end/RTL/real-device assessment incomplete |
+| SEC-13 / OPS | P1 OPEN | Full dependency vulnerability/license inventory, restore rehearsal, real quota alerts and operations adoption not complete | Source/advisor/selected authorization review is not an exhaustive independent security scan |
+| UP-01..15 | DEFERRED P2 | Initial release gates remain open | No groups, calls, Communities or paid feature introduced |
 
-No untested feature is classified as a confirmed defect. No open row is implicitly accepted.
-
-Phase 1 also protects server-accepted UUIDs from stale local worker writes (SOURCE-CONFIRMED sync/drain race), makes retry's FAILED check atomic, and preserves newly edited image captions. No schema migration or server data change.
-
-AUTH-04 FIXED / CI PASS in PR #5: local cleanup runs in a non-cancellable finally block, reports remote revocation honestly and propagates storage failures. AUTH-07 offline uncached profile now shows error/retry/sign-out rather than a loading-only label; provider/device acceptance remains open.
-
-AUTH-05 / MEDIA-04: source-confirmed voice-queue/logout transaction race now checks account identity inside the Room transaction, matching text/image protection. Device lifecycle acceptance remains open.
-
-SEC-06/07 Phase 7: explicit versioned client User Policy gate, message-specific reports, and Story/Post report + author block controls implemented. New authorized_moment_reporting migration adds restricted, session/audience/block-aware report RPC; no existing object/data mutation. Moderation owner workflow documented. CI pending; owner triage/support/appeal operations and final policy hosting remain release gates.
-
-SEC-12 / AUTH-04: source-confirmed camera capture cache was outside account media cleanup. Logout now also removes camera scratch files and image disk cache, checks media deletion results, and reports failures instead of silently claiming erasure. Offline encrypted-store/Room test now verifies media and camera file removal.
+No untested risk is represented as a reproduced defect. Existing 25 migrations remain intact; additive reporting migration 20261017103232 is deployed with backward-compatible new RPCs only. No real user data was deleted, inspected or reported. Full item-by-item tracking is in MASTER_CHECKLIST_STATUS.md; release gates are in PLAY_RELEASE_CHECKLIST.md.
