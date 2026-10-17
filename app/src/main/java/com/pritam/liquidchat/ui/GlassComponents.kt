@@ -16,15 +16,15 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.ImageLoader
+import coil.request.ImageRequest
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
 
 @Composable fun DesignIcon(asset:String,description:String?,size:Int=24) {
     val context=LocalContext.current
-    val loader=remember(context) {ImageLoader.Builder(context).components {add(SvgDecoder.Factory())}.build()}
-    AsyncImage(model="file:///android_asset/figma/$asset.svg",imageLoader=loader,contentDescription=description,modifier=Modifier.size(size.dp))
+    val request=remember(context,asset) {ImageRequest.Builder(context).data("file:///android_asset/figma/$asset.svg").decoderFactory(SvgDecoder.Factory()).build()}
+    AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp))
 }
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
     val titles=listOf("Chats","Contacts","Settings","Profile")

@@ -40,16 +40,16 @@ import com.pritam.liquidchat.data.Message
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 
-@Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null) {
-    Box(Modifier.size(48.dp).clip(CircleShape).background(if(name.contains(" "))Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
+@Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null,self:Boolean=false,size:androidx.compose.ui.unit.Dp=48.dp) {
+    Box(Modifier.size(size).clip(CircleShape).background(if(self)Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
         if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
-        else Text(name.split(" ").filter {it.isNotBlank()}.take(2).map {it.take(1)}.joinToString("").uppercase(),style=MaterialTheme.typography.titleLarge,color=Color.White)
+        else Text(if(self)name.split(" ").filter {it.firstOrNull()?.isLetter()==true}.take(2).joinToString(""){it.take(1)}.uppercase() else name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=Color.White)
     }
 }
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit) {
     Surface(onClick=onClick,shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth()) {
         Row(Modifier.padding(vertical=8.dp,horizontal=1.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Avatar(chat.name,chat.avatarId,backend)
+            Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
                 Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium,maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -80,7 +80,7 @@ import kotlinx.coroutines.flow.drop
         Row(Modifier.padding(top=10.dp,start=4.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(28.dp)) {
             Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable(onClick=onProfile)) {
                 Box {
-                    Avatar(profile?.optString("display_name").orEmpty(),profile?.optString("avatar_id").orEmpty().takeUnless {it=="null"}.orEmpty(),model.backend)
+                    Avatar(profile?.optString("display_name").orEmpty(),profile?.optString("avatar_id").orEmpty().takeUnless {it=="null"}.orEmpty(),model.backend,self=true,size=50.dp)
                     Surface(Modifier.align(Alignment.BottomEnd).size(21.dp),shape=CircleShape,color=Color(0xFF00A6E8)) {Box(contentAlignment=Alignment.Center){Text("+",color=Color.White)}}
                 }
                 Spacer(Modifier.height(12.dp));Text("My Story",fontSize=12.sp,fontWeight=FontWeight.Bold)
@@ -144,13 +144,13 @@ import kotlinx.coroutines.flow.drop
             }
         }
         LazyColumn(contentPadding=PaddingValues(bottom=72.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            item {Text(if(alphabetical)"Sorted by name" else "Reverse saved order",Modifier.padding(horizontal=16.dp),color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,fontSize=15.sp)}
+            item {Text(if(alphabetical)"Sorted by name" else "Reverse name order",Modifier.padding(horizontal=16.dp),color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,fontSize=15.sp)}
             if(filtered.isEmpty()) item {GlassCard(Modifier.fillMaxWidth()){Text(if(username.isBlank())"Find someone by username and save them here." else "No saved contacts match.")}}
             items(filtered,key={"contact-${it.id}"}) {contact->
                 GlassSurface(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
                         Row(Modifier.weight(1f).clickable {val chat=chats.firstOrNull {it.peer==contact.id};if(chat!=null)model.open(chat.id) else model.start(contact.id)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                            Avatar(contact.name,contact.avatarId,model.backend)
+                            Avatar(contact.name,contact.avatarId,model.backend,size=43.dp)
                             Column {Text(contact.name,fontSize=17.sp,fontWeight=FontWeight.Bold);Text("@${contact.username}",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}
                         }
                         IconButton(onClick={model.action {model.repository.saveContact(contact.id,false)}},enabled=!busy) {Icon(Icons.Outlined.PersonRemove,"Remove saved contact")}
@@ -226,10 +226,10 @@ import kotlinx.coroutines.flow.drop
     }
     Column(Modifier.fillMaxSize().background(if(LocalGlassDark.current)Color(0xFF203C32) else Color(0xFFA2CFA3)).imePadding()) {
         GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
-        Row(Modifier.fillMaxWidth().padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
             if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
-            Column(Modifier.weight(1f).padding(8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
+            Column(Modifier.weight(1f).padding(horizontal=8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
                     chat?.let { c->
@@ -327,18 +327,18 @@ import kotlinx.coroutines.flow.drop
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
-        GlassCard(Modifier.fillMaxWidth()) {
+        if(section=="Account") GlassCard(Modifier.fillMaxWidth()) {
             val avatar=profile?.optString("avatar_id")
             if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
-            else Avatar(profile?.optString("display_name").orEmpty())
+            else Avatar(profile?.optString("display_name").orEmpty(),self=true)
             Spacer(Modifier.height(12.dp))
             Text(profile?.optString("display_name").orEmpty(),style=MaterialTheme.typography.titleLarge)
             Text("@${profile?.optString("username").orEmpty()}");Text(profile?.optString("bio").orEmpty())
             Row {TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text("Edit photo")};TextButton(onClick={model.action {model.backend.rpc("set_avatar");model.loadProfile()}},enabled=!busy) {Text("Remove photo")}}
             TextButton(onClick={edit=true}) {Text("Edit profile")}
         }
-        GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
-        GlassCard(Modifier.fillMaxWidth()) {
+        if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
+        if(section in listOf("Chat Settings","Power Saving")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Appearance",style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
@@ -346,10 +346,10 @@ import kotlinx.coroutines.flow.drop
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
         }
-        GlassCard(Modifier.fillMaxWidth()) {
+        if(section in listOf("Privacy & Security","Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
-            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").forEach { (key,label)->
+            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Text(label,Modifier.weight(1f))
                     Switch(checked=settings.optBoolean(key,true),enabled=!busy&&settings.has(key),onCheckedChange={checked->model.action {
@@ -358,8 +358,8 @@ import kotlinx.coroutines.flow.drop
                 }
             }
         }
-        OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
-        TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
+        if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
+        if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
         Text("Developed by Pritam Pal\n© 2026 Liquid Chat",style=MaterialTheme.typography.bodySmall)
     }
     if(deleteAccount) AlertDialog(onDismissRequest={deleteAccount=false;password=""},title={Text("Permanently delete account?")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
