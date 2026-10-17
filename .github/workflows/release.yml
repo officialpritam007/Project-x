@@ -17,7 +17,7 @@ jobs:
       FCM_PROJECT_ID: ${{ vars.FCM_PROJECT_ID }}
       FCM_API_KEY: ${{ vars.FCM_API_KEY }}
       FCM_SENDER_ID: ${{ vars.FCM_SENDER_ID }}
-      RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/liquid-upload.jks
+      RELEASE_KEYSTORE_PATH: /tmp/liquid-upload-${{ github.run_id }}-${{ github.run_attempt }}.jks
       RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
       RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
       RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
