@@ -118,5 +118,7 @@ do $$declare j jsonb;begin
  if j->>'peer_read_seq'<>'0' or j->>'peer_delivered_seq'<>'999' then raise exception 'FAIL hidden receipt privacy';end if;
 end$$;
 reset role;
+update public.profiles set is_deleted=true where id='30000000-0000-0000-0000-000000000001';
+do $$begin if exists(select 1 from private.message_preferences where user_id='30000000-0000-0000-0000-000000000001') then raise exception 'FAIL erased preferences';end if;end$$;
 select 'PASS: replies, actions, windows, hidden/deleted catch-up, actor isolation, blocks, fresh notifications, stars, pin budget and read-receipt privacy' as result;
 rollback;
