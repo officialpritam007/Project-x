@@ -97,7 +97,7 @@ jobs:
           target: google_apis
           disable-animations: true
           script: |
-            bash -c 'gradle --no-daemon connectedDebugAndroidTest; test_status=$?; adb pull /sdcard/Android/data/com.pritam.liquidchat/files/screenshots app/build/outputs/ui-screenshots; exit "$test_status"'
+            bash -c 'gradle --no-daemon connectedDebugAndroidTest; test_status=$?; adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; exit "$test_status"'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

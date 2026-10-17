@@ -1,10 +1,13 @@
 package com.pritam.liquidchat.ui
 
 import android.app.Application
+import android.content.ContentValues
+import android.provider.MediaStore
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.Color
@@ -26,8 +29,12 @@ class LiquidScreensTest {
     private fun capture(name:String) {
         compose.waitForIdle()
         val context=ApplicationProvider.getApplicationContext<Application>()
-        val directory=File(context.getExternalFilesDir(null),"screenshots").apply {mkdirs()}
-        compose.onRoot().captureToImage().asAndroidBitmap().let {bitmap->File(directory,"$name.png").outputStream().use {bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}}
+        val resolver=context.contentResolver
+        val values=ContentValues().apply {put(MediaStore.Images.Media.DISPLAY_NAME,"$name.png");put(MediaStore.Images.Media.MIME_TYPE,"image/png");put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/LiquidChatUiChecks");put(MediaStore.Images.Media.IS_PENDING,1)}
+        val uri=resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values) ?: error("Screenshot output unavailable")
+        val bitmap=compose.onRoot().captureToImage().asAndroidBitmap()
+        resolver.openOutputStream(uri)!!.use {check(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
+        values.clear();values.put(MediaStore.Images.Media.IS_PENDING,0);resolver.update(uri,values,null,null)
     }
     @Test fun fiveScreensRenderAndNavigationIsIconOnly() {
         val context=ApplicationProvider.getApplicationContext<Application>();val model=AppViewModel(context)
@@ -37,12 +44,10 @@ class LiquidScreensTest {
             LiquidTheme(dark=false) {
                 Box(Modifier.fillMaxSize()) {
                     Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
-                    Column(Modifier.fillMaxSize().padding(top=28.dp)) {
-                        Box(Modifier.weight(1f)) {
+                    Box(Modifier.fillMaxSize().padding(top=28.dp)) {
                             when(screen){0->ChatsScreen(model,chats);1->ContactsScreen(model,chats,false);2->SettingsHome(model){};3->MyProfileScreen(model,false){};4->ConversationScreen(model,"preview-chat",chats,false);else->Column {MessageBubble(Message("preview","incoming","preview-chat","peer","An incoming message"),chats[0],model,{},false);MessageBubble(Message("preview","outgoing","preview-chat","preview","An outgoing message",status="SENT"),chats[0],model,{},false)}}
-                        }
-                        if(screen<4)GlassNavigation(screen){screen=it}
                     }
+                    if(screen<4)Box(Modifier.align(Alignment.BottomCenter)){GlassNavigation(screen){screen=it}}
                 }
             }
         }

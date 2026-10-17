@@ -48,7 +48,7 @@ import com.pritam.liquidchat.data.Images
         try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
     }}
     if(edit) {BackHandler {edit=false};Column(Modifier.verticalScroll(rememberScrollState())) {TextButton(onClick={edit=false}){Text("Back to Profile")};ProfileScreen(model,busy)};return}
-    Column(Modifier.fillMaxSize().padding(start=12.dp,end=12.dp,bottom=84.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().padding(start=12.dp,end=12.dp,bottom=84.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
             IconButton(onClick={archived=!archived}) {Icon(Icons.Outlined.GridView,"Toggle archived posts")}
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
@@ -77,7 +77,7 @@ import com.pritam.liquidchat.data.Images
 }
 
 @Composable fun SettingsHome(model:AppViewModel,onSection:(String)->Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=12.dp,end=12.dp,bottom=90.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=12.dp,end=12.dp,bottom=90.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader("Liquid Chat Settings")
         Box(Modifier.clickable {onSection("Account")}) {ProfileHero(model)}
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
