@@ -36,12 +36,18 @@ data class Contact(val account:String,val id:String,val name:String,val username
 @Entity(tableName="cached_profile",primaryKeys=["account"])
 data class CachedProfile(val account:String,val json:String)
 
+@Entity(tableName="hidden_messages",primaryKeys=["account","id"])
+data class HiddenMessage(val account:String,val id:String)
+
 @Entity(tableName="drafts",primaryKeys=["account","conversation"])
 data class Draft(val account:String,val conversation:String,val body:String,val replyTo:String="",val updatedAt:Long=System.currentTimeMillis())
 @Entity(tableName="chat_appearance",primaryKeys=["account","conversation"])
 data class ChatAppearance(val account:String,val conversation:String,val palette:String="Ice")
 
 @Dao interface ChatDao {
+    @Query("select exists(select 1 from hidden_messages where account=:account and id=:id)") suspend fun hidden(account:String,id:String):Boolean
+    @Upsert suspend fun hide(message:HiddenMessage)
+    @Query("delete from hidden_messages where account=:account") suspend fun clearHidden(account:String)
     @Query("select * from drafts where account=:account and conversation=:cid") suspend fun draft(account:String,cid:String):Draft?
     @Upsert suspend fun putDraft(draft:Draft)
     @Query("delete from drafts where account=:account and conversation=:cid") suspend fun removeDraft(account:String,cid:String)
@@ -63,6 +69,8 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("select count(*) from messages where account=:account and status in ('QUEUED','SENDING','FAILED')") fun unsent(account:String):Flow<Int>
     @Query("update chats set preview=:preview,pendingAt=:time where account=:account and id=:cid") suspend fun pendingPreview(account:String,cid:String,preview:String,time:Long)
     @Query("select * from messages where account=:account and conversation=:cid and status!='SENT' order by localTime desc,id desc limit 1") suspend fun latestUnsent(account:String,cid:String):Message?
+    @Query("select * from messages where account=:account and conversation=:cid order by case when seq=0 then 1 else 0 end desc,seq desc,localTime desc,id desc limit 1") suspend fun latestMessage(account:String,cid:String):Message?
+    @Query("update chats set preview=:preview,pendingAt=:pending,lastAt=:lastAt where account=:account and id=:cid") suspend fun localPreview(account:String,cid:String,preview:String,pending:Long,lastAt:String)
     @Query("select * from messages where account=:account and id=:id") suspend fun message(account:String,id:String):Message?
     @Query("delete from messages where account=:account and id=:id") suspend fun removeMessage(account:String,id:String)
     @Query("update chats set changeCursor=:cursor where account=:account and id=:cid") suspend fun changeCursor(account:String,cid:String,cursor:Long)
@@ -80,7 +88,7 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("delete from chats where account=:account") suspend fun clearChats(account:String)
     @Query("delete from cached_profile where account=:account") suspend fun clearProfile(account:String)
 }
-@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class,Draft::class,ChatAppearance::class],version=6,exportSchema=false)
+@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class,Draft::class,ChatAppearance::class,HiddenMessage::class],version=7,exportSchema=false)
 abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }
 
 val Migration1To2=object:androidx.room.migration.Migration(1,2) {
@@ -125,5 +133,11 @@ val Migration5To6=object:androidx.room.migration.Migration(5,6) {
         db.execSQL("ALTER TABLE messages ADD COLUMN deletedAt TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE messages ADD COLUMN reactions TEXT NOT NULL DEFAULT '{}'")
         db.execSQL("ALTER TABLE messages ADD COLUMN starred INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val Migration6To7=object:androidx.room.migration.Migration(6,7) {
+    override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS hidden_messages (account TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(account,id))")
     }
 }
