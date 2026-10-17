@@ -136,7 +136,7 @@ private object VoicePlayback {
     val playing=selected&&VoicePlayback.playing
     LaunchedEffect(selected,playing) {while(selected&&playing){VoicePlayback.tick();delay(200)}}
     DisposableEffect(message.id) {onDispose {if(VoicePlayback.id==message.id)VoicePlayback.stop()}}
-    Column(Modifier.widthIn(min=210.dp,max=285.dp)) {
+    Column(Modifier.widthIn(max=285.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             IconButton(enabled=!loading&&(!selected||VoicePlayback.ready),onClick={
                 if(selected)VoicePlayback.pauseResume() else {
@@ -149,7 +149,7 @@ private object VoicePlayback {
                     }
                 }
             }) {if(loading||(selected&&!VoicePlayback.ready))CircularProgressIndicator(Modifier.size(20.dp)) else Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(playing)"Pause voice message" else "Play voice message")}
-            Text("Voice message · ${message.durationMs/1000}s",style=MaterialTheme.typography.labelLarge)
+            Text("Voice message · ${message.durationMs/1000}s",modifier=Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
         }
         Slider(value=if(selected)VoicePlayback.position.toFloat() else 0f,onValueChange={VoicePlayback.seek(it.toInt())},valueRange=0f..(if(selected)VoicePlayback.duration else message.durationMs).coerceAtLeast(1).toFloat(),enabled=selected&&VoicePlayback.ready&&!loading)
         error?.let {Text(it,style=MaterialTheme.typography.labelSmall)}
