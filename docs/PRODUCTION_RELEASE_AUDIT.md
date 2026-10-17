@@ -43,3 +43,11 @@ Offline logout now completes local encrypted-session, Room, media-cache, notific
 Provider-bound auth email/Google/recovery/deletion journeys, FCM and physical lifecycle testing remain blocked or unverified; these are not certified by local signout tests. No deployed migration changed.
 
 Voice queuing now rechecks account identity inside its Room transaction so logout/account changes cannot enqueue an old-account recording after cache cleanup.
+
+## Phase 7: policy and private content reporting
+
+Phase 1 PR #4 and Phase 2 PR #5 each passed all three CI jobs before merge. Added explicit versioned, account-scoped User Policy consent before profile/messaging/uploads, readable policy in Settings, message evidence through existing report_contact, and visible Story/Post report/block controls. Consent is local client enforcement; old clients are not retroactively gated.
+
+The new additive authorized_moment_reporting migration creates only private/public report_moment functions. Prototype rollback SQL passed. It verifies current session, audience, both-way blocks, active media, expiry/archive, self-report denial and shared report rate limit; the evidence ID is bound server-side. Existing 25 migrations and all user data remain intact. MODERATION_OPERATIONS documents owner-only triage, retention and recovery. Function deployment is backward compatible with existing clients. New UI still requires CI; support contact, policy/deletion hosting, operator adoption and provider/physical acceptance remain open.
+
+Privacy follow-up: account cleanup now deletes camera capture scratch and image disk cache as well as account media, performs file IO off the UI thread, and propagates deletion failure. An Android fixture checks both file paths disappear. The report RPC was deployed as migration 20261017103232; its deployed rollback suite passed, all reporting fixtures were absent afterward, and advisors show only the pre-existing password warning / three unused-index INFO notices.

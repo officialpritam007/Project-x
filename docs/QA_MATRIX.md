@@ -17,10 +17,18 @@
 
 New patch CI results must be appended with immutable head SHA and run URL before merge.
 
-## Phase 1 regression scope (pending changed-head CI)
+## Phase 1 — PASS
 
-New tests: consume only the exact submitted draft revision (including edit-away/edit-back and reply/account isolation); persisted revision monotonicity; accepted UUID protected from stale QUEUED/SENDING/FAILED writes while subsequent server edits still apply; failed local send retains editor focus and editable text. Physical successful-send IME/rapid typing remains blocked. API35 instrumentation and unit/lint/Edge results must pass before merging.
+Run [39024263246](https://github.com/officialpritam007/Project-x/actions/runs/39024263246), head 943aebd9: unit/lint/APK/Edge/API35 instrumentation passed before PR #4 merge. New tests: consume only the exact submitted draft revision (including edit-away/edit-back and reply/account isolation); persisted revision monotonicity; accepted UUID protected from stale QUEUED/SENDING/FAILED writes while subsequent server edits still apply; failed local send retains editor focus and editable text. Physical successful-send IME/rapid typing remains blocked.
 
-## Phase 2 regression scope (CI pending)
+## Phase 2 — PASS
+
+Run [39024798988](https://github.com/officialpritam007/Project-x/actions/runs/39024798988), head 01895c03: unit/lint/APK/Edge/API35 instrumentation passed before PR #5 merge.
 
 LocalLogout unit tests: success, network failure, cancellation, storage failure. OfflineLogout instrumentation: real encrypted fixture SessionStore + injected offline OkHttp + real Room account cleanup; no real user or provider writes. SMTP, Google, expired/replayed recovery links, process death/reboot, actual account erasure and two physical devices remain unverified.
+
+## Phase 7 policy/reporting — CI pending
+
+New consent and report-dialog instrumentation tests, and rollback-only content_reporting.sql. Prototype SQL passed including evidence/actor binding, anonymous/stranger/self/block/archive/expiry/rate-limit/revoked-session denial. Deployed-schema SQL and advisors are being verified before UI merge. No actual user reports were submitted/read.
+
+Deployed content_reporting.sql PASS on migration 20261017103232; zero reporting fixture users remain. Post-migration advisor results unchanged (one Auth warning, three index INFO). Camera/account-media deletion checks added to OfflineLogoutTest; this new UI/privacy phase still awaits CI.

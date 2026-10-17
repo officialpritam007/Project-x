@@ -27,8 +27,11 @@ class OfflineLogoutTest {
             db.dao().putDraft(Draft("logout-fixture","chat","private draft"))
             db.dao().put(Message("logout-fixture","pending","chat","logout-fixture","private text"))
             db.dao().put(Message("other-account","other","chat","other-account","retained"))
+            val media=java.io.File(context.filesDir,"media/logout-fixture/local.jpg").apply {parentFile!!.mkdirs();writeBytes(byteArrayOf(1))}
+            val camera=java.io.File(context.cacheDir,"camera/logout-fixture.jpg").apply {parentFile!!.mkdirs();writeBytes(byteArrayOf(1))}
             val revoked=localLogout({backend.logout()},{backend.forgetLocal();repository.clearAccount("logout-fixture")})
             assertFalse(revoked)
+            assertFalse(media.exists());assertFalse(camera.exists())
             assertNull(backend.session.value)
             for(key in listOf("session","pkce","device_token"))assertNull(store.read(key))
             assertNull(db.dao().draft("logout-fixture","chat"))

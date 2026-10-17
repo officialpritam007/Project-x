@@ -3,7 +3,7 @@
 | ID | Severity / classification | Reproduction / evidence | Required fix / acceptance |
 |---|---|---|---|
 | MSG-01 | P0 ALREADY FIXED, device acceptance open | PR #2 disabled focused field during queue; main keeps it enabled | Physical Gboard/Vivo consecutive sends |
-| MSG-02 | P0 SOURCE-CONFIRMED | Edit text/reply while send queues, restore identical text before completion; equality-only callback clears newer revision | IMPLEMENTED, CI PENDING: versioned composer and atomic Room draft consumption; regression tests |
+| MSG-02 | P0 SOURCE-CONFIRMED | Edit text/reply while send queues, restore identical text before completion; equality-only callback clears newer revision | FIXED / CI PASS in PR #4: versioned composer and atomic Room draft consumption; physical successful-send acceptance open |
 | AUTH-04 | P0 SOURCE-CONFIRMED | Sign out offline: Backend.logout throws before local cleanup; AppViewModel stops | Clear local session/cache/jobs despite remote failure; honest revocation notice |
 | BUILD-02 | P0 SOURCE-CONFIRMED | targetSdk=35; October 2026 new app/update needs 36 | Upgrade supported toolchain + API36 CI |
 | BUILD-04 | P0 SOURCE-CONFIRMED | No release signing config/workflow | Owner-controlled upload key; fail-closed release task |
@@ -21,6 +21,10 @@ No untested feature is classified as a confirmed defect. No open row is implicit
 
 Phase 1 also protects server-accepted UUIDs from stale local worker writes (SOURCE-CONFIRMED sync/drain race), makes retry's FAILED check atomic, and preserves newly edited image captions. No schema migration or server data change.
 
-AUTH-04 implementation complete, CI pending: local cleanup runs in a non-cancellable finally block, reports remote revocation honestly and propagates storage failures. AUTH-07 offline uncached profile now shows error/retry/sign-out rather than a loading-only label; provider/device acceptance remains open.
+AUTH-04 FIXED / CI PASS in PR #5: local cleanup runs in a non-cancellable finally block, reports remote revocation honestly and propagates storage failures. AUTH-07 offline uncached profile now shows error/retry/sign-out rather than a loading-only label; provider/device acceptance remains open.
 
 AUTH-05 / MEDIA-04: source-confirmed voice-queue/logout transaction race now checks account identity inside the Room transaction, matching text/image protection. Device lifecycle acceptance remains open.
+
+SEC-06/07 Phase 7: explicit versioned client User Policy gate, message-specific reports, and Story/Post report + author block controls implemented. New authorized_moment_reporting migration adds restricted, session/audience/block-aware report RPC; no existing object/data mutation. Moderation owner workflow documented. CI pending; owner triage/support/appeal operations and final policy hosting remain release gates.
+
+SEC-12 / AUTH-04: source-confirmed camera capture cache was outside account media cleanup. Logout now also removes camera scratch files and image disk cache, checks media deletion results, and reports failures instead of silently claiming erasure. Offline encrypted-store/Room test now verifies media and camera file removal.
