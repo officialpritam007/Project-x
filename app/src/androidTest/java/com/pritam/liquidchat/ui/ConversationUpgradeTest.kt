@@ -29,8 +29,8 @@ class ConversationUpgradeTest {
         assertEquals(before,compose.onNodeWithText("Message 50").fetchSemanticsNode().boundsInRoot.top,.5f)
         compose.onNodeWithContentDescription("Jump to latest messages").performClick()
         compose.onNodeWithText("Message 1001").assertIsDisplayed()
-        compose.runOnIdle {messages=messages+m(1002)}
-        compose.onNodeWithText("Message 1002").assertIsDisplayed()
+        compose.runOnIdle {messages=messages+(1002..1021).map(::m)}
+        compose.onNodeWithText("Message 1021").assertIsDisplayed()
     }
     @Test fun emojiPickerOffersRealChoicesAndLocalizedDatesAreCorrect() {
         var picked=""
