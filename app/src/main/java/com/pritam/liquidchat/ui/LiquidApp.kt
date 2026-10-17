@@ -30,6 +30,7 @@ import com.pritam.liquidchat.AppViewModel
     val chats=remember(allChats,session?.userId) {allChats.filter {it.account==session?.userId}}
     val profile by model.profile.collectAsStateWithLifecycle()
     val loaded by model.profileLoaded.collectAsStateWithLifecycle()
+    val acceptedPolicy by model.acceptedPolicy.collectAsStateWithLifecycle()
     val profileError by model.profileError.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val notice by model.notice.collectAsStateWithLifecycle()
@@ -37,8 +38,8 @@ import com.pritam.liquidchat.AppViewModel
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(notice) { notice?.let {snackbar.showSnackbar(it);model.clearNotice()} }
 
-    LaunchedEffect(session?.userId,loaded) {
-        if(session!=null&&loaded&&profile!=null&&android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(context).isNotEmpty()) {
+    LaunchedEffect(session?.userId,loaded,acceptedPolicy) {
+        if(session!=null&&acceptedPolicy&&loaded&&profile!=null&&android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(context).isNotEmpty()) {
             val prefs=context.getSharedPreferences("device",android.content.Context.MODE_PRIVATE)
             if(!prefs.getBoolean("asked_notifications",false)) {prefs.edit().putBoolean("asked_notifications",true).apply();permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)}
         }
@@ -54,11 +55,12 @@ import com.pritam.liquidchat.AppViewModel
         Box(Modifier.fillMaxSize()) {
         Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
         Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
-            if(session!=null && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
+            if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
             else if(recovery) {Box(Modifier.padding(padding)) {RecoveryScreen(model,busy)}}
+            else if(!acceptedPolicy) {Box(Modifier.padding(padding)) {UserPolicyScreen(busy,model::acceptPolicy,model::logout)}}
             else if(!loaded||(profile!=null&&profile?.optString("id")!=session?.userId)) {Column(Modifier.padding(padding).padding(24.dp)) {Text(profileError ?: "Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
             else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}

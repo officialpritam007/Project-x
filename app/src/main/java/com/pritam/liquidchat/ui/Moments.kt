@@ -42,6 +42,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     var editor by remember {mutableStateOf(false)}
     var focused by remember {mutableStateOf<Moment?>(null)}
     var deleting by remember {mutableStateOf<Moment?>(null)}
+    var reporting by remember {mutableStateOf<Moment?>(null)}
     suspend fun load(append:Boolean=false) {
         if(loading)return
         loading=true;error=null
@@ -79,6 +80,10 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                     Text(remember(moment.created){runCatching{java.time.Instant.parse(moment.created).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM · HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
                     ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=androidx.compose.ui.layout.ContentScale.Crop)
                     if(moment.caption.isNotBlank())Text(moment.caption)
+                    if(moment.owner!=account?.userId)Row {
+                        TextButton(onClick={reporting=moment},enabled=!loading){Text("Report ${if(kind=="story")"story" else "post"}")}
+                        TextButton(onClick={model.action {model.repository.block(moment.owner,true);epoch++}},enabled=!loading){Text("Block user")}
+                    }
                     if(moment.owner==account?.userId)Row {
                         if(kind=="post")TextButton(enabled=!loading,onClick={scope.launch {
                             loading=true;try {model.backend.rpc("change_moment",JSONObject().put("p_id",moment.id).put("p_action",if(archived)"restore" else "archive"));epoch++}catch(e:CancellationException){throw e}catch(_:Exception){error="Could not update the post. Retry."}finally{loading=false}
@@ -93,6 +98,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     focused?.let {moment->androidx.compose.ui.window.Dialog(onDismissRequest={focused=null},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize()) {Column(Modifier.systemBarsPadding()){TextButton(onClick={focused=null}){Text("Close")};ProtectedImage(model.backend,moment.media,description="Full-size moment",modifier=Modifier.weight(1f).fillMaxWidth());Text(moment.caption,Modifier.padding(16.dp))}}
     }}
+    reporting?.let {moment->ReportContentDialog("Report ${if(kind=="story")"story" else "post"}","Your explanation and this content's reference will be sent privately for review.",onSubmit={model.reportMoment(moment.id,it);reporting=null},onDismiss={reporting=null})}
     deleting?.let {moment->AlertDialog(onDismissRequest={deleting=null},title={Text("Delete this ${if(kind=="story")"story" else "post"}?")},text={Text("It will disappear for you and your contacts.")},confirmButton={TextButton(onClick={deleting=null;scope.launch {loading=true;try {model.backend.rpc("change_moment",JSONObject().put("p_id",moment.id).put("p_action","delete"));epoch++}catch(e:CancellationException){throw e}catch(_:Exception){error="Delete failed. Please retry."}finally{loading=false}}}){Text("Delete")}},dismissButton={TextButton(onClick={deleting=null}){Text("Cancel")}})}
 }
 

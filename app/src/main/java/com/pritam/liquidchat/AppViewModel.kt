@@ -40,6 +40,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val focusMessage=MutableStateFlow<String?>(null)
     private var searchJob:kotlinx.coroutines.Job?=null
     val session=backend.session
+    private val policyPrefs=app.getSharedPreferences("user_policy",android.content.Context.MODE_PRIVATE)
+    private val policyEpoch=MutableStateFlow(0)
+    val acceptedPolicy=combine(session.map {it?.userId},policyEpoch) {id,_->
+        id!=null && policyPrefs.getString("accepted_$id",null)==com.pritam.liquidchat.ui.USER_POLICY_VERSION
+    }.stateIn(viewModelScope,SharingStarted.Eagerly,false)
+    fun acceptPolicy()=action {
+        val id=session.value?.userId ?: return@action
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            check(policyPrefs.edit().putString("accepted_$id",com.pritam.liquidchat.ui.USER_POLICY_VERSION).commit())
+        }
+        policyEpoch.value++
+    }
     val recovery=backend.recovery
     private val _ready=MutableStateFlow(false)
     val ready=_ready.asStateFlow()
@@ -148,13 +160,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             catch(_:Exception){if(session.value?.userId==expected){searchResults.value=emptyList();_notice.value="Search is unavailable. Please retry."}}
         }
     }
-    fun report(peer:String,reason:String)=action {backend.rpc("report_contact",JSONObject().put("p_target",peer).put("p_reason",reason));_notice.value="Report submitted."}
+    fun report(peer:String,reason:String,messageIds:List<String> = emptyList())=action {
+        backend.rpc("report_contact",JSONObject().put("p_target",peer).put("p_reason",reason).put("p_messages",JSONArray(messageIds)));_notice.value="Report submitted."
+    }
+    fun reportMoment(id:String,reason:String)=action {
+        backend.rpc("report_moment",JSONObject().put("p_id",id).put("p_reason",reason));_notice.value="Report submitted."
+    }
     fun deleteAccount(password:String)=action {
         val current=session.value ?: return@action
         if(password.isNotEmpty())backend.signIn(current.email,password)
         check(session.value?.userId==current.userId)
         val result=JSONObject(backend.request("/functions/v1/account","POST",JSONObject().put("action","delete")))
         backend.forgetLocal();repository.clearAccount(current.userId)
+        policyPrefs.edit().remove("accepted_${current.userId}").apply();policyEpoch.value++
         getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
         androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
         getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()
@@ -168,7 +186,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val id=session.value?.userId
         val revoked=localLogout(revokeRemote={backend.logout()},clearLocal={
             backend.forgetLocal()
-            if(id!=null)repository.clearAccount(id)
+            if(id!=null){repository.clearAccount(id);policyPrefs.edit().remove("accepted_$id").apply();policyEpoch.value++}
             getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
             androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
             getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()

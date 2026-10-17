@@ -355,7 +355,12 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         active.value=null;contactState.value=JSONObject();privateSettings.value=JSONObject()
         WorkManager.getInstance(context).cancelAllWorkByTag("account-$account")
         syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account);dao.clearHidden(account)}}}}
-        java.io.File(context.filesDir,"media/$account").deleteRecursively()
+        withContext(Dispatchers.IO) {
+            for(directory in listOf(java.io.File(context.filesDir,"media/$account"),java.io.File(context.cacheDir,"camera"))) {
+                check(!directory.exists() || directory.deleteRecursively()) {"Local media cleanup could not finish. Clear this app's stored data in Android Settings to complete removal."}
+            }
+            coil.Coil.imageLoader(context).diskCache?.clear()
+        }
         coil.Coil.imageLoader(context).memoryCache?.clear()
     }
     private fun parseMessage(j:JSONObject,account:String):Message {

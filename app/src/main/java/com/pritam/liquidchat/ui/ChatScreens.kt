@@ -284,8 +284,8 @@ import kotlinx.coroutines.flow.drop
     var menu by remember {mutableStateOf(false)}
     var confirmDelete by remember {mutableStateOf(false)}
     var report by remember {mutableStateOf(false)}
+    var reportMessage by remember {mutableStateOf<Message?>(null)}
     var details by remember {mutableStateOf(false)}
-    var reason by remember {mutableStateOf("")}
     BackHandler {model.closeChat()}
     // Read acknowledgments are emitted only after a foreground conversation frame exists.
     LaunchedEffect(cid,messages.lastOrNull()?.id,foreground) {
@@ -328,7 +328,7 @@ import kotlinx.coroutines.flow.drop
                         DropdownMenuItem(text={Text(if(c.muted)"Unmute" else "Mute")},onClick={menu=false;model.updateChat(c,muted=!c.muted)})
                         DropdownMenuItem(text={Text("Block contact")},onClick={menu=false;model.block(c.peer,true)})
                         DropdownMenuItem(text={Text("Unblock contact")},onClick={menu=false;model.block(c.peer,false)})
-                        DropdownMenuItem(text={Text("Report contact")},onClick={menu=false;report=true})
+                        DropdownMenuItem(text={Text("Report contact")},onClick={menu=false;reportMessage=null;report=true})
                         DropdownMenuItem(text={Text("Delete history for me")},onClick={menu=false;confirmDelete=true})
                     }
                 }
@@ -401,6 +401,7 @@ import kotlinx.coroutines.flow.drop
                 TextButton(onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null}) {Text("Reply")}
                 TextButton(onClick={actionMessage=null;model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}}) {Text(if(m.starred)"Unstar" else "Star")}
             }
+            if(m.status=="SENT"&&m.sender!=m.account)TextButton(onClick={reportMessage=m;actionMessage=null;report=true}) {Text("Report message")}
             TextButton(onClick={clipboard.setText(AnnotatedString(m.body));actionMessage=null}) {Text("Copy text")}
             TextButton(onClick={actionMessage=null;context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT,m.body),"Share message"))}) {Text("Share text")}
             val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
@@ -417,7 +418,7 @@ import kotlinx.coroutines.flow.drop
     }},confirmButton={TextButton(onClick={model.action {if(m.status=="SENT")model.repository.messageAction(m.id,"hide") else model.repository.discardUnsent(m.id);deleteMessage=null}},enabled=!busy) {Text(if(m.status=="SENT")"Delete for me" else "Remove unsent")}},dismissButton={TextButton(onClick={deleteMessage=null}) {Text("Cancel")}})}
     if(starsOpen&&chat!=null)ContactMediaDialog(model,chat,messages,initialKind="star") {starsOpen=false}
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
-    if(report&&chat!=null) AlertDialog(onDismissRequest={report=false},title={Text("Report contact")},text={Column {Text("Only your explanation is included. No messages are attached.");OutlinedTextField(reason,{reason=it.take(1000)},label={Text("Reason")})}},confirmButton={TextButton(onClick={report=false;model.report(chat.peer,reason)},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick={report=false}) {Text("Cancel")}})
+    if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
         coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
         OutlinedTextField(input,{if(it.text.length<=4000)updateInput(it)},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
@@ -497,6 +498,7 @@ import kotlinx.coroutines.flow.drop
     var confirm by remember {mutableStateOf(false)}
     var edit by remember {mutableStateOf(false)}
     var deleteAccount by remember {mutableStateOf(false)}
+    var showPolicy by remember {mutableStateOf(false)}
     var password by remember {mutableStateOf("")}
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
@@ -535,8 +537,10 @@ import kotlinx.coroutines.flow.drop
         }
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
+        TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
         Text("Developed by Pritam Pal\n© 2026 Liquid Chat",style=MaterialTheme.typography.bodySmall)
     }
+    if(showPolicy)AlertDialog(onDismissRequest={showPolicy=false},title={Text("Privacy & User Policy")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){UserPolicyText()}},confirmButton={TextButton(onClick={showPolicy=false}){Text("Done")}})
     if(deleteAccount) AlertDialog(onDismissRequest={deleteAccount=false;password=""},title={Text("Permanently delete account?")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
         Text("Your profile, sessions, device tokens and owned media will be removed. Sent text remains in the other person's history under Deleted account. $unsent unsent messages will be discarded.")
         Text("Enter your password to verify. For Google accounts, sign in with Google again, then return here and confirm within five minutes.")
