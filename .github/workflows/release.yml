@@ -1,6 +1,8 @@
 name: Signed release candidate (no publishing)
 on:
   workflow_dispatch:
+env:
+  ENABLE_EXPERIMENTAL_CALLS: ${{ vars.ENABLE_EXPERIMENTAL_CALLS }}
 permissions:
   contents: read
   actions: read
