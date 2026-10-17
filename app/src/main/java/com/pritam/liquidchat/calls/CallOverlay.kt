@@ -2,6 +2,7 @@ package com.pritam.liquidchat.calls
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import org.webrtc.SurfaceViewRenderer
 fun CallOverlay(controller:CallController,displayName:String?) {
     val call by controller.view.collectAsState()
     val c=call ?: return
+    BackHandler {if(c.id!=null)controller.hangup() else controller.dismissError()}
     val context=LocalContext.current
     val needed=remember(c.video) {
         if(c.video) arrayOf(Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA)
