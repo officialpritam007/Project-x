@@ -32,7 +32,12 @@ select public.send_text('40000000-0000-0000-0000-000000000001',current_setting('
 select public.send_reply('40000000-0000-0000-0000-000000000002',current_setting('liquid.test.cid')::uuid,'Reply','40000000-0000-0000-0000-000000000001');
 select public.send_reply('40000000-0000-0000-0000-000000000002',current_setting('liquid.test.cid')::uuid,'Reply','40000000-0000-0000-0000-000000000001');
 select public.message_action('40000000-0000-0000-0000-000000000001','react','👍');
+select set_config('modern.public_version',(select change_seq::text from public.messages where id='40000000-0000-0000-0000-000000000001'),true);
 select public.message_action('40000000-0000-0000-0000-000000000001','star','true');
+do $$begin
+ if (select change_seq::text from public.messages where id='40000000-0000-0000-0000-000000000001')<>current_setting('modern.public_version') then raise exception 'FAIL star leaks peer-visible mutation';end if;
+ if (public.message_by_id('40000000-0000-0000-0000-000000000001')->>'change_seq')::bigint<=current_setting('modern.public_version')::bigint then raise exception 'FAIL private star sync';end if;
+end$$;
 do $$declare j jsonb;begin
  if (select count(*) from public.messages)<>2 then raise exception 'FAIL duplicate reply';end if;
  j:=public.message_by_id('40000000-0000-0000-0000-000000000001');
@@ -57,6 +62,7 @@ do $$begin
  begin perform public.message_action('40000000-0000-0000-0000-000000000001','delete');raise exception 'FAIL non-owner delete';exception when insufficient_privilege then null;end;
  if public.notification_preview('40000000-0000-0000-0000-000000000001')->>'body'<>'Edited original' then raise exception 'FAIL fresh preview';end if;
 end$$;
+select set_config('modern.hide_version',(select change_seq::text from public.messages where id='40000000-0000-0000-0000-000000000001'),true);
 select public.message_action('40000000-0000-0000-0000-000000000001','hide');
 do $$begin
  if exists(select 1 from public.messages where id='40000000-0000-0000-0000-000000000001') then raise exception 'FAIL hidden message resurfaces';end if;
@@ -76,6 +82,10 @@ select set_config('request.jwt.claim.sub','30000000-0000-0000-0000-000000000001'
 select set_config('request.jwt.claims','{"sub":"30000000-0000-0000-0000-000000000001","role":"authenticated","session_id":"30000000-0000-0000-0000-000000000001"}',true);
 do $$begin
  begin perform public.send_reply(gen_random_uuid(),current_setting('liquid.test.other')::uuid,'Cross chat','40000000-0000-0000-0000-000000000001');raise exception 'FAIL cross-chat reply';exception when insufficient_privilege then null;end;
+end$$;
+do $$begin
+ if (select change_seq::text from public.messages where id='40000000-0000-0000-0000-000000000001')<>current_setting('modern.hide_version') then raise exception 'FAIL hide leaks peer-visible mutation';end if;
+ if jsonb_array_length(public.message_changes(current_setting('liquid.test.cid')::uuid,current_setting('modern.hide_version')::bigint))<>0 then raise exception 'FAIL peer sees private change feed';end if;
 end$$;
 select public.set_block('30000000-0000-0000-0000-000000000002',true);
 select set_config('request.jwt.claim.sub','30000000-0000-0000-0000-000000000002',true);
