@@ -143,6 +143,19 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         db.withTransaction {for(m in messages) {val old=dao.message(account,m.id);dao.put(m.copy(localTime=old?.localTime ?: m.localTime))}}
         messages.size==100
     }
+    suspend fun reveal(cid:String,id:String) {
+        val account=account()
+        if(dao.message(account,id)!=null)return
+        val target=JSONObject(backend.rpc("message_by_id",JSONObject().put("p_id",id)))
+        checkAccount(account)
+        require(!target.optBoolean("hidden")&&target.optString("conversation_id")==cid) {"Message unavailable"}
+        val seq=target.getLong("seq")
+        while((dao.minSeq(account,cid) ?: Long.MAX_VALUE)>seq) {
+            currentCoroutineContext().ensureActive();checkAccount(account)
+            val more=loadOlder(cid)
+            if(!more)break
+        }
+    }
     suspend fun acknowledge(cid:String,read:Boolean) {
         val account=account();val seq=dao.receivedSeq(account,cid)
         if(read&&dao.chat(account,cid)?.manualUnread==true)backend.rpc("chat_action",JSONObject().put("p_conversation",cid).put("p_action","unread").put("p_enabled",false))
@@ -173,7 +186,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         val message=Message(account,UUID.randomUUID().toString(),cid,account,body,replyTo=replyTo)
         draftMutex.withLock {db.withTransaction {
             checkAccount(account);dao.put(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
-            if(dao.draft(account,cid)?.body==body)dao.removeDraft(account,cid)
+            if(dao.draft(account,cid)?.let {it.body==body&&it.replyTo==replyTo}==true)dao.removeDraft(account,cid)
         }}
         enqueue(account)
     }
@@ -197,7 +210,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun retry(id:String) {
         val account=account();val m=dao.message(account,id) ?: return
         if(m.status!="FAILED")return
-        dao.put(m.copy(status="QUEUED",attempts=0,error=""));enqueue(account)
+        db.withTransaction {dao.put(m.copy(status="QUEUED",attempts=0,error=""));dao.pendingPreview(account,m.conversation,"Queued: ${m.body.take(160)}",m.localTime)};enqueue(account)
     }
     private fun enqueue(account:String) {
         val request=OneTimeWorkRequestBuilder<SendWorker>().setInputData(workDataOf("account" to account))
@@ -248,7 +261,11 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 val transient=e !is ApiException || e.status>=500 || e.status==429 || e.code=="P0001"
                 val retry=Delivery.retryable(sending.status,sending.attempts,transient)
                 currentCoroutineContext().ensureActive();checkAccount(expected)
-                if(dao.message(expected,m.id)?.status!="SENT") dao.put(sending.copy(status=if(retry)"QUEUED" else "FAILED",error=e.message ?: "Send failed"))
+                if(dao.message(expected,m.id)?.status!="SENT")db.withTransaction {
+                    dao.put(sending.copy(status=if(retry)"QUEUED" else "FAILED",error=e.message ?: "Send failed"))
+                    val latest=dao.latestUnsent(expected,m.conversation)
+                    if(latest!=null)dao.pendingPreview(expected,m.conversation,"${latest.status.lowercase().replaceFirstChar {it.uppercase()}}: ${latest.body.take(160)}",latest.localTime)
+                }
                 if(retry)return@withLock false
             }
         }
@@ -275,6 +292,10 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     suspend fun chatAction(cid:String,action:String,enabled:Boolean) {
         backend.rpc("chat_action",JSONObject().put("p_conversation",cid).put("p_action",action).put("p_enabled",enabled));sync()
+    }
+    suspend fun starred(cid:String,before:Long=Long.MAX_VALUE):List<Message> {
+        val id=account();val a=JSONArray(backend.rpc("starred_messages",JSONObject().put("p_conversation",cid).put("p_before",before)))
+        checkAccount(id);return (0 until a.length()).map {parseMessage(a.getJSONObject(it),id)}
     }
     suspend fun sharedMedia(cid:String,before:Long=Long.MAX_VALUE,kind:String="image"):List<Message> {
         val id=account();val a=JSONArray(backend.rpc("shared_media",JSONObject().put("p_conversation",cid).put("p_before",before).put("p_kind",kind)))
