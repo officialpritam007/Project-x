@@ -111,12 +111,13 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                     db.withTransaction {
                         for(m in messages) {
                             val old=dao.message(account,m.id)
-                            dao.put(m.copy(localTime=old?.localTime ?: m.localTime))
+                            putVisible(m.copy(localTime=old?.localTime ?: m.localTime))
                         }
                         if(messages.isNotEmpty()) {cursor=messages.maxOf {it.seq};dao.syncCursor(account,c.id,cursor)}
                     }
                     if(order=="desc" || messages.size<limit) break
                 } while(true)
+                dao.syncCursor(account,c.id,maxOf(cursor,c.lastSeq))
                 acknowledge(c.id,read=false)
             }
             var changedCursor=c.changeCursor
@@ -140,7 +141,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         val page=JSONArray(backend.rpc("message_history",JSONObject().put("p_conversation",cid).put("p_before",before).put("p_after",watermark)))
         val messages=(0 until page.length()).map {parseMessage(page.getJSONObject(it),account)}
         checkAccount(account)
-        db.withTransaction {for(m in messages) {val old=dao.message(account,m.id);dao.put(m.copy(localTime=old?.localTime ?: m.localTime))}}
+        db.withTransaction {for(m in messages) {val old=dao.message(account,m.id);putVisible(m.copy(localTime=old?.localTime ?: m.localTime))}}
         messages.size==100
     }
     suspend fun reveal(cid:String,id:String) {
@@ -185,7 +186,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         val account=account()
         val message=Message(account,UUID.randomUUID().toString(),cid,account,body,replyTo=replyTo)
         draftMutex.withLock {db.withTransaction {
-            checkAccount(account);dao.put(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
+            checkAccount(account);putVisible(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
             if(dao.draft(account,cid)?.let {it.body==body&&it.replyTo==replyTo}==true)dao.removeDraft(account,cid)
         }}
         enqueue(account)
@@ -194,7 +195,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         val account=account()
         val message=Message(account,UUID.randomUUID().toString(),cid,account,caption.ifBlank {"Photo"},localImage=image.file.absolutePath,imageWidth=image.width,imageHeight=image.height)
         draftMutex.withLock {db.withTransaction {
-            checkAccount(account);dao.put(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
+            checkAccount(account);putVisible(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
             if(dao.draft(account,cid)?.body==caption)dao.removeDraft(account,cid)
         }}
         enqueue(account)
@@ -204,13 +205,23 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         require(duration in 500..120000 && file.isFile && file.length() in 1..2097152)
         require(file.canonicalPath.startsWith(java.io.File(context.filesDir,"media/$account").canonicalPath+java.io.File.separator))
         val message=Message(account,UUID.randomUUID().toString(),cid,account,"Voice message",localImage=file.absolutePath,mediaKind="voice",durationMs=duration)
-        db.withTransaction {dao.put(message);dao.pendingPreview(account,cid,"Queued: Voice message",message.localTime)}
+        db.withTransaction {putVisible(message);dao.pendingPreview(account,cid,"Queued: Voice message",message.localTime)}
         enqueue(account)
+    }
+    suspend fun discardUnsent(id:String) {
+        val account=account()
+        drainMutex.withLock {
+            val m=dao.message(account,id) ?: return@withLock
+            require(m.status in listOf("QUEUED","FAILED")) {"This message has already started sending."}
+            checkAccount(account);db.withTransaction {dao.hide(HiddenMessage(account,id));dao.removeMessage(account,id);refreshLocalPreview(account,m.conversation)}
+            if(m.localImage.isNotEmpty())java.io.File(m.localImage).delete()
+        }
+        try {sync()}catch(e:CancellationException){throw e}catch(_:Exception){refresh()}
     }
     suspend fun retry(id:String) {
         val account=account();val m=dao.message(account,id) ?: return
         if(m.status!="FAILED")return
-        db.withTransaction {dao.put(m.copy(status="QUEUED",attempts=0,error=""));dao.pendingPreview(account,m.conversation,"Queued: ${m.body.take(160)}",m.localTime)};enqueue(account)
+        db.withTransaction {putVisible(m.copy(status="QUEUED",attempts=0,error=""));dao.pendingPreview(account,m.conversation,"Queued: ${m.body.take(160)}",m.localTime)};enqueue(account)
     }
     private fun enqueue(account:String) {
         val request=OneTimeWorkRequestBuilder<SendWorker>().setInputData(workDataOf("account" to account))
@@ -222,10 +233,10 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         checkAccount(expected)
         for(candidate in dao.pending(expected)) {
             val m=dao.message(expected,candidate.id) ?: continue
-            if(m.status!="QUEUED" && m.status!="SENDING") continue
+            if((m.status!="QUEUED" && m.status!="SENDING")||dao.hidden(expected,m.id)) continue
             currentCoroutineContext().ensureActive();checkAccount(expected)
             var sending=m.copy(status="SENDING",attempts=m.attempts+1,error="")
-            dao.put(sending)
+            putVisible(sending)
             try {
                 var accepted:JSONObject?=JSONArray(backend.request("/rest/v1/messages?id=eq.${m.id}&conversation_id=eq.${m.conversation}&sender_id=eq.$expected&select=*&limit=1")).optJSONObject(0)
                 if(sending.localImage.isNotEmpty()) {
@@ -238,7 +249,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                     if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
                         val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation,sending.mediaKind=="voice")
                         sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"),durationMs=upload.optInt("duration_ms",sending.durationMs))
-                        currentCoroutineContext().ensureActive();checkAccount(expected);dao.put(sending)
+                        currentCoroutineContext().ensureActive();checkAccount(expected);putVisible(sending)
                     }
                     val raw=if(sending.mediaKind=="voice" && sending.mediaId.isNotEmpty()) backend.rpc("send_voice",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
                         else if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
@@ -261,8 +272,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 val transient=e !is ApiException || e.status>=500 || e.status==429 || e.code=="P0001"
                 val retry=Delivery.retryable(sending.status,sending.attempts,transient)
                 currentCoroutineContext().ensureActive();checkAccount(expected)
-                if(dao.message(expected,m.id)?.status!="SENT")db.withTransaction {
-                    dao.put(sending.copy(status=if(retry)"QUEUED" else "FAILED",error=e.message ?: "Send failed"))
+                if(!dao.hidden(expected,m.id)&&dao.message(expected,m.id)?.status!="SENT")db.withTransaction {
+                    putVisible(sending.copy(status=if(retry)"QUEUED" else "FAILED",error=e.message ?: "Send failed"))
                     val latest=dao.latestUnsent(expected,m.conversation)
                     if(latest!=null)dao.pendingPreview(expected,m.conversation,"${latest.status.lowercase().replaceFirstChar {it.uppercase()}}: ${latest.body.take(160)}",latest.localTime)
                 }
@@ -271,14 +282,26 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }
         true
     }
+    private suspend fun refreshLocalPreview(account:String,cid:String) {
+        val latest=dao.latestMessage(account,cid)
+        dao.localPreview(account,cid,latest?.let {if(it.status=="SENT")it.body.take(160) else "${it.status.lowercase().replaceFirstChar {it.uppercase()}}: ${it.body.take(160)}"}.orEmpty(),latest?.takeIf {it.status!="SENT"}?.localTime ?: 0,latest?.serverTime.orEmpty())
+    }
+    private suspend fun putVisible(message:Message)=db.withTransaction {
+        if(!dao.hidden(message.account,message.id)&&
+            (message.seq==0L||message.seq>(dao.chat(message.account,message.conversation)?.deletedSeq ?: 0)))dao.put(message)
+    }
     private suspend fun applySnapshot(j:JSONObject,account:String,existingOnly:Boolean=false) {
         val id=j.getString("id");val old=dao.message(account,id)
         if(j.optBoolean("hidden")) {
+            dao.hide(HiddenMessage(account,id))
+            old?.localImage?.takeIf {it.isNotEmpty()}?.let {java.io.File(it).delete()}
             dao.removeMessage(account,id)
+            if(old!=null)refreshLocalPreview(account,old.conversation)
             context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
         } else if(old!=null||!existingOnly) {
-            val message=parseMessage(j,account).copy(localTime=old?.localTime ?: parseMessage(j,account).localTime)
-            dao.put(message)
+            val parsed=parseMessage(j,account)
+            val message=parsed.copy(localTime=old?.localTime ?: parsed.localTime)
+            putVisible(message)
             if(message.deletedAt.isNotEmpty())context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
         }
     }
@@ -322,7 +345,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun clearAccount(account:String) {
         active.value=null;contactState.value=JSONObject();privateSettings.value=JSONObject()
         WorkManager.getInstance(context).cancelAllWorkByTag("account-$account")
-        syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account)}}}}
+        syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account);dao.clearHidden(account)}}}}
         java.io.File(context.filesDir,"media/$account").deleteRecursively()
         coil.Coil.imageLoader(context).memoryCache?.clear()
     }
