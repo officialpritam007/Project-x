@@ -42,6 +42,8 @@ import com.pritam.liquidchat.AppViewModel
         }
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    key(session?.userId) {
+    val conversationStates=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
@@ -57,12 +59,13 @@ import com.pritam.liquidchat.AppViewModel
             else if(recovery) {Box(Modifier.padding(padding)) {RecoveryScreen(model,busy)}}
             else if(!loaded) {Column(Modifier.padding(padding).padding(24.dp)) {Text("Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
-            else if(active!=null) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}
+            else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}
             else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {
                 when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
             }
         }
         }
+    }
     }
     }
 }
