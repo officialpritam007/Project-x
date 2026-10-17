@@ -76,12 +76,12 @@ class CallController(
     private var lastCandidate=0L
 
     init {
-        scope.launch {
+        if(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) scope.launch {
             backend.session.map {it?.userId}.distinctUntilChanged().collect {id->
                 if(owner!=null && owner!=id)stopLocal()
             }
         }
-        scope.launch {
+        if(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) scope.launch {
             combine(backend.session,foreground) {s,fg->s?.userId.takeIf {fg}}
                 .collectLatest {id->
                     if(id==null) {
@@ -110,7 +110,7 @@ class CallController(
     }
 
     fun start(conversation:String,peer:String,kind:String) {
-        if(_view.value!=null||backend.session.value==null||!foreground.value)return
+        if(!com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS||_view.value!=null||backend.session.value==null||!foreground.value)return
         val account=backend.session.value!!.userId
         _view.value=CallView(null,conversation,peer,kind,false,"Preparing")
         owner=account
