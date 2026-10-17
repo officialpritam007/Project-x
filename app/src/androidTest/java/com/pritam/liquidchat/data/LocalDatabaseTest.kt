@@ -55,4 +55,17 @@ class LocalDatabaseTest {
         val result=dao.search("a","100\\%")
         assertEquals("salma",result.single().sender);assertEquals("chat-one",result.single().conversation)
     }
+
+    @Test fun concurrentWorkerProgressCannotRegressServerAcceptance()=runBlocking {
+        val dao=db.dao()
+        val accepted=Message("a","stable-id","chat","a","accepted",seq=42,status="SENT")
+        dao.putPreservingAcceptance(accepted)
+        for(status in listOf("SENDING","QUEUED","FAILED")) {
+            dao.putPreservingAcceptance(accepted.copy(seq=0,status=status,error="old network failure"))
+            assertEquals(accepted,dao.message("a","stable-id"))
+        }
+        dao.putPreservingAcceptance(accepted.copy(body="edited",editedAt="server timestamp"))
+        assertEquals("edited",dao.message("a","stable-id")!!.body)
+        assertTrue(dao.pending("a").isEmpty())
+    }
 }

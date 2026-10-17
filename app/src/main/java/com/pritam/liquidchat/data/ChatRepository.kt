@@ -167,36 +167,38 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         val id=JSONTokener(backend.rpc("start_conversation",JSONObject().put("p_peer",peer))).nextValue() as String
         sync();return id
     }
-    suspend fun draft(cid:String):Draft? = draftMutex.withLock {val id=backend.session.value?.userId ?: return@withLock null;dao.draft(id,cid).also {checkAccount(id)}}
-    fun saveDraft(cid:String,body:String,replyTo:String="") {
-        val id=backend.session.value?.userId ?: return
+    suspend fun draft(cid:String):Draft? = draftMutex.withLock {val id=backend.session.value?.userId ?: return@withLock null;dao.draft(id,cid).also {checkAccount(id);DraftVersions.observe(it?.updatedAt ?: 0)}}
+    fun saveDraft(cid:String,body:String,replyTo:String=""):Long {
+        val id=backend.session.value?.userId ?: return 0
+        val version=DraftVersions.next()
         // Start in call order, keep the lock across Room IO, and finish independently of composition.
         scope.launch(start=CoroutineStart.UNDISPATCHED) {draftMutex.withLock {
             checkAccount(id)
-            if(body.isEmpty()&&replyTo.isEmpty())dao.removeDraft(id,cid) else dao.putDraft(Draft(id,cid,body,replyTo))
+            if(body.isEmpty()&&replyTo.isEmpty())dao.removeDraft(id,cid) else dao.putDraft(Draft(id,cid,body,replyTo,updatedAt=version))
         }}
+        return version
     }
     suspend fun palette(cid:String):String {val id=backend.session.value?.userId ?: return "Ice";return dao.appearance(id,cid)?.palette ?: "Ice"}
     suspend fun setPalette(cid:String,palette:String) {
         require(palette in listOf("Ice","Lilac","Mint","Sand"));val id=account()
         dao.putAppearance(ChatAppearance(id,cid,palette));checkAccount(id)
     }
-    suspend fun send(cid:String,body:String,replyTo:String="") {
+    suspend fun send(cid:String,body:String,replyTo:String="",draftVersion:Long?=null) {
         require(body.isNotBlank() && body.length<=4000)
         val account=account()
         val message=Message(account,UUID.randomUUID().toString(),cid,account,body,replyTo=replyTo)
         draftMutex.withLock {db.withTransaction {
             checkAccount(account);putVisible(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
-            if(dao.draft(account,cid)?.let {it.body==body&&it.replyTo==replyTo}==true)dao.removeDraft(account,cid)
+            if(draftVersion!=null)dao.consumeDraft(account,cid,body,replyTo,draftVersion)
         }}
         enqueue(account)
     }
-    suspend fun sendImage(cid:String,image:Images.Prepared,caption:String) {
+    suspend fun sendImage(cid:String,image:Images.Prepared,caption:String,draftVersion:Long?=null) {
         val account=account()
         val message=Message(account,UUID.randomUUID().toString(),cid,account,caption.ifBlank {"Photo"},localImage=image.file.absolutePath,imageWidth=image.width,imageHeight=image.height)
         draftMutex.withLock {db.withTransaction {
             checkAccount(account);putVisible(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)
-            if(dao.draft(account,cid)?.body==caption)dao.removeDraft(account,cid)
+            if(draftVersion!=null)dao.consumeDraft(account,cid,caption,"",draftVersion)
         }}
         enqueue(account)
     }
@@ -219,9 +221,16 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         try {sync()}catch(e:CancellationException){throw e}catch(_:Exception){refresh()}
     }
     suspend fun retry(id:String) {
-        val account=account();val m=dao.message(account,id) ?: return
-        if(m.status!="FAILED")return
-        db.withTransaction {putVisible(m.copy(status="QUEUED",attempts=0,error=""));dao.pendingPreview(account,m.conversation,"Queued: ${m.body.take(160)}",m.localTime)};enqueue(account)
+        val account=account()
+        val requeued=db.withTransaction {
+            checkAccount(account)
+            val m=dao.message(account,id) ?: return@withTransaction false
+            if(m.status!="FAILED" || dao.hidden(account,id))return@withTransaction false
+            putVisible(m.copy(status="QUEUED",attempts=0,error=""))
+            dao.pendingPreview(account,m.conversation,"Queued: ${m.body.take(160)}",m.localTime)
+            true
+        }
+        if(requeued)enqueue(account)
     }
     private fun enqueue(account:String) {
         val request=OneTimeWorkRequestBuilder<SendWorker>().setInputData(workDataOf("account" to account))
@@ -288,7 +297,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     private suspend fun putVisible(message:Message)=db.withTransaction {
         if(!dao.hidden(message.account,message.id)&&
-            (message.seq==0L||message.seq>(dao.chat(message.account,message.conversation)?.deletedSeq ?: 0)))dao.put(message)
+            (message.seq==0L||message.seq>(dao.chat(message.account,message.conversation)?.deletedSeq ?: 0)))dao.putPreservingAcceptance(message)
     }
     private suspend fun applySnapshot(j:JSONObject,account:String,existingOnly:Boolean=false) {
         val id=j.getString("id");val old=dao.message(account,id)

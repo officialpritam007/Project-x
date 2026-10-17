@@ -51,6 +51,7 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("select * from drafts where account=:account and conversation=:cid") suspend fun draft(account:String,cid:String):Draft?
     @Upsert suspend fun putDraft(draft:Draft)
     @Query("delete from drafts where account=:account and conversation=:cid") suspend fun removeDraft(account:String,cid:String)
+    @Query("delete from drafts where account=:account and conversation=:cid and body=:body and replyTo=:replyTo and updatedAt=:version") suspend fun consumeDraft(account:String,cid:String,body:String,replyTo:String,version:Long):Int
     @Query("delete from drafts where account=:account") suspend fun clearDrafts(account:String)
     @Query("select * from chat_appearance where account=:account and conversation=:cid") suspend fun appearance(account:String,cid:String):ChatAppearance?
     @Upsert suspend fun putAppearance(appearance:ChatAppearance)
@@ -75,6 +76,11 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("delete from messages where account=:account and id=:id") suspend fun removeMessage(account:String,id:String)
     @Query("update chats set changeCursor=:cursor where account=:account and id=:cid") suspend fun changeCursor(account:String,cid:String,cursor:Long)
     @Upsert suspend fun put(message:Message)
+    @Transaction suspend fun putPreservingAcceptance(message:Message) {
+        // A concurrent server snapshot wins over stale worker progress/failure.
+        if(message.status!="SENT" && this.message(message.account,message.id)?.status=="SENT")return
+        put(message)
+    }
     @Upsert suspend fun putAll(messages:List<Message>)
     @Query("select coalesce(max(seq),0) from messages where account=:account and conversation=:cid") suspend fun maxSeq(account:String,cid:String):Long
     @Query("select min(seq) from messages where account=:account and conversation=:cid and seq>0") suspend fun minSeq(account:String,cid:String):Long?

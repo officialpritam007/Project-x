@@ -30,4 +30,21 @@ class DraftsTest {
             assertEquals("Other account",db.dao().draft("b","chat")?.body)
         } finally {db.close();context.deleteDatabase(name)}
     }
+
+    @Test fun olderSendCannotConsumeANewerIdenticalDraftOrReply()=runBlocking {
+        val context=ApplicationProvider.getApplicationContext<Context>()
+        val db=Room.inMemoryDatabaseBuilder(context,LocalDatabase::class.java).build()
+        try {
+            val dao=db.dao()
+            dao.putDraft(Draft("a","chat","Same text","reply",updatedAt=10))
+            // User edits away, then restores exactly the same text/reply before send returns.
+            dao.putDraft(Draft("a","chat","Same text","reply",updatedAt=12))
+            assertEquals(0,dao.consumeDraft("a","chat","Same text","reply",10))
+            assertEquals(12L,dao.draft("a","chat")!!.updatedAt)
+            assertEquals(0,dao.consumeDraft("b","chat","Same text","reply",12))
+            assertEquals(0,dao.consumeDraft("a","chat","Same text","other-reply",12))
+            assertEquals(1,dao.consumeDraft("a","chat","Same text","reply",12))
+            assertNull(dao.draft("a","chat"))
+        } finally {db.close()}
+    }
 }
