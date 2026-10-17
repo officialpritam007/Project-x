@@ -97,6 +97,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if(runCatching {java.util.UUID.fromString(cid)}.isFailure)return
         focusMessage.value=messageId;repository.active.value=cid
         repository.refresh()
+        if(messageId!=null)viewModelScope.launch {
+            try {repository.reveal(cid,messageId)} catch(e:CancellationException){throw e} catch(_:Exception){_notice.value="This message is unavailable. Retry when connected."}
+        }
     }
     fun openNotification(cid:String,expectedAccount:String?) {
         viewModelScope.launch {
