@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,6 +19,15 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -218,6 +228,7 @@ import kotlinx.coroutines.flow.drop
     var input by remember(cid) {mutableStateOf(TextFieldValue(""))}
     var draftReady by remember(cid) {mutableStateOf(false)}
     var queueing by remember(cid) {mutableStateOf(false)}
+    var inputFocused by remember(cid) {mutableStateOf(false)}
     var emojiPicker by remember(cid) {mutableStateOf(false)}
     var palette by remember(cid) {mutableStateOf("Ice")}
     var appearance by remember(cid) {mutableStateOf(false)}
@@ -246,6 +257,21 @@ import kotlinx.coroutines.flow.drop
         val image=Images.prepare(context,uri,account)
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    var attachments by remember(cid) {mutableStateOf(false)}
+    var cameraPath by rememberSaveable(cid) {mutableStateOf("")}
+    var cameraAccount by rememberSaveable(cid) {mutableStateOf("")}
+    val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {ok->
+        val file=java.io.File(cameraPath)
+        if(ok)model.action {
+            try {
+                if(model.backend.session.value?.userId==cameraAccount) {
+                    val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file)
+                    val image=Images.prepare(context,uri,cameraAccount)
+                    if(model.backend.session.value?.userId==cameraAccount)prepared=image else image.file.delete()
+                }
+            } finally {file.delete();cameraPath=""}
+        } else {file.delete();cameraPath=""}
+    }
     val display=LocalDisplayOptions.current
     val sendScale by androidx.compose.animation.core.animateFloatAsState(if(body.isNotBlank())1.04f else 1f,animationSpec=if(display.reducedMotion)androidx.compose.animation.core.tween(0) else androidx.compose.animation.core.spring(stiffness=when(display.animation){"Normal"->400f;"Extra"->250f;else->650f}),label="Send readiness")
     var menu by remember {mutableStateOf(false)}
@@ -261,7 +287,7 @@ import kotlinx.coroutines.flow.drop
     LaunchedEffect(cid,foreground) {
         var lastSent=0L
         if(foreground) try {
-            snapshotFlow {input.text}.drop(1).collectLatest { text ->
+            snapshotFlow {if(inputFocused&&draftReady)input.text else ""}.drop(1).collectLatest { text ->
                 val keyTime=android.os.SystemClock.elapsedRealtime()
                 if(text.isBlank()) runCatching {model.repository.typing(cid,false)}
                 else {
@@ -313,8 +339,9 @@ import kotlinx.coroutines.flow.drop
             }
         }
         MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
-            MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus,onLongClick={actionMessage=m},quoted=messages.firstOrNull {it.id==m.replyTo},onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo})
+            MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus,onLongClick={actionMessage=m},onReply={replyTo=m.id;model.repository.saveDraft(cid,body,replyTo)},quoted=messages.firstOrNull {it.id==m.replyTo},onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo})
         }
+        if(body.length>=3800)Text("${body.length} / 4000",Modifier.align(Alignment.End).padding(end=20.dp),style=MaterialTheme.typography.labelSmall)
         if(replyTo.isNotEmpty()) GlassSurface(Modifier.fillMaxWidth().padding(horizontal=12.dp),Glass.compact) {
             Row(Modifier.padding(start=14.dp),verticalAlignment=Alignment.CenterVertically) {
                 val original=messages.firstOrNull {it.id==replyTo}
@@ -325,15 +352,25 @@ import kotlinx.coroutines.flow.drop
         GlassSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
             Row(Modifier.fillMaxWidth().padding(4.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick={emojiPicker=true},enabled=draftReady) {Icon(Icons.Outlined.EmojiEmotions,"Open emoji picker")}
-                androidx.compose.foundation.text.BasicTextField(input,{if(it.text.length<=4000)updateInput(it)},enabled=draftReady&&!queueing,keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp).testTag("message-input").semantics {contentDescription="Message"},textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
-                IconButton(onClick={picker.launch("image/*")},enabled=!busy&&replyTo.isEmpty()) {Icon(Icons.Outlined.AttachFile,"Attach image")}
+                androidx.compose.foundation.text.BasicTextField(input,{if(it.text.length<=4000)updateInput(it)},enabled=draftReady&&!queueing,keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp).onFocusChanged {inputFocused=it.isFocused}.testTag("message-input").semantics {contentDescription="Message"},textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
+                IconButton(onClick={attachments=true},enabled=!busy&&replyTo.isEmpty()) {Icon(Icons.Outlined.AttachFile,"Attach image")}
                 if(body.isBlank()&&replyTo.isEmpty())VoiceCapture(model,cid,busy) else FilledIconButton(onClick={if(body.isNotBlank()&&!queueing){queueing=true;model.send(cid,body,replyTo){input=TextFieldValue("");replyTo=""}.invokeOnCompletion {queueing=false}}},enabled=body.isNotBlank()&&!queueing&&draftReady,modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
             }
         }
     }
 
     }
-    if(body.length>=3800) Text("${body.length} / 4000",style=MaterialTheme.typography.labelSmall)
+    if(attachments)AlertDialog(onDismissRequest={attachments=false},title={Text("Attach")},text={Column {
+        TextButton(onClick={attachments=false;picker.launch("image/*")}) {Icon(Icons.Outlined.PhotoLibrary,null);Spacer(Modifier.width(12.dp));Text("Gallery")}
+        TextButton(onClick={attachments=false
+            val account=model.backend.session.value?.userId
+            if(account!=null) {
+                cameraAccount=account
+                val file=java.io.File(context.cacheDir,"camera/${java.util.UUID.randomUUID()}.jpg");file.parentFile?.mkdirs();cameraPath=file.absolutePath
+                runCatching {camera.launch(androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file))}.onFailure {file.delete();cameraPath="";model.action {throw java.io.IOException("No camera app is available. Choose Gallery.")}}
+            }
+        }) {Icon(Icons.Outlined.PhotoCamera,null);Spacer(Modifier.width(12.dp));Text("Camera")}
+    }},confirmButton={TextButton(onClick={attachments=false}) {Text("Cancel")}})
     if(emojiPicker)EmojiPicker(onEmoji={emoji->
         val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
         val text=body.replaceRange(start,end,emoji)
@@ -361,19 +398,8 @@ import kotlinx.coroutines.flow.drop
         val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
         if(m.sender==m.account&&age<=172800&&m.deletedAt.isEmpty())TextButton(onClick={model.action {model.repository.messageAction(m.id,"delete");deleteMessage=null}},enabled=!busy) {Text("Delete for everyone")}
     }},confirmButton={TextButton(onClick={model.action {model.repository.messageAction(m.id,"hide");deleteMessage=null}},enabled=!busy) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteMessage=null}) {Text("Cancel")}})}
-    if(starsOpen)AlertDialog(onDismissRequest={starsOpen=false},title={Text("Starred messages")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
-        Text("Downloaded starred messages in this chat",style=MaterialTheme.typography.labelSmall)
-        val stars=messages.filter {it.starred&&it.deletedAt.isEmpty()}
-        if(stars.isEmpty())Text("No downloaded starred messages.")
-        stars.forEach {m->TextButton(onClick={starsOpen=false;model.focusMessage.value=m.id}) {Text(m.body,maxLines=3,overflow=TextOverflow.Ellipsis)}}
-    }},confirmButton={TextButton(onClick={starsOpen=false}) {Text("Done")}})
-    if(details&&chat!=null) AlertDialog(onDismissRequest={details=false},title={Text(chat.name)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Avatar(chat.name,chat.avatarId,model.backend);Text("@${chat.username}")
-        TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}},enabled=!busy) {Text("Save contact")}
-        Text("Downloaded shared images",style=MaterialTheme.typography.titleMedium)
-        messages.filter {it.mediaId.isNotEmpty()&&it.mediaKind!="voice"}.forEach {m->ImagePreview(model,m)}
-        if(messages.none {it.mediaId.isNotEmpty()&&it.mediaKind!="voice"})Text("No downloaded shared images.")
-    }},confirmButton={TextButton(onClick={details=false}) {Text("Done")}})
+    if(starsOpen&&chat!=null)ContactMediaDialog(model,chat,messages,initialKind="star") {starsOpen=false}
+    if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null) AlertDialog(onDismissRequest={report=false},title={Text("Report contact")},text={Column {Text("Only your explanation is included. No messages are attached.");OutlinedTextField(reason,{reason=it.take(1000)},label={Text("Reason")})}},confirmButton={TextButton(onClick={report=false;model.report(chat.peer,reason)},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick={report=false}) {Text("Cancel")}})
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
         coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
@@ -382,21 +408,24 @@ import kotlinx.coroutines.flow.drop
     if(confirmDelete&&chat!=null) AlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
 @OptIn(ExperimentalFoundationApi::class)
-@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={}) {
+@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={}) {
     val mine=message.sender==message.account
+    var swipe by remember(message.id) {mutableFloatStateOf(0f)}
+    val threshold=with(LocalDensity.current) {72.dp.toPx()}
+    val replyCallback by rememberUpdatedState(onReply)
+    val drag=rememberDraggableState {delta->swipe=(swipe+delta).coerceIn(0f,threshold*1.3f)}
     var expanded by remember(message.id) {mutableStateOf(false)}
     var truncated by remember(message.id) {mutableStateOf(false)}
-    val label=com.pritam.liquidchat.data.Delivery.label(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val bubbleWidth=maxWidth*.86f
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
+    Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset(swipe.toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF204F65) else Color(0xFF263C4A)} else if(mine)Color(0xFFD6F1FD) else Color(0xFFF8FCFF),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).16f else .8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=bubbleWidth).glassSource().combinedClickable(onClick={},onLongClick=onLongClick)) {
             Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
                 if(message.replyTo.isNotEmpty()&&message.deletedAt.isEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
                     Column(Modifier.padding(8.dp)) {Text("Reply",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(quoted?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall)}
                 }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
-                    if(message.mediaKind=="voice")VoicePlayer(model,message) else ImagePreview(model,message)
+                    if(message.mediaKind=="voice")VoicePlayer(model,message) else SharedImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
                 if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
@@ -423,7 +452,7 @@ import kotlinx.coroutines.flow.drop
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
-            if(title in listOf("Devices","Data and Storage","Language","Chat Folders")) unavailable=title else section=title
+            if(title in listOf("Devices","Language","Chat Folders")) unavailable=title else section=title
         }
         unavailable?.let {title->AlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
@@ -448,6 +477,7 @@ import kotlinx.coroutines.flow.drop
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        if(section=="Data and Storage") DataStorage(model)
         if(section=="Account") GlassCard(Modifier.fillMaxWidth()) {
             val avatar=profile?.optString("avatar_id")
             if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
@@ -492,14 +522,25 @@ import kotlinx.coroutines.flow.drop
     if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Sign out?")},text={Text(if(unsent>0)"$unsent unsent messages will be discarded. Saved local history, drafts and jobs will be removed from this device." else "Saved local history and account data will be removed from this device.")},confirmButton={TextButton(onClick={confirm=false;model.finishLogout()}) {Text("Sign out")}},dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
 }
 
-@Composable private fun ImagePreview(model:AppViewModel,message:Message) {
+@Composable internal fun SharedImagePreview(model:AppViewModel,message:Message) {
     var open by remember(message.id) {mutableStateOf(false)}
     ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.widthIn(max=280.dp).fillMaxWidth().aspectRatio((if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clickable {open=true})
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
                 TextButton(onClick={open=false}) {Text("Close image")}
-                ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.weight(1f).fillMaxWidth())
+                var zoom by remember(message.id) {mutableFloatStateOf(1f)}
+                var pan by remember(message.id) {mutableStateOf(Offset.Zero)}
+                var size by remember {mutableStateOf(IntSize.Zero)}
+                val transform=rememberTransformableState {scale,move,_->
+                    zoom=(zoom*scale).coerceIn(1f,4f)
+                    val limitX=size.width*(zoom-1)/2;val limitY=size.height*(zoom-1)/2
+                    pan=Offset((pan.x+move.x).coerceIn(-limitX,limitX),(pan.y+move.y).coerceIn(-limitY,limitY))
+                }
+                Box(Modifier.weight(1f).fillMaxWidth().clip(androidx.compose.foundation.shape.RectangleShape).onSizeChanged {size=it}.transformable(transform)) {
+                    ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.fillMaxSize().graphicsLayer {scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y})
+                }
+                TextButton(onClick={zoom=1f;pan=Offset.Zero}) {Text("Reset zoom")}
             }
         }
     }
