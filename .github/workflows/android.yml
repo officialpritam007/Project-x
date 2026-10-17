@@ -4,6 +4,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+env:
+  ENABLE_EXPERIMENTAL_CALLS: ${{ vars.ENABLE_EXPERIMENTAL_CALLS }}
 permissions:
   contents: read
 concurrency:
