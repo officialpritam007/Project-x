@@ -119,8 +119,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val cid=repository.active.value
         if(cid!=null)viewModelScope.launch {runCatching {repository.typing(cid,false)}}
         repository.active.value=null;focusMessage.value=null;repository.refresh()}
-    fun send(cid:String,body:String,replyTo:String="",onQueued:()->Unit={}) = viewModelScope.launch {
-        try {repository.send(cid,body,replyTo);onQueued();runCatching {repository.typing(cid,false)}}
+    fun send(cid:String,body:String,replyTo:String="",draftVersion:Long?=null,onQueued:()->Unit={}) = viewModelScope.launch {
+        try {repository.send(cid,body,replyTo,draftVersion);onQueued();runCatching {repository.typing(cid,false)}}
         catch(e:CancellationException){throw e}
         catch(e:Exception) {_notice.value=e.message}
     }

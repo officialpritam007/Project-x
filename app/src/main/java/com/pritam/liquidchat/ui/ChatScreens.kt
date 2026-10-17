@@ -234,6 +234,7 @@ import kotlinx.coroutines.flow.drop
     var input by remember(cid) {mutableStateOf(TextFieldValue(""))}
     var draftReady by remember(cid) {mutableStateOf(false)}
     var queueing by remember(cid) {mutableStateOf(false)}
+    var draftVersion by remember(cid) {mutableLongStateOf(0L)}
     var inputFocused by remember(cid) {mutableStateOf(false)}
     var emojiPicker by remember(cid) {mutableStateOf(false)}
     var palette by remember(cid) {mutableStateOf("Ice")}
@@ -250,10 +251,10 @@ import kotlinx.coroutines.flow.drop
     var deleteMessage by remember(cid) {mutableStateOf<Message?>(null)}
     var starsOpen by remember(cid) {mutableStateOf(false)}
     val body=input.text
-    fun updateInput(value:TextFieldValue) {input=value;model.repository.saveDraft(cid,value.text,replyTo)}
+    fun updateInput(value:TextFieldValue) {val changed=input.text!=value.text;input=value;if(changed)draftVersion=model.repository.saveDraft(cid,value.text,replyTo)}
     LaunchedEffect(cid) {
         val draft=model.repository.draft(cid)
-        input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0));replyTo=draft?.replyTo.orEmpty();draftReady=true
+        input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0));replyTo=draft?.replyTo.orEmpty();draftVersion=draft?.updatedAt ?: 0;draftReady=true
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
@@ -346,14 +347,14 @@ import kotlinx.coroutines.flow.drop
         }
         if(messagesReady!=cid)Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {CircularProgressIndicator(Modifier.size(24.dp))}
         else MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
-            MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus,onLongClick={actionMessage=m},onReply={replyTo=m.id;model.repository.saveDraft(cid,body,replyTo)},quoted=messages.firstOrNull {it.id==m.replyTo},onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo})
+            MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus,onLongClick={actionMessage=m},onReply={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo)},quoted=messages.firstOrNull {it.id==m.replyTo},onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo})
         }
         if(body.length>=3800)Text("${body.length} / 4000",Modifier.align(Alignment.End).padding(end=20.dp),style=MaterialTheme.typography.labelSmall)
         if(replyTo.isNotEmpty()) GlassSurface(Modifier.fillMaxWidth().padding(horizontal=12.dp),Glass.compact) {
             Row(Modifier.padding(start=14.dp),verticalAlignment=Alignment.CenterVertically) {
                 val original=messages.firstOrNull {it.id==replyTo}
                 Column(Modifier.weight(1f)) {Text("Replying to ${if(original?.sender==original?.account)"yourself" else chat?.name.orEmpty()}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary);Text(original?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=1,overflow=TextOverflow.Ellipsis)}
-                IconButton(onClick={replyTo="";model.repository.saveDraft(cid,body)}) {Icon(Icons.Outlined.Close,"Cancel reply")}
+                IconButton(onClick={replyTo="";draftVersion=model.repository.saveDraft(cid,body)}) {Icon(Icons.Outlined.Close,"Cancel reply")}
             }
         }
         GlassSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
@@ -364,10 +365,11 @@ import kotlinx.coroutines.flow.drop
                 if(body.isBlank()&&replyTo.isEmpty())VoiceCapture(model,cid,busy) else FilledIconButton(onClick={if(body.isNotBlank()&&!queueing){
                     val submittedBody=body
                     val submittedReply=replyTo
+                    val submittedVersion=draftVersion
                     queueing=true
-                    model.send(cid,submittedBody,submittedReply){
+                    model.send(cid,submittedBody,submittedReply,submittedVersion){
                         // Preserve any new draft typed while the previous message was being queued.
-                        if(input.text==submittedBody&&replyTo==submittedReply){input=TextFieldValue("");replyTo=""}
+                        if(draftVersion==submittedVersion&&input.text==submittedBody&&replyTo==submittedReply){input=TextFieldValue("");replyTo=""}
                     }.invokeOnCompletion {queueing=false}
                 }},enabled=body.isNotBlank()&&!queueing&&draftReady,modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
             }
@@ -396,7 +398,7 @@ import kotlinx.coroutines.flow.drop
         if(m.deletedAt.isEmpty()) {
             if(m.status=="SENT") {
                 Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("👍","❤️","😂","😮","😢","🙏").forEach {emoji->TextButton(onClick={actionMessage=null;model.action {val old=org.json.JSONObject(m.reactions).optString(m.account);model.repository.messageAction(m.id,"react",if(old==emoji)"" else emoji)}}) {Text(emoji)}}}
-                TextButton(onClick={replyTo=m.id;model.repository.saveDraft(cid,body,replyTo);actionMessage=null}) {Text("Reply")}
+                TextButton(onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null}) {Text("Reply")}
                 TextButton(onClick={actionMessage=null;model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}}) {Text(if(m.starred)"Unstar" else "Star")}
             }
             TextButton(onClick={clipboard.setText(AnnotatedString(m.body));actionMessage=null}) {Text("Copy text")}
@@ -419,7 +421,7 @@ import kotlinx.coroutines.flow.drop
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
         coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
         OutlinedTextField(input,{if(it.text.length<=4000)updateInput(it)},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
-    }},confirmButton={TextButton(onClick={model.action {model.repository.sendImage(cid,image,body);prepared=null;input=TextFieldValue("")}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
+    }},confirmButton={TextButton(onClick={val caption=body;val version=draftVersion;model.action {model.repository.sendImage(cid,image,caption,version);prepared=null;if(draftVersion==version){input=TextFieldValue("");replyTo=""}}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
     if(confirmDelete&&chat!=null) AlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
 @OptIn(ExperimentalFoundationApi::class)

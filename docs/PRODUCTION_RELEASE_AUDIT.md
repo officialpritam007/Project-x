@@ -27,3 +27,11 @@ Official target requirement verified: API 36 for new submissions/updates from 31
 ## Security coverage limitation
 
 Provider advisors and selected source/SQL authorization paths reviewed. This is not an exhaustive independent Codex Security scan; that skill's referenced scan resources were unavailable. Dependency vulnerability/license inventory and adversarial full-client integration remain open.
+
+## Phase 1 implementation
+
+Draft text/reply submissions carry persisted monotonic revision tokens. Room consumes a draft only if account, conversation, text, reply and revision match. Text and image callbacks clear only their submitted revision; cursor-only changes do not rewrite drafts. Room rejects stale worker progress after server acceptance, and retry checks status transactionally. Existing editor stays enabled during queuing. All changes await phase-specific CI.
+
+Live provider blocker: 62 recorded HTTP503 responses explicitly match the notify function's missing-FCM_SERVICE_ACCOUNT_JSON path. 13 jobs were pending with zero attempts. Cron's 403 successful SQL executions only prove dispatch scheduling, not successful push. Credential configuration and real-device delivery are owner/provider gates. No secret values accessed.
+
+All three SQL suites passed and all fixture identities were verified absent. Baseline downloaded instrumentation XML contains 13 tests, zero failures/errors/skips; synthetic UI screenshots inspected. This does not establish physical-device reliability.

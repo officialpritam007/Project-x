@@ -72,4 +72,17 @@ class LiquidScreensTest {
         compose.runOnIdle {offset=1};compose.waitForIdle();capture("08-live-glass-after")
         compose.onNodeWithTag("glass").assertIsDisplayed()
     }
+
+    @Test fun failedLocalSendKeepsEditorFocusedAndDraftEditable() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {ConversationScreen(model,"offline-fixture",emptyList(),false)}}
+        compose.onNodeWithTag("message-input").performClick().performTextInput("Hello")
+        compose.onNodeWithTag("message-input").assertIsFocused()
+        compose.onNodeWithContentDescription("Send message").performClick()
+        // No account is configured in instrumentation: local queue fails, without network writes.
+        compose.waitUntil(5000) {model.notice.value!=null}
+        compose.onNodeWithTag("message-input").assertIsFocused().assertTextEquals("Hello")
+        compose.onNodeWithTag("message-input").performTextInput(" again")
+        compose.onNodeWithTag("message-input").assertTextEquals("Hello again")
+    }
 }
