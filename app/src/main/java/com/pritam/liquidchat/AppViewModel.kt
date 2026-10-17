@@ -98,11 +98,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         focusMessage.value=messageId;repository.active.value=cid
         repository.refresh()
     }
+    fun openNotification(cid:String,expectedAccount:String?) {
+        viewModelScope.launch {
+            ready.filter {it}.first()
+            if(expectedAccount==null||session.value?.userId!=expectedAccount)return@launch
+            try {
+                repository.sync()
+                if(session.value?.userId==expectedAccount&&repository.dao.chat(expectedAccount,cid)!=null)open(cid)
+            } catch(e:CancellationException){throw e} catch(_:Exception){_notice.value="Connect to open this notification safely."}
+        }
+    }
     fun closeChat() {
         val cid=repository.active.value
         if(cid!=null)viewModelScope.launch {runCatching {repository.typing(cid,false)}}
         repository.active.value=null;focusMessage.value=null;repository.refresh()}
-    fun send(cid:String,body:String) {viewModelScope.launch {try {repository.send(cid,body)} catch(e:Exception) {_notice.value=e.message}}}
+    fun send(cid:String,body:String,replyTo:String="",onQueued:()->Unit={}) = viewModelScope.launch {
+        try {repository.send(cid,body,replyTo);onQueued();runCatching {repository.typing(cid,false)}}
+        catch(e:CancellationException){throw e}
+        catch(e:Exception) {_notice.value=e.message}
+    }
     fun retry(id:String)=action {repository.retry(id)}
     fun older(cid:String)=action {if(!repository.loadOlder(cid)) _notice.value="All available history is loaded."}
     fun find(username:String)=action {found.value=repository.find(username);if(found.value==null)_notice.value="No matching contact found."}
