@@ -177,5 +177,18 @@ grant execute on function public.call_start(uuid,text,text),public.call_respond(
  public.call_hangup(uuid),public.call_heartbeat(uuid),public.call_candidate(uuid,jsonb),
  public.call_poll(uuid,bigint) to authenticated;
 
--- Short retention of ICE candidates, SDP (including IP addresses) and ended calls.
+-- SDP and ICE candidates can contain network identifiers; enforce short retention.
+create function private.purge_expired_calls() returns integer
+language plpgsql security definer set search_path='' as $
+declare removed integer;
+begin
+ delete from public.call_sessions
+ where expires_at < now()-interval '1 hour';
+ get diagnostics removed = row_count;
+ return removed;
+end $;
+revoke all on function private.purge_expired_calls() from public,anon,authenticated;
+-- Existing project already uses pg_cron. This job deletes call metadata, not chat messages.
+select cron.schedule('liquid-call-retention','*/15 * * * *',
+ 'select private.purge_expired_calls()');
 -- Deploy only after rollback-only authorization fixtures pass.
