@@ -25,6 +25,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     val backend: Backend=(app as LiquidApplication).backend
     val repository=(app as LiquidApplication).repository
+    val calls=com.pritam.liquidchat.calls.CallController(app,backend,repository.foreground,viewModelScope)
     val contacts=repository.contacts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val chats=repository.chats().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val messagesReady=MutableStateFlow<String?>(null)
