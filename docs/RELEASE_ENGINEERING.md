@@ -8,6 +8,10 @@ Candidate: `com.pritam.liquidchat`, 1.0.0-rc1 / versionCode 8. Android 10+ (min 
 
 The normal release-bundle artifact is explicitly **UNSIGNED / inspection only**. Build/R8 success is not release runtime or physical-device certification. Keep debug APK distribution separate; verify the certificate before attempting an update over an existing install. Do not uninstall with pending unsent messages. An incompatible signing certificate prevents a preserving in-place update; decide a migration/backup route before destructive local changes.
 
+### Development identity continuity correction
+
+Main run39043775751 exposed a real cache-path failure: `~/.android/debug.keystore` did not exist at cache-save time, despite a signed debug APK. Its public certificate differed from baseline and PR7. The follow-up prepares that exact development path and explicitly supplies it to Gradle through LIQUID_DEBUG_KEYSTORE_PATH, so generated or owner-provided keys are actually used. Owner-provided development keys remain excluded from cache. A missing cache may generate a new **development-only** identity; cache is not a durable signing backup. Use the owner DEBUG_KEYSTORE_BASE64 secret for controlled continuity, and inspect certificate reports before every update. This correction cannot recover missing prior private keys or establish a safe upgrade from old installations. Production release signing remains separate and owner-controlled.
+
 ## Owner upload signing — blocked until configured
 
 Create/retain an owner-controlled upload key and backup outside this repo. Use Play App Signing as appropriate. Do not paste keys/passwords/service accounts into chat, logs, issue bodies or source. Configure GitHub Actions secrets:

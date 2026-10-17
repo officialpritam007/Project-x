@@ -38,23 +38,38 @@ jobs:
         with:
           path: ~/.android/debug.keystore
           key: liquid-debug-signing-v1
-      - name: Use owner-provided development key when configured
+      - name: Prepare the exact development signing path
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
           python - <<'PYKEY'
-          import os,base64,pathlib
+          import os,base64,pathlib,subprocess
           value=os.environ.get("DEBUG_KEYSTORE_BASE64", "")
+          key=pathlib.Path.home()/".android"/"debug.keystore"
+          key.parent.mkdir(parents=True,exist_ok=True)
           if value:
-              key=pathlib.Path.home()/".android"/"debug.keystore"
-              key.parent.mkdir(parents=True,exist_ok=True)
               key.write_bytes(base64.b64decode(value,validate=True))
+          elif not key.is_file():
+              # Development identity only. Production always requires the owner's upload key.
+              subprocess.run(['keytool','-genkeypair','-noprompt','-keystore',str(key),'-alias','androiddebugkey','-storepass','android','-keypass','android','-dname','CN=Android Debug,O=Android,C=US','-keyalg','RSA','-keysize','2048','-validity','10950'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          key.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'],'a') as env:
+              env.write('LIQUID_DEBUG_KEYSTORE_PATH='+str(key)+'\n')
           PYKEY
       - name: Tests, lint and APK
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug testReleaseUnitTest lintRelease bundleRelease
       - name: Validate APK signature, alignment and native page compatibility
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/debug-certificate.txt
+          python3 - <<'PYIDENTITY'
+          import os,subprocess,hashlib,re
+          from pathlib import Path
+          public_cert=subprocess.check_output(['keytool','-exportcert','-keystore',os.environ['LIQUID_DEBUG_KEYSTORE_PATH'],'-alias','androiddebugkey','-storepass','android'],stderr=subprocess.DEVNULL)
+          actual=re.search(r'certificate SHA-256 digest: ([0-9a-fA-F]+)',Path('app/build/outputs/debug-certificate.txt').read_text()).group(1).lower()
+          if hashlib.sha256(public_cert).hexdigest()!=actual:
+              raise SystemExit('APK does not use the prepared development signing identity.')
+          print('APK uses the exact prepared development signing identity.')
+          PYIDENTITY
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 app/build/outputs/apk/debug/app-debug.apk
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/debug-package.txt
           python3 scripts/verify_artifacts.py app/build/outputs/apk/debug/app-debug.apk app/build/outputs/bundle/release/app-release.aab --output app/build/outputs/candidate-metadata.json
