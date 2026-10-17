@@ -22,13 +22,12 @@ import java.util.concurrent.TimeUnit
 class ApiException(val status: Int, val code: String, message: String) : IOException(message)
 data class Session(val userId: String, val access: String, val refresh: String, val expires: Long,val email:String="")
 
-class Backend(private val store: SessionStore) {
+class Backend(private val store: SessionStore, private val http:OkHttpClient = OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS).build()) {
     companion object {
         const val URL = "https://qsdmspylumxysczzqnqc.supabase.co"
         const val PUBLIC_KEY = "sb_publishable_EIfZYiBXr4XR5eTW6vcPxw_qPLsQs78"
         const val CALLBACK = "liquidchat://auth/callback"
     }
-    private val http = OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS).build()
     private val authMutex = Mutex()
     private val deviceMutex=Mutex()
     private val _session = MutableStateFlow<Session?>(null)

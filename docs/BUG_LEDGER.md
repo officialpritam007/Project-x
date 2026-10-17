@@ -20,3 +20,7 @@
 No untested feature is classified as a confirmed defect. No open row is implicitly accepted.
 
 Phase 1 also protects server-accepted UUIDs from stale local worker writes (SOURCE-CONFIRMED sync/drain race), makes retry's FAILED check atomic, and preserves newly edited image captions. No schema migration or server data change.
+
+AUTH-04 implementation complete, CI pending: local cleanup runs in a non-cancellable finally block, reports remote revocation honestly and propagates storage failures. AUTH-07 offline uncached profile now shows error/retry/sign-out rather than a loading-only label; provider/device acceptance remains open.
+
+AUTH-05 / MEDIA-04: source-confirmed voice-queue/logout transaction race now checks account identity inside the Room transaction, matching text/image protection. Device lifecycle acceptance remains open.

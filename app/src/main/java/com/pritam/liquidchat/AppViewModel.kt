@@ -8,6 +8,7 @@ import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.CachedProfile
 import com.pritam.liquidchat.data.Message
+import com.pritam.liquidchat.data.localLogout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -50,11 +51,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val profile=_profile.asStateFlow()
     private val _profileLoaded=MutableStateFlow(false)
     val profileLoaded=_profileLoaded.asStateFlow()
+    private val _profileError=MutableStateFlow<String?>(null)
+    val profileError=_profileError.asStateFlow()
     init {
         viewModelScope.launch { backend.restore(); _ready.value=true }
         viewModelScope.launch {
             session.map { it?.userId }.distinctUntilChanged().collectLatest { id ->
-                _profile.value=null; _profileLoaded.value=false;found.value=null;searchResults.value=emptyList();focusMessage.value=null
+                _profile.value=null; _profileLoaded.value=false;_profileError.value=null;found.value=null;searchResults.value=emptyList();focusMessage.value=null
                 if(id!=null) loadProfile() else _profileLoaded.value=true
             }
         }
@@ -78,15 +81,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     suspend fun loadProfile() {
         val id=session.value?.userId ?: return
+        _profileError.value=null
         try {
-            repository.dao.profile(id)?.let { _profile.value=JSONObject(it.json);_profileLoaded.value=true }
+            repository.dao.profile(id)?.let { if(session.value?.userId==id){_profile.value=JSONObject(it.json);_profileLoaded.value=true} }
             val a=JSONArray(backend.request("/rest/v1/profiles?id=eq.$id&select=*&limit=1"))
             if(session.value?.userId==id) {
                 _profile.value=a.optJSONObject(0);_profileLoaded.value=true
                 _profile.value?.let {repository.dao.cacheProfile(CachedProfile(id,it.toString()))}
             }
         } catch(e: CancellationException) { throw e }
-        catch(e:Exception) { _notice.value=e.message ?: "Cannot load profile. Retry when connected." }
+        catch(e:Exception) { if(session.value?.userId==id){_profileError.value="Your profile is unavailable offline or while the service is unreachable. Connect and retry.";_notice.value=e.message ?: "Cannot load profile. Retry when connected."} }
     }
     fun signIn(email:String,password:String)=action { backend.signIn(email,password) }
     fun register(email:String,password:String)=action {
@@ -162,11 +166,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun finishLogout()=action {
         logoutPrompt.value=false
         val id=session.value?.userId
-        backend.logout()
-        if(id!=null)repository.clearAccount(id)
-        getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
-        androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
-        getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()
-        found.value=null;searchResults.value=emptyList();focusMessage.value=null
+        val revoked=localLogout(revokeRemote={backend.logout()},clearLocal={
+            backend.forgetLocal()
+            if(id!=null)repository.clearAccount(id)
+            getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
+            androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
+            getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()
+            found.value=null;searchResults.value=emptyList();focusMessage.value=null
+        })
+        if(!revoked)_notice.value="Signed out on this device. Server session revocation could not be confirmed while offline or unavailable."
     }
 }
