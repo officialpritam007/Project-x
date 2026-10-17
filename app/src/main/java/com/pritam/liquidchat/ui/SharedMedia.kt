@@ -20,13 +20,15 @@ import kotlinx.coroutines.launch
     var failed by remember {mutableStateOf(false)}
     val scope=rememberCoroutineScope()
     suspend fun page(reset:Boolean) {
+        val requestedKind=kind
         loading=true;failed=false
         try {
             val before=if(reset)Long.MAX_VALUE else rows.lastOrNull()?.seq ?: Long.MAX_VALUE
             val page=if(kind=="star")model.repository.starred(chat.id,before) else model.repository.sharedMedia(chat.id,before,kind)
+            if(kind!=requestedKind)return
             rows=if(reset)page else (rows+page).distinctBy {it.id};more=page.size==30
-        } catch(e:kotlinx.coroutines.CancellationException){throw e} catch(_:Exception){failed=true}
-        finally {loading=false}
+        } catch(e:kotlinx.coroutines.CancellationException){throw e} catch(_:Exception){if(kind==requestedKind)failed=true}
+        finally {if(kind==requestedKind)loading=false}
     }
     LaunchedEffect(kind,sourceVersion) {rows=emptyList();more=true;page(true)}
     AlertDialog(onDismissRequest=onDismiss,title={Text(chat.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
