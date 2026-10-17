@@ -71,3 +71,12 @@ No milestone is release-certified until the PRD device gates have passed.
 - APK SHA-256: `eb14093eb7ffcfb741e26596cc96edeba3557d54bc1d5e2145ca8e475f8e49f3`.
 - No SQL fixture users/jobs were retained. SQL authorization suite and anonymous HTTP denial checks passed; latest security advisor had zero findings. One INFO about a fresh unused index is not a measured performance failure.
 - This is a reviewable beta baseline, not a public-release certification. Provider configuration, real media expiry/push/auth journeys, physical-device performance and backup restore rehearsal remain required.
+
+
+## Step 6 — Figma UI and remaining features (0.5.0)
+- Implemented the five-screen Liquid Chat design with original navigation assets and source-backed Haze blur; Android 10/11 use the readable scrim fallback.
+- Completed private Stories (24-hour expiry), Posts (archive/restore/delete), and durable AAC voice messages with recording cancellation/lock and seekable playback. Room v4 preserves older data.
+- Deployed five additive migrations and media/account/cleanup updates. Missing Cloudinary credentials no longer block uploads: permission-checked private Supabase Storage is the bounded fallback. No paid service was enabled.
+- Rollback authorization and moments/voice suites, real signed-in image/story/voice/block/account-erasure HTTP checks, media parser tests, Android build/unit/lint, and ten API 35 emulator instrumentation tests passed. All live test fixtures were removed.
+- Reviewed screenshots and corrected compact-screen bottom insets and scrollable Profile posts. See REMAINING_FEATURES.md for scope and validation limits.
+- Earlier Cloudinary-only runtime blockers above are superseded by the private fallback. Google OAuth/email delivery/FCM provider setup and physical-phone acceptance remain external release requirements, not completed device certification.

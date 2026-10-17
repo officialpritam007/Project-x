@@ -10,8 +10,8 @@ Enable Google in [Auth providers](https://supabase.com/dashboard/project/qsdmspy
 
 Configure a separately validated SMTP service for public registration/reset email. Confirm its free limits, sender domain, link redirects and delivery. The bundled development email service is not public-launch acceptance. No SMS authentication is used.
 
-## 2. Cloudinary secrets — server only
-In [Edge Function secrets](https://supabase.com/dashboard/project/qsdmspylumxysczzqnqc/functions/secrets), set:
+## 2. Optional Cloudinary secrets — server only
+Media currently works through the private Supabase Storage fallback because the Cloudinary credentials are absent. Direct client bucket access is denied; Edge Functions authorize and sign private URLs. The fallback has a serialized 512 MB global budget and 100 MB finalized-media limit per account. To prefer Cloudinary for new uploads, configure these values in [Edge Function secrets](https://supabase.com/dashboard/project/qsdmspylumxysczzqnqc/functions/secrets):
 
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
@@ -48,11 +48,11 @@ Verify foreground exact-chat suppression, other-chat notifications, background, 
 - Arrange access-controlled exports and rehearse restores. No backup or restore has been performed in this implementation session; do not put chat exports in this public repo.
 
 ## 5. Release gate — still required
-CI can prove compilation/lint and the small unit suite; the SQL suite proves the listed database authorization scenarios. They do not prove full product acceptance.
+CI verifies compilation/lint, unit tests and ten API 35 emulator checks. The SQL suite verifies the listed database authorization scenarios. Live authenticated HTTP checks also passed for private images, Stories, voice, blocking and media-bearing account erasure, with fixtures removed. They do not prove full product acceptance.
 
-Before release, complete two physical-device journeys, offline/process-death/outbox/Room migration checks, real Cloudinary expiry, FCM delivery, real SMTP/Google flows, account erasure with owned media, TalkBack, 200% text, gesture/keyboard layouts and low-memory frame profiling. Confirm the remaining PRD policy defaults and current Play target SDK requirements. No P1 work is release-enabled.
+Before release, complete two physical-device journeys, offline/process-death/outbox/Room migration checks, Cloudinary-specific expiry if that optional provider is enabled, FCM delivery, real SMTP/Google flows, account erasure with owned media, TalkBack, 200% text, gesture/keyboard layouts and low-memory frame profiling. Confirm the remaining PRD policy defaults and current Play target SDK requirements. Stories, Posts and voice are implemented in the reviewable beta; this does not replace physical-device release acceptance.
 
-The implemented contact-details/shared-media dialog and full-screen viewer operate on downloaded images. Saved contacts are stored independently of conversations. Remaining hardening work requires device-tested loading/permission states and measured quota degradation behavior. The current glass treatment uses a tinted, readable fallback rather than nested backdrop blurs.
+The implemented contact-details/shared-media dialog and full-screen viewer operate on downloaded images. Saved contacts are stored independently of conversations. Remaining hardening work requires device-tested loading/permission states and measured quota degradation behavior. The current glass treatment uses source-backed live blur on Android 12+ and a readable scrim on Android 10/11.
 
 
 ## Debug APK updates
