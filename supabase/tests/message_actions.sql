@@ -5,6 +5,8 @@ insert into auth.users(id,email) values
  ('30000000-0000-0000-0000-000000000002','modern-test-b@example.invalid'),
  ('30000000-0000-0000-0000-000000000003','modern-test-c@example.invalid');
 insert into auth.sessions(id,user_id,created_at) select id,id,now() from auth.users where id in('30000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000003') on conflict do nothing;
+insert into auth.users(id,email) values('30000000-0000-0000-0000-000000000004','modern-test-d@example.invalid'),('30000000-0000-0000-0000-000000000005','modern-test-e@example.invalid');
+insert into public.profiles(id,username,display_name) values('30000000-0000-0000-0000-000000000004','modern_test_d','D'),('30000000-0000-0000-0000-000000000005','modern_test_e','E');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-0000-0000-000000000001',true);
 select set_config('request.jwt.claims','{"sub":"30000000-0000-0000-0000-000000000001","role":"authenticated","session_id":"30000000-0000-0000-0000-000000000001"}',true);
@@ -100,5 +102,21 @@ do $$begin
  begin perform public.message_action('40000000-0000-0000-0000-000000000001','edit','Too late');raise exception 'FAIL edit window';exception when insufficient_privilege then null;end;
  begin perform public.message_action('40000000-0000-0000-0000-000000000001','delete');raise exception 'FAIL delete window';exception when insufficient_privilege then null;end;
 end$$;
+do $$declare cid uuid;begin
+ if jsonb_array_length(public.starred_messages(current_setting('liquid.test.cid')::uuid))<>1 then raise exception 'FAIL starred history';end if;
+ perform public.chat_action(current_setting('liquid.test.other')::uuid,'pin',true);
+ cid:=public.start_conversation('30000000-0000-0000-0000-000000000004');perform public.chat_action(cid,'pin',true);
+ cid:=public.start_conversation('30000000-0000-0000-0000-000000000005');
+ begin perform public.chat_action(cid,'pin',true);raise exception 'FAIL pin maximum';exception when invalid_parameter_value then null;end;
+end$$;
 reset role;
+update public.settings set read_receipts=false where user_id='30000000-0000-0000-0000-000000000002';
+update public.conversation_state set delivered_seq=999,read_seq=999 where user_id='30000000-0000-0000-0000-000000000002';
+set local role authenticated;
+do $$declare j jsonb;begin
+ select x into j from jsonb_array_elements(public.list_chats()) x where x->>'id'=current_setting('liquid.test.cid');
+ if j->>'peer_read_seq'<>'0' or j->>'peer_delivered_seq'<>'999' then raise exception 'FAIL hidden receipt privacy';end if;
+end$$;
+reset role;
+select 'PASS: replies, actions, windows, hidden/deleted catch-up, actor isolation, blocks, fresh notifications, stars, pin budget and read-receipt privacy' as result;
 rollback;
