@@ -66,8 +66,11 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
         LaunchedEffect(atHistory,messages.firstOrNull()?.id) {
             if(atHistory&&messages.isNotEmpty()&&!failed)older()
         }
+        // Capture the old viewport during composition, before stable-key reanchoring
+        // moves its index for a batch of newly received messages.
+        val followOnAppend=remember(messages.lastOrNull()?.id,typing) {state.firstVisibleItemIndex<=1}
         LaunchedEffect(messages.lastOrNull()?.id,typing) {
-            if(nearBottom&&!state.isScrollInProgress)state.scrollToItem(0)
+            if(followOnAppend&&!state.isScrollInProgress)state.scrollToItem(0)
         }
         LaunchedEffect(focus,messages) {
             if(focus!=null) {
