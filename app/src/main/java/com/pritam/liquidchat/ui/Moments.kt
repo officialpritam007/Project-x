@@ -131,6 +131,10 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
         scope.launch {
             try {
                 if(model.session.value?.userId!=owner)throw CancellationException("Account changed")
+                if(media!=null) {
+                    try {model.backend.rpc("image_access",JSONObject().put("p_id",media))}
+                    catch(e:com.pritam.liquidchat.data.ApiException){if(e.status==403||e.code=="42501")media=null else throw e}
+                }
                 if(media==null)media=model.backend.uploadImage(image.file,null).getString("id")
                 model.backend.rpc("publish_moment",JSONObject().put("p_id",id).put("p_media",media).put("p_kind",kind).put("p_caption",caption.trim()))
                 onPublished()

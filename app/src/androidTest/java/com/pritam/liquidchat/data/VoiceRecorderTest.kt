@@ -11,6 +11,7 @@ import org.junit.Test
 import java.io.File
 
 class VoiceRecorderTest {
+    @get:Rule val foreground=androidx.test.ext.junit.rules.ActivityScenarioRule(androidx.activity.ComponentActivity::class.java)
     @get:Rule val microphone:GrantPermissionRule=GrantPermissionRule.grant(Manifest.permission.RECORD_AUDIO)
     @Test fun recordsRealAacAndCancelledCaptureLeavesNoFile() {
         val context=ApplicationProvider.getApplicationContext<Context>();val owner="instrumentation-voice"

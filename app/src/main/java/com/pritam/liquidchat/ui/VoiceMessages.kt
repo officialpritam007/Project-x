@@ -118,7 +118,7 @@ private object VoicePlayback {
         } catch(_:Exception) {stop();onError()}
     }
     fun pauseResume() {if(!ready)return;val p=player ?: return;if(playing){p.pause();playing=false}else {p.start();playing=true}}
-    fun seek(ms:Int) {player?.seekTo(ms);position=ms}
+    fun seek(ms:Int) {if(!ready)return;player?.seekTo(ms);position=ms}
     fun tick() {position=runCatching {player?.currentPosition ?: 0}.getOrDefault(0)}
     fun stop() {generation++;runCatching {player?.release()};player=null;focus?.let {manager?.abandonAudioFocusRequest(it)};manager=null;focus=null;id=null;playing=false;ready=false;position=0}
 }
@@ -149,7 +149,7 @@ private object VoicePlayback {
             }) {if(loading||(selected&&!VoicePlayback.ready))CircularProgressIndicator(Modifier.size(20.dp)) else Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(playing)"Pause voice message" else "Play voice message")}
             Text("Voice message · ${message.durationMs/1000}s",style=MaterialTheme.typography.labelLarge)
         }
-        Slider(value=if(selected)VoicePlayback.position.toFloat() else 0f,onValueChange={VoicePlayback.seek(it.toInt())},valueRange=0f..(if(selected)VoicePlayback.duration else message.durationMs).coerceAtLeast(1).toFloat(),enabled=selected&&!loading)
+        Slider(value=if(selected)VoicePlayback.position.toFloat() else 0f,onValueChange={VoicePlayback.seek(it.toInt())},valueRange=0f..(if(selected)VoicePlayback.duration else message.durationMs).coerceAtLeast(1).toFloat(),enabled=selected&&VoicePlayback.ready&&!loading)
         error?.let {Text(it,style=MaterialTheme.typography.labelSmall)}
     }
 }
