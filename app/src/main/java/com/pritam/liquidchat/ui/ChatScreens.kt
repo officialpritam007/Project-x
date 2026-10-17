@@ -225,7 +225,9 @@ import kotlinx.coroutines.flow.drop
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
     val chat=chats.firstOrNull {it.id==cid}
     val allMessages by model.messages.collectAsStateWithLifecycle()
-    val messages=remember(allMessages,cid) {allMessages.filter {it.conversation==cid}}
+    val session by model.session.collectAsStateWithLifecycle()
+    val messagesReady by model.messagesReady.collectAsStateWithLifecycle()
+    val messages=remember(allMessages,cid,session?.userId) {allMessages.filter {it.conversation==cid&&it.account==session?.userId}}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val focus by model.focusMessage.collectAsStateWithLifecycle()
     val contact by model.repository.contactState.collectAsStateWithLifecycle()
@@ -342,7 +344,8 @@ import kotlinx.coroutines.flow.drop
                 }
             }
         }
-        MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
+        if(messagesReady!=cid)Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {CircularProgressIndicator(Modifier.size(24.dp))}
+        else MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
             MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus,onLongClick={actionMessage=m},onReply={replyTo=m.id;model.repository.saveDraft(cid,body,replyTo)},quoted=messages.firstOrNull {it.id==m.replyTo},onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo})
         }
         if(body.length>=3800)Text("${body.length} / 4000",Modifier.align(Alignment.End).padding(end=20.dp),style=MaterialTheme.typography.labelSmall)
