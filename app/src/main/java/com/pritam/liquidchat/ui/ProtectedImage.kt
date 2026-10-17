@@ -18,10 +18,10 @@ import org.json.JSONObject
 @Composable fun ProtectedImage(backend:Backend,id:String,local:String="",description:String,modifier:Modifier=Modifier,scale:ContentScale=ContentScale.Fit) {
     val session by backend.session.collectAsStateWithLifecycle()
     val context=LocalContext.current
-    var url by remember(id,local) {mutableStateOf<String?>(local.ifEmpty {null})}
-    var failed by remember(id,local) {mutableStateOf(false)}
+    var url by remember(session?.userId,id,local) {mutableStateOf<String?>(local.ifEmpty {null})}
+    var failed by remember(session?.userId,id,local) {mutableStateOf(false)}
     var retry by remember(id) {mutableIntStateOf(0)}
-    LaunchedEffect(id,local,retry) {
+    LaunchedEffect(session?.userId,id,local,retry) {
         failed=false
         if(local.isNotEmpty()) {url=local;return@LaunchedEffect}
         try {url=JSONObject(backend.request("/functions/v1/media","POST",JSONObject().put("action","download").put("id",id))).getString("url")}

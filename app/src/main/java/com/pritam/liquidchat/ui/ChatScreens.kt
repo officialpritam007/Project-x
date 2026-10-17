@@ -6,6 +6,32 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,8 +72,9 @@ import kotlinx.coroutines.flow.drop
         else Text(if(self)name.split(" ").filter {it.firstOrNull()?.isLetter()==true}.take(2).joinToString(""){it.take(1)}.uppercase() else name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=Color.White)
     }
 }
-@Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit) {
-    Surface(onClick=onClick,shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth().glassSource()) {
+@OptIn(ExperimentalFoundationApi::class)
+@Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
+    Surface(shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth().glassSource().combinedClickable(onClick=onClick,onLongClick=onLongClick)) {
         Row(Modifier.padding(vertical=8.dp,horizontal=1.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
@@ -56,12 +83,20 @@ import kotlinx.coroutines.flow.drop
             }
             Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
                 if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
+                Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                    if(chat.pinnedAt>0)Icon(Icons.Outlined.PushPin,"Pinned",Modifier.size(14.dp))
+                    if(chat.favorite)Icon(Icons.Outlined.Star,"Favorite",Modifier.size(14.dp))
+                    if(chat.muted)Icon(Icons.Outlined.NotificationsOff,"Muted",Modifier.size(14.dp))
+                }
                 if(chat.unread>0) Badge {Text(if(chat.unread>99)"99+" else chat.unread.toString())}
             }
         }
     }
 }
+@OptIn(ExperimentalFoundationApi::class)
 @Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>,onContacts:()->Unit={},onProfile:()->Unit={}) {
+    var selectedChat by remember {mutableStateOf<Chat?>(null)}
+    var deleteChat by remember {mutableStateOf<Chat?>(null)}
     var query by rememberSaveable {mutableStateOf("")};var filter by rememberSaveable {mutableIntStateOf(0)}
     var menu by remember {mutableStateOf(false)};var stories by remember {mutableStateOf(false)};var ownStories by remember {mutableStateOf(false)}
     val profile by model.profile.collectAsStateWithLifecycle()
@@ -91,13 +126,19 @@ import kotlinx.coroutines.flow.drop
             }
         }
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
-        if(filter!=0) Row(verticalAlignment=Alignment.CenterVertically) {Text(listOf("All","Favorite","Archive","Unread")[filter],Modifier.weight(1f),color=MaterialTheme.colorScheme.primary);TextButton(onClick={filter=0}) {Text("Show all")}}
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
+        }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->it.unread>0&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
-            items(visible,key={"chat-${it.id}"}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}
+            items(visible,key={"chat-${it.id}"}) {chat->
+                Box(Modifier.combinedClickable(onClick={model.open(chat.id)},onLongClick={selectedChat=chat})) {
+                    ChatRow(chat,model.backend,onClick={model.open(chat.id)},onLongClick={selectedChat=chat})
+                }
+            }
             if(query.isNotBlank()) {
                 item {Text("Downloaded message history",style=MaterialTheme.typography.labelLarge)}
                 items(results,key={"result-${it.id}"}) {m->
@@ -115,6 +156,15 @@ import kotlinx.coroutines.flow.drop
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
+    selectedChat?.let {c->AlertDialog(onDismissRequest={selectedChat=null},title={Text(c.name)},text={Column {
+        TextButton(onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}}) {Text(if(c.pinnedAt>0)"Unpin" else "Pin")}
+        TextButton(onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"unread",true)}}) {Text("Mark unread")}
+        TextButton(onClick={selectedChat=null;model.updateChat(c,favorite=!c.favorite)}) {Text(if(c.favorite)"Remove favorite" else "Favorite")}
+        TextButton(onClick={selectedChat=null;model.updateChat(c,archived=!c.archived)}) {Text(if(c.archived)"Unarchive" else "Archive")}
+        TextButton(onClick={selectedChat=null;model.updateChat(c,muted=!c.muted)}) {Text(if(c.muted)"Unmute" else "Mute")}
+        TextButton(onClick={selectedChat=null;deleteChat=c}) {Text("Delete history for me")}
+    }},confirmButton={TextButton(onClick={selectedChat=null}) {Text("Done")}})}
+    deleteChat?.let {c->AlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
     if(stories) MomentsDialog(model,mine=false,onDismiss={stories=false})
     if(ownStories) MomentsDialog(model,mine=true,onDismiss={ownStories=false})
 }
@@ -175,12 +225,37 @@ import kotlinx.coroutines.flow.drop
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
     val chat=chats.firstOrNull {it.id==cid}
     val allMessages by model.messages.collectAsStateWithLifecycle()
-    val messages=remember(allMessages,cid) {allMessages.filter {it.conversation==cid}}
+    val session by model.session.collectAsStateWithLifecycle()
+    val messagesReady by model.messagesReady.collectAsStateWithLifecycle()
+    val messages=remember(allMessages,cid,session?.userId) {allMessages.filter {it.conversation==cid&&it.account==session?.userId}}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val focus by model.focusMessage.collectAsStateWithLifecycle()
     val contact by model.repository.contactState.collectAsStateWithLifecycle()
-    val list=rememberLazyListState()
-    var body by remember(cid) {mutableStateOf("")}
+    var input by remember(cid) {mutableStateOf(TextFieldValue(""))}
+    var draftReady by remember(cid) {mutableStateOf(false)}
+    var queueing by remember(cid) {mutableStateOf(false)}
+    var inputFocused by remember(cid) {mutableStateOf(false)}
+    var emojiPicker by remember(cid) {mutableStateOf(false)}
+    var palette by remember(cid) {mutableStateOf("Ice")}
+    var appearance by remember(cid) {mutableStateOf(false)}
+    var searchOpen by remember(cid) {mutableStateOf(false)}
+    var chatQuery by remember(cid) {mutableStateOf("")}
+    var searchIndex by remember(cid) {mutableIntStateOf(0)}
+    val chatResults=remember(messages,chatQuery) {if(chatQuery.isBlank())emptyList() else messages.filter {it.body.contains(chatQuery,true)}}
+    var actionMessage by remember(cid) {mutableStateOf<Message?>(null)}
+    val clipboard=LocalClipboardManager.current
+    var replyTo by remember(cid) {mutableStateOf("")}
+    var editMessage by remember(cid) {mutableStateOf<Message?>(null)}
+    var editBody by remember(cid) {mutableStateOf("")}
+    var deleteMessage by remember(cid) {mutableStateOf<Message?>(null)}
+    var starsOpen by remember(cid) {mutableStateOf(false)}
+    val body=input.text
+    fun updateInput(value:TextFieldValue) {input=value;model.repository.saveDraft(cid,value.text,replyTo)}
+    LaunchedEffect(cid) {
+        val draft=model.repository.draft(cid)
+        input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0));replyTo=draft?.replyTo.orEmpty();draftReady=true
+        palette=model.repository.palette(cid)
+    }
     val context=LocalContext.current
     var prepared by remember(cid) {mutableStateOf<Images.Prepared?>(null)}
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
@@ -188,6 +263,21 @@ import kotlinx.coroutines.flow.drop
         val image=Images.prepare(context,uri,account)
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    var attachments by remember(cid) {mutableStateOf(false)}
+    var cameraPath by rememberSaveable(cid) {mutableStateOf("")}
+    var cameraAccount by rememberSaveable(cid) {mutableStateOf("")}
+    val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {ok->
+        val file=java.io.File(cameraPath)
+        if(ok)model.action {
+            try {
+                if(model.backend.session.value?.userId==cameraAccount) {
+                    val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file)
+                    val image=Images.prepare(context,uri,cameraAccount)
+                    if(model.backend.session.value?.userId==cameraAccount)prepared=image else image.file.delete()
+                }
+            } finally {file.delete();cameraPath=""}
+        } else {file.delete();cameraPath=""}
+    }
     val display=LocalDisplayOptions.current
     val sendScale by androidx.compose.animation.core.animateFloatAsState(if(body.isNotBlank())1.04f else 1f,animationSpec=if(display.reducedMotion)androidx.compose.animation.core.tween(0) else androidx.compose.animation.core.spring(stiffness=when(display.animation){"Normal"->400f;"Extra"->250f;else->650f}),label="Send readiness")
     var menu by remember {mutableStateOf(false)}
@@ -203,7 +293,7 @@ import kotlinx.coroutines.flow.drop
     LaunchedEffect(cid,foreground) {
         var lastSent=0L
         if(foreground) try {
-            snapshotFlow {body}.drop(1).collectLatest { text ->
+            snapshotFlow {if(inputFocused&&draftReady)input.text else ""}.drop(1).collectLatest { text ->
                 val keyTime=android.os.SystemClock.elapsedRealtime()
                 if(text.isBlank()) runCatching {model.repository.typing(cid,false)}
                 else {
@@ -216,27 +306,22 @@ import kotlinx.coroutines.flow.drop
             }
         } finally {kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {runCatching {model.repository.typing(cid,false)}}}
     }
-    var initialScroll by remember(cid) {mutableStateOf(false)}
-    LaunchedEffect(cid,focus,messages.size) {
-        if(focus!=null) {
-            val i=messages.indexOfFirst {it.id==focus}
-            if(i>=0) {list.scrollToItem(i+1);model.focusMessage.value=null}
-        } else if(messages.isNotEmpty() && (!initialScroll || list.firstVisibleItemIndex+list.layoutInfo.visibleItemsInfo.size>=messages.size-2)) {
-            list.scrollToItem(messages.size);initialScroll=true
-        }
-    }
     Box(Modifier.fillMaxSize()) {
-    Box(Modifier.matchParentSize().glassSource(.5f).background(if(LocalGlassDark.current)Color(0xFF203C32) else Color(0xFFA2CFA3)))
+    Box(Modifier.matchParentSize().glassSource(.5f).background(wallpaper(palette,LocalGlassDark.current)))
     Column(Modifier.fillMaxSize().imePadding()) {
         GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
         Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
             if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
-            Column(Modifier.weight(1f).padding(horizontal=8.dp)) {Text(chat?.name ?: "Conversation",style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
+            Column(Modifier.weight(1f).padding(horizontal=8.dp).clickable {details=true}) {Text(chat?.name ?: "Conversation",maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall)}
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
                     chat?.let { c->
                         DropdownMenuItem(text={Text("Contact details & shared media")},onClick={menu=false;details=true})
+                        DropdownMenuItem(text={Text("Search conversation")},onClick={menu=false;searchOpen=true})
+                        DropdownMenuItem(text={Text("Starred messages")},onClick={menu=false;starsOpen=true})
+                        DropdownMenuItem(text={Text(if(c.pinnedAt>0)"Unpin" else "Pin")},onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
+                        DropdownMenuItem(text={Text("Wallpaper")},onClick={menu=false;appearance=true})
                         DropdownMenuItem(text={Text(if(c.favorite)"Remove favorite" else "Favorite")},onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
                         DropdownMenuItem(text={Text(if(c.archived)"Unarchive" else "Archive")},onClick={menu=false;model.updateChat(c,archived=!c.archived)})
                         DropdownMenuItem(text={Text(if(c.muted)"Unmute" else "Mute")},onClick={menu=false;model.updateChat(c,muted=!c.muted)})
@@ -249,56 +334,131 @@ import kotlinx.coroutines.flow.drop
             }
         }
         }
-        LazyColumn(state=list,modifier=Modifier.weight(1f).fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
-            item(key="older") {TextButton(onClick={model.older(cid)},enabled=!busy) {Text("Load older messages")}}
-            if(messages.isEmpty()) item(key="empty") {Text("Say hello. Your messages will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)}
-            items(messages,key={it.id}) {m->MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus)}
-            if(contact.optBoolean("typing")) item(key="typing") {Text("Typing…",modifier=Modifier.padding(12.dp),color=MaterialTheme.colorScheme.onSurfaceVariant)}
+        if(searchOpen) GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp)) {
+            Column(Modifier.padding(8.dp)) {
+                OutlinedTextField(chatQuery,{chatQuery=it;searchIndex=0},placeholder={Text("Search this chat")},singleLine=true,modifier=Modifier.fillMaxWidth(),trailingIcon={IconButton(onClick={searchOpen=false;chatQuery=""}) {Icon(Icons.Outlined.Close,"Close search")}})
+                Row(verticalAlignment=Alignment.CenterVertically) {
+                    Text("Downloaded messages only · ${chatResults.size} matches",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall)
+                    IconButton(onClick={if(chatResults.isNotEmpty()){searchIndex=(searchIndex-1+chatResults.size)%chatResults.size;model.focusMessage.value=chatResults[searchIndex].id}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowUp,"Previous match")}
+                    IconButton(onClick={if(chatResults.isNotEmpty()){model.focusMessage.value=chatResults[searchIndex%chatResults.size].id;searchIndex=(searchIndex+1)%chatResults.size}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowDown,"Next match")}
+                }
+            }
+        }
+        if(messagesReady!=cid)Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {CircularProgressIndicator(Modifier.size(24.dp))}
+        else MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
+            MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus,onLongClick={actionMessage=m},onReply={replyTo=m.id;model.repository.saveDraft(cid,body,replyTo)},quoted=messages.firstOrNull {it.id==m.replyTo},onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo})
+        }
+        if(body.length>=3800)Text("${body.length} / 4000",Modifier.align(Alignment.End).padding(end=20.dp),style=MaterialTheme.typography.labelSmall)
+        if(replyTo.isNotEmpty()) GlassSurface(Modifier.fillMaxWidth().padding(horizontal=12.dp),Glass.compact) {
+            Row(Modifier.padding(start=14.dp),verticalAlignment=Alignment.CenterVertically) {
+                val original=messages.firstOrNull {it.id==replyTo}
+                Column(Modifier.weight(1f)) {Text("Replying to ${if(original?.sender==original?.account)"yourself" else chat?.name.orEmpty()}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary);Text(original?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=1,overflow=TextOverflow.Ellipsis)}
+                IconButton(onClick={replyTo="";model.repository.saveDraft(cid,body)}) {Icon(Icons.Outlined.Close,"Cancel reply")}
+            }
         }
         GlassSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
             Row(Modifier.fillMaxWidth().padding(4.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick={body=(body+"☺").take(4000)}) {Text("☺",fontSize=24.sp)}
-                androidx.compose.foundation.text.BasicTextField(body,{body=it.take(4000)},modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp),textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
-                IconButton(onClick={picker.launch("image/*")},enabled=!busy) {Icon(Icons.Outlined.AttachFile,"Attach image")}
-                if(body.isBlank())VoiceCapture(model,cid,busy) else FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
+                IconButton(onClick={emojiPicker=true},enabled=draftReady) {Icon(Icons.Outlined.EmojiEmotions,"Open emoji picker")}
+                androidx.compose.foundation.text.BasicTextField(input,{if(it.text.length<=4000)updateInput(it)},enabled=draftReady&&!queueing,keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp).onFocusChanged {inputFocused=it.isFocused}.testTag("message-input").semantics {contentDescription="Message"},textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
+                IconButton(onClick={attachments=true},enabled=!busy&&replyTo.isEmpty()) {Icon(Icons.Outlined.AttachFile,"Attach image")}
+                if(body.isBlank()&&replyTo.isEmpty())VoiceCapture(model,cid,busy) else FilledIconButton(onClick={if(body.isNotBlank()&&!queueing){queueing=true;model.send(cid,body,replyTo){input=TextFieldValue("");replyTo=""}.invokeOnCompletion {queueing=false}}},enabled=body.isNotBlank()&&!queueing&&draftReady,modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
             }
         }
     }
 
     }
-    if(details&&chat!=null) AlertDialog(onDismissRequest={details=false},title={Text(chat.name)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Avatar(chat.name,chat.avatarId,model.backend);Text("@${chat.username}")
-        TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}},enabled=!busy) {Text("Save contact")}
-        Text("Downloaded shared images",style=MaterialTheme.typography.titleMedium)
-        messages.filter {it.mediaId.isNotEmpty()&&it.mediaKind!="voice"}.forEach {m->ImagePreview(model,m)}
-        if(messages.none {it.mediaId.isNotEmpty()&&it.mediaKind!="voice"})Text("No downloaded shared images.")
-    }},confirmButton={TextButton(onClick={details=false}) {Text("Done")}})
+    if(attachments)AlertDialog(onDismissRequest={attachments=false},title={Text("Attach")},text={Column {
+        TextButton(onClick={attachments=false;picker.launch("image/*")}) {Icon(Icons.Outlined.PhotoLibrary,null);Spacer(Modifier.width(12.dp));Text("Gallery")}
+        TextButton(onClick={attachments=false
+            val account=model.backend.session.value?.userId
+            if(account!=null) {
+                cameraAccount=account
+                val file=java.io.File(context.cacheDir,"camera/${java.util.UUID.randomUUID()}.jpg");file.parentFile?.mkdirs();cameraPath=file.absolutePath
+                runCatching {camera.launch(androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file))}.onFailure {file.delete();cameraPath="";model.action {throw java.io.IOException("No camera app is available. Choose Gallery.")}}
+            }
+        }) {Icon(Icons.Outlined.PhotoCamera,null);Spacer(Modifier.width(12.dp));Text("Camera")}
+    }},confirmButton={TextButton(onClick={attachments=false}) {Text("Cancel")}})
+    if(emojiPicker)EmojiPicker(onEmoji={emoji->
+        val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
+        val text=body.replaceRange(start,end,emoji)
+        if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
+    },onDismiss={emojiPicker=false})
+    if(appearance)AlertDialog(onDismissRequest={appearance=false},title={Text("Chat wallpaper")},text={Column {listOf("Ice","Lilac","Mint","Sand").forEach {choice->TextButton(onClick={model.action {model.repository.setPalette(cid,choice);palette=choice;appearance=false}}) {Text(if(choice==palette)"✓ $choice" else choice)}}}},confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}})
+    actionMessage?.let {m->AlertDialog(onDismissRequest={actionMessage=null},title={Text("Message")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
+        if(m.deletedAt.isEmpty()) {
+            if(m.status=="SENT") {
+                Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("👍","❤️","😂","😮","😢","🙏").forEach {emoji->TextButton(onClick={actionMessage=null;model.action {val old=org.json.JSONObject(m.reactions).optString(m.account);model.repository.messageAction(m.id,"react",if(old==emoji)"" else emoji)}}) {Text(emoji)}}}
+                TextButton(onClick={replyTo=m.id;model.repository.saveDraft(cid,body,replyTo);actionMessage=null}) {Text("Reply")}
+                TextButton(onClick={actionMessage=null;model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}}) {Text(if(m.starred)"Unstar" else "Star")}
+            }
+            TextButton(onClick={clipboard.setText(AnnotatedString(m.body));actionMessage=null}) {Text("Copy text")}
+            TextButton(onClick={actionMessage=null;context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT,m.body),"Share message"))}) {Text("Share text")}
+            val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
+            if(m.sender==m.account&&m.status=="SENT"&&m.mediaId.isEmpty()&&age<=900)TextButton(onClick={editMessage=m;editBody=m.body;actionMessage=null}) {Text("Edit")}
+        }
+        if(m.status in listOf("SENT","QUEUED","FAILED"))TextButton(onClick={deleteMessage=m;actionMessage=null}) {Text("Delete")}
+        Text("${if(m.sender==m.account)"You" else chat?.name.orEmpty()} · ${java.time.Instant.ofEpochMilli(m.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))}",style=MaterialTheme.typography.bodySmall)
+    }},confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}})}
+    editMessage?.let {m->AlertDialog(onDismissRequest={editMessage=null},title={Text("Edit message")},text={OutlinedTextField(editBody,{if(it.length<=4000)editBody=it},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences),modifier=Modifier.fillMaxWidth())},confirmButton={TextButton(onClick={model.action {model.repository.messageAction(m.id,"edit",editBody);editMessage=null}},enabled=!busy&&editBody.isNotBlank()) {Text("Save")}},dismissButton={TextButton(onClick={editMessage=null}) {Text("Cancel")}})}
+    deleteMessage?.let {m->AlertDialog(onDismissRequest={deleteMessage=null},title={Text("Delete message?")},text={Column {
+        Text(if(m.status=="SENT")"Delete for me hides this message on your devices. The other person keeps their copy. Saved copies and screenshots cannot be erased." else "Remove this unsent message and its local attachment from this device.")
+        val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
+        if(m.sender==m.account&&age<=172800&&m.deletedAt.isEmpty())TextButton(onClick={model.action {model.repository.messageAction(m.id,"delete");deleteMessage=null}},enabled=!busy) {Text("Delete for everyone")}
+    }},confirmButton={TextButton(onClick={model.action {if(m.status=="SENT")model.repository.messageAction(m.id,"hide") else model.repository.discardUnsent(m.id);deleteMessage=null}},enabled=!busy) {Text(if(m.status=="SENT")"Delete for me" else "Remove unsent")}},dismissButton={TextButton(onClick={deleteMessage=null}) {Text("Cancel")}})}
+    if(starsOpen&&chat!=null)ContactMediaDialog(model,chat,messages,initialKind="star") {starsOpen=false}
+    if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null) AlertDialog(onDismissRequest={report=false},title={Text("Report contact")},text={Column {Text("Only your explanation is included. No messages are attached.");OutlinedTextField(reason,{reason=it.take(1000)},label={Text("Reason")})}},confirmButton={TextButton(onClick={report=false;model.report(chat.peer,reason)},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick={report=false}) {Text("Cancel")}})
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
         coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
-        OutlinedTextField(body,{body=it.take(4000)},label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
-    }},confirmButton={TextButton(onClick={model.action {model.repository.sendImage(cid,image,body);prepared=null;body=""}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
+        OutlinedTextField(input,{if(it.text.length<=4000)updateInput(it)},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
+    }},confirmButton={TextButton(onClick={model.action {model.repository.sendImage(cid,image,body);prepared=null;input=TextFieldValue("")}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
     if(confirmDelete&&chat!=null) AlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
-@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean) {
+@OptIn(ExperimentalFoundationApi::class)
+@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={}) {
     val mine=message.sender==message.account
+    var swipe by remember(message.id) {mutableFloatStateOf(0f)}
+    val threshold=with(LocalDensity.current) {72.dp.toPx()}
+    val replyCallback by rememberUpdatedState(onReply)
+    val rtl=LocalLayoutDirection.current==LayoutDirection.Rtl
+    val haptic=LocalHapticFeedback.current
+    var crossed by remember(message.id) {mutableStateOf(false)}
+    val drag=rememberDraggableState {delta->
+        swipe=(swipe+if(rtl)-delta else delta).coerceIn(0f,threshold*1.3f)
+        if(swipe>=threshold&&!crossed) {crossed=true;haptic.performHapticFeedback(HapticFeedbackType.LongPress)}
+    }
     var expanded by remember(message.id) {mutableStateOf(false)}
     var truncated by remember(message.id) {mutableStateOf(false)}
-    val label=com.pritam.liquidchat.data.Delivery.label(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
-        Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF345E3E) else Color(0xFF24372E)} else if(mine)Color(0xFFE1FAD8) else Color(0xFFFAFDFC),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=.8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=349.dp).glassSource()) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val bubbleWidth=minOf(maxWidth*.86f,480.dp)
+    Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset((if(rtl)-swipe else swipe).toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f;crossed=false}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
+        Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF204F65) else Color(0xFF263C4A)} else if(mine)Color(0xFFD6F1FD) else Color(0xFFF8FCFF),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).16f else .8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=bubbleWidth).glassSource().combinedClickable(onClick={},onLongClick=onLongClick)) {
             Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
+                if(message.replyTo.isNotEmpty()&&message.deletedAt.isEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
+                    Column(Modifier.padding(8.dp)) {Text("Reply",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(quoted?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall)}
+                }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
-                    if(message.mediaKind=="voice")VoicePlayer(model,message) else ImagePreview(model,message)
+                    if(message.mediaKind=="voice")VoicePlayer(model,message) else SharedImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind!="voice")Text(message.body,fontSize=13.sp,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
                 if(truncated||expanded) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
                 val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
-                Text(if(mine) "$time · $label" else time,style=MaterialTheme.typography.labelSmall,modifier=Modifier.align(Alignment.End))
+                Row(Modifier.align(Alignment.End),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                    if(message.starred)Icon(Icons.Outlined.Star,"Starred",Modifier.size(12.dp))
+                    if(message.editedAt.isNotEmpty()&&message.deletedAt.isEmpty())Text("edited",style=MaterialTheme.typography.labelSmall)
+                    Text(time,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    if(mine)Receipt(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
+                }
+                if(message.reactions!="{}"&&message.deletedAt.isEmpty()) {
+                    val reactions=remember(message.reactions) {runCatching {val j=org.json.JSONObject(message.reactions);j.keys().asSequence().map {j.getString(it)}.groupingBy {it}.eachCount()}.getOrDefault(emptyMap())}
+                    val own=remember(message.reactions,message.account) {runCatching {org.json.JSONObject(message.reactions).optString(message.account)}.getOrDefault("")}
+                    Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {reactions.forEach {(emoji,count)->Surface(shape=Glass.capsule,border=if(emoji==own)androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.primary) else null,color=MaterialTheme.colorScheme.primaryContainer) {Text("$emoji $count",Modifier.padding(horizontal=8.dp,vertical=3.dp),style=MaterialTheme.typography.labelMedium)}}}
+                }
                 if(message.status=="FAILED") {Text(message.error,style=MaterialTheme.typography.bodySmall);TextButton(onClick=onRetry) {Text("Retry")}}
             }
         }
+    }
     }
 }
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
@@ -306,7 +466,7 @@ import kotlinx.coroutines.flow.drop
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
-            if(title in listOf("Devices","Data and Storage","Language","Chat Folders")) unavailable=title else section=title
+            if(title in listOf("Devices","Language","Chat Folders")) unavailable=title else section=title
         }
         unavailable?.let {title->AlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
@@ -331,6 +491,7 @@ import kotlinx.coroutines.flow.drop
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        if(section=="Data and Storage") DataStorage(model)
         if(section=="Account") GlassCard(Modifier.fillMaxWidth()) {
             val avatar=profile?.optString("avatar_id")
             if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
@@ -375,14 +536,25 @@ import kotlinx.coroutines.flow.drop
     if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Sign out?")},text={Text(if(unsent>0)"$unsent unsent messages will be discarded. Saved local history, drafts and jobs will be removed from this device." else "Saved local history and account data will be removed from this device.")},confirmButton={TextButton(onClick={confirm=false;model.finishLogout()}) {Text("Sign out")}},dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
 }
 
-@Composable private fun ImagePreview(model:AppViewModel,message:Message) {
+@Composable internal fun SharedImagePreview(model:AppViewModel,message:Message) {
     var open by remember(message.id) {mutableStateOf(false)}
-    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.width(280.dp).aspectRatio(if(message.imageHeight>0)message.imageWidth.toFloat()/message.imageHeight else 1f).clickable {open=true})
+    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.widthIn(max=280.dp).fillMaxWidth().aspectRatio((if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clickable {open=true})
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
                 TextButton(onClick={open=false}) {Text("Close image")}
-                ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.weight(1f).fillMaxWidth())
+                var zoom by remember(message.id) {mutableFloatStateOf(1f)}
+                var pan by remember(message.id) {mutableStateOf(Offset.Zero)}
+                var size by remember {mutableStateOf(IntSize.Zero)}
+                val transform=rememberTransformableState {scale,move,_->
+                    zoom=(zoom*scale).coerceIn(1f,4f)
+                    val limitX=size.width*(zoom-1)/2;val limitY=size.height*(zoom-1)/2
+                    pan=Offset((pan.x+move.x).coerceIn(-limitX,limitX),(pan.y+move.y).coerceIn(-limitY,limitY))
+                }
+                Box(Modifier.weight(1f).fillMaxWidth().clip(androidx.compose.ui.graphics.RectangleShape).onSizeChanged {size=it}.transformable(transform)) {
+                    ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.fillMaxSize().graphicsLayer {scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y})
+                }
+                TextButton(onClick={zoom=1f;pan=Offset.Zero}) {Text("Reset zoom")}
             }
         }
     }

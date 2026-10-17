@@ -21,12 +21,13 @@ import com.pritam.liquidchat.AppViewModel
     val context=androidx.compose.ui.platform.LocalContext.current
     val permission=androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
     val display by model.display.collectAsStateWithLifecycle()
-    val chats by model.chats.collectAsStateWithLifecycle()
+    val allChats by model.chats.collectAsStateWithLifecycle()
     val active by model.active.collectAsStateWithLifecycle()
     val logoutPrompt by model.logoutPrompt.collectAsStateWithLifecycle()
     val unsent by model.unsent.collectAsStateWithLifecycle()
     val ready by model.ready.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
+    val chats=remember(allChats,session?.userId) {allChats.filter {it.account==session?.userId}}
     val profile by model.profile.collectAsStateWithLifecycle()
     val loaded by model.profileLoaded.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
@@ -42,6 +43,8 @@ import com.pritam.liquidchat.AppViewModel
         }
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    key(session?.userId) {
+    val conversationStates=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
@@ -55,14 +58,17 @@ import com.pritam.liquidchat.AppViewModel
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
             else if(recovery) {Box(Modifier.padding(padding)) {RecoveryScreen(model,busy)}}
-            else if(!loaded) {Column(Modifier.padding(padding).padding(24.dp)) {Text("Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
+            else if(!loaded||(profile!=null&&profile?.optString("id")!=session?.userId)) {Column(Modifier.padding(padding).padding(24.dp)) {Text("Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
-            else if(active!=null) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}
+            else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}
             else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {
-                when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
+                conversationStates.SaveableStateProvider("main-tab-$tab") {
+                    when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
+                }
             }
         }
         }
+    }
     }
     }
 }

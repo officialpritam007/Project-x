@@ -80,3 +80,10 @@ No milestone is release-certified until the PRD device gates have passed.
 - Rollback authorization and moments/voice suites, real signed-in image/story/voice/block/account-erasure HTTP checks, media parser tests, Android build/unit/lint, and ten API 35 emulator instrumentation tests passed. All live test fixtures were removed.
 - Reviewed screenshots and corrected compact-screen bottom insets and scrollable Profile posts. See REMAINING_FEATURES.md for scope and validation limits.
 - Earlier Cloudinary-only runtime blockers above are superseded by the private fallback. Google OAuth/email delivery/FCM provider setup and physical-phone acceptance remain external release requirements, not completed device certification.
+
+## Modern messaging — 0.7.0 (7)
+- Upgraded the conversation, durable drafts, inbox filters/pins, reply/reactions/edit/star/delete, private mutation catch-up, notification authorization, wallpapers, camera/gallery, zoom, shared media and Data and Storage.
+- Four additive server migrations deployed. All three rollback-only SQL suites pass; no fixture users remain.
+- Actions run 22 passed build/unit/lint, Edge checks and 13 API 35 emulator tests, including Room v1→v7 and 1,000-message viewport/batch-follow coverage. Screenshots reviewed.
+- APK SHA-256: `b23d2fb5c8685fecb0555b2a5687aef568c5b8470ddc01c9d51945aa188df7cc`.
+- Full scope, migration inventory, artifact link, requirement mapping, bug ledger and physical/provider/P2 gates: [MODERN_UPGRADE.md](MODERN_UPGRADE.md). This remains a debug beta, not physical-device public-release certification.

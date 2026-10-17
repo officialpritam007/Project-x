@@ -46,18 +46,22 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             app.repository.sync()
             val message=app.repository.dao.message(account,id) ?: return Result.success()
             val chat=app.repository.dao.chat(account,cid) ?: return Result.success()
-            if(app.backend.session.value?.userId==account && !chat.muted && message.seq>chat.deletedSeq && !(app.repository.foreground.value&&app.repository.active.value==cid)) {
-                show(app,cid,id,inputData.getString("title") ?: "Liquid Chat",inputData.getString("body") ?: "New message")
+            val raw=app.backend.rpc("notification_preview",org.json.JSONObject().put("p_id",id))
+            if(raw=="null")return Result.success()
+            val preview=org.json.JSONObject(raw)
+            if(preview.optString("conversation_id")!=cid||message.conversation!=cid||message.sender==account)return Result.success()
+            if(app.backend.session.value?.userId==account && !chat.muted && message.deletedAt.isEmpty() && message.seq>chat.deletedSeq && !(app.repository.foreground.value&&app.repository.active.value==cid)) {
+                show(app,cid,id,preview.getString("title"),preview.getString("body"),account,preview.optBoolean("previews"))
             }
             Result.success()
         } catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
     }
-    private fun show(context:Context,cid:String,id:String,title:String,body:String) {
+    private fun show(context:Context,cid:String,id:String,title:String,body:String,account:String,previews:Boolean) {
         if(android.os.Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
         val manager=context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("messages","Messages",NotificationManager.IMPORTANCE_HIGH))
-        val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).putExtra("accountId",account).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,id.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        manager.notify(id.hashCode(),NotificationCompat.Builder(context,"messages").setSmallIcon(R.drawable.ic_liquid).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setCategory(NotificationCompat.CATEGORY_MESSAGE).build())
+        manager.notify(id.hashCode(),NotificationCompat.Builder(context,"messages").setSmallIcon(R.drawable.ic_liquid).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true).setVisibility(if(previews)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET).setCategory(NotificationCompat.CATEGORY_MESSAGE).build())
     }
 }

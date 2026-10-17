@@ -24,12 +24,14 @@ class MigrationTest {
             sql.execSQL("INSERT INTO messages VALUES('a','pending-id','chat','a','must survive',0,123,'','QUEUED',2,'')")
             sql.version=1
         }
-        val upgraded=Room.databaseBuilder(context,LocalDatabase::class.java,name).addMigrations(Migration1To2,Migration2To3,Migration3To4).build()
+        val upgraded=Room.databaseBuilder(context,LocalDatabase::class.java,name).addMigrations(Migration1To2,Migration2To3,Migration3To4,Migration4To5,Migration5To6,Migration6To7).build()
         try {
             val m=upgraded.dao().pending("a").single()
             assertEquals("pending-id",m.id);assertEquals("must survive",m.body);assertEquals(2,m.attempts)
             assertEquals("image",m.mediaKind);assertEquals(0,m.durationMs);assertEquals("",m.mediaId);assertEquals("",m.localImage);assertEquals(0,m.imageWidth)
             upgraded.dao().putContacts(listOf(Contact("a","b","B","bee")))
+            upgraded.dao().putDraft(Draft("a","chat","Draft after migration"))
+            assertEquals("Draft after migration",upgraded.dao().draft("a","chat")?.body)
         } finally {upgraded.close();context.deleteDatabase(name)}
     }
     @Test fun sessionSecretsAreEncryptedAndCanBeRemoved() {

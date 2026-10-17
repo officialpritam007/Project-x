@@ -26,7 +26,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val repository=(app as LiquidApplication).repository
     val contacts=repository.contacts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val chats=repository.chats().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
-    val messages=repository.active.flatMapLatest {if(it==null) flowOf(emptyList()) else repository.messages(it)}.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    val messagesReady=MutableStateFlow<String?>(null)
+    val messages=repository.active.flatMapLatest {cid->
+        messagesReady.value=null
+        if(cid==null)flowOf(emptyList()) else repository.messages(cid).onEach {messagesReady.value=cid}
+    }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val active=repository.active.asStateFlow()
     val connection=repository.connection
     val unsent=repository.unsent().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),0)
@@ -97,12 +101,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if(runCatching {java.util.UUID.fromString(cid)}.isFailure)return
         focusMessage.value=messageId;repository.active.value=cid
         repository.refresh()
+        if(messageId!=null)viewModelScope.launch {
+            try {repository.reveal(cid,messageId)} catch(e:CancellationException){throw e} catch(_:Exception){_notice.value="This message is unavailable. Retry when connected."}
+        }
+    }
+    fun openNotification(cid:String,expectedAccount:String?) {
+        viewModelScope.launch {
+            ready.filter {it}.first()
+            if(expectedAccount==null||session.value?.userId!=expectedAccount)return@launch
+            try {
+                repository.sync()
+                if(session.value?.userId==expectedAccount&&repository.dao.chat(expectedAccount,cid)!=null)open(cid)
+            } catch(e:CancellationException){throw e} catch(_:Exception){_notice.value="Connect to open this notification safely."}
+        }
     }
     fun closeChat() {
         val cid=repository.active.value
         if(cid!=null)viewModelScope.launch {runCatching {repository.typing(cid,false)}}
         repository.active.value=null;focusMessage.value=null;repository.refresh()}
-    fun send(cid:String,body:String) {viewModelScope.launch {try {repository.send(cid,body)} catch(e:Exception) {_notice.value=e.message}}}
+    fun send(cid:String,body:String,replyTo:String="",onQueued:()->Unit={}) = viewModelScope.launch {
+        try {repository.send(cid,body,replyTo);onQueued();runCatching {repository.typing(cid,false)}}
+        catch(e:CancellationException){throw e}
+        catch(e:Exception) {_notice.value=e.message}
+    }
     fun retry(id:String)=action {repository.retry(id)}
     fun older(cid:String)=action {if(!repository.loadOlder(cid)) _notice.value="All available history is loaded."}
     fun find(username:String)=action {found.value=repository.find(username);if(found.value==null)_notice.value="No matching contact found."}

@@ -167,5 +167,17 @@ insert into private.images(id,owner_id,public_id,kind,format,width,height,bytes,
 do $$begin
  begin perform public.finalize_image(current_setting('test.pending')::uuid,'jpg',1,1,100);raise exception 'FAIL: owner quota';exception when raise_exception then if sqlerrm not like '%Media limit%' then raise;end if;end;
 end$$;
+set local role authenticated;
+select public.message_action('92000000-0000-0000-0000-000000000001','delete');
+do $$begin
+ begin perform public.image_access(current_setting('test.voice')::uuid);raise exception 'FAIL: deleted owner voice access';exception when insufficient_privilege then null;end;
+end$$;
+select set_config('request.jwt.claim.sub','90000000-0000-0000-0000-000000000002',true);
+select set_config('request.jwt.claims','{"sub":"90000000-0000-0000-0000-000000000002","role":"authenticated","session_id":"90000000-0000-0000-0000-000000000002"}',true);
+do $$begin
+ begin perform public.image_access(current_setting('test.voice')::uuid);raise exception 'FAIL: deleted recipient voice access';exception when insufficient_privilege then null;end;
+ if jsonb_array_length(public.shared_media(current_setting('test.cid')::uuid,9223372036854775807,'voice'))<>0 then raise exception 'FAIL: deleted voice browsing';end if;
+end$$;
+reset role;
 select 'PASS: contact audience, reverse-contact denial, ownership, block, expiry, archive/restore/delete, private media and idempotent participant-only voice' as result;
 rollback;
