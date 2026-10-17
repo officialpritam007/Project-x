@@ -54,7 +54,7 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
         val latestLoader by rememberUpdatedState(loadOlder)
         val reversed=remember(messages) {messages.asReversed()}
         val nearBottom by remember {derivedStateOf {state.firstVisibleItemIndex<=1}}
-        val atHistory by remember {derivedStateOf {
+        val atHistory by remember(messages.size) {derivedStateOf {
             state.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let {it>=messages.size-3}==true
         }}
         suspend fun older() {
