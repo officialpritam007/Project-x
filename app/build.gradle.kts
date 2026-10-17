@@ -67,6 +67,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("com.google.firebase:firebase-messaging:24.1.1")
+    implementation("io.github.webrtc-sdk:android:150.7871.01")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
