@@ -114,7 +114,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun block(peer:String,blocked:Boolean)=action {repository.block(peer,blocked);_notice.value=if(blocked)"Contact blocked" else "Contact unblocked"}
     fun search(query:String) {
         searchJob?.cancel()
-        searchJob=viewModelScope.launch {kotlinx.coroutines.delay(200);searchResults.value=if(query.isBlank())emptyList() else repository.search(query)}
+        val expected=session.value?.userId
+        if(query.isBlank()||expected==null){searchResults.value=emptyList();return}
+        searchJob=viewModelScope.launch {
+            kotlinx.coroutines.delay(200)
+            try {val results=repository.search(query);if(session.value?.userId==expected)searchResults.value=results}
+            catch(e:CancellationException){throw e}
+            catch(_:Exception){if(session.value?.userId==expected){searchResults.value=emptyList();_notice.value="Search is unavailable. Please retry."}}
+        }
     }
     fun report(peer:String,reason:String)=action {backend.rpc("report_contact",JSONObject().put("p_target",peer).put("p_reason",reason));_notice.value="Report submitted."}
     fun deleteAccount(password:String)=action {

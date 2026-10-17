@@ -42,7 +42,7 @@ Deno.serve(async req => {
       const mp4 = String.fromCharCode(...magic.slice(4, 8)) === "ftyp";
       if (voice ? !mp4 : (!jpeg && !png && !webp)) return reply({ error: "Use a JPEG, PNG or WebP image" }, 400);
       const cid = form.get("conversation_id");
-      const { data: intent, error } = await user.rpc(voice ? "prepare_voice" : "prepare_image", { p_conversation: cid || null });
+      const { data: intent, error } = await user.rpc("prepare_upload", { p_conversation: cid || null, p_kind: voice ? "voice" : "image", p_provider: cloudReady ? "cloudinary" : "supabase" });
       if (error) return reply({ error: "Upload unavailable for this account or contact" }, 403);
       if (!cloudReady) {
         const data = new Uint8Array(await file.arrayBuffer());

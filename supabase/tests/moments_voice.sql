@@ -154,5 +154,18 @@ select set_config('request.jwt.claims','{"sub":"90000000-0000-0000-0000-00000000
 select public.change_moment('91000000-0000-0000-0000-000000000002','delete');
 do $$begin if jsonb_array_length(public.list_moments('post',true))<>0 then raise exception 'FAIL: delete';end if;end$$;
 reset role;
+set local role authenticated;
+select set_config('test.pending',(public.prepare_upload(null,'image','supabase')->>'id'),true);
+reset role;
+do $$begin if not exists(select 1 from private.images where id=current_setting('test.pending')::uuid and provider='supabase' and format='jpg' and not ready) then raise exception 'FAIL: atomic provider/format';end if;end$$;
+insert into private.images(id,owner_id,public_id,kind,format,width,height,bytes,ready,provider) values('93000000-0000-0000-0000-000000000001','90000000-0000-0000-0000-000000000002','quota-test-global','image','jpg',1,1,536870912,true,'supabase');
+do $$begin
+ begin perform public.finalize_image(current_setting('test.pending')::uuid,'jpg',1,1,100);raise exception 'FAIL: global quota';exception when raise_exception then if sqlerrm not like '%Shared media budget%' then raise;end if;end;
+end$$;
+delete from private.images where id='93000000-0000-0000-0000-000000000001';
+insert into private.images(id,owner_id,public_id,kind,format,width,height,bytes,ready) values('93000000-0000-0000-0000-000000000002','90000000-0000-0000-0000-000000000001','quota-test-owner','image','jpg',1,1,104857600,true);
+do $$begin
+ begin perform public.finalize_image(current_setting('test.pending')::uuid,'jpg',1,1,100);raise exception 'FAIL: owner quota';exception when raise_exception then if sqlerrm not like '%Media limit%' then raise;end if;end;
+end$$;
 select 'PASS: contact audience, reverse-contact denial, ownership, block, expiry, archive/restore/delete, private media and idempotent participant-only voice' as result;
 rollback;
