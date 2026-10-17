@@ -26,7 +26,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val repository=(app as LiquidApplication).repository
     val contacts=repository.contacts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val chats=repository.chats().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
-    val messages=repository.active.flatMapLatest {if(it==null) flowOf(emptyList()) else repository.messages(it)}.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
+    val messagesReady=MutableStateFlow<String?>(null)
+    val messages=repository.active.flatMapLatest {cid->
+        messagesReady.value=null
+        if(cid==null)flowOf(emptyList()) else repository.messages(cid).onEach {messagesReady.value=cid}
+    }.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val active=repository.active.asStateFlow()
     val connection=repository.connection
     val unsent=repository.unsent().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),0)
