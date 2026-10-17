@@ -29,6 +29,14 @@ Manually run `release.yml` on **main only** after candidate CI for that exact ma
 
 Install the signed/minified release via bundletool or a specifically approved Play internal track, test clean install and compatible update, OAuth callback, FCM token registration, private media/voice, 16 KB/Android 16 behavior and two physical accounts. Record actual device models/OS/IME/network cases and signed artifact checksum. Play Console access, account verification/type/date, target audience/content rating, production eligibility, final policies/deletion URL and owner approval are still required.
 
+## P1 local data and safe tooling
+
+The app keeps allowBackup=false and adds explicit exclusions across all Android backup domains, including device-protected and app-external data, for legacy backup, modern cloud/device transfer and supported cross-platform transfer. Old platform parsers skip unknown transport sections. No installed local data is erased; existing provider backup datasets are not retroactively deleted. Real OEM/Android16 QPR2 transfer behavior still requires device acceptance. Local unsent content has no supported export/restore path; do not remove the original installation/device to work around signing or migration issues.
+
+The smoke helper deliberately uninstalls disposable test fixtures. It now refuses to proceed without LIQUID_DISPOSABLE_EMULATOR=1, a selected emulator-N serial and qemu property1; subsequent ADB calls are pinned to that serial. Use only on the fresh CI AVD, never on an emulator carrying user data. Host safety regressions use a fake ADB and never operate a device.
+
+CI and manual signed builds invoke ./gradlew; wrapper downloads enforce the official8.11.1 binary SHA256. The checked-in wrapper JAR matches the official release checksum. References: https://gradle.org/release-checksums/ and https://developer.android.com/identity/data/autobackup . Signed runtime, actual upgrades and provider/physical acceptance remain separate gates.
+
 ## Recovery
 
 Every phase uses reviewable PRs; never roll back by deleting user data or editing applied migrations. Revert app source in a new reviewed commit and use a higher versionCode for a hotfix. Keep the new reporting RPC compatible with older clients. Its specific recovery plan is in MODERATION_OPERATIONS.md. Do not automatically downgrade a Room schema or replace a production signing identity. Back up the real database/storage inventory off-repository and rehearse restore before launch; that rehearsal has not run here.

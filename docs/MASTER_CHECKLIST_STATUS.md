@@ -1,6 +1,6 @@
 # Master checklist execution status
 
-This is an evidence register, not a declaration that every checkbox is complete. Original checklist is preserved in INPUT_MASTER_WORK_PLAN.md. Phase 0/1/2 PRs passed CI before merge; policy/reporting PR #6 also passed before merge; release-candidate CI is pending at this revision. External gates never count as passed.
+This is an evidence register, not a declaration that every checkbox is complete. Original checklist is preserved in INPUT_MASTER_WORK_PLAN.md. Phase 0/1/2 PRs passed CI before merge; policy/reporting PR #6 also passed before merge; release-candidate PR7 and signing-correction PR8 passed all five checks, with main62e7337/run39045292103 verified. The new P1 backup/transfer, safe-smoke and pinned-wrapper patch requires its own CI. External gates never count as passed.
 
 ALREADY FIXED means implemented/source-checked with selected tests, not certification of every real-device scenario. See QA_MATRIX and BUG_LEDGER for limits. Provider setup/physical performance/Play submission remain blocked. P2 is deferred while release gates are open.
 

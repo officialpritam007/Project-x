@@ -8,8 +8,9 @@
 - [x] Authorization, actions, moments/voice and new content-report SQL rollback tests executed successfully.
 - [x] Additive reporting migration deployed without changing existing migrations/data; pre-existing advisors documented.
 - [x] Policy/privacy follow-up PR #6 CI passed and merged.
-- [ ] API36/AGP8.10.1 release candidate PR CI pass: debug/release tests/lint, R8/AAB, Edge, API29/35/36 instrumentation, signing/alignment/provenance.
-- [ ] Main push CI pass for the final merged source SHA; inspect reports and download checksum-matched artifacts.
+- [x] API36 PR7 and signing-correction PR8 passed debug/release checks, R8/unsigned AAB, Edge, API29/35/36, signing/alignment/provenance.
+- [x] Main62e7337 run39045292103 passed; downloaded reports and checksums verified. This is the accepted candidate before the next P1 patch.
+- [ ] New P1 backup/transfer/tooling/wrapper phase CI, then its exact merged-main artifacts, must pass separately.
 
 ## Owner/provider blockers
 

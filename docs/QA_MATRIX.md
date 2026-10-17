@@ -11,7 +11,7 @@
 | SQL moments/voice | PASS | Re-run connected backend: audience/block/expiry/owner/archive/delete/private-media and idempotent participant-only voice; rolled back; all 11 test fixture identities absent afterward |
 | Two physical accounts/devices | BLOCKED | No connected devices; no real delivery/IME/camera acceptance claim |
 | SMTP / OAuth / FCM HTTP v1 | UNVERIFIED | Console configuration and actual delivery required |
-| API29/API36 | NOT RUN | Existing CI covers API35 only |
+| API29/API36 baseline | NOT RUN at Phase0 | Subsequent verified candidate results supersede this baseline; see below |
 | Signed release AAB / install upgrade | BLOCKED | Upload credentials not configured/verified |
 | Play Console/prelaunch/closed testing | BLOCKED | No access/eligibility evidence |
 
@@ -35,6 +35,12 @@ New consent and report-dialog instrumentation tests, and rollback-only content_r
 
 Deployed content_reporting.sql PASS on migration 20261017103232; zero reporting fixture users remain. Post-migration advisor results unchanged (one Auth warning, three index INFO). Camera/account-media deletion checks added to OfflineLogoutTest; this new UI/privacy phase still awaits CI.
 
-## API36 release-candidate acceptance — pending this phase
+## API36 release-candidate acceptance — PASS for main62e7337
 
-Adds debug/release unit and lint tasks, minified/shrunk unsigned AAB, API29/35/36 instrumentation, APK signing/alignment/native ELF checks and immutable artifact metadata. Adds isolated no-network concurrent expired-token/401 refresh regression tests. No claim of passing these new checks until the candidate workflow actually completes. Signed-release runtime, physical/OEM/provider acceptance and Play access remain external gates.
+Adds debug/release unit and lint tasks, minified/shrunk unsigned AAB, API29/35/36 instrumentation, APK signing/alignment/native ELF checks and immutable artifact metadata. Adds isolated no-network concurrent expired-token/401 refresh regression tests. These checks passed on accepted main62e7337; they must run again for subsequent patches. Signed-release runtime, physical/OEM/provider acceptance and Play access remain external gates.
+
+PR #7 run39026313908 and PR #8 run39044495715 passed all five jobs before their merges. Corrected main62e7337 passed [39045292103](https://github.com/officialpritam007/Project-x/actions/runs/39045292103):8 debug and8 release unit tests,21 instrumentation tests per API29/35/36, no failures/errors/skips, and exact distributed APK install/cold launch/process checks on all3 emulators. Downloaded reports verified; lint each0 errors/36 warnings. Both PR8 and main logs prove prepared-key certificate match and successful cache save. Debug certificate remains incompatible with baseline; owner-controlled continuity/physical upgrade remain blocked.
+
+## P1 local data and QA/build safety — candidate, CI pending
+
+Source-confirmed backup configuration gap: allowBackup=false lacked explicit transfer exclusions; OEM transfer behavior is not certified. Add all-domain cloud/device/cross-platform exclusions and legacy rules without touching installed data. New host smoke safety suite:5 tests PASS locally using fake ADB only, including denied physical serial, missing opt-in, invalid/failed emulator property and exact-APK/pinned-emulator happy path. Negative control against old script reproduced mocked uninstall without opt-in; no real device/account data involved. Workflow YAML, XML and Bash validation are local static checks; actual wrapper download/build/lint and API29/35/36 remain required CI.
