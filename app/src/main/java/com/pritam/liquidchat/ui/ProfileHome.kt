@@ -1,0 +1,109 @@
+package com.pritam.liquidchat.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pritam.liquidchat.AppViewModel
+import com.pritam.liquidchat.data.Images
+
+@Composable fun ProfileHero(model:AppViewModel,large:Boolean=false) {
+    val profile by model.profile.collectAsStateWithLifecycle()
+    val name=profile?.optString("display_name").orEmpty()
+    val avatar=profile?.optString("avatar_id").orEmpty()
+    Column(Modifier.fillMaxWidth().padding(vertical=6.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size(if(large)103.dp else 96.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF18C5DA),Color(0xFF008CB9)))).border(2.dp,Color.White.copy(alpha=.9f),CircleShape),contentAlignment=Alignment.Center) {
+            if(avatar.isNotEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
+            else Text(name.split(" ").filter {it.isNotBlank()}.take(2).joinToString("") {it.take(1)}.uppercase(),fontSize=39.sp,color=Color.White)
+        }
+        Text(name,fontSize=25.sp,fontWeight=FontWeight.Bold)
+        Text(if(large)"online" else "@${profile?.optString("username").orEmpty()} • online",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+@Composable fun MyProfileScreen(model:AppViewModel,busy:Boolean,onSettings:()->Unit) {
+    val profile by model.profile.collectAsStateWithLifecycle()
+    var edit by rememberSaveable {mutableStateOf(false)}
+    var archived by rememberSaveable {mutableStateOf(false)}
+    var menu by remember {mutableStateOf(false)}
+    val context=LocalContext.current
+    val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
+        val id=model.backend.session.value?.userId ?: return@action
+        val image=Images.prepare(context,uri,id)
+        try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
+    }}
+    if(edit) {BackHandler {edit=false};Column(Modifier.verticalScroll(rememberScrollState())) {TextButton(onClick={edit=false}){Text("Back to Profile")};ProfileScreen(model,busy)};return}
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=12.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)) {
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+            IconButton(onClick={archived=!archived}) {Icon(Icons.Outlined.GridView,"Toggle archived posts")}
+            Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
+                DropdownMenu(menu,{menu=false}) {
+                    DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
+                    DropdownMenuItem(text={Text("Remove photo")},onClick={menu=false;model.action {model.backend.rpc("set_avatar");model.loadProfile()}},enabled=!busy)
+                }
+            }
+        }
+        ProfileHero(model,large=true)
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            listOf("Set Photo" to "◎","Edit Info" to "✎","Settings" to "⚙").forEachIndexed {i,(label,glyph)->
+                GlassSurface(Modifier.weight(1f)) {
+                    Column(Modifier.fillMaxWidth().heightIn(min=62.dp).clickable(enabled=!busy) {when(i){0->picker.launch("image/*");1->edit=true;else->onSettings()}}.padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally) {Text(glyph,fontSize=24.sp);Text(label,fontSize=13.sp,fontWeight=FontWeight.Bold)}
+                }
+            }
+        }
+        GlassCard(Modifier.fillMaxWidth()) {Text("@${profile?.optString("username").orEmpty()}",fontSize=19.sp,fontWeight=FontWeight.Bold);Text("Username",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant);profile?.optString("bio")?.takeIf {it.isNotBlank()}?.let {Text(it)}}
+        GlassSurface(shape=Glass.capsule) {
+            Row(Modifier.padding(5.dp)) {listOf("Posts","Archived").forEachIndexed {i,title->
+                Text(title,Modifier.clip(Glass.capsule).background(if(archived==(i==1))MaterialTheme.colorScheme.primaryContainer else Color.Transparent).clickable {archived=i==1}.padding(horizontal=17.dp,vertical=8.dp),fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(archived==(i==1))MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }}
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(if(archived)"No archived posts..." else "No posts yet...",fontSize=22.sp,fontWeight=FontWeight.Bold)
+        Text("Posts are not available in this version yet.",fontSize=14.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(40.dp))
+        Button(onClick={},enabled=false,shape=Glass.capsule) {Text("◎ Add a post")}
+    }
+}
+
+@Composable fun SettingsHome(model:AppViewModel,onSection:(String)->Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        GlassHeader("Liquid Chat Settings")
+        Box(Modifier.clickable {onSection("Account")}) {ProfileHero(model)}
+        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            val rows=listOf(
+                Triple("Account","Number, Username, Bio",0xFF00A8D8),
+                Triple("Chat Settings","Wallpaper, Night Mode, Animations",0xFFF9A600),
+                Triple("Privacy & Security","Last Seen, Devices, Passkeys",0xFF11C748),
+                Triple("Notifications","Sounds, Messages, Badges",0xFFFF3565),
+                Triple("Data and Storage","Media download settings",0xFF357EEB),
+                Triple("Chat Folders","Sort chats into folders",0xFF07ACD7),
+                Triple("Devices","Manage connected devices",0xFF00B6C9),
+                Triple("Power Saving","Battery saving controls",0xFFF99020),
+                Triple("Language","English",0xFFB851E0))
+            val glyphs=listOf("◎","◉","⚿","◖","◫","▣","▭","▱","◎")
+            rows.forEachIndexed {i,(title,subtitle,color)->
+                Row(Modifier.fillMaxWidth().heightIn(min=49.dp).clickable {onSection(title)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(36.dp).background(Color(color),Glass.compact),contentAlignment=Alignment.Center){Text(glyphs[i],color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold)}
+                    Column(Modifier.weight(1f)) {Text(title,fontSize=16.sp,fontWeight=FontWeight.Bold);Text(subtitle,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+                }
+                if(i<rows.lastIndex)HorizontalDivider(color=Color.White.copy(alpha=.6f))
+            }
+        }
+        Text("Developed by Pritam Pal · © 2026 Liquid Chat",fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(bottom=12.dp))
+    }
+}

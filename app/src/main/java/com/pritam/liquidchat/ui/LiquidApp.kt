@@ -46,14 +46,8 @@ import com.pritam.liquidchat.AppViewModel
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
         if(logoutPrompt) AlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
-        Scaffold(modifier=Modifier.background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha=.45f),MaterialTheme.colorScheme.background))),snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
-            if(session!=null && loaded && profile!=null && !recovery && active==null) Surface(modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp).navigationBarsPadding(),shape=Glass.capsule,color=MaterialTheme.colorScheme.surface.copy(alpha=if(display.reducedTransparency)1f else .88f),border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant),shadowElevation=8.dp) {
-              NavigationBar(containerColor=Color.Transparent,tonalElevation=0.dp,modifier=Modifier.heightIn(min=if(androidx.compose.ui.platform.LocalDensity.current.fontScale>1.6f)112.dp else 80.dp)) {
-                listOf("Chats", "Contacts", "Settings").forEachIndexed { i,title ->
-                    NavigationBarItem(selected=tab==i, onClick={tab=i}, icon={ Icon(listOf(Icons.Outlined.ChatBubbleOutline,Icons.Outlined.PeopleOutline,Icons.Outlined.Settings)[i], title) }, label={Text(title)})
-                }
-              }
-            }
+        Scaffold(modifier=Modifier.background(glassBackground()),snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
+            if(session!=null && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
@@ -62,7 +56,7 @@ import com.pritam.liquidchat.AppViewModel
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
             else if(active!=null) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}
             else Box(Modifier.fillMaxSize().padding(padding)) {
-                when(tab) {0->ChatsScreen(model,chats);1->ContactsScreen(model,chats,busy);else->SettingsScreen(model,busy)}
+                when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
             }
         }
     }

@@ -19,7 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,17 +41,17 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 
 @Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null) {
-    Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer,CircleShape),contentAlignment=Alignment.Center) {
+    Box(Modifier.size(48.dp).clip(CircleShape).background(if(name.contains(" "))Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
         if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
-        else Text(name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=MaterialTheme.colorScheme.onPrimaryContainer)
+        else Text(name.split(" ").filter {it.isNotBlank()}.take(2).map {it.take(1)}.joinToString("").uppercase(),style=MaterialTheme.typography.titleLarge,color=Color.White)
     }
 }
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit) {
-    Surface(onClick=onClick,shape=Glass.card,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+    Surface(onClick=onClick,shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(vertical=8.dp,horizontal=1.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend)
             Column(Modifier.weight(1f)) {
-                Text(chat.name,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium,maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
@@ -60,20 +61,41 @@ import kotlinx.coroutines.flow.drop
         }
     }
 }
-@Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>) {
+@Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>,onContacts:()->Unit={},onProfile:()->Unit={}) {
     var query by rememberSaveable {mutableStateOf("")};var filter by rememberSaveable {mutableIntStateOf(0)}
+    var menu by remember {mutableStateOf(false)};var stories by remember {mutableStateOf(false)}
+    val profile by model.profile.collectAsStateWithLifecycle()
     val connection by model.connection.collectAsStateWithLifecycle()
     val results by model.searchResults.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {Text("Liquid Chat",style=MaterialTheme.typography.headlineLarge,modifier=Modifier.weight(1f));IconButton(onClick={model.repository.refresh()}) {Icon(Icons.Outlined.Refresh,"Refresh")}}
-        Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(query,{query=it;model.search(it)},label={Text("Search contacts & downloaded messages")},singleLine=true,shape=Glass.capsule,modifier=Modifier.fillMaxWidth())
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            listOf("All","Favorite","Archive","Unread").forEachIndexed {i,title->FilterChip(selected=filter==i,onClick={filter=i},label={Text(title)})}
+    Box(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        GlassHeader("Liquid Chat",brand=true) {
+            Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
+                DropdownMenu(menu,{menu=false}) {
+                    listOf("All","Favorite","Archive","Unread").forEachIndexed {i,title->DropdownMenuItem(text={Text(title)},onClick={filter=i;menu=false})}
+                    DropdownMenuItem(text={Text("Refresh")},onClick={model.repository.refresh();menu=false})
+                }
+            }
         }
+        Row(Modifier.padding(top=10.dp,start=4.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(28.dp)) {
+            Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable(onClick=onProfile)) {
+                Box {
+                    Avatar(profile?.optString("display_name").orEmpty(),profile?.optString("avatar_id").orEmpty().takeUnless {it=="null"}.orEmpty(),model.backend)
+                    Surface(Modifier.align(Alignment.BottomEnd).size(21.dp),shape=CircleShape,color=Color(0xFF00A6E8)) {Box(contentAlignment=Alignment.Center){Text("+",color=Color.White)}}
+                }
+                Spacer(Modifier.height(12.dp));Text("My Story",fontSize=12.sp,fontWeight=FontWeight.Bold)
+            }
+            Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable {stories=true}) {
+                Box(Modifier.size(50.dp).background(Color(0xFF00A6E8),CircleShape),contentAlignment=Alignment.Center){Text("➤",color=Color.White,fontSize=24.sp)}
+                Spacer(Modifier.height(12.dp));Text("Stories",fontSize=12.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        GlassSearch(query,{query=it;model.search(it)},"Search Chats")
+        if(filter!=0) Row(verticalAlignment=Alignment.CenterVertically) {Text(listOf("All","Favorite","Archive","Unread")[filter],Modifier.weight(1f),color=MaterialTheme.colorScheme.primary);TextButton(onClick={filter=0}) {Text("Show all")}}
+        if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->it.unread>0&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=16.dp)) {
+        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
             items(visible,key={"chat-${it.id}"}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}
             if(query.isNotBlank()) {
@@ -88,39 +110,66 @@ import kotlinx.coroutines.flow.drop
             }
         }
     }
+    Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=4.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
+        FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
+    }
+    }
+    if(stories) AlertDialog(onDismissRequest={stories=false},title={Text("Stories")},text={Text("Stories are not available in this version yet.")},confirmButton={TextButton(onClick={stories=false}){Text("OK")}})
 }
 @Composable fun ContactsScreen(model:AppViewModel,chats:List<Chat>,busy:Boolean) {
     var username by rememberSaveable {mutableStateOf("")}
+    var showFind by rememberSaveable {mutableStateOf(false)}
+    var alphabetical by rememberSaveable {mutableStateOf(true)}
+    val context=LocalContext.current
     val contacts by model.contacts.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {model.action {model.repository.loadContacts()}}
     val found by model.found.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        Text("Contacts",style=MaterialTheme.typography.headlineLarge)
-        OutlinedTextField(username,{username=it.lowercase().take(24)},label={Text("Exact username")},shape=Glass.capsule,singleLine=true,modifier=Modifier.fillMaxWidth())
-        Button(onClick={model.find(username)},enabled=!busy&&username.matches(Regex("[a-z0-9_]{3,24}")),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Find contact")}
-        found?.let {p->GlassCard(Modifier.fillMaxWidth()) {
-            Text(p.optString("display_name"),style=MaterialTheme.typography.titleLarge);Text("@${p.optString("username")}")
-            Row {Button(onClick={model.start(p.getString("id"))},enabled=!busy) {Text("Start chat")};TextButton(onClick={model.action {model.repository.saveContact(p.getString("id"),true)}},enabled=!busy) {Text("Save contact")}}
-
-        }}
-        Text("Saved contacts",style=MaterialTheme.typography.titleMedium)
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            if(contacts.isEmpty()) item {Text("Find someone by username and save them here.")}
-            items(contacts,key={"contact-${it.id}"}) {contact->
-                Surface(shape=Glass.card,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+    val filtered=remember(contacts,username,alphabetical) {contacts.filter {username.isBlank()||it.name.contains(username,true)||it.username.contains(username,true)}.let {if(alphabetical)it.sortedBy {c->c.name.lowercase()} else it.reversed()}}
+    Box(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+        GlassHeader("Contacts") {IconButton(onClick={alphabetical=!alphabetical}) {Icon(Icons.Outlined.SortByAlpha,"Change contact sort order")}}
+        GlassSearch(username,{username=it.lowercase().take(24)},"Search Contacts")
+        GlassCard(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().heightIn(min=46.dp).clickable {
+                val intent=android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT,"Find me on Liquid Chat: @${model.profile.value?.optString("username").orEmpty()}")
+                context.startActivity(android.content.Intent.createChooser(intent,"Invite Friends"))
+            },verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(34.dp).background(Color(0xFF00A6E8),CircleShape),contentAlignment=Alignment.Center){Text("+",color=Color.White,fontWeight=FontWeight.Bold,fontSize=20.sp)}
+                Text("Invite Friends",fontSize=18.sp,fontWeight=FontWeight.Bold)
+            }
+            Row(Modifier.fillMaxWidth().heightIn(min=46.dp).clickable {showFind=true},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(34.dp).background(Color(0xFF11C748),CircleShape),contentAlignment=Alignment.Center){Text("↗",color=Color.White,fontSize=22.sp)}
+                Text("Find Friends",fontSize=18.sp,fontWeight=FontWeight.Bold)
+            }
+        }
+        LazyColumn(contentPadding=PaddingValues(bottom=72.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            item {Text(if(alphabetical)"Sorted by name" else "Reverse saved order",Modifier.padding(horizontal=16.dp),color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,fontSize=15.sp)}
+            if(filtered.isEmpty()) item {GlassCard(Modifier.fillMaxWidth()){Text(if(username.isBlank())"Find someone by username and save them here." else "No saved contacts match.")}}
+            items(filtered,key={"contact-${it.id}"}) {contact->
+                GlassSurface(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
                         Row(Modifier.weight(1f).clickable {val chat=chats.firstOrNull {it.peer==contact.id};if(chat!=null)model.open(chat.id) else model.start(contact.id)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                             Avatar(contact.name,contact.avatarId,model.backend)
-                            Column {Text(contact.name,style=MaterialTheme.typography.titleMedium);Text("@${contact.username}",style=MaterialTheme.typography.bodySmall)}
+                            Column {Text(contact.name,fontSize=17.sp,fontWeight=FontWeight.Bold);Text("@${contact.username}",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}
                         }
-                        TextButton(onClick={model.action {model.repository.saveContact(contact.id,false)}},enabled=!busy) {Text("Remove")}
+                        IconButton(onClick={model.action {model.repository.saveContact(contact.id,false)}},enabled=!busy) {Icon(Icons.Outlined.PersonRemove,"Remove saved contact")}
                     }
                 }
             }
-            item {Text("Recent conversations",style=MaterialTheme.typography.titleMedium)}
-            items(chats,key={"recent-${it.id}"}) {chat->ChatRow(chat,model.backend){model.open(chat.id)}}
         }
     }
+    GlassSurface(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=4.dp).size(52.dp),CircleShape) {IconButton(onClick={showFind=true},modifier=Modifier.fillMaxSize()) {Icon(Icons.Outlined.Add,"Add contact",tint=MaterialTheme.colorScheme.primary)}}
+    }
+    if(showFind) AlertDialog(onDismissRequest={showFind=false},title={Text("Find Friends")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        Text("Find someone by their exact username.")
+        OutlinedTextField(username,{username=it.lowercase().take(24)},label={Text("Username")},singleLine=true)
+        Button(onClick={model.find(username)},enabled=!busy&&username.matches(Regex("[a-z0-9_]{3,24}"))) {Text("Find contact")}
+        found?.takeIf {it.optString("username").equals(username,true)}?.let {p->
+            Text(p.optString("display_name"),fontWeight=FontWeight.Bold);Text("@${p.optString("username")}")
+            Row {TextButton(onClick={showFind=false;model.start(p.getString("id"))},enabled=!busy){Text("Start chat")};TextButton(onClick={model.action {model.repository.saveContact(p.getString("id"),true)}},enabled=!busy){Text("Save contact")}}
+        }
+    }},confirmButton={TextButton(onClick={showFind=false}){Text("Done")}})
 }
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
     val chat=chats.firstOrNull {it.id==cid}
@@ -175,7 +224,8 @@ import kotlinx.coroutines.flow.drop
             list.scrollToItem(messages.size);initialScroll=true
         }
     }
-    Column(Modifier.fillMaxSize().imePadding()) {
+    Column(Modifier.fillMaxSize().background(if(LocalGlassDark.current)Color(0xFF203C32) else Color(0xFFA2CFA3)).imePadding()) {
+        GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
         Row(Modifier.fillMaxWidth().padding(8.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
             if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
@@ -195,19 +245,23 @@ import kotlinx.coroutines.flow.drop
                 }
             }
         }
-        HorizontalDivider()
-        LazyColumn(state=list,modifier=Modifier.weight(1f).fillMaxWidth(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        }
+        LazyColumn(state=list,modifier=Modifier.weight(1f).fillMaxWidth(),contentPadding=PaddingValues(horizontal=8.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
             item(key="older") {TextButton(onClick={model.older(cid)},enabled=!busy) {Text("Load older messages")}}
             if(messages.isEmpty()) item(key="empty") {Text("Say hello. Your messages will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)}
             items(messages,key={it.id}) {m->MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus)}
             if(contact.optBoolean("typing")) item(key="typing") {Text("Typing…",modifier=Modifier.padding(12.dp),color=MaterialTheme.colorScheme.onSurfaceVariant)}
         }
-        Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick={picker.launch("image/*")},enabled=!busy) {Icon(Icons.Outlined.AddPhotoAlternate,"Attach image")}
-            OutlinedTextField(body,{body=it.take(4000)},label={Text("Message")},modifier=Modifier.weight(1f),shape=Glass.card,maxLines=5)
-            FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(52.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
+        GlassSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
+            Row(Modifier.fillMaxWidth().padding(4.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick={body=(body+"☺").take(4000)}) {Text("☺",fontSize=24.sp)}
+                androidx.compose.foundation.text.BasicTextField(body,{body=it.take(4000)},modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp),textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
+                IconButton(onClick={picker.launch("image/*")},enabled=!busy) {Icon(Icons.Outlined.AttachFile,"Attach image")}
+                FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
+            }
         }
     }
+
     if(details&&chat!=null) AlertDialog(onDismissRequest={details=false},title={Text(chat.name)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Avatar(chat.name,chat.avatarId,model.backend);Text("@${chat.username}")
         TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}},enabled=!busy) {Text("Save contact")}
@@ -228,13 +282,13 @@ import kotlinx.coroutines.flow.drop
     var truncated by remember(message.id) {mutableStateOf(false)}
     val label=com.pritam.liquidchat.data.Delivery.label(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
-        Surface(shape=Glass.card,color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(mine)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.widthIn(max=320.dp)) {
-            Column(Modifier.padding(horizontal=16.dp,vertical=12.dp)) {
+        Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF345E3E) else Color(0xFF24372E)} else if(mine)Color(0xFFE1FAD8) else Color(0xFFFAFDFC),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=.8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=349.dp)) {
+            Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
                     ImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                Text(message.body,fontSize=13.sp,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
                 if(truncated||expanded) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
                 val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
                 Text(if(mine) "$time · $label" else time,style=MaterialTheme.typography.labelSmall,modifier=Modifier.align(Alignment.End))
@@ -244,6 +298,17 @@ import kotlinx.coroutines.flow.drop
     }
 }
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
+    var section by rememberSaveable {mutableStateOf<String?>(null)}
+    var unavailable by remember {mutableStateOf<String?>(null)}
+    if(section==null) {
+        SettingsHome(model) {title->
+            if(title in listOf("Devices","Data and Storage","Language","Chat Folders")) unavailable=title else section=title
+        }
+        unavailable?.let {title->AlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
+        return
+    }
+    BackHandler {section=null}
+
     val profile by model.profile.collectAsStateWithLifecycle()
     val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {model.action {model.repository.loadSettings()}}
@@ -261,7 +326,7 @@ import kotlinx.coroutines.flow.drop
     var password by remember {mutableStateOf("")}
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Text("Settings",style=MaterialTheme.typography.headlineLarge)
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         GlassCard(Modifier.fillMaxWidth()) {
             val avatar=profile?.optString("avatar_id")
             if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)

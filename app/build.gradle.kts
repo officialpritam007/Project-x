@@ -16,8 +16,8 @@ android {
         buildConfigField("String","FCM_PROJECT_ID", "\"" + (System.getenv("FCM_PROJECT_ID") ?: "") + "\"")
         buildConfigField("String","FCM_API_KEY", "\"" + (System.getenv("FCM_API_KEY") ?: "") + "\"")
         buildConfigField("String","FCM_SENDER_ID", "\"" + (System.getenv("FCM_SENDER_ID") ?: "") + "\"")
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -39,6 +39,7 @@ dependencies {
     kapt("androidx.room:room-compiler:2.7.1")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-svg:2.7.0")
     implementation("com.google.firebase:firebase-messaging:24.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
