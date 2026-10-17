@@ -15,3 +15,7 @@ See [backend setup and remaining release gates](docs/BACKEND_SETUP.md), [progres
 - CI: debug build, lint, JVM delivery-state tests, and API 35 emulator Room/cache/migration/Keystore and conversation tests.
 - `supabase/tests/authorization.sql`: run as DB owner in an isolated validation session; all fixture effects are rolled back. It verifies the access-control invariants listed in its final result.
 - Real Google/SMTP/FCM/Cloudinary and physical-device journeys remain required before public release.
+
+## Production stabilization
+
+See [release audit](docs/PRODUCTION_RELEASE_AUDIT.md), [bug ledger](docs/BUG_LEDGER.md), [QA evidence](docs/QA_MATRIX.md), [release engineering](docs/RELEASE_ENGINEERING.md) and [Play submission drafts](docs/play/STORE_LISTING.md). This is a release candidate, not approval for production publication. Signing, provider/physical-device acceptance and final policy/deletion hosting remain explicit gates.

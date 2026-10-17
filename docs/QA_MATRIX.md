@@ -27,8 +27,14 @@ Run [39024798988](https://github.com/officialpritam007/Project-x/actions/runs/39
 
 LocalLogout unit tests: success, network failure, cancellation, storage failure. OfflineLogout instrumentation: real encrypted fixture SessionStore + injected offline OkHttp + real Room account cleanup; no real user or provider writes. SMTP, Google, expired/replayed recovery links, process death/reboot, actual account erasure and two physical devices remain unverified.
 
-## Phase 7 policy/reporting — CI pending
+## Phase 7 policy/reporting — PASS
+
+Run [39025444471](https://github.com/officialpritam007/Project-x/actions/runs/39025444471), head 3add5e70: unit/lint/APK/Edge/API35 instrumentation passed before PR #6 merge.
 
 New consent and report-dialog instrumentation tests, and rollback-only content_reporting.sql. Prototype SQL passed including evidence/actor binding, anonymous/stranger/self/block/archive/expiry/rate-limit/revoked-session denial. Deployed-schema SQL and advisors are being verified before UI merge. No actual user reports were submitted/read.
 
 Deployed content_reporting.sql PASS on migration 20261017103232; zero reporting fixture users remain. Post-migration advisor results unchanged (one Auth warning, three index INFO). Camera/account-media deletion checks added to OfflineLogoutTest; this new UI/privacy phase still awaits CI.
+
+## API36 release-candidate acceptance — pending this phase
+
+Adds debug/release unit and lint tasks, minified/shrunk unsigned AAB, API29/35/36 instrumentation, APK signing/alignment/native ELF checks and immutable artifact metadata. Adds isolated no-network concurrent expired-token/401 refresh regression tests. No claim of passing these new checks until the candidate workflow actually completes. Signed-release runtime, physical/OEM/provider acceptance and Play access remain external gates.

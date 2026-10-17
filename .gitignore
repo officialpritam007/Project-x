@@ -8,3 +8,6 @@ local.properties
 *.jks
 
 supabase/.temp/
+
+__pycache__/
+*.pyc
