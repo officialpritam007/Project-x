@@ -21,8 +21,8 @@ jobs:
       FCM_SENDER_ID: ${{ vars.FCM_SENDER_ID }}
     steps:
       - uses: actions/checkout@v4
-      - name: Verify smoke tooling cannot target a physical device
-        run: python3 -m unittest discover -s scripts/tests -p 'test_smoke_safety.py' -v
+      - name: Verify host tooling safety and audit completeness
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -60,6 +60,8 @@ jobs:
           PYKEY
       - name: Tests, lint and APK
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug testReleaseUnitTest lintRelease bundleRelease
+      - name: Inventory resolved release dependencies and declared licenses
+        run: ./gradlew --no-daemon -I scripts/dependency_inventory.init.gradle :app:exportDependencyInventory
       - name: Validate APK signature, alignment and native page compatibility
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/debug-certificate.txt
@@ -180,9 +182,9 @@ jobs:
       - name: Type-check Edge Function sources
         working-directory: supabase/functions
         run: deno check --frozen --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts
-      - name: Validate private media container inspection
+      - name: Validate private media and admin request boundaries
         working-directory: supabase/functions
-        run: deno test --frozen --lock=deno.lock media/inspect_test.ts
+        run: deno test --allow-env=WS_NO_BUFFER_UTIL,WS_NO_UTF_8_VALIDATE --frozen --lock=deno.lock media/inspect_test.ts account/admin_input_test.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

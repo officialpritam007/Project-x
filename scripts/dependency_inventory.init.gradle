@@ -1,0 +1,70 @@
+// Read-only release graph and publisher-declared POM licenses, Gradle8.11.1.
+// No dependency versions, artifacts, app configuration or lockfiles are changed.
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.maven.MavenModule
+import org.gradle.maven.MavenPomArtifact
+import java.security.MessageDigest
+import javax.xml.parsers.DocumentBuilderFactory
+
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.findProject(':app')
+    app.tasks.register('exportDependencyInventory') {
+        group = 'verification'
+        description = 'Export resolved release modules, artifact hashes and declared licenses.'
+        doLast {
+            def config = app.configurations.getByName('releaseRuntimeClasspath')
+            def ids = config.incoming.resolutionResult.allComponents.collect {it.id}
+                .findAll {it instanceof ModuleComponentIdentifier}.unique().sort {it.displayName}
+            def binaries = config.resolvedConfiguration.resolvedArtifacts.groupBy {it.moduleVersion.id.toString()}
+            def query = app.dependencies.createArtifactResolutionQuery().forComponents(ids)
+                .withArtifacts(MavenModule, MavenPomArtifact).execute()
+            def poms = [:]
+            query.resolvedComponents.each {component ->
+                def artifact = component.getArtifacts(MavenPomArtifact).find {it instanceof ResolvedArtifactResult}
+                if (artifact != null) poms[component.id.displayName] = artifact.file
+            }
+            def digest = {File file -> MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString()}
+            def children = {node, name -> (0..<node.childNodes.length).collect {node.childNodes.item(it)}.findAll {it.nodeName == name}}
+            def text = {node, name -> children(node, name).find()?.textContent?.trim()}
+            def packages = ids.collect {id ->
+                def key = id.displayName
+                def pom = poms[key]
+                def record = [ecosystem:'Maven', name:"${id.group}:${id.module}", version:id.version,
+                    artifacts:(binaries[key] ?: []).collect {a -> [file:a.file.name, sha256:digest(a.file)]}.sort {it.file},
+                    licenses:[], license_status:'POM_UNAVAILABLE']
+                if (pom != null) {
+                    record.pom_sha256 = digest(pom)
+                    try {
+                        def factory = DocumentBuilderFactory.newInstance()
+                        factory.setFeature('http://apache.org/xml/features/disallow-doctype-decl', true)
+                        factory.setFeature('http://xml.org/sax/features/external-general-entities', false)
+                        factory.setFeature('http://xml.org/sax/features/external-parameter-entities', false)
+                        factory.setXIncludeAware(false)
+                        factory.setExpandEntityReferences(false)
+                        def root = factory.newDocumentBuilder().parse(pom).documentElement
+                        def block = children(root, 'licenses').find()
+                        record.licenses = block == null ? [] : children(block, 'license').collect {l ->
+                            [name:text(l,'name'), url:text(l,'url')]
+                        }
+                        record.license_status = record.licenses ? 'PUBLISHER_DECLARED' : 'NO_INLINE_DECLARATION_REVIEW_PARENT'
+                        def parent = children(root,'parent').find()
+                        if (parent != null) record.parent = [group:text(parent,'groupId'), name:text(parent,'artifactId'), version:text(parent,'version')]
+                    } catch (Exception e) {
+                        record.license_status = 'POM_PARSE_ERROR'
+                        record.error_type = e.class.simpleName
+                    }
+                }
+                record
+            }
+            def output = app.layout.buildDirectory.file('reports/dependencies/release-inventory.json').get().asFile
+            output.parentFile.mkdirs()
+            output.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+                scope:'app releaseRuntimeClasspath selected Maven modules, not build plugins or OS components',
+                license_limit:'Publisher POM declarations only; missing/inherited licenses require review. Not legal clearance.',
+                packages:packages])) + '\n'
+            println "Release inventory: ${packages.size()} modules, ${packages.count {it.license_status != 'PUBLISHER_DECLARED'}} license entries require review."
+        }
+    }
+}

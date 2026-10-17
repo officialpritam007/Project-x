@@ -10,7 +10,8 @@
 - [x] Policy/privacy follow-up PR #6 CI passed and merged.
 - [x] API36 PR7 and signing-correction PR8 passed debug/release checks, R8/unsigned AAB, Edge, API29/35/36, signing/alignment/provenance.
 - [x] Main62e7337 run39045292103 passed; downloaded reports and checksums verified. This is the accepted candidate before the next P1 patch.
-- [ ] New P1 backup/transfer/tooling/wrapper phase CI, then its exact merged-main artifacts, must pass separately.
+- [x] P1 backup/transfer/tooling/wrapper PR9 and main0649caf6 passed their five CI checks.
+- [ ] Dependency advisory/inventory phase CI and actual Maven catalog/license review, then exact final-main artifacts, must pass separately.
 
 ## Owner/provider blockers
 
