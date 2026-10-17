@@ -1,3 +1,4 @@
+import { inspectAacMp4, inspectJpeg } from "./inspect.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 const url = Deno.env.get("SUPABASE_URL")!;
 const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -14,10 +15,11 @@ Deno.serve(async req => {
   const { data: auth, error: authError } = await admin.auth.getUser(token);
   if (authError || !auth.user) return reply({ error: "Sign in required" }, 401);
   const cloud = Deno.env.get("CLOUDINARY_CLOUD_NAME"), key = Deno.env.get("CLOUDINARY_API_KEY"), secret = Deno.env.get("CLOUDINARY_API_SECRET");
-  if (!cloud || !key || !secret) return reply({ error: "Image sharing is temporarily unavailable" }, 503);
+  const cloudReady = !!(cloud && key && secret);
   const user = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   let uploaded: string | undefined;
   let resourceType = "image";
+  let storagePath: string | undefined;
   try {
     if (req.headers.get("Content-Type")?.startsWith("multipart/form-data")) {
       const declared = Number(req.headers.get("Content-Length") ?? "0");
@@ -42,10 +44,28 @@ Deno.serve(async req => {
       const cid = form.get("conversation_id");
       const { data: intent, error } = await user.rpc(voice ? "prepare_voice" : "prepare_image", { p_conversation: cid || null });
       if (error) return reply({ error: "Upload unavailable for this account or contact" }, 403);
+      if (!cloudReady) {
+        const data = new Uint8Array(await file.arrayBuffer());
+        let width=0,height=0,duration=0;
+        try {if(voice)duration=inspectAacMp4(data).duration;else {const size=inspectJpeg(data);width=size.width;height=size.height;}}
+        catch {return reply({error:voice?"Use a valid AAC voice message under 120 seconds":"Use a valid JPEG image"},400);}
+        const format=voice?"m4a":"jpg";
+        storagePath=intent.public_id+"."+format;
+        const {error: providerError}=await admin.rpc("set_media_provider",{p_id:intent.id,p_provider:"supabase"});
+        if(providerError)throw new Error("Invalid upload");
+        const {error: uploadError}=await admin.storage.from("liquid-media").upload(storagePath,data,{contentType:voice?"audio/mp4":"image/jpeg",cacheControl:"0",upsert:false});
+        if(uploadError)throw new Error("Storage upload failed");
+        const finalized=voice
+          ? await admin.rpc("finalize_voice",{p_id:intent.id,p_format:format,p_duration:duration,p_bytes:file.size})
+          : await admin.rpc("finalize_image",{p_id:intent.id,p_format:format,p_width:width,p_height:height,p_bytes:file.size});
+        if(finalized.error)throw new Error("Invalid upload");
+        storagePath=undefined;
+        return reply({id:intent.id,width,height,duration_ms:duration});
+      }
       const params = { timestamp: Math.floor(Date.now() / 1000).toString(), public_id: intent.public_id, type: "authenticated", allowed_formats: voice ? "m4a" : "jpg,png,webp", overwrite: "false" };
       const upload = new FormData(); upload.set("file", file);
       for (const [k, v] of Object.entries(params)) upload.set(k, v);
-      upload.set("api_key", key); upload.set("signature", await signature(params, secret));
+      upload.set("api_key", key!); upload.set("signature", await signature(params, secret!));
       const response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`, { method: "POST", body: upload });
       if (!response.ok) return reply({ error: "Upload failed. Try again." }, 502);
       const asset = await response.json(); uploaded = intent.public_id;
@@ -63,13 +83,20 @@ Deno.serve(async req => {
     const { data: image, error } = await user.rpc("image_access", { p_id: body.id });
     if (error || !image) return reply({ error: "Image unavailable" }, 403);
     const expires = image.kind === "voice" ? 180 : 60;
+    if(image.provider==="supabase") {
+      const {data,error}=await admin.storage.from("liquid-media").createSignedUrl(image.public_id+"."+image.format,expires);
+      if(error||!data?.signedUrl)return reply({error:"Media unavailable"},503);
+      return reply({url:data.signedUrl,expires_in:expires,width:image.width,height:image.height});
+    }
+    if(!cloudReady)return reply({error:"Cloudinary media is temporarily unavailable"},503);
     const params = { timestamp: Math.floor(Date.now() / 1000).toString(), public_id: image.public_id, format: image.format, type: "authenticated", attachment: "false", expires_at: (Math.floor(Date.now() / 1000) + expires).toString() };
-    const query = new URLSearchParams({ ...params, api_key: key, signature: await signature(params, secret) });
+    const query = new URLSearchParams({ ...params, api_key: key!, signature: await signature(params, secret!) });
     return reply({ url: `https://api.cloudinary.com/v1_1/${cloud}/${image.resource_type === "video" ? "video" : "image"}/download?${query}`, expires_in: expires, width: image.width, height: image.height });
   } catch {
+    if(storagePath)await admin.storage.from("liquid-media").remove([storagePath]).catch(()=>{});
     if (uploaded) {
       const params = { public_id: uploaded, type: "authenticated", timestamp: Math.floor(Date.now() / 1000).toString() };
-      const form = new URLSearchParams({ ...params, api_key: key, signature: await signature(params, secret) });
+      const form = new URLSearchParams({ ...params, api_key: key!, signature: await signature(params, secret!) });
       await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/destroy`, { method: "POST", body: form }).catch(() => {});
     }
     return reply({ error: "Image operation failed. Try again." }, 502);

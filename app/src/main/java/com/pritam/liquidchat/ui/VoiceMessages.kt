@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Message
 import com.pritam.liquidchat.data.VoiceRecorder
@@ -35,7 +36,8 @@ import org.json.JSONObject
 
 @Composable fun VoiceCapture(model:AppViewModel,cid:String,busy:Boolean) {
     val context=LocalContext.current
-    val account=model.backend.session.value?.userId.orEmpty()
+    val session by model.session.collectAsStateWithLifecycle()
+    val account=session?.userId.orEmpty()
     val capture=remember(cid,account) {VoiceRecorder(context,account)}
     var error by remember {mutableStateOf<String?>(null)}
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {granted->error=if(granted)"Hold the microphone to record." else "Microphone permission is needed to record."}

@@ -120,6 +120,9 @@ jobs:
       - name: Type-check Edge Function sources
         working-directory: supabase/functions
         run: deno check --frozen --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts
+      - name: Validate private media container inspection
+        working-directory: supabase/functions
+        run: deno test --frozen --lock=deno.lock media/inspect_test.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

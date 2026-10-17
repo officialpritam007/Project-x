@@ -109,7 +109,8 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 
 @Composable private fun MomentEditor(model:AppViewModel,kind:String,onDismiss:()->Unit,onPublished:()->Unit) {
     val context=LocalContext.current;val scope=rememberCoroutineScope()
-    val owner=model.session.value?.userId.orEmpty()
+    val session by model.session.collectAsStateWithLifecycle()
+    val owner=session?.userId.orEmpty()
     val id=remember {UUID.randomUUID().toString()}
     var photo by remember {mutableStateOf<Images.Prepared?>(null)}
     var caption by rememberSaveable {mutableStateOf("")}
