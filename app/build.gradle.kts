@@ -23,6 +23,11 @@ android {
         versionName = "1.0.0-rc1"
     }
     signingConfigs {
+        // CI prepares/caches this exact development key. AGP defaults may use a
+        // different Android user directory; never infer key continuity from cache configuration.
+        System.getenv("LIQUID_DEBUG_KEYSTORE_PATH")?.takeIf {it.isNotBlank()}?.let {path->
+            getByName("debug") {storeFile=file(path)}
+        }
         if(hasReleaseSigning)create("upload") {
             storeFile=file(signingValues[0]);storePassword=signingValues[1]
             keyAlias=signingValues[2];keyPassword=signingValues[3]
