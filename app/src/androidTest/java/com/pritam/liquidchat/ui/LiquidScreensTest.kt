@@ -53,7 +53,8 @@ class LiquidScreensTest {
         }
         compose.onNodeWithContentDescription("Contacts").performClick();compose.onNodeWithText("Invite Friends").assertExists();capture("02-contacts")
         compose.onNodeWithContentDescription("Settings").performClick();compose.onNodeWithText("Liquid Chat Settings").assertExists();capture("03-settings")
-        compose.onNodeWithContentDescription("Profile").performClick();compose.onNodeWithText("Set Photo").assertExists();compose.onNodeWithText("Add a post").assertExists();capture("04-profile")
+        compose.onNodeWithContentDescription("Profile").performClick();compose.onNodeWithText("Set Photo").assertExists();capture("04-profile")
+        compose.onNodeWithTag("moments-list").performScrollToNode(hasText("Add a post"));compose.onNodeWithText("Add a post").assertIsDisplayed();capture("04b-profile-posts")
         compose.onNodeWithContentDescription("Chats").performClick();compose.onNodeWithText("Salma 💗✨👀").assertExists();capture("01-chats")
         compose.onNodeWithText("Search Chats").performTextInput("notfound");compose.onNodeWithText("Salma 💗✨👀").assertDoesNotExist()
         compose.runOnIdle {screen=4};compose.onNodeWithContentDescription("Hold to record voice message").assertExists();capture("05-conversation")

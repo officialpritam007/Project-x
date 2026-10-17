@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,7 +30,7 @@ import java.util.UUID
 internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()).map {index->val j=array.getJSONObject(index);Moment(j.getString("id"),j.getString("owner_id"),j.getString("media_id"),j.getString("display_name"),j.getString("caption"),j.getString("created_at"),if(j.isNull("expires_at"))null else j.getString("expires_at"),j.getInt("width"),j.getInt("height"))}
 
 /** No public feed: audiences are the creator's saved contacts, rechecked on every media request. */
-@Composable fun MomentsPanel(model:AppViewModel,kind:String,mine:Boolean,archived:Boolean=false,modifier:Modifier=Modifier) {
+@Composable fun MomentsPanel(model:AppViewModel,kind:String,mine:Boolean,archived:Boolean=false,modifier:Modifier=Modifier,bottomPadding:Dp=16.dp,header:(@Composable ()->Unit)?=null) {
     val account by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
@@ -54,15 +56,16 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     LaunchedEffect(kind,mine,archived,account?.userId,epoch) {if(account!=null){while(loading)kotlinx.coroutines.delay(50);load()}}
     // Expiry is enforced server-side. Remove an expired tile while this screen stays open too.
     LaunchedEffect(kind,foreground) {if(foreground&&kind=="story")while(true){kotlinx.coroutines.delay(1000);val now=java.time.Instant.now();items=items.filter {it.expires==null||runCatching {java.time.Instant.parse(it.expires).isAfter(now)}.getOrDefault(false)};focused?.let {if(items.none {m->m.id==it.id})focused=null}}}
-    Column(modifier,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth()) {
+    LazyColumn(modifier=modifier.testTag("moments-list"),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=bottomPadding)) {
+        header?.let { item(key="profile-header") {it()} }
+        item(key="moment-controls") { Row(Modifier.fillMaxWidth()) {
             Text(if(kind=="story")"Stories · 24 hours" else if(archived)"Archived posts" else "Posts",Modifier.weight(1f),fontWeight=FontWeight.Bold)
             IconButton(onClick={scope.launch {load()}},enabled=!loading){Icon(Icons.Outlined.Refresh,"Refresh ${if(kind=="story")"stories" else "posts"}")}
             if(mine&&!archived)IconButton(onClick={editor=true},enabled=account!=null){Icon(Icons.Outlined.Add,if(kind=="story")"Add a story" else "Add a post")}
         }
-        if(loading&&items.isEmpty())LinearProgressIndicator(Modifier.fillMaxWidth())
-        error?.let {Text(it,color=MaterialTheme.colorScheme.error);TextButton(onClick={scope.launch {load()}}){Text("Retry")}}
-        LazyColumn(modifier=Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=16.dp)) {
+        }
+        if(loading&&items.isEmpty())item {LinearProgressIndicator(Modifier.fillMaxWidth())}
+        error?.let {item {Column {Text(it,color=MaterialTheme.colorScheme.error);TextButton(onClick={scope.launch {load()}}){Text("Retry")}}}}
             if(items.isEmpty()&&!loading&&error==null)item {
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(if(kind=="story")"No stories yet" else if(archived)"No archived posts" else "No posts yet...",style=MaterialTheme.typography.titleLarge)
@@ -85,7 +88,6 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                 }
             }
             if(more)item {TextButton(onClick={scope.launch {load(true)}},enabled=!loading){Text("Load older")}}
-        }
     }
     if(editor)MomentEditor(model,kind,onDismiss={editor=false},onPublished={editor=false;epoch++})
     focused?.let {moment->androidx.compose.ui.window.Dialog(onDismissRequest={focused=null},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {

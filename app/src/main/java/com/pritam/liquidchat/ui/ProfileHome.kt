@@ -48,7 +48,8 @@ import com.pritam.liquidchat.data.Images
         try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
     }}
     if(edit) {BackHandler {edit=false};Column(Modifier.verticalScroll(rememberScrollState())) {TextButton(onClick={edit=false}){Text("Back to Profile")};ProfileScreen(model,busy)};return}
-    Column(Modifier.fillMaxSize().padding(start=12.dp,end=12.dp,bottom=84.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    MomentsPanel(model,"post",mine=true,archived=archived,modifier=Modifier.fillMaxSize().padding(horizontal=12.dp),bottomPadding=84.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),header={
+    Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
             IconButton(onClick={archived=!archived}) {Icon(Icons.Outlined.GridView,"Toggle archived posts")}
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
@@ -72,8 +73,8 @@ import com.pritam.liquidchat.data.Images
                 Text(title,Modifier.clip(Glass.capsule).background(if(archived==(i==1))MaterialTheme.colorScheme.primaryContainer else Color.Transparent).clickable {archived=i==1}.padding(horizontal=17.dp,vertical=8.dp),fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(archived==(i==1))MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }}
         }
-        MomentsPanel(model,"post",mine=true,archived=archived,modifier=Modifier.weight(1f).fillMaxWidth())
     }
+    })
 }
 
 @Composable fun SettingsHome(model:AppViewModel,onSection:(String)->Unit) {
