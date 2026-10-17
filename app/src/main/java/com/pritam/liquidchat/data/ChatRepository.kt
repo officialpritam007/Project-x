@@ -148,6 +148,14 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         db.withTransaction {dao.put(message);dao.pendingPreview(account,cid,"Queued: ${message.body.take(160)}",message.localTime)}
         enqueue(account)
     }
+    suspend fun sendVoice(cid:String,file:java.io.File,duration:Int) {
+        val account=account()
+        require(duration in 500..120000 && file.isFile && file.length() in 1..2097152)
+        require(file.canonicalPath.startsWith(java.io.File(context.filesDir,"media/$account").canonicalPath+java.io.File.separator))
+        val message=Message(account,UUID.randomUUID().toString(),cid,account,"Voice message",localImage=file.absolutePath,mediaKind="voice",durationMs=duration)
+        db.withTransaction {dao.put(message);dao.pendingPreview(account,cid,"Queued: Voice message",message.localTime)}
+        enqueue(account)
+    }
     suspend fun retry(id:String) {
         val account=account();val m=dao.message(account,id) ?: return
         if(m.status!="FAILED")return
@@ -178,11 +186,12 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 }
                 if(accepted==null) {
                     if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
-                        val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation)
-                        sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"))
+                        val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation,sending.mediaKind=="voice")
+                        sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"),durationMs=upload.optInt("duration_ms",sending.durationMs))
                         currentCoroutineContext().ensureActive();checkAccount(expected);dao.put(sending)
                     }
-                    val raw=if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
+                    val raw=if(sending.mediaKind=="voice" && sending.mediaId.isNotEmpty()) backend.rpc("send_voice",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
+                        else if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
                         else backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
                     val parsed=JSONTokener(raw).nextValue()
                     accepted=if(parsed is JSONArray)parsed.getJSONObject(0) else parsed as JSONObject
@@ -229,6 +238,6 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     private fun parseMessage(j:JSONObject,account:String):Message {
         val time=j.getString("created_at")
         return Message(account,j.getString("id"),j.getString("conversation_id"),j.getString("sender_id"),j.getString("body"),j.getLong("seq"),
-            runCatching {java.time.Instant.parse(time).toEpochMilli()}.getOrDefault(System.currentTimeMillis()),time,"SENT",mediaId=if(j.isNull("media_id"))"" else j.optString("media_id"),imageWidth=j.optInt("image_width"),imageHeight=j.optInt("image_height"))
+            runCatching {java.time.Instant.parse(time).toEpochMilli()}.getOrDefault(System.currentTimeMillis()),time,"SENT",mediaId=if(j.isNull("media_id"))"" else j.optString("media_id"),imageWidth=j.optInt("image_width"),imageHeight=j.optInt("image_height"),mediaKind=j.optString("media_kind","image"),durationMs=j.optInt("duration_ms"))
     }
 }

@@ -27,7 +27,7 @@ import org.json.JSONObject
         try {url=JSONObject(backend.request("/functions/v1/media","POST",JSONObject().put("action","download").put("id",id))).getString("url")}
         catch(e:CancellationException){throw e}catch(_:Exception){failed=true;url=null}
     }
-    Box(modifier) {
+    Box(modifier.glassSource()) {
         if(url!=null) AsyncImage(model=ImageRequest.Builder(context).data(url).memoryCacheKey("${session?.userId}:$id:$local").diskCachePolicy(CachePolicy.DISABLED).build(),contentDescription=description,modifier=Modifier.fillMaxSize(),contentScale=scale,onError={failed=true})
         if(failed) TextButton(onClick={url=null;retry++}) {Text("Retry image")}
         else if(url==null) CircularProgressIndicator(Modifier.size(24.dp))

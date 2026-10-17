@@ -55,6 +55,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+    fun sendVoice(cid:String,file:java.io.File,duration:Int,expected:String) {
+        viewModelScope.launch {
+            try {require(backend.session.value?.userId==expected);repository.sendVoice(cid,file,duration)}
+            catch(e:CancellationException){throw e}
+            catch(_:Exception){file.delete();_notice.value="Voice could not be queued. Please record again."}
+        }
+    }
     fun clearNotice() { _notice.value=null }
     fun action(block: suspend () -> Unit) {
         if(_busy.value) return

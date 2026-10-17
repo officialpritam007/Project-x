@@ -48,7 +48,7 @@ import com.pritam.liquidchat.data.Images
         try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
     }}
     if(edit) {BackHandler {edit=false};Column(Modifier.verticalScroll(rememberScrollState())) {TextButton(onClick={edit=false}){Text("Back to Profile")};ProfileScreen(model,busy)};return}
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=12.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)) {
+    Column(Modifier.fillMaxSize().padding(start=12.dp,end=12.dp,bottom=84.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
             IconButton(onClick={archived=!archived}) {Icon(Icons.Outlined.GridView,"Toggle archived posts")}
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
@@ -72,16 +72,12 @@ import com.pritam.liquidchat.data.Images
                 Text(title,Modifier.clip(Glass.capsule).background(if(archived==(i==1))MaterialTheme.colorScheme.primaryContainer else Color.Transparent).clickable {archived=i==1}.padding(horizontal=17.dp,vertical=8.dp),fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(archived==(i==1))MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }}
         }
-        Spacer(Modifier.height(16.dp))
-        Text(if(archived)"No archived posts..." else "No posts yet...",fontSize=22.sp,fontWeight=FontWeight.Bold)
-        Text("Posts are not available in this version yet.",fontSize=14.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(40.dp))
-        Button(onClick={},enabled=false,shape=Glass.capsule) {Text("◎ Add a post")}
+        MomentsPanel(model,"post",mine=true,archived=archived,modifier=Modifier.weight(1f).fillMaxWidth())
     }
 }
 
 @Composable fun SettingsHome(model:AppViewModel,onSection:(String)->Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=12.dp,end=12.dp,bottom=90.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader("Liquid Chat Settings")
         Box(Modifier.clickable {onSection("Account")}) {ProfileHero(model)}
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {

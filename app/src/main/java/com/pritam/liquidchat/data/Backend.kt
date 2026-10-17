@@ -128,16 +128,17 @@ class Backend(private val store: SessionStore) {
         persist(j); store.write("pkce",null); _recovery.value=pending.getString("purpose")=="recovery"
     } }
     suspend fun updatePassword(password: String) { request("/auth/v1/user","PUT",JSONObject().put("password",password)); _recovery.value=false }
-    suspend fun uploadImage(file:java.io.File,cid:String?):JSONObject = withContext(Dispatchers.IO) {
+    suspend fun uploadImage(file:java.io.File,cid:String?,voice:Boolean=false):JSONObject = withContext(Dispatchers.IO) {
         val original=_session.value ?: throw ApiException(401,"","Please sign in.")
         val current=validSession(original)
         val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart("file","photo.jpg",file.asRequestBody("image/jpeg".toMediaType()))
+            .addFormDataPart("file",if(voice)"voice.m4a" else "photo.jpg",file.asRequestBody((if(voice)"audio/mp4" else "image/jpeg").toMediaType()))
+        if(voice)form.addFormDataPart("kind","voice")
         if(cid!=null)form.addFormDataPart("conversation_id",cid)
         val req=Request.Builder().url(URL+"/functions/v1/media").header("apikey",PUBLIC_KEY).header("Authorization","Bearer ${current.access}").post(form.build()).build()
         http.newCall(req).execute().use {res->
             val body=res.body?.string().orEmpty()
-            if(!res.isSuccessful)throw ApiException(res.code,"",if(res.code==503)"Image sharing is temporarily unavailable." else "Image upload failed. Try again.")
+            if(!res.isSuccessful)throw ApiException(res.code,"",if(res.code==503)"Media sharing is temporarily unavailable." else "Media upload failed. Try again.")
             if(_session.value?.userId!=original.userId)throw IOException("Account changed.")
             JSONObject(body)
         }

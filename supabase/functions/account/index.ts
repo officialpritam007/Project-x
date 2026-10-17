@@ -10,7 +10,7 @@ async function processJob(id: string | null) {
     const params = { public_id: image.public_id, type: "authenticated", invalidate: "true", timestamp: Math.floor(Date.now() / 1000).toString() };
     const input = Object.keys(params).sort().map(k => `${k}=${params[k as keyof typeof params]}`).join("&") + secret;
     const signature = [...new Uint8Array(await crypto.subtle.digest("SHA-1", new TextEncoder().encode(input)))].map(x => x.toString(16).padStart(2, "0")).join("");
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/destroy`, { method: "POST", body: new URLSearchParams({ ...params, api_key: key, signature }), signal: AbortSignal.timeout(8000) });
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${image.resource_type === "video" ? "video" : "image"}/destroy`, { method: "POST", body: new URLSearchParams({ ...params, api_key: key, signature }), signal: AbortSignal.timeout(8000) });
     const result = await response.json();
     if (!response.ok || !["ok", "not found"].includes(result.result)) return false;
     const { error: markError } = await admin.rpc("mark_image_destroyed", { p_id: image.id });

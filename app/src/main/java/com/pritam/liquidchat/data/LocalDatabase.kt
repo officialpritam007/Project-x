@@ -19,7 +19,8 @@ data class Message(
     val account:String,val id:String,val conversation:String,val sender:String,val body:String,
     val seq:Long=0,val localTime:Long=System.currentTimeMillis(),val serverTime:String="",
     val status:String="QUEUED",val attempts:Int=0,val error:String="",
-    @ColumnInfo(defaultValue="''") val mediaId:String="",@ColumnInfo(defaultValue="''") val localImage:String="",@ColumnInfo(defaultValue="0") val imageWidth:Int=0,@ColumnInfo(defaultValue="0") val imageHeight:Int=0
+    @ColumnInfo(defaultValue="''") val mediaId:String="",@ColumnInfo(defaultValue="''") val localImage:String="",@ColumnInfo(defaultValue="0") val imageWidth:Int=0,@ColumnInfo(defaultValue="0") val imageHeight:Int=0,
+    @ColumnInfo(defaultValue="'image'") val mediaKind:String="image",@ColumnInfo(defaultValue="0") val durationMs:Int=0
 )
 @Immutable
 @Entity(tableName="contacts",primaryKeys=["account","id"])
@@ -57,7 +58,7 @@ data class CachedProfile(val account:String,val json:String)
     @Query("delete from chats where account=:account") suspend fun clearChats(account:String)
     @Query("delete from cached_profile where account=:account") suspend fun clearProfile(account:String)
 }
-@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class],version=3,exportSchema=false)
+@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class],version=4,exportSchema=false)
 abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }
 
 val Migration1To2=object:androidx.room.migration.Migration(1,2) {
@@ -75,5 +76,12 @@ val Migration2To3=object:androidx.room.migration.Migration(2,3) {
     override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS contacts (account TEXT NOT NULL,id TEXT NOT NULL,name TEXT NOT NULL,username TEXT NOT NULL,avatarId TEXT NOT NULL,bio TEXT NOT NULL,PRIMARY KEY(account,id))")
         db.execSQL("ALTER TABLE chats ADD COLUMN pendingAt INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val Migration3To4=object:androidx.room.migration.Migration(3,4) {
+    override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE messages ADD COLUMN mediaKind TEXT NOT NULL DEFAULT 'image'")
+        db.execSQL("ALTER TABLE messages ADD COLUMN durationMs INTEGER NOT NULL DEFAULT 0")
     }
 }

@@ -23,7 +23,7 @@ class LiquidApplication : Application() {
             }
         }
     }
-    val database by lazy { androidx.room.Room.databaseBuilder(this,com.pritam.liquidchat.data.LocalDatabase::class.java,"liquid-chat-v1.db").addMigrations(com.pritam.liquidchat.data.Migration1To2,com.pritam.liquidchat.data.Migration2To3).build() }
+    val database by lazy { androidx.room.Room.databaseBuilder(this,com.pritam.liquidchat.data.LocalDatabase::class.java,"liquid-chat-v1.db").addMigrations(com.pritam.liquidchat.data.Migration1To2,com.pritam.liquidchat.data.Migration2To3,com.pritam.liquidchat.data.Migration3To4).build() }
     val repository by lazy { com.pritam.liquidchat.data.ChatRepository(this,backend,database) }
     val backend by lazy { Backend(SessionStore(this)) }
 }

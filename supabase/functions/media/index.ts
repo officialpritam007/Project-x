@@ -17,6 +17,7 @@ Deno.serve(async req => {
   if (!cloud || !key || !secret) return reply({ error: "Image sharing is temporarily unavailable" }, 503);
   const user = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   let uploaded: string | undefined;
+  let resourceType = "image";
   try {
     if (req.headers.get("Content-Type")?.startsWith("multipart/form-data")) {
       const declared = Number(req.headers.get("Content-Length") ?? "0");
@@ -29,39 +30,47 @@ Deno.serve(async req => {
       const form = await new Response(all, { headers: { "Content-Type": req.headers.get("Content-Type")! } }).formData();
       const file = form.get("file");
       if (!(file instanceof File) || file.size < 12 || file.size > 10485760) return reply({ error: "Invalid image" }, 400);
+      const voice = form.get("kind") === "voice";
+      resourceType = voice ? "video" : "image";
+      if (voice && file.size > 2097152) return reply({ error: "Voice exceeds 2 MB" }, 413);
       const magic = new Uint8Array(await file.slice(0, 12).arrayBuffer());
       const jpeg = magic[0] === 255 && magic[1] === 216 && magic[2] === 255;
       const png = magic[0] === 137 && magic[1] === 80 && magic[2] === 78 && magic[3] === 71;
       const webp = String.fromCharCode(...magic.slice(0, 4)) === "RIFF" && String.fromCharCode(...magic.slice(8, 12)) === "WEBP";
-      if (!jpeg && !png && !webp) return reply({ error: "Use a JPEG, PNG or WebP image" }, 400);
+      const mp4 = String.fromCharCode(...magic.slice(4, 8)) === "ftyp";
+      if (voice ? !mp4 : (!jpeg && !png && !webp)) return reply({ error: "Use a JPEG, PNG or WebP image" }, 400);
       const cid = form.get("conversation_id");
-      const { data: intent, error } = await user.rpc("prepare_image", { p_conversation: cid || null });
+      const { data: intent, error } = await user.rpc(voice ? "prepare_voice" : "prepare_image", { p_conversation: cid || null });
       if (error) return reply({ error: "Upload unavailable for this account or contact" }, 403);
-      const params = { timestamp: Math.floor(Date.now() / 1000).toString(), public_id: intent.public_id, type: "authenticated", allowed_formats: "jpg,png,webp", overwrite: "false" };
+      const params = { timestamp: Math.floor(Date.now() / 1000).toString(), public_id: intent.public_id, type: "authenticated", allowed_formats: voice ? "m4a" : "jpg,png,webp", overwrite: "false" };
       const upload = new FormData(); upload.set("file", file);
       for (const [k, v] of Object.entries(params)) upload.set(k, v);
       upload.set("api_key", key); upload.set("signature", await signature(params, secret));
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: upload });
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/upload`, { method: "POST", body: upload });
       if (!response.ok) return reply({ error: "Upload failed. Try again." }, 502);
       const asset = await response.json(); uploaded = intent.public_id;
-      if (asset.public_id !== intent.public_id || asset.type !== "authenticated" || asset.resource_type !== "image") throw new Error("Invalid response");
-      const { error: finalizeError } = await admin.rpc("finalize_image", { p_id: intent.id, p_format: asset.format, p_width: asset.width, p_height: asset.height, p_bytes: asset.bytes });
+      if (asset.public_id !== intent.public_id || asset.type !== "authenticated" || asset.resource_type !== resourceType) throw new Error("Invalid response");
+      if (voice && (!asset.audio?.codec || asset.video?.codec || !Number.isFinite(asset.duration) || asset.duration < 0.5 || asset.duration > 120)) throw new Error("Invalid audio");
+      const { error: finalizeError } = voice
+        ? await admin.rpc("finalize_voice", { p_id: intent.id, p_format: asset.format, p_duration: Math.round(asset.duration * 1000), p_bytes: asset.bytes })
+        : await admin.rpc("finalize_image", { p_id: intent.id, p_format: asset.format, p_width: asset.width, p_height: asset.height, p_bytes: asset.bytes });
       if (finalizeError) throw new Error("Invalid upload");
       uploaded = undefined;
-      return reply({ id: intent.id, width: asset.width, height: asset.height });
+      return reply({ id: intent.id, width: asset.width ?? 0, height: asset.height ?? 0, duration_ms: voice ? Math.round(asset.duration * 1000) : 0 });
     }
     const body = await req.json();
     if (body.action !== "download" || typeof body.id !== "string") return reply({ error: "Invalid request" }, 400);
     const { data: image, error } = await user.rpc("image_access", { p_id: body.id });
     if (error || !image) return reply({ error: "Image unavailable" }, 403);
-    const params = { timestamp: Math.floor(Date.now() / 1000).toString(), public_id: image.public_id, format: image.format, type: "authenticated", attachment: "false", expires_at: (Math.floor(Date.now() / 1000) + 60).toString() };
+    const expires = image.kind === "voice" ? 180 : 60;
+    const params = { timestamp: Math.floor(Date.now() / 1000).toString(), public_id: image.public_id, format: image.format, type: "authenticated", attachment: "false", expires_at: (Math.floor(Date.now() / 1000) + expires).toString() };
     const query = new URLSearchParams({ ...params, api_key: key, signature: await signature(params, secret) });
-    return reply({ url: `https://api.cloudinary.com/v1_1/${cloud}/image/download?${query}`, expires_in: 60, width: image.width, height: image.height });
+    return reply({ url: `https://api.cloudinary.com/v1_1/${cloud}/${image.resource_type === "video" ? "video" : "image"}/download?${query}`, expires_in: expires, width: image.width, height: image.height });
   } catch {
     if (uploaded) {
       const params = { public_id: uploaded, type: "authenticated", timestamp: Math.floor(Date.now() / 1000).toString() };
       const form = new URLSearchParams({ ...params, api_key: key, signature: await signature(params, secret) });
-      await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/destroy`, { method: "POST", body: form }).catch(() => {});
+      await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${resourceType}/destroy`, { method: "POST", body: form }).catch(() => {});
     }
     return reply({ error: "Image operation failed. Try again." }, 502);
   }

@@ -47,7 +47,7 @@ import kotlinx.coroutines.flow.drop
     }
 }
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit) {
-    Surface(onClick=onClick,shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth()) {
+    Surface(onClick=onClick,shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth().glassSource()) {
         Row(Modifier.padding(vertical=8.dp,horizontal=1.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
@@ -63,7 +63,7 @@ import kotlinx.coroutines.flow.drop
 }
 @Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>,onContacts:()->Unit={},onProfile:()->Unit={}) {
     var query by rememberSaveable {mutableStateOf("")};var filter by rememberSaveable {mutableIntStateOf(0)}
-    var menu by remember {mutableStateOf(false)};var stories by remember {mutableStateOf(false)}
+    var menu by remember {mutableStateOf(false)};var stories by remember {mutableStateOf(false)};var ownStories by remember {mutableStateOf(false)}
     val profile by model.profile.collectAsStateWithLifecycle()
     val connection by model.connection.collectAsStateWithLifecycle()
     val results by model.searchResults.collectAsStateWithLifecycle()
@@ -78,7 +78,7 @@ import kotlinx.coroutines.flow.drop
             }
         }
         Row(Modifier.padding(top=10.dp,start=4.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(28.dp)) {
-            Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable(onClick=onProfile)) {
+            Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable {ownStories=true}) {
                 Box {
                     Avatar(profile?.optString("display_name").orEmpty(),profile?.optString("avatar_id").orEmpty().takeUnless {it=="null"}.orEmpty(),model.backend,self=true,size=50.dp)
                     Surface(Modifier.align(Alignment.BottomEnd).size(21.dp),shape=CircleShape,color=Color(0xFF00A6E8)) {Box(contentAlignment=Alignment.Center){Text("+",color=Color.White)}}
@@ -110,12 +110,13 @@ import kotlinx.coroutines.flow.drop
             }
         }
     }
-    Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=4.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=90.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
-    if(stories) AlertDialog(onDismissRequest={stories=false},title={Text("Stories")},text={Text("Stories are not available in this version yet.")},confirmButton={TextButton(onClick={stories=false}){Text("OK")}})
+    if(stories) MomentsDialog(model,mine=false,onDismiss={stories=false})
+    if(ownStories) MomentsDialog(model,mine=true,onDismiss={ownStories=false})
 }
 @Composable fun ContactsScreen(model:AppViewModel,chats:List<Chat>,busy:Boolean) {
     var username by rememberSaveable {mutableStateOf("")}
@@ -143,7 +144,7 @@ import kotlinx.coroutines.flow.drop
                 Text("Find Friends",fontSize=18.sp,fontWeight=FontWeight.Bold)
             }
         }
-        LazyColumn(contentPadding=PaddingValues(bottom=72.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        LazyColumn(contentPadding=PaddingValues(bottom=164.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             item {Text(if(alphabetical)"Sorted by name" else "Reverse name order",Modifier.padding(horizontal=16.dp),color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,fontSize=15.sp)}
             if(filtered.isEmpty()) item {GlassCard(Modifier.fillMaxWidth()){Text(if(username.isBlank())"Find someone by username and save them here." else "No saved contacts match.")}}
             items(filtered,key={"contact-${it.id}"}) {contact->
@@ -159,7 +160,7 @@ import kotlinx.coroutines.flow.drop
             }
         }
     }
-    GlassSurface(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=4.dp).size(52.dp),CircleShape) {IconButton(onClick={showFind=true},modifier=Modifier.fillMaxSize()) {Icon(Icons.Outlined.Add,"Add contact",tint=MaterialTheme.colorScheme.primary)}}
+    GlassSurface(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=90.dp).size(52.dp),CircleShape) {IconButton(onClick={showFind=true},modifier=Modifier.fillMaxSize()) {Icon(Icons.Outlined.Add,"Add contact",tint=MaterialTheme.colorScheme.primary)}}
     }
     if(showFind) AlertDialog(onDismissRequest={showFind=false},title={Text("Find Friends")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Text("Find someone by their exact username.")
@@ -224,7 +225,9 @@ import kotlinx.coroutines.flow.drop
             list.scrollToItem(messages.size);initialScroll=true
         }
     }
-    Column(Modifier.fillMaxSize().background(if(LocalGlassDark.current)Color(0xFF203C32) else Color(0xFFA2CFA3)).imePadding()) {
+    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.matchParentSize().glassSource(.5f).background(if(LocalGlassDark.current)Color(0xFF203C32) else Color(0xFFA2CFA3)))
+    Column(Modifier.fillMaxSize().imePadding()) {
         GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
         Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
@@ -257,17 +260,18 @@ import kotlinx.coroutines.flow.drop
                 IconButton(onClick={body=(body+"☺").take(4000)}) {Text("☺",fontSize=24.sp)}
                 androidx.compose.foundation.text.BasicTextField(body,{body=it.take(4000)},modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp),textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
                 IconButton(onClick={picker.launch("image/*")},enabled=!busy) {Icon(Icons.Outlined.AttachFile,"Attach image")}
-                FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
+                if(body.isBlank())VoiceCapture(model,cid,busy) else FilledIconButton(onClick={if(body.isNotBlank()){model.send(cid,body);body=""}},enabled=body.isNotBlank(),modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
             }
         }
     }
 
+    }
     if(details&&chat!=null) AlertDialog(onDismissRequest={details=false},title={Text(chat.name)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Avatar(chat.name,chat.avatarId,model.backend);Text("@${chat.username}")
         TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}},enabled=!busy) {Text("Save contact")}
         Text("Downloaded shared images",style=MaterialTheme.typography.titleMedium)
-        messages.filter {it.mediaId.isNotEmpty()}.forEach {m->ImagePreview(model,m)}
-        if(messages.none {it.mediaId.isNotEmpty()})Text("No downloaded shared images.")
+        messages.filter {it.mediaId.isNotEmpty()&&it.mediaKind!="voice"}.forEach {m->ImagePreview(model,m)}
+        if(messages.none {it.mediaId.isNotEmpty()&&it.mediaKind!="voice"})Text("No downloaded shared images.")
     }},confirmButton={TextButton(onClick={details=false}) {Text("Done")}})
     if(report&&chat!=null) AlertDialog(onDismissRequest={report=false},title={Text("Report contact")},text={Column {Text("Only your explanation is included. No messages are attached.");OutlinedTextField(reason,{reason=it.take(1000)},label={Text("Reason")})}},confirmButton={TextButton(onClick={report=false;model.report(chat.peer,reason)},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick={report=false}) {Text("Cancel")}})
     prepared?.let {image->AlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
@@ -276,19 +280,19 @@ import kotlinx.coroutines.flow.drop
     }},confirmButton={TextButton(onClick={model.action {model.repository.sendImage(cid,image,body);prepared=null;body=""}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
     if(confirmDelete&&chat!=null) AlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
-@Composable private fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean) {
+@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean) {
     val mine=message.sender==message.account
     var expanded by remember(message.id) {mutableStateOf(false)}
     var truncated by remember(message.id) {mutableStateOf(false)}
     val label=com.pritam.liquidchat.data.Delivery.label(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
-        Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF345E3E) else Color(0xFF24372E)} else if(mine)Color(0xFFE1FAD8) else Color(0xFFFAFDFC),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=.8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=349.dp)) {
+        Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF345E3E) else Color(0xFF24372E)} else if(mine)Color(0xFFE1FAD8) else Color(0xFFFAFDFC),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=.8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=349.dp).glassSource()) {
             Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
-                    ImagePreview(model,message)
+                    if(message.mediaKind=="voice")VoicePlayer(model,message) else ImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                Text(message.body,fontSize=13.sp,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(message.mediaKind!="voice")Text(message.body,fontSize=13.sp,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
                 if(truncated||expanded) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
                 val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
                 Text(if(mine) "$time · $label" else time,style=MaterialTheme.typography.labelSmall,modifier=Modifier.align(Alignment.End))

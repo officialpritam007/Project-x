@@ -92,11 +92,13 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 35
           arch: x86_64
-          target: default
+          target: google_apis
           disable-animations: true
-          script: gradle --no-daemon connectedDebugAndroidTest
+          script: |
+            gradle --no-daemon connectedDebugAndroidTest
+            adb pull /sdcard/Android/data/com.pritam.liquidchat/files/screenshots app/build/outputs/ui-screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -104,6 +106,7 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            app/build/outputs/ui-screenshots/
           if-no-files-found: ignore
 
   edge-checks:

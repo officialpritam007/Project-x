@@ -45,8 +45,11 @@ import com.pritam.liquidchat.AppViewModel
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
+        VoicePlaybackLifecycle(session?.userId to active)
         if(logoutPrompt) AlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
-        Scaffold(modifier=Modifier.background(glassBackground()),snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
+        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
+        Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
             if(session!=null && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
@@ -55,9 +58,10 @@ import com.pritam.liquidchat.AppViewModel
             else if(!loaded) {Column(Modifier.padding(padding).padding(24.dp)) {Text("Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
             else if(active!=null) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}
-            else Box(Modifier.fillMaxSize().padding(padding)) {
+            else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {
                 when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
             }
+        }
         }
     }
     }
