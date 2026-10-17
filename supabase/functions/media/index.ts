@@ -1,5 +1,5 @@
 import { inspectAacMp4, inspectJpeg } from "./inspect.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.49.4";
+import { createClient } from "npm:@supabase/supabase-js@2.52.1";
 const url = Deno.env.get("SUPABASE_URL")!;
 const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(url, service, { auth: { persistSession: false } });

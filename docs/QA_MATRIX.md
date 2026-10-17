@@ -41,6 +41,12 @@ Adds debug/release unit and lint tasks, minified/shrunk unsigned AAB, API29/35/3
 
 PR #7 run39026313908 and PR #8 run39044495715 passed all five jobs before their merges. Corrected main62e7337 passed [39045292103](https://github.com/officialpritam007/Project-x/actions/runs/39045292103):8 debug and8 release unit tests,21 instrumentation tests per API29/35/36, no failures/errors/skips, and exact distributed APK install/cold launch/process checks on all3 emulators. Downloaded reports verified; lint each0 errors/36 warnings. Both PR8 and main logs prove prepared-key certificate match and successful cache save. Debug certificate remains incompatible with baseline; owner-controlled continuity/physical upgrade remain blocked.
 
-## P1 local data and QA/build safety — candidate, CI pending
+## P1 local data and QA/build safety — selected CI PASS
 
 Source-confirmed backup configuration gap: allowBackup=false lacked explicit transfer exclusions; OEM transfer behavior is not certified. Add all-domain cloud/device/cross-platform exclusions and legacy rules without touching installed data. New host smoke safety suite:5 tests PASS locally using fake ADB only, including denied physical serial, missing opt-in, invalid/failed emulator property and exact-APK/pinned-emulator happy path. Negative control against old script reproduced mocked uninstall without opt-in; no real device/account data involved. Workflow YAML, XML and Bash validation are local static checks; actual wrapper download/build/lint and API29/35/36 remain required CI.
+
+PR9 head3cf41717 passed all five jobs [39049562213](https://github.com/officialpritam007/Project-x/actions/runs/39049562213) before merge. Main0649caf6 also passed [39050214624](https://github.com/officialpritam007/Project-x/actions/runs/39050214624). Local wrapper8.11.1 download/checksum/--version succeeded through runtime proxy; local Android graph resolution timed out and is not counted as passing.
+
+## P1 dependency boundary — new phase, CI pending
+
+Pinned SDK and regenerated frozen Deno lock, malformed/valid admin UUID fixtures and actual Android release inventory export. Local Deno2.5.4 check of all4 handlers PASS;4 tests PASS (injected fetch; no real HTTP writes). Host9 tests PASS; offline Gradle direct/transitive/hash/license fixture PASS. Npm16-record OSV query COMPLETE,0 matches; metadata integrity matches. Actual app Maven inventory/export, Maven OSV snapshot and new phase Android/Edge CI are still required. Formal independent Codex Security scan preflight remains unavailable; see DEPENDENCY_AUDIT.
