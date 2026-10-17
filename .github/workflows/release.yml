@@ -62,7 +62,7 @@ jobs:
           gradle-version: '8.11.1'
           cache-disabled: true
       - name: Build owner-signed bundle and release APK
-        run: gradle --no-daemon verifyReleaseSigning testReleaseUnitTest lintRelease bundleRelease assembleRelease
+        run: ./gradlew --no-daemon verifyReleaseSigning testReleaseUnitTest lintRelease bundleRelease assembleRelease
       - name: Verify signatures, page alignment and checksums
         run: |
           set -o pipefail

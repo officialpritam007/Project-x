@@ -21,6 +21,8 @@ jobs:
       FCM_SENDER_ID: ${{ vars.FCM_SENDER_ID }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify smoke tooling cannot target a physical device
+        run: python3 -m unittest discover -s scripts/tests -p 'test_smoke_safety.py' -v
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -57,7 +59,7 @@ jobs:
               env.write('LIQUID_DEBUG_KEYSTORE_PATH='+str(key)+'\n')
           PYKEY
       - name: Tests, lint and APK
-        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug testReleaseUnitTest lintRelease bundleRelease
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug testReleaseUnitTest lintRelease bundleRelease
       - name: Validate APK signature, alignment and native page compatibility
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/debug-certificate.txt
@@ -155,7 +157,7 @@ jobs:
           target: google_apis
           disable-animations: true
           script: |
-            bash -c 'gradle --no-daemon connectedDebugAndroidTest; test_status=$?; adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi; bash scripts/smoke_candidate.sh candidate-apk/app-debug.apk app/build/outputs/candidate-smoke'
+            bash -c './gradlew --no-daemon connectedDebugAndroidTest; test_status=$?; adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi; LIQUID_DISPOSABLE_EMULATOR=1 bash scripts/smoke_candidate.sh candidate-apk/app-debug.apk app/build/outputs/candidate-smoke'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
