@@ -1,3 +1,11 @@
+# Latest: modern messaging 0.7.0
+
+Core conversations now include durable drafts, replies, reactions, edit/delete/hide/star, private mutation catch-up, pins/manual unread, camera/gallery, zoom, authorized paginated shared media and a real cache screen. See [MODERN_UPGRADE.md](MODERN_UPGRADE.md) for verified scope, tests, migrations and the bug ledger.
+
+Conditional P2 features and physical-phone/provider/backup acceptance remain explicitly deferred there. No paid plan was added. Both participants should update for new mutation rendering; older APKs do not implement the new catch-up path.
+
+---
+
 # Stories, Posts, voice and live glass — 0.5.0
 
 - Stories: publish compressed photos and optional captions; server-enforced 24-hour expiry; remove expired tiles while open; owner delete; pagination; scheduled media cleanup every 30 minutes.
