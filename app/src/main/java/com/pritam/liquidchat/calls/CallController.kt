@@ -353,7 +353,12 @@ class CallController(
     fun switchCamera() {engine?.switchCamera()}
     fun toggleSpeaker() {
         val v=_view.value ?: return
-        engine?.speaker(!v.speaker);_view.value=v.copy(speaker=!v.speaker)
+        val connection=engine ?: return
+        // Keep the displayed route synchronized with what Android actually accepted.
+        if(connection.speaker(!v.speaker)) {
+            val route=connection.routeName()
+            _view.value=v.copy(speaker=route=="Speaker",audioRoute=route)
+        }
     }
     fun minimize() {_view.value=_view.value?.copy(minimized=true,compact=false)}
     fun expand() {_view.value=_view.value?.copy(minimized=false,compact=false)}
