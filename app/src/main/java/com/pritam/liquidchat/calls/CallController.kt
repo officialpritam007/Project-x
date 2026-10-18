@@ -17,7 +17,8 @@ data class CallView(
     val incoming:Boolean,val status:String,val muted:Boolean=false,
     val cameraEnabled:Boolean=true,val speaker:Boolean=false,
     val connectedAt:Long=0,val minimized:Boolean=false,val audioRoute:String="",
-    val remoteVideoReady:Boolean=false,val answerRequested:Boolean=false
+    val remoteVideoReady:Boolean=false,val answerRequested:Boolean=false,
+    val compact:Boolean=false
 ) {
     val video get()=kind=="video"
     // Direction is immutable: accepted incoming calls remain incoming, but must show video.
@@ -348,8 +349,11 @@ class CallController(
         val v=_view.value ?: return
         engine?.speaker(!v.speaker);_view.value=v.copy(speaker=!v.speaker)
     }
-    fun minimize() {_view.value=_view.value?.copy(minimized=true)}
-    fun expand() {_view.value=_view.value?.copy(minimized=false)}
+    fun minimize() {_view.value=_view.value?.copy(minimized=true,compact=false)}
+    fun expand() {_view.value=_view.value?.copy(minimized=false,compact=false)}
+    // Pure presentation state: switching between floating video and a compact pill never
+    // touches WebRTC, signaling, microphone, camera capture or existing call identity.
+    fun toggleCompact() {_view.value=_view.value?.let {if(it.minimized&&it.video)it.copy(compact=!it.compact) else it}}
     fun audioRoutes()=engine?.audioRoutes().orEmpty()
     fun selectAudioRoute(id:Int) {if(engine?.selectAudioRoute(id)==true)_view.value=_view.value?.copy(audioRoute=engine?.routeName().orEmpty(),speaker=engine?.routeName()=="Speaker")}
     private fun dismissNotification(id:String) {context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())}
