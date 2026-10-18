@@ -20,6 +20,8 @@ data class CallView(
     val remoteVideoReady:Boolean=false,val answerRequested:Boolean=false
 ) {
     val video get()=kind=="video"
+    // Direction is immutable: accepted incoming calls remain incoming, but must show video.
+    val renderVideo get()=video && id!=null && status!="Incoming call"
 }
 
 private data class CallRecord(
