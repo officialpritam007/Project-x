@@ -19,8 +19,8 @@ if [[ "$("${emulator_adb[@]}" shell getprop ro.kernel.qemu | tr -d '\r\n')" != "
     exit 1
 fi
 mkdir -p "$report_dir"
-# Instrumentation rebuilds have a separate development certificate. Remove only
-# disposable emulator fixtures, then install the exact distributed build artifact.
+# Remove only disposable emulator fixtures so startup also covers a clean install
+# of the same exact distributed build already exercised by instrumentation.
 "${emulator_adb[@]}" uninstall com.pritam.liquidchat.test >/dev/null 2>&1 || true
 "${emulator_adb[@]}" uninstall com.pritam.liquidchat >/dev/null 2>&1 || true
 "${emulator_adb[@]}" install "$candidate_apk" > "$report_dir/install.txt"

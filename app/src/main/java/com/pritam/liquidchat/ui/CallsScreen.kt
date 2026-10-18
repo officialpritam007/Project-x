@@ -10,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -18,6 +18,8 @@ import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Duration
@@ -77,6 +79,14 @@ internal data class CallHistoryRow(
     }
 }
 
+/** Keep the server cursor/count separate from rows that cannot be rendered. */
+internal data class CallHistoryPage(val rows:List<CallHistoryRow>,val before:String?,val more:Boolean)
+internal fun callHistoryPage(data:JSONArray,account:String)=CallHistoryPage(
+    CallHistoryRow.parse(data,account),
+    data.optJSONObject(data.length()-1)?.optString("created_at")?.takeIf {it.isNotBlank()},
+    data.length()>=50
+)
+
 private fun elapsedLabel(seconds:Long):String {
     val hours=seconds/3600
     val minutes=(seconds%3600)/60
@@ -87,54 +97,76 @@ private fun elapsedLabel(seconds:Long):String {
 @Composable fun CallsScreen(model:AppViewModel,chats:List<Chat>) {
     val session by model.session.collectAsStateWithLifecycle()
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
+    val foreground by model.repository.foreground.collectAsStateWithLifecycle()
+    val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
+    val revision by model.backend.uiReads.revision.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
     val account=session?.userId
     val cacheKey="calls:recent"
-    var rows by remember(account) {
-        mutableStateOf(
-            model.backend.uiReads.peek(account,cacheKey,allowStale=true)
-                ?.let {runCatching {CallHistoryRow.parse(JSONArray(it),account.orEmpty())}.getOrNull()}
-                ?: emptyList()
-        )
+    val version=remember(account,revision) {model.backend.uiReads.version(account,cacheKey)}
+    val cachedPage=remember(account,sessionEpoch) {
+        model.backend.uiReads.peek(account,cacheKey,allowStale=true)
+            ?.let {runCatching {callHistoryPage(JSONArray(it),account.orEmpty())}.getOrNull()}
     }
-    var loadedOnce by remember(account) {
-        mutableStateOf(model.backend.uiReads.peek(account,cacheKey,allowStale=true)!=null)
+    var rows by remember(account,sessionEpoch) {mutableStateOf(cachedPage?.rows ?: emptyList())}
+    var firstPage by remember(account,sessionEpoch) {mutableStateOf(cachedPage?.rows)}
+    var appliedVersion by remember(account,sessionEpoch) {mutableStateOf(version)}
+    var before by remember(account,sessionEpoch) {mutableStateOf(cachedPage?.before)}
+    var loadedOnce by remember(account,sessionEpoch) {
+        mutableStateOf(cachedPage!=null||account==null)
     }
-    var loading by remember(account) {mutableStateOf(false)}
-    var more by remember(account) {mutableStateOf(false)}
-    var error by remember(account) {mutableStateOf<String?>(null)}
-    var filter by remember(account) {mutableStateOf("All")}
-    var details by remember {mutableStateOf<CallHistoryRow?>(null)}
+    var loading by remember(account,sessionEpoch) {mutableStateOf(false)}
+    var appending by remember(account,sessionEpoch) {mutableStateOf(false)}
+    var more by remember(account,sessionEpoch) {mutableStateOf(cachedPage?.more ?: false)}
+    var error by remember(account,sessionEpoch) {mutableStateOf<String?>(null)}
+    var retryAppend by remember(account,sessionEpoch) {mutableStateOf(false)}
+    var filter by remember(account,sessionEpoch) {mutableStateOf("All")}
+    var details by remember(account,sessionEpoch) {mutableStateOf<CallHistoryRow?>(null)}
+    val loadMutex=remember(account,sessionEpoch) {Mutex()}
 
-    suspend fun refresh(append:Boolean=false,force:Boolean=false) {
-        if(loading||account==null)return
-        loading=true
+    fun currentAccount()=account!=null&&model.backend.session.value?.userId==account&&model.backend.uiReads.epoch(account)==sessionEpoch
+    suspend fun refresh(append:Boolean=false,force:Boolean=false)=loadMutex.withLock {
+        if(!currentAccount()||(append&&(!more||before==null)))return@withLock
+        val requestVersion=model.backend.uiReads.version(account,cacheKey)
+        loading=true;appending=append
         error=null
         try {
             val params=JSONObject()
-            if(append)rows.lastOrNull()?.let {params.put("p_before",it.created)}
+            if(append)params.put("p_before",before)
             val result=if(append)model.backend.rpc("list_call_history",params)
-                else model.backend.uiReads.load(account,cacheKey,60_000L,force=force) {
+                else model.backend.uiReads.load(account!!,cacheKey,60_000L,force=force) {
                     model.backend.rpc("list_call_history",params)
                 }
-            val page=CallHistoryRow.parse(JSONArray(result),account)
-            if(model.backend.session.value?.userId==account) {
-                rows=if(append)(rows+page).distinctBy {it.id} else page
+            val page=callHistoryPage(JSONArray(result),account!!)
+            if(currentAccount()&&(!append||model.backend.uiReads.version(account,cacheKey)==requestVersion)) {
+                val unchanged=!append&&!force&&firstPage==page.rows&&appliedVersion==requestVersion
+                rows=if(append)(rows+page.rows).distinctBy {it.id} else if(unchanged)rows else page.rows
+                if(!unchanged) {before=page.before;more=page.more&&page.before!=null}
+                if(!append) {firstPage=page.rows;appliedVersion=model.backend.uiReads.version(account,cacheKey)}
                 loadedOnce=true
-                more=page.size>=50
+                details=details?.let {open->rows.firstOrNull {it.id==open.id}}
             }
         } catch(e:CancellationException) {throw e}
-        catch(_:Exception) {error="Could not load call history. Check your connection and retry."}
-        finally {loading=false}
+        catch(_:Exception) {if(currentAccount()) {retryAppend=append;error="Could not load ${if(append)"older calls" else "call history"}. Check your connection and retry."}}
+        finally {loading=false;appending=false}
     }
-    LaunchedEffect(account) {if(account!=null)refresh()}
+    LaunchedEffect(account,sessionEpoch,version,foreground) {if(foreground)refresh()}
+    var hadCall by remember(account,sessionEpoch) {mutableStateOf(false)}
+    LaunchedEffect(account,sessionEpoch,currentCall!=null) {
+        if(currentCall!=null)hadCall=true
+        else if(hadCall&&currentAccount()) {
+            hadCall=false
+            // A peer can end an incoming call without this device issuing a mutation RPC.
+            model.backend.uiReads.invalidate(account,cacheKey)
+        }
+    }
     val visible=remember(rows,filter) {if(filter=="Missed")rows.filter {it.missed} else rows}
     Column(
         Modifier.fillMaxSize().padding(horizontal=12.dp),
         verticalArrangement=Arrangement.spacedBy(12.dp)
     ) {
         GlassHeader("Calls") {
-            IconButton(onClick={scope.launch {refresh(force=true)}},enabled=!loading) {
+            IconButton(onClick={scope.launch {refresh(force=true)}},enabled=!loading&&account!=null) {
                 Icon(Icons.Outlined.Refresh,"Refresh call history")
             }
         }
@@ -145,29 +177,29 @@ private fun elapsedLabel(seconds:Long):String {
         }
         if(error!=null) GlassCard(Modifier.fillMaxWidth()) {
             Text(error.orEmpty(),color=MaterialTheme.colorScheme.error)
-            TextButton(onClick={scope.launch {refresh()}},enabled=!loading) {Text("Retry")}
+            TextButton(onClick={scope.launch {refresh(append=retryAppend,force=true)}},enabled=!loading) {Text("Retry")}
         }
         LazyColumn(
             modifier=Modifier.fillMaxSize(),
             verticalArrangement=Arrangement.spacedBy(8.dp),
             contentPadding=PaddingValues(bottom=120.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
         ) {
-            if(loading&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth())}
-            if((loadedOnce||error==null&&!loading)&&!loading&&error==null&&visible.isEmpty()) item(key="empty") {
+            if(loading&&!loadedOnce&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-history-loading"))}
+            if(loadedOnce&&!loading&&error==null&&visible.isEmpty()&&!more) item(key="empty") {
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(if(filter=="Missed")"No missed calls" else "No recent calls",style=MaterialTheme.typography.titleMedium)
                     Text("Your voice and video call history will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             items(visible,key={it.id}) {call->
-                val peerChat=chats.firstOrNull {it.id==call.conversation}
+                val peerChat=chats.firstOrNull {it.account==account&&it.id==call.conversation}
                 GlassSurface(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier.fillMaxWidth().heightIn(min=70.dp).clickable {details=call}.padding(horizontal=12.dp,vertical=10.dp),
                         verticalAlignment=Alignment.CenterVertically,
                         horizontalArrangement=Arrangement.spacedBy(12.dp)
                     ) {
-                        Avatar(call.name,call.avatar,model.backend,size=46.dp)
+                        Avatar(peerChat?.name ?: call.name,peerChat?.avatarId ?: call.avatar,model.backend,size=46.dp)
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
                             Text(peerChat?.name ?: call.name,fontWeight=FontWeight.SemiBold,
                                 color=if(call.missed)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
@@ -188,9 +220,9 @@ private fun elapsedLabel(seconds:Long):String {
                     }
                 }
             }
-            if(more && filter=="All")item(key="more") {
+            if(more)item(key="more") {
                 TextButton(onClick={scope.launch {refresh(append=true)}},enabled=!loading,modifier=Modifier.fillMaxWidth()) {
-                    Text(if(loading)"Loading…" else "Load older calls")
+                    Text(if(appending)"Loading older calls…" else "Load older calls")
                 }
             }
         }
@@ -211,7 +243,7 @@ private fun elapsedLabel(seconds:Long):String {
                         Spacer(Modifier.width(8.dp))
                         Text("Message")
                     }
-                    Button(onClick={details=null;model.calls.start(call.conversation,call.peer,call.kind)},enabled=currentCall==null) {
+                    Button(onClick={details=null;model.calls.start(call.conversation,call.peer,call.kind)},enabled=currentCall==null&&account!=null) {
                         Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,null)
                         Spacer(Modifier.width(8.dp))
                         Text("Call again")

@@ -51,7 +51,7 @@ import com.pritam.liquidchat.data.Images
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,id)
-        try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
+        try {val uploaded=model.backend.uploadImage(image.file,null);model.setAvatar(uploaded.getString("id"))} finally {image.file.delete()}
     }}
     if(edit) {BackHandler {edit=false};Column(Modifier.verticalScroll(rememberScrollState())) {TextButton(onClick={edit=false}){Text("Back to Profile")};ProfileScreen(model,busy)};return}
     MomentsPanel(model,"post",mine=true,archived=archived,modifier=Modifier.fillMaxSize().padding(horizontal=12.dp),bottomPadding=84.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),header={
@@ -61,7 +61,7 @@ import com.pritam.liquidchat.data.Images
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
                 DropdownMenu(menu,{menu=false}) {
                     DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
-                    DropdownMenuItem(text={Text("Remove photo")},onClick={menu=false;model.action {model.backend.rpc("set_avatar");model.loadProfile()}},enabled=!busy)
+                    DropdownMenuItem(text={Text("Remove photo")},onClick={menu=false;model.action {model.setAvatar()}},enabled=!busy)
                 }
             }
         }

@@ -31,6 +31,8 @@ import com.pritam.liquidchat.data.Images
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -40,6 +42,26 @@ import java.util.UUID
     val created:String,val expires:String?,val width:Int,val height:Int,
     val mediaKind:String="image",val durationMs:Long=0L
 )
+/** Shared cache key for the same participant-scoped RPC across Home and the Story/Post sheet. */
+internal fun momentsCacheKey(kind:String,mine:Boolean,archived:Boolean=false):String =
+    "moments:$kind:${if(mine)"mine" else "contacts"}:${if(archived)"archived" else "active"}"
+
+internal fun unexpiredMoments(
+    kind:String,items:List<Moment>,now:java.time.Instant=java.time.Instant.now()
+):List<Moment> {
+    if(kind!="story")return items
+    return items.filter {moment->
+        moment.expires==null||runCatching {
+            java.time.Instant.parse(moment.expires).isAfter(now)
+        }.getOrDefault(false)
+    }
+}
+
+/** The next cursor belongs to the server page, even when some stories expire locally. */
+internal data class MomentPage(val items:List<Moment>,val cursor:Moment?,val more:Boolean)
+internal fun momentPage(kind:String,raw:List<Moment>,now:java.time.Instant=java.time.Instant.now()) =
+    MomentPage(unexpiredMoments(kind,raw,now),raw.lastOrNull(),raw.size>=30)
+
 internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()).map {index->
     val j=array.getJSONObject(index)
     Moment(j.getString("id"),j.getString("owner_id"),j.getString("media_id"),
@@ -60,15 +82,39 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 ) {
     val session by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
-    var stories by remember(session?.userId) {mutableStateOf(emptyList<Moment>())}
-    LaunchedEffect(session?.userId,foreground,refreshKey) {
-        if(session==null||!foreground)return@LaunchedEffect
-        val uid=session?.userId ?: return@LaunchedEffect
+    val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
+    val revision by model.backend.uiReads.revision.collectAsStateWithLifecycle()
+    val uid=session?.userId
+    val feedKey=remember {momentsCacheKey("story",false)}
+    val version=remember(uid,revision) {model.backend.uiReads.version(uid,feedKey)}
+    var stories by remember(uid,sessionEpoch) {
+        mutableStateOf(
+            model.backend.uiReads.peek(uid,feedKey,allowStale=true)
+                ?.let {runCatching {unexpiredMoments("story",parseMoments(JSONArray(it)))}.getOrNull()}
+                ?: emptyList()
+        )
+    }
+    var lastRefreshKey by remember(uid,sessionEpoch) {mutableIntStateOf(refreshKey)}
+    LaunchedEffect(uid,sessionEpoch,version,foreground,refreshKey) {
+        if(uid.isNullOrBlank()||!foreground)return@LaunchedEffect
+        val force=lastRefreshKey!=refreshKey
+        lastRefreshKey=refreshKey
         try {
-            val body=JSONObject().put("p_kind","story").put("p_mine",false)
-            val recent=parseMoments(JSONArray(model.backend.rpc("list_moments",body)))
-            if(model.backend.session.value?.userId==uid)stories=recent
-        } catch(e:CancellationException){throw e}catch(_:Exception){/* Keep chat navigation usable offline. */}
+            val result=model.backend.uiReads.load(uid,feedKey,20_000L,force=force) {
+                val body=JSONObject().put("p_kind","story").put("p_mine",false)
+                    .put("p_archived",false)
+                model.backend.rpc("list_moments",body)
+            }
+            if(model.backend.session.value?.userId==uid&&model.backend.uiReads.epoch(uid)==sessionEpoch)
+                stories=unexpiredMoments("story",parseMoments(JSONArray(result)))
+        } catch(e:CancellationException){throw e}
+        catch(_:Exception){/* Keep the last rendered cards available offline. */}
+    }
+    LaunchedEffect(uid,sessionEpoch,foreground) {
+        if(foreground)while(true) {
+            delay(1000)
+            stories=unexpiredMoments("story",stories)
+        }
     }
     val selfId=session?.userId
     val myMoment=stories.firstOrNull {it.owner==selfId}
@@ -142,55 +188,117 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 ) {
     val account by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
+    val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
+    val revision by model.backend.uiReads.revision.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
-    var items by remember(kind,mine,archived,account?.userId){mutableStateOf(emptyList<Moment>())}
-    var loading by remember {mutableStateOf(false)}
-    var error by remember {mutableStateOf<String?>(null)}
-    var more by remember(kind,mine,archived) {mutableStateOf(false)}
-    var epoch by remember {mutableIntStateOf(0)}
-    var editor by remember(openEditorInitially,kind) {mutableStateOf(openEditorInitially && kind=="story")}
-    var focused by remember {mutableStateOf<Moment?>(null)}
-    var pendingStoryId by remember(initialStoryId) {mutableStateOf(initialStoryId)}
-    var deleting by remember {mutableStateOf<Moment?>(null)}
-    var reporting by remember {mutableStateOf<Moment?>(null)}
-    suspend fun load(append:Boolean=false) {
-        if(loading)return
-        loading=true;error=null
-        val expected=account?.userId
+    val uid=account?.userId
+    val cacheKey=remember(kind,mine,archived) {momentsCacheKey(kind,mine,archived)}
+    val version=remember(uid,cacheKey,revision) {model.backend.uiReads.version(uid,cacheKey)}
+    val cachedPage=remember(uid,sessionEpoch,cacheKey) {
+        model.backend.uiReads.peek(uid,cacheKey,allowStale=true)
+            ?.let {runCatching {momentPage(kind,parseMoments(JSONArray(it)))}.getOrNull()}
+    }
+    var items by remember(uid,sessionEpoch,cacheKey){mutableStateOf(cachedPage?.items ?: emptyList())}
+    var firstPage by remember(uid,sessionEpoch,cacheKey){mutableStateOf(cachedPage?.items)}
+    var appliedVersion by remember(uid,sessionEpoch,cacheKey){mutableStateOf(version)}
+    var cursor by remember(uid,sessionEpoch,cacheKey){mutableStateOf(cachedPage?.cursor)}
+    var loadedOnce by remember(uid,sessionEpoch,cacheKey){mutableStateOf(cachedPage!=null||uid==null)}
+    var loading by remember(uid,sessionEpoch,cacheKey){mutableStateOf(false)}
+    var appending by remember(uid,sessionEpoch,cacheKey){mutableStateOf(false)}
+    var mutating by remember(uid,sessionEpoch,cacheKey){mutableStateOf(false)}
+    var error by remember(uid,sessionEpoch,cacheKey){mutableStateOf<String?>(null)}
+    var retryAppend by remember(uid,sessionEpoch,cacheKey){mutableStateOf(false)}
+    var retryChange by remember(uid,sessionEpoch,cacheKey){mutableStateOf<Pair<Moment,String>?>(null)}
+    var more by remember(uid,sessionEpoch,cacheKey){mutableStateOf(cachedPage?.more ?: false)}
+    val loadMutex=remember(uid,sessionEpoch,cacheKey) {Mutex()}
+    var editor by remember(uid,sessionEpoch,openEditorInitially,kind) {mutableStateOf(openEditorInitially && kind=="story")}
+    var focused by remember(uid,sessionEpoch,cacheKey) {mutableStateOf<Moment?>(null)}
+    var pendingStoryId by remember(uid,sessionEpoch,initialStoryId) {mutableStateOf(initialStoryId)}
+    var deleting by remember(uid,sessionEpoch,cacheKey) {mutableStateOf<Moment?>(null)}
+    var reporting by remember(uid,sessionEpoch,cacheKey) {mutableStateOf<Moment?>(null)}
+    fun currentAccount()=uid!=null&&model.backend.session.value?.userId==uid&&model.backend.uiReads.epoch(uid)==sessionEpoch
+    suspend fun load(append:Boolean=false,force:Boolean=false)=loadMutex.withLock {
+        if(!currentAccount()||(append&&(!more||cursor==null)))return@withLock
+        val requestVersion=model.backend.uiReads.version(uid,cacheKey)
+        loading=true;appending=append;error=null;retryChange=null
         try {
-            val body=JSONObject().put("p_kind",kind).put("p_mine",mine).put("p_archived",archived)
-            if(append)items.lastOrNull()?.let {body.put("p_before",it.created).put("p_before_id",it.id)}
-            val page=parseMoments(JSONArray(model.backend.rpc("list_moments",body)))
-            if(model.session.value?.userId==expected){
-                items=if(append)(items+page).distinctBy {it.id} else page
-                more=page.size==30
+            val params=JSONObject().put("p_kind",kind).put("p_mine",mine)
+                .put("p_archived",archived)
+            if(append)cursor?.let {
+                params.put("p_before",it.created).put("p_before_id",it.id)
+            }
+            val json=if(append)model.backend.rpc("list_moments",params)
+                else model.backend.uiReads.load(uid!!,cacheKey,if(kind=="story")20_000L else 45_000L,force=force) {
+                    model.backend.rpc("list_moments",params)
+                }
+            val page=momentPage(kind,parseMoments(JSONArray(json)))
+            if(currentAccount()&&(!append||model.backend.uiReads.version(uid,cacheKey)==requestVersion)) {
+                val unchanged=!append&&!force&&firstPage==page.items&&appliedVersion==requestVersion
+                items=when {
+                    append->unexpiredMoments(kind,(items+page.items).distinctBy {it.id})
+                    unchanged->unexpiredMoments(kind,items)
+                    else->page.items
+                }
+                if(!unchanged) {cursor=page.cursor;more=page.more}
+                if(!append) {firstPage=page.items;appliedVersion=model.backend.uiReads.version(uid,cacheKey)}
+                loadedOnce=true
+                focused=focused?.let {open->items.firstOrNull {it.id==open.id}}
                 if(kind=="story"&&pendingStoryId!=null) {
                     items.firstOrNull {it.id==pendingStoryId}?.let {
-                        focused=it
-                        pendingStoryId=null
+                        focused=it;pendingStoryId=null
                     }
                 }
             }
-        } catch(e:CancellationException){throw e}catch(_:Exception){error="Could not load ${if(kind=="story")"stories" else "posts"}. Check your connection and retry."}finally {loading=false}
+        } catch(e:CancellationException){throw e}
+        catch(_:Exception) {
+            if(currentAccount()) {
+                retryAppend=append
+                error="Could not ${if(append)"load older" else "refresh"} ${if(kind=="story")"stories" else "posts"}. Check your connection and retry."
+            }
+        } finally {loading=false;appending=false}
     }
-    LaunchedEffect(kind,mine,archived,account?.userId,epoch) {if(account!=null){while(loading)kotlinx.coroutines.delay(50);load()}}
+    suspend fun changeMoment(moment:Moment,action:String) {
+        if(!currentAccount()||mutating)return
+        mutating=true;error=null;retryChange=null
+        try {
+            model.backend.rpc("change_moment",JSONObject().put("p_id",moment.id).put("p_action",action))
+            if(currentAccount()) {
+                items=items.filterNot {it.id==moment.id}
+                if(focused?.id==moment.id)focused=null
+            }
+        } catch(e:CancellationException){throw e}
+        catch(_:Exception){if(currentAccount()){retryAppend=false;retryChange=moment to action;error="Could not update the ${if(kind=="story")"story" else "post"}. Retry."}}
+        finally {mutating=false}
+    }
+    LaunchedEffect(cacheKey,uid,sessionEpoch,version,foreground) {
+        if(foreground)load()
+    }
+    LaunchedEffect(pendingStoryId,items) {
+        if(kind=="story"&&pendingStoryId!=null)items.firstOrNull {it.id==pendingStoryId}?.let {
+            focused=it;pendingStoryId=null
+        }
+    }
     // Expiry is enforced server-side. Remove an expired tile while this screen stays open too.
-    LaunchedEffect(kind,foreground) {if(foreground&&kind=="story")while(true){kotlinx.coroutines.delay(1000);val now=java.time.Instant.now();items=items.filter {it.expires==null||runCatching {java.time.Instant.parse(it.expires).isAfter(now)}.getOrDefault(false)};focused?.let {if(items.none {m->m.id==it.id})focused=null}}}
+    LaunchedEffect(uid,sessionEpoch,cacheKey,foreground) {if(foreground&&kind=="story")while(true){delay(1000);items=unexpiredMoments(kind,items);focused?.let {if(items.none {m->m.id==it.id})focused=null}}}
+    val busy=loading||mutating
     LazyColumn(modifier=modifier.testTag("moments-list"),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=bottomPadding)) {
         header?.let { item(key="profile-header") {it()} }
         item(key="moment-controls") { Row(Modifier.fillMaxWidth()) {
             Text(if(kind=="story")"Stories · 24 hours" else if(archived)"Archived posts" else "Posts",Modifier.weight(1f),fontWeight=FontWeight.Bold)
-            IconButton(onClick={scope.launch {load()}},enabled=!loading){Icon(Icons.Outlined.Refresh,"Refresh ${if(kind=="story")"stories" else "posts"}")}
-            if(mine&&!archived)IconButton(onClick={editor=true},enabled=account!=null){Icon(Icons.Outlined.Add,if(kind=="story")"Add a story" else "Add a post")}
+            IconButton(onClick={scope.launch {load(force=true)}},enabled=!busy&&uid!=null){Icon(Icons.Outlined.Refresh,"Refresh ${if(kind=="story")"stories" else "posts"}")}
+            if(mine&&!archived)IconButton(onClick={editor=true},enabled=account!=null&&!busy){Icon(Icons.Outlined.Add,if(kind=="story")"Add a story" else "Add a post")}
         }
         }
-        if(loading&&items.isEmpty())item {LinearProgressIndicator(Modifier.fillMaxWidth())}
-        error?.let {item {Column {Text(it,color=MaterialTheme.colorScheme.error);TextButton(onClick={scope.launch {load()}}){Text("Retry")}}}}
-            if(items.isEmpty()&&!loading&&error==null)item {
+        if(loading&&!loadedOnce&&items.isEmpty())item {LinearProgressIndicator(Modifier.fillMaxWidth().testTag("moments-loading"))}
+        error?.let {item {Column {Text(it,color=MaterialTheme.colorScheme.error);TextButton(onClick={scope.launch {
+            val change=retryChange
+            if(change!=null)changeMoment(change.first,change.second) else load(append=retryAppend,force=true)
+        }},enabled=!busy){Text("Retry")}}}}
+            if(items.isEmpty()&&loadedOnce&&!busy&&error==null&&!more)item {
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(if(kind=="story")"No stories yet" else if(archived)"No archived posts" else "No posts yet...",style=MaterialTheme.typography.titleLarge)
                     Text(if(mine)"Share a photo with people in your saved contacts." else "Stories and posts appear when their creators save you as a contact.")
-                    if(mine&&!archived)TextButton(onClick={editor=true}){Text(if(kind=="story")"Add a story" else "Add a post")}
+                    if(mine&&!archived)TextButton(onClick={editor=true},enabled=uid!=null){Text(if(kind=="story")"Add a story" else "Add a post")}
                 }
             }
             items(items,key={it.id}) {moment->
@@ -205,20 +313,18 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                     } else ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=ContentScale.Crop)
                     if(moment.caption.isNotBlank())Text(moment.caption)
                     if(moment.owner!=account?.userId)Row {
-                        TextButton(onClick={reporting=moment},enabled=!loading){Text("Report ${if(kind=="story")"story" else "post"}")}
-                        TextButton(onClick={model.action {model.repository.block(moment.owner,true);epoch++}},enabled=!loading){Text("Block user")}
+                        TextButton(onClick={reporting=moment},enabled=!busy){Text("Report ${if(kind=="story")"story" else "post"}")}
+                        TextButton(onClick={model.action {model.repository.block(moment.owner,true)}},enabled=!busy){Text("Block user")}
                     }
                     if(moment.owner==account?.userId)Row {
-                        if(kind=="post")TextButton(enabled=!loading,onClick={scope.launch {
-                            loading=true;try {model.backend.rpc("change_moment",JSONObject().put("p_id",moment.id).put("p_action",if(archived)"restore" else "archive"));epoch++}catch(e:CancellationException){throw e}catch(_:Exception){error="Could not update the post. Retry."}finally{loading=false}
-                        }}){Text(if(archived)"Restore" else "Archive")}
-                        TextButton(onClick={deleting=moment},enabled=!loading){Text("Delete")}
+                        if(kind=="post")TextButton(enabled=!busy,onClick={scope.launch {changeMoment(moment,if(archived)"restore" else "archive")}}){Text(if(archived)"Restore" else "Archive")}
+                        TextButton(onClick={deleting=moment},enabled=!busy){Text("Delete")}
                     }
                 }
             }
-            if(more)item {TextButton(onClick={scope.launch {load(true)}},enabled=!loading){Text("Load older")}}
+            if(more)item(key="moment-more") {TextButton(onClick={scope.launch {load(true)}},enabled=!busy){Text(if(appending)"Loading older…" else "Load older")}}
     }
-    if(editor)MomentEditor(model,kind,onDismiss={editor=false},onPublished={editor=false;epoch++})
+    if(editor)key(uid,sessionEpoch,kind) {MomentEditor(model,kind,onDismiss={editor=false},onPublished={editor=false})}
     focused?.let {moment->
         if(kind=="story") {
             StoryViewer(model,items,moment.id,onDismiss={focused=null})
@@ -237,7 +343,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
         }
     }
     reporting?.let {moment->ReportContentDialog("Report ${if(kind=="story")"story" else "post"}","Your explanation and this content's reference will be sent privately for review.",onSubmit={model.reportMoment(moment.id,it);reporting=null},onDismiss={reporting=null})}
-    deleting?.let {moment->AlertDialog(onDismissRequest={deleting=null},title={Text("Delete this ${if(kind=="story")"story" else "post"}?")},text={Text("It will disappear for you and your contacts.")},confirmButton={TextButton(onClick={deleting=null;scope.launch {loading=true;try {model.backend.rpc("change_moment",JSONObject().put("p_id",moment.id).put("p_action","delete"));epoch++}catch(e:CancellationException){throw e}catch(_:Exception){error="Delete failed. Please retry."}finally{loading=false}}}){Text("Delete")}},dismissButton={TextButton(onClick={deleting=null}){Text("Cancel")}})}
+    deleting?.let {moment->AlertDialog(onDismissRequest={deleting=null},title={Text("Delete this ${if(kind=="story")"story" else "post"}?")},text={Text("It will disappear for you and your contacts.")},confirmButton={TextButton(enabled=!busy,onClick={deleting=null;scope.launch {changeMoment(moment,"delete")}}){Text("Delete")}},dismissButton={TextButton(onClick={deleting=null}){Text("Cancel")}})}
 }
 
 /**
@@ -248,24 +354,24 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     model:AppViewModel,stories:List<Moment>,initialId:String,onDismiss:()->Unit
 ) {
     if(stories.isEmpty())return
-    var index by remember(initialId) {mutableIntStateOf(stories.indexOfFirst {it.id==initialId}.coerceAtLeast(0))}
-    index=index.coerceIn(0,stories.lastIndex)
-    var paused by remember {mutableStateOf(false)}
-    var muted by remember {mutableStateOf(true)}
-    var progress by remember(index) {mutableFloatStateOf(0f)}
+    var currentId by remember(initialId) {mutableStateOf(initialId)}
+    val index=stories.indexOfFirst {it.id==currentId}.coerceAtLeast(0)
     val current=stories[index]
+    var paused by remember(current.id) {mutableStateOf(false)}
+    var muted by remember {mutableStateOf(true)}
+    var progress by remember(current.id) {mutableFloatStateOf(0f)}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
     val effectivePause=paused||!foreground||currentCall!=null
     // Photos advance after five seconds; MP4 progress is driven by the actual player.
-    LaunchedEffect(index,effectivePause,stories.size,current.mediaKind) {
+    LaunchedEffect(current.id,effectivePause,stories.size,current.mediaKind) {
         if(current.mediaKind!="story_video") {
             while(progress<1f) {
                 delay(50)
                 if(!effectivePause)progress=(progress+.01f).coerceAtMost(1f)
             }
             if(!effectivePause) {
-                if(index<stories.lastIndex)index++ else onDismiss()
+                if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
             }
         }
     }
@@ -280,23 +386,22 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         backend=model.backend,media=current.media,
                         paused=effectivePause,muted=muted,
                         onProgress={progress=it},
-                        onFinished={if(index<stories.lastIndex)index++ else onDismiss()},
+                        onFinished={if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()},
                         modifier=Modifier.fillMaxSize()
                     )
                 } else ProtectedImage(model.backend,current.media,
                     description="${current.name}'s story",modifier=Modifier.fillMaxSize(),
                     scale=ContentScale.Fit)
-                Box(Modifier.fillMaxSize().pointerInput(index,stories.size) {
+                Box(Modifier.fillMaxSize().pointerInput(current.id,stories.size) {
                     detectTapGestures(
                         onPress={
                             paused=true
-                            tryAwaitRelease()
-                            paused=false
+                            try {tryAwaitRelease()} finally {paused=false}
                         },
                         onTap={offset->
                             if(offset.x<size.width/2f) {
-                                if(index>0)index-- else progress=0f
-                            } else if(index<stories.lastIndex)index++ else onDismiss()
+                                if(index>0)currentId=stories[index-1].id else progress=0f
+                            } else if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
                         }
                     )
                 })
