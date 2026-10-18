@@ -12,6 +12,10 @@ import kotlin.coroutines.resumeWithException
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
+/** Do not silently choose a headset when the requested call route is unavailable. */
+internal fun matchingCommunicationDeviceId(devices:List<Pair<Int,Int>>,wantedType:Int):Int? =
+    devices.firstOrNull {it.second==wantedType}?.first
+
 /** Foreground-only WebRTC peer: DTLS/SRTP transports media directly; Supabase carries SDP/ICE only. */
 class CallEngine(private val context: Context, private val video: Boolean,
                  private val sendCandidate: (JSONObject) -> Unit,
@@ -170,8 +174,9 @@ class CallEngine(private val context: Context, private val video: Boolean,
     fun speaker(enabled:Boolean):Boolean {
         if(android.os.Build.VERSION.SDK_INT>=31) {
             val type=if(enabled)android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-            val device=audioManager.availableCommunicationDevices.firstOrNull {it.type==type}
-                ?: return false
+            val devices=audioManager.availableCommunicationDevices
+            val id=matchingCommunicationDeviceId(devices.map {it.id to it.type},type) ?: return false
+            val device=devices.first {it.id==id}
             return audioManager.setCommunicationDevice(device)
         }
         audioManager.isSpeakerphoneOn=enabled
