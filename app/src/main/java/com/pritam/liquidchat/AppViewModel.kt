@@ -121,7 +121,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         } catch(e: CancellationException) { throw e }
-        catch(e:Exception) { if(current()){_profileError.value="Your profile is unavailable offline or while the service is unreachable. Connect and retry.";_notice.value=e.message ?: "Cannot load profile. Retry when connected."} }
+        catch(e:Exception) { if(current()){
+            // A completed (but failed) request is not an infinite loading state.
+            // Keep any authorized cached profile visible; if none exists, the UI
+            // offers a retry instead of permanently displaying a spinner.
+            _profileLoaded.value=true
+            _profileError.value="Your profile is unavailable offline or while the service is unreachable. Connect and retry."
+            _notice.value=e.message ?: "Cannot load profile. Retry when connected."
+        } }
     }
     fun signIn(email:String,password:String)=action { backend.signIn(email,password) }
     fun register(email:String,password:String)=action {
