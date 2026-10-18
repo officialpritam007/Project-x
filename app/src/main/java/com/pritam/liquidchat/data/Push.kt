@@ -132,8 +132,8 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val answer=PendingIntent.getActivity(context,callId.hashCode(),Intent(context,com.pritam.liquidchat.calls.CallAnswerActivity::class.java).putExtra("callId",callId).putExtra("accountId",account),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val decline=PendingIntent.getBroadcast(context,callId.hashCode(),Intent(context,com.pritam.liquidchat.calls.DeclineCallReceiver::class.java).putExtra("callId",callId).putExtra("accountId",account),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        if(!MessageNotificationDedupe.claim(context,account,"call-$callId"))return
-        manager.notify(callId.hashCode(),NotificationCompat.Builder(context,"incoming_calls_v2")
+        MessageNotificationDedupe.postOnce(context,account,"call-$callId") {
+            manager.notify(callId.hashCode(),NotificationCompat.Builder(context,"incoming_calls_v2")
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(name)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(androidx.core.app.Person.Builder().setName(name).setImportant(true).build(),decline,answer).setIsVideo(video))
@@ -147,6 +147,7 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             .setOnlyAlertOnce(true)
             .setTimeoutAfter(remaining.coerceAtMost(PushRecovery.CALL_WINDOW_MS))
             .build())
+        }
     }
 
     private fun show(context:Context,cid:String,id:String,title:String,body:String,account:String,previews:Boolean) {
@@ -162,13 +163,8 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             .setVisibility(if(previews)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE).build()
         // Commit before notifying: notifications dismissed by the user must never alert again.
-        if(!MessageNotificationDedupe.claim(context,account,id))return
-        try {
+        MessageNotificationDedupe.postOnce(context,account,id) {
             manager.notify(id.hashCode(),notification)
-        } catch(e:RuntimeException) {
-            // No alert was posted. A later valid FCM/WorkManager attempt may retry.
-            MessageNotificationDedupe.forget(context,account,id)
-            throw e
         }
     }
 }
