@@ -1,4 +1,4 @@
-import {inspectAacMp4,inspectJpeg} from "./inspect.ts";
+import {inspectAacMp4,inspectJpeg,inspectStoryVideoMp4} from "./inspect.ts";
 const assert=(ok:boolean)=>{if(!ok)throw new Error("Assertion failed");};
 const bad=(fn:()=>unknown)=>{let failed=false;try{fn();}catch{failed=true;}assert(failed);};
 const join=(...parts:Uint8Array[])=>{const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let at=0;for(const p of parts){out.set(p,at);at+=p.length;}return out;};
@@ -19,4 +19,30 @@ Deno.test("JPEG dimensions reject oversized frames and truncated containers",()=
  const size=inspectJpeg(data);assert(size.width===32&&size.height===40);
  bad(()=>inspectJpeg(data.slice(0,-1)));
  const huge=data.slice();huge[7]=255;huge[8]=255;huge[9]=255;huge[10]=255;bad(()=>inspectJpeg(huge));
+});
+
+
+function storyVideo(duration=30000,width=720,height=1280,codec="avc1",handler="vide"):Uint8Array {
+ const tkhd=new Uint8Array(84);
+ const tk=new DataView(tkhd.buffer);tk.setUint32(tkhd.length-8,width<<16);tk.setUint32(tkhd.length-4,height<<16);
+ const mdhd=new Uint8Array(24);const mv=new DataView(mdhd.buffer);mv.setUint32(12,1000);mv.setUint32(16,duration);
+ const hdlr=new Uint8Array(12);hdlr.set(new TextEncoder().encode(handler),8);
+ const stsd=new Uint8Array(8);new DataView(stsd.buffer).setUint32(4,1);
+ return join(
+   box("ftyp",new TextEncoder().encode("isom")),
+   box("moov",box("trak",box("tkhd",tkhd),
+     box("mdia",box("mdhd",mdhd),box("hdlr",hdlr),
+       box("minf",box("stbl",box("stsd",stsd,box(codec,new Uint8Array(32)))))))),
+   box("mdat",new Uint8Array(128))
+ );
+}
+Deno.test("Video story validation accepts 30-second H264 720p and rejects abuse",()=>{
+ const parsed=inspectStoryVideoMp4(storyVideo());
+ assert(parsed.duration===30000&&parsed.width===720&&parsed.height===1280);
+ bad(()=>inspectStoryVideoMp4(storyVideo(30001)));
+ bad(()=>inspectStoryVideoMp4(storyVideo(1000,1080,1920)));
+ bad(()=>inspectStoryVideoMp4(storyVideo(1000,720,1280,"hev1")));
+ bad(()=>inspectStoryVideoMp4(storyVideo(1000,720,1280,"avc1","soun")));
+ bad(()=>inspectStoryVideoMp4(storyVideo().slice(0,-3)));
+ bad(()=>inspectStoryVideoMp4(new Uint8Array(8*1024*1024+1)));
 });
