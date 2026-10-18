@@ -5,6 +5,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -28,6 +34,79 @@ import java.util.UUID
 
 @Immutable data class Moment(val id:String,val owner:String,val media:String,val name:String,val caption:String,val created:String,val expires:String?,val width:Int,val height:Int)
 internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()).map {index->val j=array.getJSONObject(index);Moment(j.getString("id"),j.getString("owner_id"),j.getString("media_id"),j.getString("display_name"),j.getString("caption"),j.getString("created_at"),if(j.isNull("expires_at"))null else j.getString("expires_at"),j.getInt("width"),j.getInt("height"))}
+
+/**
+ * Option C: compact, horizontal story cards on the existing Chats tab.
+ * This is a client of the existing participant-scoped list_moments RPC; no public feed.
+ * Selecting a story opens the original authenticated story flow.
+ */
+@Composable fun HomeStoriesRow(model:AppViewModel,onMine:()->Unit,onStories:()->Unit) {
+    val session by model.session.collectAsStateWithLifecycle()
+    val foreground by model.repository.foreground.collectAsStateWithLifecycle()
+    val profile by model.profile.collectAsStateWithLifecycle()
+    var stories by remember(session?.userId) {mutableStateOf(emptyList<Moment>())}
+    LaunchedEffect(session?.userId,foreground) {
+        if(session==null||!foreground)return@LaunchedEffect
+        val uid=session?.userId ?: return@LaunchedEffect
+        try {
+            val body=JSONObject().put("p_kind","story").put("p_mine",false)
+            val recent=parseMoments(JSONArray(model.backend.rpc("list_moments",body)))
+            if(model.backend.session.value?.userId==uid)stories=recent
+        } catch(e:CancellationException){throw e}catch(_:Exception){/* Keep chat navigation usable offline. */}
+    }
+    val selfId=session?.userId
+    val myMoment=stories.firstOrNull {it.owner==selfId}
+    val contactMoments=remember(stories,selfId) {
+        stories.filter {it.owner!=selfId}.distinctBy {it.owner}.take(12)
+    }
+    Column(verticalArrangement=Arrangement.spacedBy(9.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically) {
+            Text("Stories",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+            TextButton(onClick=onStories) {Text("See all")}
+        }
+        LazyRow(
+            horizontalArrangement=Arrangement.spacedBy(10.dp),
+            contentPadding=PaddingValues(horizontal=6.dp)
+        ) {
+            item(key="my-story") {
+                StoryCard(
+                    title="My Story",moment=myMoment,model=model,
+                    mine=true,onClick=onMine
+                )
+            }
+            items(contactMoments,key={it.owner}) {moment->
+                StoryCard(title=moment.name,moment=moment,model=model,mine=false,onClick=onStories)
+            }
+            if(contactMoments.isEmpty())item(key="stories-shortcut") {
+                StoryCard(title="View Stories",moment=null,model=model,mine=false,onClick=onStories)
+            }
+        }
+    }
+}
+@Composable private fun StoryCard(title:String,moment:Moment?,model:AppViewModel,mine:Boolean,onClick:()->Unit) {
+    Column(
+        Modifier.width(94.dp).clickable(onClick=onClick),
+        horizontalAlignment=Alignment.CenterHorizontally,
+        verticalArrangement=Arrangement.spacedBy(6.dp)
+    ) {
+        GlassSurface(Modifier.size(width=94.dp,height=116.dp),Glass.card) {
+            Box(Modifier.fillMaxSize().clip(Glass.card),contentAlignment=Alignment.Center) {
+                if(moment!=null)
+                    ProtectedImage(model.backend,moment.media,description="$title story",
+                        modifier=Modifier.fillMaxSize(),scale=ContentScale.Crop)
+                else
+                    Icon(if(mine)Icons.Outlined.AddCircleOutline else Icons.Outlined.AutoStories,
+                        null,modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
+                if(mine)
+                    Surface(
+                        modifier=Modifier.align(Alignment.BottomEnd).padding(5.dp),
+                        shape=RoundedCornerShape(50),color=MaterialTheme.colorScheme.primary
+                    ) {Icon(Icons.Outlined.Add,"Add a story",Modifier.padding(3.dp),tint=MaterialTheme.colorScheme.onPrimary)}
+            }
+        }
+        Text(title,style=MaterialTheme.typography.labelSmall,maxLines=1,color=MaterialTheme.colorScheme.onSurface)
+    }
+}
 
 /** No public feed: audiences are the creator's saved contacts, rechecked on every media request. */
 @Composable fun MomentsPanel(model:AppViewModel,kind:String,mine:Boolean,archived:Boolean=false,modifier:Modifier=Modifier,bottomPadding:Dp=16.dp,header:(@Composable ()->Unit)?=null) {
