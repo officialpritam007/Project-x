@@ -23,6 +23,7 @@ import com.pritam.liquidchat.AppViewModel
     val display by model.display.collectAsStateWithLifecycle()
     val allChats by model.chats.collectAsStateWithLifecycle()
     val active by model.active.collectAsStateWithLifecycle()
+    val currentCall by model.calls.view.collectAsStateWithLifecycle()
     val logoutPrompt by model.logoutPrompt.collectAsStateWithLifecycle()
     val unsent by model.unsent.collectAsStateWithLifecycle()
     val ready by model.ready.collectAsStateWithLifecycle()
@@ -69,6 +70,9 @@ import com.pritam.liquidchat.AppViewModel
                     when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
                 }
             }
+        }
+        if(currentCall!=null && session!=null && acceptedPolicy) {
+            com.pritam.liquidchat.calls.CallOverlay(model.calls,chats.firstOrNull {it.id==currentCall?.conversation}?.name)
         }
         }
     }

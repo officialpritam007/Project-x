@@ -19,6 +19,14 @@ def verify_native(archive):
             data=z.read(name)
             if data[:4]!=b'\x7fELF' or data[4] not in (1,2) or data[5] not in (1,2):
                 raise ValueError(f'Invalid native library: {name}')
+            # 16 KB page-size compatibility is required on 64-bit Android ABIs.
+            # Keep 32-bit ABIs at their 4 KB ELF requirement; rejecting armeabi-v7a
+            # would incorrectly discard supported 32-bit handsets.
+            parts=name.split('/')
+            if len(parts)<3 or parts[-3]!='lib' or parts[-2] not in ('arm64-v8a','x86_64','armeabi-v7a','x86'):
+                raise ValueError(f'Unexpected native library packaging: {name}')
+            abi=parts[-2]
+            required_alignment=16384 if abi in ('arm64-v8a','x86_64') else 4096
             endian='<' if data[5]==1 else '>'
             wide=data[4]==2
             offset=struct.unpack_from(endian+('Q' if wide else 'I'),data,32 if wide else 28)[0]
@@ -28,8 +36,8 @@ def verify_native(archive):
                 at=offset+i*size
                 if struct.unpack_from(endian+'I',data,at)[0]==1:
                     alignment=struct.unpack_from(endian+('Q' if wide else 'I'),data,at+(48 if wide else 28))[0]
-                    if alignment<16384:
-                        raise ValueError(f'Native LOAD segment lacks 16 KB alignment: {name}')
+                    if alignment<required_alignment or (alignment & (alignment - 1)) != 0:
+                        raise ValueError(f'Native LOAD segment lacks {required_alignment // 1024} KB alignment: {name}')
                     alignments.append(alignment)
             if not alignments:
                 raise ValueError(f'No native LOAD segments: {name}')

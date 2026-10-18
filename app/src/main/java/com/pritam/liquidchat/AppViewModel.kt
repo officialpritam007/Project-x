@@ -25,6 +25,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     val backend: Backend=(app as LiquidApplication).backend
     val repository=(app as LiquidApplication).repository
+    val calls=com.pritam.liquidchat.calls.CallController(app,backend,repository.foreground,viewModelScope)
     val contacts=repository.contacts().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val chats=repository.chats().stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
     val messagesReady=MutableStateFlow<String?>(null)
@@ -43,12 +44,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val policyPrefs=app.getSharedPreferences("user_policy",android.content.Context.MODE_PRIVATE)
     private val policyEpoch=MutableStateFlow(0)
     val acceptedPolicy=combine(session.map {it?.userId},policyEpoch) {id,_->
-        id!=null && policyPrefs.getString("accepted_$id",null)==com.pritam.liquidchat.ui.USER_POLICY_VERSION
+        id!=null && policyPrefs.getString("accepted_$id",null)==com.pritam.liquidchat.ui.ACTIVE_USER_POLICY_VERSION
     }.stateIn(viewModelScope,SharingStarted.Eagerly,false)
     fun acceptPolicy()=action {
         val id=session.value?.userId ?: return@action
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            check(policyPrefs.edit().putString("accepted_$id",com.pritam.liquidchat.ui.USER_POLICY_VERSION).commit())
+            check(policyPrefs.edit().putString("accepted_$id",com.pritam.liquidchat.ui.ACTIVE_USER_POLICY_VERSION).commit())
         }
         policyEpoch.value++
     }
