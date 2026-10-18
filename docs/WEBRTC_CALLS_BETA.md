@@ -3,7 +3,7 @@
 ## Current status (18 October 2026)
 
 - Calling is **experimental**, 1:1 only; no calls or video data are recorded/stored by the backend.
-- Supabase call signaling migration **20261018045813** and one-shot call push migration **20261018045819** are **deployed** to the connected Supabase Free project. Their existing data is preserved.
+- Supabase call signaling migration **20261018045813** and one-shot call push migration **20261018045819** and call foreign-key indexes migration **20261018050349** are **deployed** to the connected Supabase Free project. Their existing data is preserved.
 - The optional **call-notify** Edge Function has been deployed and reports ACTIVE, version 1. It uses self-checked Firebase Auth JWTs and a `service_role`-only call claim.
 - `supabase/tests/calls_authorization.sql` passed as a rollback-only transaction against the deployed schema. No synthetic test users/calls remain.
 - Calling UI remains **disabled by default**. It is not production-ready until owner credentials and physical-device validation pass.
@@ -45,4 +45,4 @@ The free plan still has rate/egress quotas. Experimental calls use foreground po
 
 - Original migration file `20261018000000_one_to_one_call_signaling.sql` was renamed to `20261018045813_one_to_one_call_signaling.sql` to match the **actual** applied Supabase migration version.
 - Next migration is `20261018045819_call_push_claim.sql`, also matching deployed history.
-- Future migrations must be additive and never replay or overwrite previous production data.
+- Foreign-key indexes are tracked in \`20261018050349_call_foreign_key_indexes.sql\`; performance advisor reports no remaining unindexed call foreign keys.\n- Future migrations must be additive and never replay or overwrite previous production data.
