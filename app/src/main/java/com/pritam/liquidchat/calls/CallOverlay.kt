@@ -1,6 +1,8 @@
 package com.pritam.liquidchat.calls
 
 import android.Manifest
+import android.app.Activity
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.RingtoneManager
@@ -9,6 +11,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -23,10 +28,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.ui.*
@@ -43,7 +53,7 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     LaunchedEffect(c.connectedAt) {while(c.connectedAt>0){seconds=(SystemClock.elapsedRealtime()-c.connectedAt)/1000;delay(1000)}}
     val timer="%02d:%02d".format(seconds/60,seconds%60)
     val terminal=c.id==null&&c.status!="Preparing"
-    BackHandler {if(terminal)controller.dismissError() else controller.minimize()}
+    BackHandler(enabled=!c.minimized) {if(terminal)controller.dismissError() else controller.minimize()}
     val shouldRing=c.incoming&&c.status=="Incoming call"
     DisposableEffect(c.id,shouldRing) {
         val audio=context.getSystemService(AudioManager::class.java)
@@ -69,49 +79,66 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     LaunchedEffect(c.id,c.answerRequested) {if(c.answerRequested&&shouldRing)answer()}
     var routes by remember {mutableStateOf<List<Pair<Int,String>>?>(null)}
     val bluetoothPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {routes=controller.audioRoutes()}
-    if(c.minimized) {
-        Box(Modifier.fillMaxSize().systemBarsPadding(),contentAlignment=Alignment.TopCenter) {
-            GlassSurface(Modifier.padding(12.dp).fillMaxWidth().clickable {controller.expand()},Glass.capsule) {
-                Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Icon(if(c.video)Icons.Outlined.Videocam else Icons.Outlined.Call,null)
-                    Text("${displayName ?: "Liquid Chat"} · ${if(c.connectedAt>0)timer else c.status}",Modifier.weight(1f).padding(horizontal=12.dp))
-                    IconButton(onClick=controller::hangup) {Icon(Icons.Outlined.CallEnd,"End call",tint=MaterialTheme.colorScheme.error)}
-                }
-            }
-        }
-        return
-    }
+    // Minimized UI is rendered by the root Scaffold so it never covers the chat header.
+    if(c.minimized)return
     val engine=controller.renderer()
     val activeVideo=c.renderVideo&&engine!=null&&!terminal
     var swapped by remember(c.id) {mutableStateOf(false)}
-    var largePreview by remember(c.id) {mutableStateOf(false)}
+    var controlsVisible by remember(c.id) {mutableStateOf(true)}
     var x by remember(c.id) {mutableFloatStateOf(0f)}
-    var y by remember(c.id) {mutableFloatStateOf(0f)}
+    var y by remember(c.id) {mutableFloatStateOf(-1f)}
+    val density=LocalDensity.current
+    val rootView=LocalView.current
+    DisposableEffect(activeVideo,controlsVisible,context,rootView) {
+        // Immersive mode hides Android chrome, not the draggable in-call self preview.
+        var ownerContext:android.content.Context=context
+        while(ownerContext !is Activity && ownerContext is ContextWrapper)ownerContext=ownerContext.baseContext
+        val window=(ownerContext as? Activity)?.window
+        val bars=window?.let {WindowCompat.getInsetsController(it,rootView)}
+        if(activeVideo&&!controlsVisible) {
+            bars?.systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            bars?.hide(WindowInsetsCompat.Type.systemBars())
+        } else bars?.show(WindowInsetsCompat.Type.systemBars())
+        onDispose {bars?.show(WindowInsetsCompat.Type.systemBars())}
+    }
     Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
         BoxWithConstraints(Modifier.fillMaxSize().background(glassBackground())) {
             if(activeVideo&&engine!=null)key(engine,swapped) {
                 VideoRenderer(engine,swapped,Modifier.fillMaxSize())
-                if(!c.remoteVideoReady&&!swapped)Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                        CircularProgressIndicator();Spacer(Modifier.height(12.dp));Text("Waiting for remote video…")
+                // Transparent touch surface belongs behind the inset preview, never over it.
+                Box(Modifier.fillMaxSize().clickable {controlsVisible=!controlsVisible})
+                if(!c.remoteVideoReady&&!swapped && controlsVisible)
+                    Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+                        Text("Waiting for remote video…",color=Color.White)
                     }
-                }
-                val maxX=constraints.maxWidth.toFloat()/2
-                val maxY=constraints.maxHeight.toFloat()/2
-                Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top=96.dp,end=16.dp)
-                    .offset {IntOffset(x.roundToInt(),y.roundToInt())}
-                    .size(if(largePreview)168.dp else 112.dp,if(largePreview)220.dp else 154.dp)
-                    .clip(Glass.card).pointerInput(c.id) {
-                        detectDragGestures {change,drag->change.consume();x=(x+drag.x).coerceIn(-maxX,0f);y=(y+drag.y).coerceIn(0f,maxY)}
-                    }) {
+                val previewWidth=if(maxWidth<360.dp)100.dp else 116.dp
+                val previewHeight=if(maxHeight<620.dp)138.dp else 154.dp
+                val widthPx=with(density){previewWidth.roundToPx()}
+                val heightPx=with(density){previewHeight.roundToPx()}
+                val marginPx=with(density){12.dp.roundToPx()}
+                val safeTop=WindowInsets.statusBars.getTop(density)
+                val safeBottom=WindowInsets.navigationBars.getBottom(density)
+                val maxX=(constraints.maxWidth-widthPx-marginPx*2).coerceAtLeast(0).toFloat()
+                val maxY=(constraints.maxHeight-heightPx-safeTop-safeBottom-marginPx*2).coerceAtLeast(0).toFloat()
+                val resolvedX=if(x<0f)maxX else x.coerceIn(0f,maxX)
+                val resolvedY=if(y<0f)with(density){84.dp.toPx()}.coerceAtMost(maxY) else y.coerceIn(0f,maxY)
+                Box(Modifier
+                    .offset {IntOffset(marginPx+resolvedX.roundToInt(),safeTop+marginPx+resolvedY.roundToInt())}
+                    .size(previewWidth,previewHeight)
+                    .clip(Glass.card)
+                    .pointerInput(c.id,maxX,maxY) {
+                        detectDragGestures {change,drag->
+                            change.consume()
+                            x=((if(x<0f)maxX else x)+drag.x).coerceIn(0f,maxX)
+                            y=((if(y<0f)resolvedY else y)+drag.y).coerceIn(0f,maxY)
+                        }
+                    }
+                    .clickable {swapped=!swapped}) {
                     VideoRenderer(engine,!swapped,Modifier.fillMaxSize())
-                    Row(Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(alpha=.45f))) {
-                        IconButton(onClick={swapped=!swapped}) {Icon(Icons.Outlined.SwapHoriz,"Swap video views",tint=Color.White)}
-                        IconButton(onClick={largePreview=!largePreview}) {Icon(Icons.Outlined.OpenInFull,"Resize preview",tint=Color.White)}
-                    }
                 }
             }
             Column(Modifier.fillMaxSize().systemBarsPadding().padding(18.dp),verticalArrangement=Arrangement.SpaceBetween,horizontalAlignment=Alignment.CenterHorizontally) {
+                AnimatedVisibility(visible=!activeVideo||controlsVisible,enter=fadeIn(),exit=fadeOut()) {
                 GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -122,6 +149,7 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                         if(!terminal)IconButton(onClick=controller::minimize) {Icon(Icons.Outlined.ExpandMore,"Minimize call")}
                     }
                 }
+                }
                 if(!activeVideo)Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)) {
                     if(backend!=null&&avatar.isNotBlank())ProtectedImage(backend,avatar,description="Caller photo",modifier=Modifier.size(136.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
                     else Surface(shape=CircleShape,color=MaterialTheme.colorScheme.primaryContainer,modifier=Modifier.size(136.dp)) {
@@ -129,7 +157,8 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                     }
                     Text(when {terminal->"Call finished";shouldRing->"Incoming ${if(c.video)"video" else "voice"} call";c.status=="Ringing"->"Calling…";else->c.status},style=MaterialTheme.typography.headlineSmall)
                 }
-                if(shouldRing)Row(horizontalArrangement=Arrangement.spacedBy(48.dp)) {
+                if(activeVideo&&!controlsVisible) Spacer(Modifier.height(1.dp))
+                else if(shouldRing)Row(horizontalArrangement=Arrangement.spacedBy(48.dp)) {
                     CallControl("Decline",Icons.Outlined.CallEnd,{controller.decline()},true)
                     CallControl("Accept",Icons.Outlined.Call,{answer()},false)
                 } else GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
@@ -153,25 +182,27 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
         }
     }
     routes?.let { availableRoutes ->
-        AlertDialog(
-            onDismissRequest = { routes = null },
-            title = { Text("Audio output") },
-            text = {
-                Column {
-                    availableRoutes.forEach { (id, name) ->
-                        TextButton(onClick = {
-                            controller.selectAudioRoute(id)
-                            routes = null
-                        }) {
-                            Text(name)
+        ModalBottomSheet(onDismissRequest={routes=null},containerColor=MaterialTheme.colorScheme.surface.copy(alpha=.94f)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal=24.dp).padding(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Text("Audio output",style=MaterialTheme.typography.headlineSmall)
+                if(availableRoutes.isEmpty())Text("No output devices available",color=MaterialTheme.colorScheme.onSurfaceVariant)
+                availableRoutes.forEach { (id,name) ->
+                    GlassSurface(Modifier.fillMaxWidth().clickable {
+                        controller.selectAudioRoute(id)
+                        routes=null
+                    },Glass.compact) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
+                            Icon(if(name.contains("Bluetooth",true))Icons.Outlined.BluetoothAudio else if(name.contains("Speaker",true))Icons.Outlined.VolumeUp else Icons.Outlined.Headset,
+                                null,tint=MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(14.dp))
+                            Text(name,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
+                            if(c.audioRoute==name)Icon(Icons.Outlined.Check,"Current output",tint=MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { routes = null }) { Text("Done") }
+                TextButton(onClick={routes=null},modifier=Modifier.align(Alignment.End)) {Text("Done")}
             }
-        )
+        }
     }
     if (permissionError) {
         AlertDialog(
