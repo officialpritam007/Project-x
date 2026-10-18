@@ -226,6 +226,12 @@ import kotlinx.coroutines.flow.drop
         }
     }},confirmButton={TextButton(onClick={showFind=false}){Text("Done")}})
 }
+/** Never offer text forwarding for deleted, failed, or media-only messages. */
+internal fun canForwardTextMessage(message:Message,account:String?):Boolean =
+    account!=null && message.account==account && message.status=="SENT" &&
+    message.deletedAt.isEmpty() && message.mediaId.isEmpty() &&
+    message.localImage.isEmpty() && message.mediaKind!="voice" && message.body.isNotBlank()
+
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
     val chat=chats.firstOrNull {it.id==cid}
     val allMessages by model.messages.collectAsStateWithLifecycle()
@@ -248,6 +254,8 @@ import kotlinx.coroutines.flow.drop
     var searchIndex by remember(cid) {mutableIntStateOf(0)}
     val chatResults=remember(messages,chatQuery) {if(chatQuery.isBlank())emptyList() else messages.filter {it.body.contains(chatQuery,true)}}
     var actionMessage by remember(cid) {mutableStateOf<Message?>(null)}
+    var forwardMessage by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    var forwardSearch by remember(cid,session?.userId) {mutableStateOf("")}
     val clipboard=LocalClipboardManager.current
     var replyTo by remember(cid) {mutableStateOf("")}
     var editMessage by remember(cid) {mutableStateOf<Message?>(null)}
@@ -422,7 +430,14 @@ import kotlinx.coroutines.flow.drop
                 TextButton(onClick={actionMessage=null;model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}}) {Text(if(m.starred)"Unstar" else "Star")}
             }
             if(m.status=="SENT"&&m.sender!=m.account)TextButton(onClick={reportMessage=m;actionMessage=null;report=true}) {Text("Report message")}
-            TextButton(onClick={clipboard.setText(AnnotatedString(m.body));actionMessage=null}) {Text("Copy text")}
+            if(canForwardTextMessage(m,session?.userId)) {
+                TextButton(onClick={actionMessage=null;forwardMessage=m;forwardSearch=""}) {
+                    Icon(Icons.Outlined.Forward,null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Forward to chat")
+                }
+            }
+            if(m.mediaKind!="voice") TextButton(onClick={clipboard.setText(AnnotatedString(m.body));actionMessage=null}) {Text("Copy text")}
             TextButton(onClick={actionMessage=null;context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT,m.body),"Share message"))}) {Text("Share text")}
             val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
             if(m.sender==m.account&&m.status=="SENT"&&m.mediaId.isEmpty()&&age<=900)TextButton(onClick={editMessage=m;editBody=m.body;actionMessage=null}) {Text("Edit")}
@@ -430,6 +445,39 @@ import kotlinx.coroutines.flow.drop
         if(m.status in listOf("SENT","QUEUED","FAILED"))TextButton(onClick={deleteMessage=m;actionMessage=null}) {Text("Delete")}
         Text("${if(m.sender==m.account)"You" else chat?.name.orEmpty()} · ${java.time.Instant.ofEpochMilli(m.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))}",style=MaterialTheme.typography.bodySmall)
     }},confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}})}
+    forwardMessage?.let {source->
+        val account=session?.userId
+        val destinations=chats.filter {it.account==account && it.id!=source.conversation &&
+            (forwardSearch.isBlank() || it.name.contains(forwardSearch,true) ||
+                it.username.contains(forwardSearch,true))}
+        AlertDialog(onDismissRequest={forwardMessage=null},
+            title={Text("Forward message")},
+            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text(source.body,maxLines=3,overflow=TextOverflow.Ellipsis,
+                    style=MaterialTheme.typography.bodyMedium,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(value=forwardSearch,onValueChange={forwardSearch=it.take(60)},
+                    label={Text("Find a conversation")},singleLine=true,
+                    modifier=Modifier.fillMaxWidth())
+                if(destinations.isEmpty())Text("No other conversations found",
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max=280.dp)) {
+                    items(destinations,key={it.id}) {target->
+                        Row(Modifier.fillMaxWidth().clickable(enabled=!busy) {
+                            val selected=source
+                            forwardMessage=null
+                            model.action {model.repository.forwardText(selected,target.id)}
+                        }.padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically,
+                            horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                            Avatar(target.name,target.avatarId,model.backend,size=40.dp)
+                            Column {Text(target.name);Text("@${target.username}",
+                                style=MaterialTheme.typography.labelSmall)}
+                        }
+                    }
+                }
+            }},
+            confirmButton={TextButton(onClick={forwardMessage=null}) {Text("Cancel")}})
+    }
     editMessage?.let {m->AlertDialog(onDismissRequest={editMessage=null},title={Text("Edit message")},text={OutlinedTextField(editBody,{if(it.length<=4000)editBody=it},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences),modifier=Modifier.fillMaxWidth())},confirmButton={TextButton(onClick={model.action {model.repository.messageAction(m.id,"edit",editBody);editMessage=null}},enabled=!busy&&editBody.isNotBlank()) {Text("Save")}},dismissButton={TextButton(onClick={editMessage=null}) {Text("Cancel")}})}
     deleteMessage?.let {m->AlertDialog(onDismissRequest={deleteMessage=null},title={Text("Delete message?")},text={Column {
         Text(if(m.status=="SENT")"Delete for me hides this message on your devices. The other person keeps their copy. Saved copies and screenshots cannot be erased." else "Remove this unsent message and its local attachment from this device.")
