@@ -3,6 +3,8 @@ package com.pritam.liquidchat.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -174,11 +176,100 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
             if(more)item {TextButton(onClick={scope.launch {load(true)}},enabled=!loading){Text("Load older")}}
     }
     if(editor)MomentEditor(model,kind,onDismiss={editor=false},onPublished={editor=false;epoch++})
-    focused?.let {moment->androidx.compose.ui.window.Dialog(onDismissRequest={focused=null},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
-        Surface(Modifier.fillMaxSize()) {Column(Modifier.systemBarsPadding()){TextButton(onClick={focused=null}){Text("Close")};ProtectedImage(model.backend,moment.media,description="Full-size moment",modifier=Modifier.weight(1f).fillMaxWidth());Text(moment.caption,Modifier.padding(16.dp))}}
-    }}
+    focused?.let {moment->
+        if(kind=="story") {
+            StoryViewer(model,items,moment.id,onDismiss={focused=null})
+        } else {
+            androidx.compose.ui.window.Dialog(onDismissRequest={focused=null},
+                properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+                Surface(Modifier.fillMaxSize()) {
+                    Column(Modifier.systemBarsPadding()) {
+                        TextButton(onClick={focused=null}){Text("Close")}
+                        ProtectedImage(model.backend,moment.media,description="Full-size post",
+                            modifier=Modifier.weight(1f).fillMaxWidth())
+                        Text(moment.caption,Modifier.padding(16.dp))
+                    }
+                }
+            }
+        }
+    }
     reporting?.let {moment->ReportContentDialog("Report ${if(kind=="story")"story" else "post"}","Your explanation and this content's reference will be sent privately for review.",onSubmit={model.reportMoment(moment.id,it);reporting=null},onDismiss={reporting=null})}
     deleting?.let {moment->AlertDialog(onDismissRequest={deleting=null},title={Text("Delete this ${if(kind=="story")"story" else "post"}?")},text={Text("It will disappear for you and your contacts.")},confirmButton={TextButton(onClick={deleting=null;scope.launch {loading=true;try {model.backend.rpc("change_moment",JSONObject().put("p_id",moment.id).put("p_action","delete"));epoch++}catch(e:CancellationException){throw e}catch(_:Exception){error="Delete failed. Please retry."}finally{loading=false}}}){Text("Delete")}},dismissButton={TextButton(onClick={deleting=null}){Text("Cancel")}})}
+}
+
+/**
+ * Real photo-story playback state. Progress advances only while the touch surface is released.
+ * No viewer counts or viewed receipts are faked; those require a separate authorized backend.
+ */
+@Composable private fun StoryViewer(
+    model:AppViewModel,stories:List<Moment>,initialId:String,onDismiss:()->Unit
+) {
+    if(stories.isEmpty())return
+    var index by remember(initialId) {mutableIntStateOf(stories.indexOfFirst {it.id==initialId}.coerceAtLeast(0))}
+    index=index.coerceIn(0,stories.lastIndex)
+    var paused by remember {mutableStateOf(false)}
+    var progress by remember(index) {mutableFloatStateOf(0f)}
+    LaunchedEffect(index,paused,stories.size) {
+        while(progress<1f) {
+            delay(50)
+            if(!paused)progress=(progress+.01f).coerceAtMost(1f)
+        }
+        if(!paused) {
+            if(index<stories.lastIndex)index++ else onDismiss()
+        }
+    }
+    val current=stories[index]
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest=onDismiss,
+        properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)
+    ) {
+        Surface(Modifier.fillMaxSize(),color=Color.Black) {
+            Box(Modifier.fillMaxSize()) {
+                ProtectedImage(model.backend,current.media,
+                    description="${current.name}'s story",modifier=Modifier.fillMaxSize(),
+                    scale=ContentScale.Fit)
+                Box(Modifier.fillMaxSize().pointerInput(index,stories.size) {
+                    detectTapGestures(
+                        onPress={
+                            paused=true
+                            tryAwaitRelease()
+                            paused=false
+                        },
+                        onTap={offset->
+                            if(offset.x<size.width/2f) {
+                                if(index>0)index-- else progress=0f
+                            } else if(index<stories.lastIndex)index++ else onDismiss()
+                        }
+                    )
+                })
+                Column(
+                    Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                        .statusBarsPadding().padding(14.dp),
+                    verticalArrangement=Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                        stories.forEachIndexed {i,_->
+                            LinearProgressIndicator(
+                                progress={if(i<index)1f else if(i==index)progress else 0f},
+                                modifier=Modifier.weight(1f).height(3.dp),
+                                color=Color.White,trackColor=Color.White.copy(alpha=.4f)
+                            )
+                        }
+                    }
+                    Row(verticalAlignment=Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(current.name,color=Color.White,fontWeight=FontWeight.SemiBold)
+                            Text("24-hour story",color=Color.White.copy(alpha=.78f),style=MaterialTheme.typography.labelSmall)
+                        }
+                        IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close story",tint=Color.White)}
+                    }
+                }
+                if(current.caption.isNotBlank())
+                    Text(current.caption,Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
+                        .padding(18.dp),color=Color.White)
+            }
+        }
+    }
 }
 
 @Composable fun MomentsDialog(model:AppViewModel,mine:Boolean,onDismiss:()->Unit) {
