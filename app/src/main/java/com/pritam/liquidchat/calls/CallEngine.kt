@@ -70,7 +70,10 @@ class CallEngine(private val context: Context, private val video: Boolean,
             error("Could not acquire audio focus")
         audioFocusRequest=focusRequest
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        audioManager.isSpeakerphoneOn = video
+        // Android 12+ routes calls with setCommunicationDevice, not the deprecated
+        // isSpeakerphoneOn flag; selecting speaker matters especially for video calls.
+        if(android.os.Build.VERSION.SDK_INT>=31) speaker(video)
+        else audioManager.isSpeakerphoneOn=video
         factory = createFactory(context, egl.eglBaseContext)
         val config = PeerConnection.RTCConfiguration(listOf(
             PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
@@ -164,11 +167,15 @@ class CallEngine(private val context: Context, private val video: Boolean,
     fun mute(mute:Boolean) {audioTrack?.setEnabled(!mute)}
     fun setCameraEnabled(enabled:Boolean) {videoTrack?.setEnabled(enabled)}
     fun switchCamera() {(capturer as? CameraVideoCapturer)?.switchCamera(null)}
-    fun speaker(enabled:Boolean) {
+    fun speaker(enabled:Boolean):Boolean {
         if(android.os.Build.VERSION.SDK_INT>=31) {
             val type=if(enabled)android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-            audioManager.availableCommunicationDevices.firstOrNull {it.type==type}?.let {audioManager.setCommunicationDevice(it)}
-        } else audioManager.isSpeakerphoneOn=enabled
+            val device=audioManager.availableCommunicationDevices.firstOrNull {it.type==type}
+                ?: return false
+            return audioManager.setCommunicationDevice(device)
+        }
+        audioManager.isSpeakerphoneOn=enabled
+        return true
     }
     fun audioRoutes():List<Pair<Int,String>> = runCatching {
         if(android.os.Build.VERSION.SDK_INT>=31)audioManager.availableCommunicationDevices.map {it.id to deviceName(it)}
