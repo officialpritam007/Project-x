@@ -26,7 +26,7 @@ create or replace function private.prepare_upload(p_conversation uuid,p_kind tex
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare intent jsonb;
 begin
-  if p_kind not in('image','voice','story_video') or p_provider not in('cloudinary','supabase')
+  if p_kind is null or p_provider is null or p_kind not in('image','voice','story_video') or p_provider not in('cloudinary','supabase')
     or (p_kind='story_video' and (p_conversation is not null or p_provider<>'supabase'))
   then raise exception 'Invalid upload' using errcode='42501'; end if;
   if p_kind='voice' then intent:=private.prepare_voice(p_conversation);
@@ -44,7 +44,7 @@ end $$;
 create or replace function private.set_media_provider(p_id uuid,p_provider text)
 returns void language plpgsql security definer set search_path='' as $$
 begin
-  if p_provider not in('cloudinary','supabase') then raise exception 'Invalid provider'; end if;
+  if p_provider is null or p_provider not in('cloudinary','supabase') then raise exception 'Invalid provider'; end if;
   update private.images set provider=p_provider,
     format=case when p_provider='supabase' then
       case kind when 'voice' then 'm4a' when 'story_video' then 'mp4' else 'jpg' end
@@ -81,7 +81,7 @@ create or replace function private.publish_moment(p_id uuid,p_media uuid,p_kind 
 returns uuid language plpgsql security definer set search_path='' as $$
 declare u uuid:=private.require_user();i private.images;m private.moments;
 begin
-  if p_id is null or p_media is null or p_kind not in('story','post')
+  if p_id is null or p_media is null or p_kind is null or p_kind not in('story','post')
     or char_length(coalesce(p_caption,''))>1000 then raise exception 'Invalid moment';end if;
   perform 1 from public.profiles where id=u for update;
   select * into m from private.moments where id=p_id;
@@ -111,7 +111,7 @@ create or replace function private.list_moments(p_kind text,p_mine boolean,p_arc
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare u uuid:=private.require_user();r jsonb;
 begin
-  if p_kind not in('story','post') then raise exception 'Invalid kind';end if;
+  if p_kind is null or p_kind not in('story','post') then raise exception 'Invalid kind';end if;
   select coalesce(jsonb_agg(to_jsonb(t) order by t.created_at desc,t.id desc),'[]') into r
   from (
     select m.id,m.owner_id,m.media_id,m.kind,m.caption,m.created_at,m.expires_at,
