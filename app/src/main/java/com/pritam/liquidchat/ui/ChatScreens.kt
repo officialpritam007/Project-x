@@ -101,6 +101,8 @@ import kotlinx.coroutines.flow.drop
     var menu by remember {mutableStateOf(false)};var stories by remember {mutableStateOf(false)};var ownStories by remember {mutableStateOf(false)}
     var selectedStoryId by remember {mutableStateOf<String?>(null)}
     var selectedMyStoryId by remember {mutableStateOf<String?>(null)}
+    var storyRefreshKey by remember {mutableIntStateOf(0)}
+    var addStoryImmediately by remember {mutableStateOf(false)}
     val profile by model.profile.collectAsStateWithLifecycle()
     val connection by model.connection.collectAsStateWithLifecycle()
     val results by model.searchResults.collectAsStateWithLifecycle()
@@ -115,7 +117,8 @@ import kotlinx.coroutines.flow.drop
             }
         }
         HomeStoriesRow(
-            model,onMine={ownStories=true},onStories={stories=true},
+            model,onMine={addStoryImmediately=true;ownStories=true},onStories={stories=true},
+            refreshKey=storyRefreshKey,
             onOpenStory={id,mine->
                 if(mine){selectedMyStoryId=id;ownStories=true}
                 else {selectedStoryId=id;stories=true}
@@ -162,9 +165,12 @@ import kotlinx.coroutines.flow.drop
     }},confirmButton={TextButton(onClick={selectedChat=null}) {Text("Done")}})}
     deleteChat?.let {c->AlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
     if(stories) MomentsDialog(model,mine=false,
-        onDismiss={stories=false;selectedStoryId=null},initialStoryId=selectedStoryId)
+        onDismiss={stories=false;selectedStoryId=null;storyRefreshKey++},
+        initialStoryId=selectedStoryId)
     if(ownStories) MomentsDialog(model,mine=true,
-        onDismiss={ownStories=false;selectedMyStoryId=null},initialStoryId=selectedMyStoryId)
+        onDismiss={
+            ownStories=false;selectedMyStoryId=null;addStoryImmediately=false;storyRefreshKey++
+        },initialStoryId=selectedMyStoryId,openEditorInitially=addStoryImmediately)
 }
 @Composable fun ContactsScreen(model:AppViewModel,chats:List<Chat>,busy:Boolean) {
     var username by rememberSaveable {mutableStateOf("")}
