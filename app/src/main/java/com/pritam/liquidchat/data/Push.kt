@@ -26,6 +26,11 @@ class LiquidMessagingService:FirebaseMessagingService() {
         data["token"]?.let {getSharedPreferences("device",Context.MODE_PRIVATE).edit().putString("fcm_token",it).apply()}
         val request=OneTimeWorkRequestBuilder<ReceiveWorker>().setInputData(input.build()).setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
         if(data.containsKey("token"))request.addTag("device-registration")
+        if(data["event"]=="incoming_call") {
+            // FCM grants a brief expedited-work window for high-priority call messages.
+            // Still respect WorkManager fallback quotas and validate the call on the server.
+            request.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        }
         data["recipientId"]?.let {request.addTag("account-$it")}
         WorkManager.getInstance(this).enqueue(request.build())
     }
