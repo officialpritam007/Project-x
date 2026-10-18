@@ -14,6 +14,29 @@ class CallViewRenderTest {
         assertTrue(ringing.copy(status = "Connected").renderVideo)
     }
 
+    @Test fun answeringAnIncomingCallKeepsDirectionAndEndsInvitationState() {
+        val invitation=CallView(callId,"chat","peer","video",true,"Incoming call")
+        assertTrue(invitation.incoming)
+        assertTrue(invitation.unansweredIncoming)
+        assertFalse(invitation.renderVideo)
+
+        val answering=invitation.copy(status="Connecting",answerRequested=false)
+        assertTrue(answering.incoming)
+        assertFalse(answering.unansweredIncoming)
+        assertTrue(answering.renderVideo)
+
+        val connected=answering.copy(status="Connected")
+        assertTrue(connected.incoming)
+        assertFalse(connected.unansweredIncoming)
+        assertTrue(connected.renderVideo)
+    }
+
+    @Test fun outgoingCallNeverQualifiesAsAnIncomingInvitation() {
+        val outgoing=CallView(callId,"chat","peer","audio",false,"Ringing")
+        assertFalse(outgoing.unansweredIncoming)
+        assertFalse(outgoing.copy(status="Connected").unansweredIncoming)
+    }
+
     @Test fun outgoingVideoRendersWhenActive() {
         val outgoing = CallView(callId, "chat", "peer", "video", false, "Ringing")
         assertTrue(outgoing.renderVideo)
