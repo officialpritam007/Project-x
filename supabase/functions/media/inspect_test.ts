@@ -61,9 +61,8 @@ function withPaddedAudio(audioDurationMs:number):Uint8Array {
  const stsd=new Uint8Array(8);
  new DataView(stsd.buffer).setUint32(4,1);
  const audioTrack=box("trak",box("tkhd",new Uint8Array(84)),
-    box("mdia",box("mdhd",mdhd),box("hdlr",hdrCorrect()),
+    box("mdia",box("mdhd",mdhd),box("hdlr",hdlr),
       box("minf",box("stbl",box("stsd",stsd,box("mp4a",new Uint8Array(32)))))));
- function hdrCorrect():Uint8Array{return hdlr;}
  const newMoov=box("moov",source.slice(moovAt+8,moovAt+moovLength),audioTrack);
  return join(source.slice(0,moovAt),newMoov,source.slice(moovAt+moovLength));
 }
