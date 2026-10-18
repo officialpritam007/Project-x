@@ -2,6 +2,8 @@ package com.pritam.liquidchat.calls
 
 import android.content.Context
 import android.media.AudioManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.*
 import org.json.JSONObject
@@ -34,12 +36,26 @@ class CallEngine(private val context: Context, private val video: Boolean,
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val originalMode = audioManager.mode
     private val originalSpeaker = audioManager.isSpeakerphoneOn
+    private var audioFocusRequest: AudioFocusRequest? = null
     private var closed = false
 
     fun start() {
         if (initialized.compareAndSet(false, true)) {
             PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context.applicationContext).createInitializationOptions())
         }
+        val focusRequest=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build())
+            .setOnAudioFocusChangeListener {change->
+                if(change==AudioManager.AUDIOFOCUS_LOSS)
+                    connectionChanged("Audio focus lost")
+            }
+            .build()
+        if(audioManager.requestAudioFocus(focusRequest)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            error("Could not acquire audio focus")
+        audioFocusRequest=focusRequest
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isSpeakerphoneOn = video
         factory = PeerConnectionFactory.builder().createPeerConnectionFactory()
@@ -197,6 +213,8 @@ class CallEngine(private val context: Context, private val video: Boolean,
         videoTrack?.dispose();audioTrack?.dispose()
         videoSource?.dispose();audioSource?.dispose()
         factory?.dispose()
+        audioFocusRequest?.let {audioManager.abandonAudioFocusRequest(it)}
+        audioFocusRequest=null
         audioManager.mode=originalMode
         audioManager.isSpeakerphoneOn=originalSpeaker
         egl.release()
