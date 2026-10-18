@@ -41,6 +41,31 @@ class MessageNotificationDedupeTest {
         }
     }
 
+    @Test fun postingFailureReleasesIncomingCallReceiptForLaterRetry() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val account = UUID.randomUUID().toString()
+        val callReceipt = "call-" + UUID.randomUUID()
+        var attempts = 0
+        try {
+            try {
+                MessageNotificationDedupe.postOnce(context, account, callReceipt) {
+                    attempts++
+                    throw SecurityException("Simulated platform notification rejection")
+                }
+                fail("Failed call notification must propagate an error")
+            } catch (expected: SecurityException) {
+                assertEquals("Simulated platform notification rejection", expected.message)
+            }
+            assertFalse(MessageNotificationDedupe.wasPosted(context, account, callReceipt))
+            assertTrue(MessageNotificationDedupe.postOnce(context, account, callReceipt) { attempts++ })
+            assertTrue(MessageNotificationDedupe.wasPosted(context, account, callReceipt))
+            assertFalse(MessageNotificationDedupe.postOnce(context, account, callReceipt) { attempts++ })
+            assertEquals(2, attempts)
+        } finally {
+            MessageNotificationDedupe.clearAccount(context, account)
+        }
+    }
+
     @Test fun failedNotificationPostingMayReleaseClaimForRetry() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val account = UUID.randomUUID().toString()
