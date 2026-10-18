@@ -56,3 +56,94 @@ export function inspectAacMp4(data:Uint8Array):{duration:number} {
   if(entry.end-entry.start<28)throw new Error("Invalid AAC");
   return {duration};
 }
+
+
+/**
+ * Inspect an untrusted, bounded, *already-transcoded* MP4 video story before storage.
+ * Requires H.264 video, optional AAC audio, <=30 s, <=1280x720 in either orientation.
+ * The client still performs trim/transcoding; this is the server enforcement boundary.
+ */
+export function inspectStoryVideoMp4(data:Uint8Array):{duration:number;width:number;height:number} {
+  if(data.length<64||data.length>8*1024*1024)throw new Error("Video exceeds 8 MB");
+  const view=new DataView(data.buffer,data.byteOffset,data.byteLength);
+  const name=(p:number)=>String.fromCharCode(...data.subarray(p,p+4));
+  type Atom={type:string;start:number;end:number};
+  let budget=0;
+  const atoms=(start:number,end:number):Atom[]=>{
+    const out:Atom[]=[];
+    let p=start;
+    while(p<end) {
+      if(++budget>10000||p+8>end)throw new Error("Invalid MP4 atoms");
+      let len=view.getUint32(p),head=8;
+      if(len===1) {
+        if(p+16>end)throw new Error("Invalid atom");
+        const huge=view.getBigUint64(p+8);
+        if(huge>BigInt(end-p))throw new Error("Invalid atom");
+        len=Number(huge);head=16;
+      }
+      if(len===0)len=end-p;
+      if(len<head||p+len>end)throw new Error("Truncated atom");
+      out.push({type:name(p+4),start:p+head,end:p+len});
+      p+=len;
+    }
+    return out;
+  };
+  const required=(list:Atom[],type:string)=>{
+    const found=list.filter(x=>x.type===type);
+    if(found.length!==1)throw new Error("Missing or duplicate "+type);
+    return found[0];
+  };
+  const top=atoms(0,data.length);
+  required(top,"ftyp");
+  const moov=required(top,"moov");
+  if(!top.some(x=>x.type==="mdat"&&x.end-x.start>64))throw new Error("Missing video samples");
+  const tracks=atoms(moov.start,moov.end).filter(x=>x.type==="trak");
+  if(tracks.length<1||tracks.length>2)throw new Error("Unexpected tracks");
+  let duration=0,width=0,height=0,videoCount=0,audioCount=0;
+  for(const tr of tracks) {
+    const parts=atoms(tr.start,tr.end);
+    const tkhd=required(parts,"tkhd");
+    if(tkhd.end-tkhd.start<8)throw new Error("Invalid dimensions");
+    const mdia=required(parts,"mdia"),m=atoms(mdia.start,mdia.end);
+    const hdlr=required(m,"hdlr");
+    if(hdlr.end-hdlr.start<12)throw new Error("Invalid handler");
+    const handler=name(hdlr.start+8);
+    if(handler!=="vide"&&handler!=="soun")throw new Error("Unexpected stream");
+    const mdhd=required(m,"mdhd");
+    let scale=0,samples=0;
+    if(data[mdhd.start]===0) {
+      if(mdhd.end-mdhd.start<20)throw new Error("Invalid duration");
+      scale=view.getUint32(mdhd.start+12);
+      samples=view.getUint32(mdhd.start+16);
+    } else if(data[mdhd.start]===1) {
+      if(mdhd.end-mdhd.start<32)throw new Error("Invalid duration");
+      scale=view.getUint32(mdhd.start+20);
+      const big=view.getBigUint64(mdhd.start+24);
+      if(big>BigInt(Number.MAX_SAFE_INTEGER))throw new Error("Invalid duration");
+      samples=Number(big);
+    } else throw new Error("Invalid duration version");
+    const milliseconds=Math.round(samples/scale*1000);
+    if(!scale||!Number.isFinite(milliseconds)||milliseconds<500||milliseconds>30000)
+      throw new Error("Video must be 0.5–30 seconds");
+    const minf=required(m,"minf"),stbl=required(atoms(minf.start,minf.end),"stbl");
+    const stsd=required(atoms(stbl.start,stbl.end),"stsd");
+    if(stsd.end-stsd.start<16||view.getUint32(stsd.start+4)!==1)
+      throw new Error("Invalid sample description");
+    const entry=atoms(stsd.start+8,stsd.end);
+    if(entry.length!==1)throw new Error("Invalid codec");
+    if(handler==="vide") {
+      videoCount++;
+      if(!["avc1","avc3"].includes(entry[0].type))throw new Error("H.264 required");
+      width=view.getUint32(tkhd.end-8)>>>16;
+      height=view.getUint32(tkhd.end-4)>>>16;
+      if(!width||!height||Math.min(width,height)>720||Math.max(width,height)>1280)
+        throw new Error("Video exceeds 720p");
+      duration=milliseconds;
+    } else {
+      audioCount++;
+      if(entry[0].type!=="mp4a")throw new Error("AAC required");
+    }
+  }
+  if(videoCount!==1||audioCount>1)throw new Error("One video track required");
+  return {duration,width,height};
+}
