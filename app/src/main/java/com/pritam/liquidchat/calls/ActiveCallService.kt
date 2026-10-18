@@ -89,9 +89,17 @@ class ActiveCallService : Service() {
                     .build()
                 val serviceType=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
                     (if(video) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0)
-                if(Build.VERSION.SDK_INT>=30) startForeground(ID,notification,serviceType)
-                else startForeground(ID,notification)
-                running=true
+                try {
+                    if(Build.VERSION.SDK_INT>=30) startForeground(ID,notification,serviceType)
+                    else startForeground(ID,notification)
+                    running=true
+                } catch(_:RuntimeException) {
+                    // The runtime can reject camera/mic foreground promotion if permissions
+                    // were revoked or the Activity backgrounded before service promotion.
+                    running=false
+                    onHangup?.invoke()
+                    stopSelf()
+                }
                 return START_NOT_STICKY
             }
         }
