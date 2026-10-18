@@ -152,8 +152,56 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
             }
         }
     }
-    routes?.let {list->AlertDialog(onDismissRequest={routes=null},title={Text("Audio output")},text={Column {list.forEach {(id,name)->TextButton(onClick={controller.selectAudioRoute(id);routes=null}){Text(name)}}},confirmButton={TextButton(onClick={routes=null}){Text("Done")}})}
-    if(permissionError)AlertDialog(onDismissRequest={permissionError=false},title={Text("Permission needed")},text={Text("Allow microphone${if(c.video)" and camera" else ""} access to answer this call. You can enable it in Android Settings.")},confirmButton={TextButton(onClick={permissionError=false;context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:${context.packageName}")))}){Text("Settings")}},dismissButton={TextButton(onClick={permissionError=false;controller.decline()}){Text("Decline")}})
+    routes?.let { availableRoutes ->
+        AlertDialog(
+            onDismissRequest = { routes = null },
+            title = { Text("Audio output") },
+            text = {
+                Column {
+                    availableRoutes.forEach { (id, name) ->
+                        TextButton(onClick = {
+                            controller.selectAudioRoute(id)
+                            routes = null
+                        }) {
+                            Text(name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { routes = null }) { Text("Done") }
+            }
+        )
+    }
+    if (permissionError) {
+        AlertDialog(
+            onDismissRequest = { permissionError = false },
+            title = { Text("Permission needed") },
+            text = {
+                Text(
+                    "Allow microphone${if (c.video) " and camera" else ""} access to answer this call. " +
+                        "You can enable it in Android Settings."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    permissionError = false
+                    context.startActivity(
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.parse("package:${context.packageName}")
+                        )
+                    )
+                }) { Text("Settings") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    permissionError = false
+                    controller.decline()
+                }) { Text("Decline") }
+            }
+        )
+    }
 }
 @Composable private fun CallControl(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,action:()->Unit,danger:Boolean) {
     Column(horizontalAlignment=Alignment.CenterHorizontally) {
