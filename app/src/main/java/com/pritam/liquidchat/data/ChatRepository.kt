@@ -14,6 +14,14 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
+/**
+ * Reuse a render snapshot when an RPC returns identical presence/typing data.
+ * JSONObject compares by identity, so replacing it every three seconds otherwise
+ * causes avoidable Compose updates and visible header jitter.
+ */
+internal fun stableContactSnapshot(previous:JSONObject,incoming:JSONObject):JSONObject =
+    if(previous.toString()==incoming.toString())previous else incoming
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ChatRepository(private val context:Context,val backend:Backend,val db:LocalDatabase) {
     val dao=db.dao()
@@ -40,10 +48,18 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                         finally {withContext(NonCancellable) {runCatching {backend.rpc("update_presence",JSONObject().put("p_online",false))};active.value?.let {runCatching {typing(it,false)}}}}
                     }
                     launch {active.collectLatest {cid->
+                        // A new conversation cannot display the previous peer's presence.
                         contactState.value=JSONObject()
                         if(cid!=null) while(isActive) {
-                            try {contactState.value=JSONObject(backend.rpc("contact_state",JSONObject().put("p_conversation",cid)))}
-                            catch(e:CancellationException){throw e}catch(_:Exception){contactState.value=JSONObject()}
+                            try {
+                                val refreshed=JSONObject(backend.rpc("contact_state",JSONObject().put("p_conversation",cid)))
+                                contactState.value=stableContactSnapshot(contactState.value,refreshed)
+                            } catch(e:CancellationException){throw e}
+                              catch(_:Exception) {
+                                // Fail closed on connection or authorization failure, but
+                                // do not re-emit an identical empty state every poll.
+                                contactState.value=stableContactSnapshot(contactState.value,JSONObject())
+                              }
                             delay(3000)
                         }
                     }}
