@@ -161,7 +161,7 @@ class CallController(
     }
 
     private fun newEngine(video:Boolean):CallEngine {
-        val candidateChannel=Channel<JSONObject>(Channel.UNLIMITED)
+        val candidateChannel=Channel<JSONObject>(256)
         candidateQueue=candidateChannel
         val connection=CallEngine(context,video,
             {candidate->candidateChannel.trySend(candidate)},
