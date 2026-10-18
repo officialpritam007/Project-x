@@ -176,13 +176,20 @@ class CallEngine(private val context: Context, private val video: Boolean,
     fun remoteCandidate(json:JSONObject) {
         val ice=IceCandidate(json.optString("sdpMid","0"),json.optInt("sdpMLineIndex"),json.getString("candidate"))
         synchronized(queuedIce) {
-            if(remoteReady)peer?.addIceCandidate(ice) else queuedIce.add(ice)
+            if(remoteReady) peer?.addIceCandidate(ice)
+            else if(queuedIce.size<256) queuedIce.add(ice)
+            // A peer cannot force unbounded pre-answer ICE memory growth.
         }
     }
 
     override fun close() {
         if(closed)return
         closed=true
+        synchronized(queuedIce) {queuedIce.clear();remoteReady=false}
+        localRenderer?.let {videoTrack?.removeSink(it)}
+        remoteRenderer?.let {remoteVideo?.removeSink(it)}
+        localRenderer=null
+        remoteRenderer=null
         try {capturer?.stopCapture()} catch(_:InterruptedException) {Thread.currentThread().interrupt()}
         capturer?.dispose()
         texture?.dispose()
