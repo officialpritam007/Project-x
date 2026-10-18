@@ -89,7 +89,7 @@ class ActiveCallService : Service() {
                     .build()
                 val serviceType=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
                     (if(video) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0)
-                if(Build.VERSION.SDK_INT>=29) startForeground(ID,notification,serviceType)
+                if(Build.VERSION.SDK_INT>=30) startForeground(ID,notification,serviceType)
                 else startForeground(ID,notification)
                 running=true
                 return START_NOT_STICKY
