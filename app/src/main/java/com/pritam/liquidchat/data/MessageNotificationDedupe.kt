@@ -19,7 +19,7 @@ internal object MessageNotificationDedupe {
     private const val KEEP_AFTER_PRUNE = 4000
     private val lock = Any()
 
-    private fun key(account: String, messageId: String) = "$"+"{PREFIX}$"+"account:$"+"messageId"
+    private fun key(account: String, messageId: String) = PREFIX + account + ":" + messageId
 
     fun wasPosted(context: Context, account: String, messageId: String): Boolean = synchronized(lock) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).contains(key(account, messageId))
@@ -54,9 +54,9 @@ internal object MessageNotificationDedupe {
 
     fun clearAccount(context: Context, account: String) = synchronized(lock) {
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val prefix = "$"+"{PREFIX}$"+"account:"
+        val prefix = PREFIX + account + ":"
         val editor = prefs.edit()
-        prefs.all.keys.filter { it.startsWith(prefix) }.forEach(editor::remove)
+        prefs.all.keys.filter { it.startsWith(prefix) }.forEach { editor.remove(it) }
         if (!editor.commit()) throw IOException("Unable to erase notification receipts")
     }
 }
