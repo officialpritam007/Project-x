@@ -79,8 +79,13 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     LaunchedEffect(c.id,c.answerRequested) {if(c.answerRequested&&shouldRing)answer()}
     var routes by remember {mutableStateOf<List<Pair<Int,String>>?>(null)}
     val bluetoothPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {routes=controller.audioRoutes()}
-    // Minimized UI is rendered by the root Scaffold so it never covers the chat header.
-    if(c.minimized)return
+    // The compact pill is laid out by Scaffold; video can instead float over the chat.
+    if(c.minimized) {
+        val minimizedEngine=controller.renderer()
+        if(c.video && c.renderVideo && !c.compact && minimizedEngine!=null)
+            FloatingCallVideo(controller,minimizedEngine,c.id)
+        return
+    }
     val engine=controller.renderer()
     val activeVideo=c.renderVideo&&engine!=null&&!terminal
     var swapped by remember(c.id) {mutableStateOf(false)}
@@ -240,6 +245,55 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
         Text(label,style=MaterialTheme.typography.labelMedium,modifier=Modifier.padding(top=6.dp))
     }
 }
+/**
+ * In-app Picture-in-Picture. Not Android system PiP: media stays in the existing foreground
+ * call service and the window stays inside the app. Insets keep the camera above the IME.
+ */
+@Composable private fun FloatingCallVideo(controller:CallController,engine:CallEngine,callId:String?) {
+    val density=LocalDensity.current
+    var x by remember(callId) {mutableFloatStateOf(-1f)}
+    var y by remember(callId) {mutableFloatStateOf(-1f)}
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val width=if(maxWidth<360.dp)120.dp else 136.dp
+        val height=if(maxHeight<630.dp)166.dp else 186.dp
+        val edge=with(density){12.dp.roundToPx()}
+        val widthPx=with(density){width.roundToPx()}
+        val heightPx=with(density){height.roundToPx()}
+        val safeTop=WindowInsets.statusBars.getTop(density)
+        val keyboardBottom=maxOf(WindowInsets.ime.getBottom(density),WindowInsets.navigationBars.getBottom(density))
+        val maxX=(constraints.maxWidth-widthPx-2*edge).coerceAtLeast(0).toFloat()
+        val maxY=(constraints.maxHeight-heightPx-safeTop-keyboardBottom-2*edge).coerceAtLeast(0).toFloat()
+        val actualX=if(x<0f)maxX else x.coerceIn(0f,maxX)
+        val actualY=if(y<0f)with(density){100.dp.toPx()}.coerceAtMost(maxY) else y.coerceIn(0f,maxY)
+        GlassSurface(
+            Modifier.offset {IntOffset(edge+actualX.roundToInt(),safeTop+edge+actualY.roundToInt())}
+                .size(width,height)
+                .pointerInput(callId,maxX,maxY) {
+                    detectDragGestures {change,drag->
+                        change.consume()
+                        x=((if(x<0f)maxX else x)+drag.x).coerceIn(0f,maxX)
+                        y=((if(y<0f)actualY else y)+drag.y).coerceIn(0f,maxY)
+                    }
+                }
+                .clickable {controller.expand()},Glass.card
+        ) {
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                VideoRenderer(engine,false,Modifier.fillMaxSize())
+                Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(width=36.dp,height=48.dp).clip(Glass.compact)) {
+                    VideoRenderer(engine,true,Modifier.fillMaxSize())
+                }
+                FilledIconButton(
+                    onClick=controller::toggleCompact,
+                    modifier=Modifier.align(Alignment.BottomEnd).padding(6.dp).size(38.dp),
+                    colors=IconButtonDefaults.filledIconButtonColors(containerColor=Color.Black.copy(alpha=.64f))
+                ) {
+                    Icon(Icons.Outlined.Remove,"Minimize to call pill",tint=Color.White)
+                }
+            }
+        }
+    }
+}
+
 @Composable private fun VideoRenderer(engine:CallEngine,local:Boolean,modifier:Modifier=Modifier) {
     val context=LocalContext.current
     val renderer=remember(engine,local) {SurfaceViewRenderer(context)}
