@@ -16,19 +16,21 @@ import com.pritam.liquidchat.LiquidApplication
 import com.pritam.liquidchat.MainActivity
 import com.pritam.liquidchat.R
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class LiquidMessagingService:FirebaseMessagingService() {
-    override fun onNewToken(token:String) {schedule(mapOf("token" to token))}
-    override fun onMessageReceived(message:RemoteMessage) {schedule(message.data)}
+    override fun onNewToken(token:String) {DeviceRegistrationWork.enqueue(this,token)}
+    override fun onMessageReceived(message:RemoteMessage) {
+        // Untrusted FCM message data must not control device registration.
+        schedule(message.data.filterKeys {it!="token" && it!="registerDevice"})
+    }
     private fun schedule(data:Map<String,String>) {
         val input=Data.Builder();data.forEach {(key,value)->input.putString(key,value)}
         // App-owned timestamp, persisted with the work and never accepted from push data.
         if(data["event"]=="incoming_call")input.putLong("callReceivedAt",System.currentTimeMillis())
-        data["token"]?.let {getSharedPreferences("device",Context.MODE_PRIVATE).edit().putString("fcm_token",it).apply()}
         val request=OneTimeWorkRequestBuilder<ReceiveWorker>().setInputData(input.build()).setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-        if(data.containsKey("token"))request.addTag("device-registration")
         if(data["event"]=="incoming_call") {
             // FCM grants a brief expedited-work window for high-priority call messages.
             // Still respect WorkManager fallback quotas and validate the call on the server.
@@ -55,13 +57,41 @@ class LiquidMessagingService:FirebaseMessagingService() {
         } else WorkManager.getInstance(this).enqueue(request.build())
     }
 }
+/** One durable FCM registration chain; a new token or login replaces an obsolete attempt. */
+internal object DeviceRegistrationWork {
+    fun enqueue(context:Context,token:String?=null) {
+        val data=Data.Builder().putBoolean("registerDevice",true)
+        token?.takeIf {it.isNotBlank()}?.let {data.putString("token",it)}
+        val request=OneTimeWorkRequestBuilder<ReceiveWorker>()
+            .setInputData(data.build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30L,TimeUnit.SECONDS)
+            .addTag("device-registration").build()
+        WorkManager.getInstance(context).enqueueUniqueWork("device-registration",ExistingWorkPolicy.REPLACE,request)
+    }
+}
+
 class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(context,params) {
     override suspend fun doWork():Result {
         val app=applicationContext as LiquidApplication
         app.backend.restore()
         val account=app.backend.session.value?.userId ?: return Result.success()
-        inputData.getString("token")?.let {token->
-            return try {app.backend.registerDevice(token);Result.success()}catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
+        if(inputData.getBoolean("registerDevice",false)) {
+            return try {
+                // The worker can re-fetch a token when no onNewToken callback arrived after login.
+                val token=inputData.getString("token")?.takeIf {it.isNotBlank()}
+                    ?: com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await()
+                if(token.isBlank())throw java.io.IOException("FCM token unavailable")
+                if(app.backend.session.value?.userId!=account)return Result.success()
+                app.backend.registerDevice(token)
+                if(app.backend.session.value?.userId!=account)return Result.success()
+                applicationContext.getSharedPreferences("device",Context.MODE_PRIVATE)
+                    .edit().putString("fcm_token",token).apply()
+                Result.success()
+            } catch(e:CancellationException){throw e}
+              catch(e:Exception) {
+                if(PushRecovery.retryRegistration(e,runAttemptCount))Result.retry() else Result.failure()
+              }
         }
         if(inputData.getString("recipientId")!=account)return Result.success()
         if(inputData.getString("event")=="incoming_call") {
