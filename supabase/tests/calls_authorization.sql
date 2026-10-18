@@ -88,4 +88,27 @@ do $$begin
   raise exception 'FAIL: block did not prevent calling';
  exception when insufficient_privilege then null; end;
 end $$;
+
+-- A one-shot invitation may only be claimed by service_role, never a signed-in user.
+select public.set_block('91000000-0000-0000-0000-000000000002',false);
+select set_config('liquid.call.pushid',public.call_start(current_setting('liquid.call.cid')::uuid,'video','push-offer')::text,true);
+do $$begin
+  begin
+    perform public.claim_call_push(current_setting('liquid.call.pushid')::uuid,
+      '91000000-0000-0000-0000-000000000001');
+    raise exception 'FAIL: user claimed FCM push';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set local role service_role;
+do $$declare payload jsonb; begin
+ payload:=public.claim_call_push(current_setting('liquid.call.pushid')::uuid,
+   '91000000-0000-0000-0000-000000000001');
+ if payload->>'recipientId'<>'91000000-0000-0000-0000-000000000002' then
+   raise exception 'FAIL: wrong push recipient'; end if;
+ if public.claim_call_push(current_setting('liquid.call.pushid')::uuid,
+   '91000000-0000-0000-0000-000000000001') is not null then
+   raise exception 'FAIL: push claimed twice'; end if;
+end $$;
+reset role;
 rollback;
