@@ -201,12 +201,12 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun forwardText(source:Message,destination:String) {
         val account=account()
         require(source.account==account && source.status=="SENT" && source.deletedAt.isEmpty())
-        require(source.mediaId.isEmpty() && source.localImage.isEmpty() && source.mediaKind!="voice")
+        require(source.mediaId.isEmpty() && source.localImage.isEmpty() && source.mediaKind=="image")
         require(destination!=source.conversation) {"Choose a different conversation."}
         val current=dao.message(account,source.id) ?: throw IOException("Source message is no longer available.")
         require(!dao.hidden(account,source.id) && current.conversation==source.conversation &&
             current.status=="SENT" && current.deletedAt.isEmpty() &&
-            current.mediaId.isEmpty() && current.localImage.isEmpty() && current.mediaKind!="voice" &&
+            current.mediaId.isEmpty() && current.localImage.isEmpty() && current.mediaKind=="image" &&
             current.body==source.body && current.body.isNotBlank())
         require(dao.chat(account,destination)!=null) {"Choose an existing contact."}
         checkAccount(account)
