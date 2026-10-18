@@ -22,6 +22,16 @@ class CallHistoryRowTest {
             callHistoryRequiredPermissions("video"))
     }
 
+    @Test fun callHistoryRedialRespectsTheActualInstalledBuildFlag() {
+        assertTrue(callHistoryCanRedial(true,"audio",true,false))
+        assertTrue(callHistoryCanRedial(true,"video",true,false))
+        assertFalse(callHistoryCanRedial(false,"audio",true,false))
+        assertFalse(callHistoryCanRedial(false,"video",true,false))
+        assertFalse(callHistoryCanRedial(true,"video",false,false))
+        assertFalse(callHistoryCanRedial(true,"audio",true,true))
+        assertFalse(callHistoryCanRedial(true,"unknown",true,false))
+    }
+
     @Test fun durationRequiresAConnectedCallAndNonNegativeTimes() {
         assertNull(row().durationSeconds)
         assertNull(row(answered="bad",ended="2026-10-18T12:00:30Z").durationSeconds)
