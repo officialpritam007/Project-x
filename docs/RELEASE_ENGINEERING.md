@@ -1,10 +1,12 @@
 # Release candidate engineering
 
-Candidate: `com.pritam.liquidchat`, 1.0.0-rc1 / versionCode 8. Android 10+ (min 29), compile/target 36. AGP 8.10.1, Gradle 8.11.1 and Java 17; existing Kotlin 2.1.20 retained. Official compatibility: https://developer.android.com/build/releases/agp-8-10-0-release-notes . Target policy: https://support.google.com/googleplay/android-developer/answer/11926878 .
+Candidate: `com.pritam.liquidchat`, 1.0.0-rc2 / versionCode 9. Android 10+ (min 29), compile/target 36. AGP 8.10.1, Gradle 8.11.1 and Java 17; existing Kotlin 2.1.20 retained. Official compatibility: https://developer.android.com/build/releases/agp-8-10-0-release-notes . Target policy: https://support.google.com/googleplay/android-developer/answer/11926878 .
 
 ## Automatic candidate checks
 
 `android.yml` runs debug and release unit tests/lint, debug APK, minified/shrunk unsigned release AAB, Edge checks, and instrumentation on API 29/35/36. It checks APK signing with apksigner, ZIP native alignment with zipalign -P 16, and all bundled native ELF LOAD alignments with scripts/verify_artifacts.py. Provenance contains source SHA, file sizes and SHA-256; public certificate/config-presence reports contain no private key or configuration values.
+
+Every candidate workflow run now sets `ENABLE_EXPERIMENTAL_CALLS=true`. It builds the candidate and its matching test fixture once, using the prepared development signing key and existing FCM variables. API 29/35/36 jobs install these exact archives instead of rebuilding a different APK. Instrumentation reads the installed app's calling flag at runtime, exercises offline cache/session/UI/WebRTC fixtures, and records the tested APK SHA-256 with raw runner output and JUnit results. Empty, partial, crashed, or failed test runs fail CI even when ADB itself returns success. Only `Liquid-Chat-debug-.../app-debug.apk` is the installable candidate deliverable; the separately named instrumentation fixture is for CI. These emulator checks do not establish real two-phone calling/FCM/network acceptance.
 
 The normal release-bundle artifact is explicitly **UNSIGNED / inspection only**. Build/R8 success is not release runtime or physical-device certification. Keep debug APK distribution separate; verify the certificate before attempting an update over an existing install. Do not uninstall with pending unsent messages. An incompatible signing certificate prevents a preserving in-place update; decide a migration/backup route before destructive local changes.
 

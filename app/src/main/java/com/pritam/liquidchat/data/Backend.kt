@@ -36,23 +36,63 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
     private val _recovery = MutableStateFlow(false)
     val recovery = _recovery.asStateFlow()
     private var restored=false
+    private val sessionMonitor=Any()
+    private var sessionGeneration=0L
+    private var rejectedAccess:String?=null
+    private data class SessionSnapshot(val session:Session,val generation:Long)
+    private fun snapshot():SessionSnapshot=synchronized(sessionMonitor) {
+        SessionSnapshot(_session.value ?: throw ApiException(401,"","Please sign in."),sessionGeneration)
+    }
+    private fun checkSession(expected:SessionSnapshot)=synchronized(sessionMonitor) {
+        if(sessionGeneration!=expected.generation||_session.value?.userId!=expected.session.userId)
+            throw IOException("Account changed. Please try again.")
+    }
+    // Refresh timestamps change every hour; permissions and the server auth-session identity must not.
+    private fun authorization(access:String):String=runCatching {
+        val payload=JSONObject(String(Base64.decode(access.split('.')[1],Base64.URL_SAFE or Base64.NO_WRAP),Charsets.UTF_8))
+        fun canonical(value:Any?):String=when(value) {
+            is JSONObject->value.keys().asSequence().sorted().joinToString(prefix="{",postfix="}") {key->JSONObject.quote(key)+":"+canonical(value.get(key))}
+            is org.json.JSONArray->(0 until value.length()).joinToString(prefix="[",postfix="]") {canonical(value.get(it))}
+            is String->JSONObject.quote(value)
+            else->value.toString()
+        }
+        listOf("exp","iat","nbf","jti").forEach {payload.remove(it)}
+        canonical(payload)
+    }.getOrElse {access}
+    private fun publishSession(s:Session,newLogin:Boolean)=synchronized(sessionMonitor) {
+        if(newLogin)sessionGeneration++
+        if(_session.value?.access!=s.access)rejectedAccess=null
+        uiReads.activate(s.userId,authorization(s.access),force=newLogin)
+        _session.value=s
+    }
+    private fun discardRejectedReads(expected:SessionSnapshot)=synchronized(sessionMonitor) {
+        if(sessionGeneration==expected.generation&&_session.value?.access==expected.session.access&&rejectedAccess!=expected.session.access) {
+            rejectedAccess=expected.session.access
+            uiReads.activate(expected.session.userId,authorization(expected.session.access),force=true)
+        }
+    }
+    private fun clearSession()=synchronized(sessionMonitor) {
+        sessionGeneration++
+        rejectedAccess=null
+        uiReads.clear()
+        _session.value=null
+        _recovery.value=false
+    }
     suspend fun restore() = withContext(Dispatchers.IO) { authMutex.withLock {
         if(!restored) {
             store.read("session")?.let { runCatching {
                 val restoredSession=decode(JSONObject(it))
-                uiReads.activate(restoredSession.userId)
-                _session.value=restoredSession
+                publishSession(restoredSession,newLogin=true)
             } }
             restored=true
         }
     } }
     private fun decode(j: JSONObject) = Session(j.getJSONObject("user").getString("id"),j.getString("access_token"),j.getString("refresh_token"),j.optLong("expires_at",System.currentTimeMillis()/1000+j.optLong("expires_in",3600)),j.getJSONObject("user").optString("email"))
-    private fun persist(j: JSONObject) {
+    private fun persist(j: JSONObject,newLogin:Boolean=true) {
         val s=decode(j)
         j.put("expires_at",s.expires)
         store.write("session",j.toString())
-        uiReads.activate(s.userId)
-        _session.value=s
+        publishSession(s,newLogin)
     }
     private fun raw(path: String, method: String, body: JSONObject?, token: String?): String {
         val builder=Request.Builder().url(URL+path).header("apikey",PUBLIC_KEY).header("Accept","application/json")
@@ -80,23 +120,59 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         }
     }
     suspend fun request(path: String, method: String="GET", body: JSONObject?=null): String = withContext(Dispatchers.IO) {
-        val original=_session.value ?: throw ApiException(401,"","Please sign in.")
+        val original=snapshot()
         val current=validSession(original)
-        try { raw(path,method,body,current.access) } catch(e: ApiException) {
-            if(e.status!=401) throw e
-            val renewed=validSession(current,force=true)
-            raw(path,method,body,renewed.access)
-        }.also { if(_session.value?.userId!=original.userId) throw IOException("Account changed. Please try again.") }
+        var attempted=current
+        try {
+            try { raw(path,method,body,current.access) } catch(e: ApiException) {
+                if(e.status!=401) throw e
+                discardRejectedReads(SessionSnapshot(current,original.generation))
+                val renewed=validSession(SessionSnapshot(current,original.generation),force=true)
+                attempted=renewed
+                raw(path,method,body,renewed.access)
+            }.also { checkSession(original) }
+        } catch(e:ApiException) {
+            if(e.status==401||e.status==403) {
+                discardRejectedReads(SessionSnapshot(attempted,original.generation))
+            }
+            throw e
+        }
     }
-    private suspend fun validSession(expected: Session,force: Boolean=false): Session = authMutex.withLock {
+    private suspend fun validSession(expected: SessionSnapshot,force: Boolean=false): Session = authMutex.withLock {
+        checkSession(expected)
         val current=_session.value ?: throw ApiException(401,"","Please sign in.")
-        if(current.userId!=expected.userId) throw IOException("Account changed.")
-        if(current.expires>System.currentTimeMillis()/1000+60 && (!force || current.access!=expected.access)) return@withLock current
-        val response=JSONObject(raw("/auth/v1/token?grant_type=refresh_token","POST",JSONObject().put("refresh_token",current.refresh),null))
-        persist(response)
+        if(current.expires>System.currentTimeMillis()/1000+60 && (!force || current.access!=expected.session.access)) return@withLock current
+        val response=try {
+            JSONObject(raw("/auth/v1/token?grant_type=refresh_token","POST",JSONObject().put("refresh_token",current.refresh),null))
+        } catch(e:ApiException) {
+            if(e.status==400||e.status==401||e.status==403)discardRejectedReads(SessionSnapshot(current,expected.generation))
+            throw e
+        }
+        persist(response,newLogin=false)
         _session.value!!
     }
-    suspend fun rpc(name: String, body: JSONObject=JSONObject()) = request("/rest/v1/rpc/$name","POST",body)
+    suspend fun rpc(name: String, body: JSONObject=JSONObject()):String {
+        val expected=snapshot()
+        val response=request("/rest/v1/rpc/$name","POST",body)
+        synchronized(sessionMonitor) {
+            checkSession(expected)
+            when(name) {
+                "publish_moment","change_moment"->uiReads.invalidatePrefix(expected.session.userId,"moments:")
+                "call_start","call_respond","call_hangup"->uiReads.invalidatePrefix(expected.session.userId,"calls:")
+                "set_block","save_contact"->uiReads.activate(expected.session.userId,authorization(_session.value!!.access),force=true)
+                "set_avatar"->{
+                    uiReads.invalidatePrefix(expected.session.userId,"signed-image:")
+                    uiReads.invalidatePrefix(expected.session.userId,"moments:")
+                    uiReads.invalidatePrefix(expected.session.userId,"calls:")
+                }
+                "save_profile"->{
+                    uiReads.invalidatePrefix(expected.session.userId,"moments:")
+                    uiReads.invalidatePrefix(expected.session.userId,"calls:")
+                }
+            }
+        }
+        return response
+    }
     suspend fun signIn(email: String,password: String) = withContext(Dispatchers.IO) { authMutex.withLock {
         persist(JSONObject(raw("/auth/v1/token?grant_type=password","POST",JSONObject().put("email",email.trim()).put("password",password),null)))
     } }
@@ -134,7 +210,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
     } }
     suspend fun updatePassword(password: String) { request("/auth/v1/user","PUT",JSONObject().put("password",password)); _recovery.value=false }
     suspend fun uploadImage(file:java.io.File,cid:String?,voice:Boolean=false):JSONObject = withContext(Dispatchers.IO) {
-        val original=_session.value ?: throw ApiException(401,"","Please sign in.")
+        val original=snapshot()
         val current=validSession(original)
         val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
             .addFormDataPart("file",if(voice)"voice.m4a" else "photo.jpg",file.asRequestBody((if(voice)"audio/mp4" else "image/jpeg").toMediaType()))
@@ -143,8 +219,11 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         val req=Request.Builder().url(URL+"/functions/v1/media").header("apikey",PUBLIC_KEY).header("Authorization","Bearer ${current.access}").post(form.build()).build()
         http.newCall(req).execute().use {res->
             val body=res.body?.string().orEmpty()
-            if(!res.isSuccessful)throw ApiException(res.code,"",if(res.code==503)"Media sharing is temporarily unavailable." else "Media upload failed. Try again.")
-            if(_session.value?.userId!=original.userId)throw IOException("Account changed.")
+            if(!res.isSuccessful) {
+                if(res.code==401||res.code==403)discardRejectedReads(SessionSnapshot(current,original.generation))
+                throw ApiException(res.code,"",if(res.code==503)"Media sharing is temporarily unavailable." else "Media upload failed. Try again.")
+            }
+            checkSession(original)
             JSONObject(body)
         }
     }
@@ -152,7 +231,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
     suspend fun uploadStoryVideo(file:java.io.File):JSONObject=withContext(Dispatchers.IO) {
         if(!file.isFile||file.length() !in 1..(8L*1024*1024))
             throw IOException("Compressed video must be 8 MB or less.")
-        val original=_session.value ?: throw ApiException(401,"","Please sign in.")
+        val original=snapshot()
         val current=validSession(original)
         val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
             .addFormDataPart("kind","story_video")
@@ -164,31 +243,39 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
             .post(form).build()
         http.newCall(req).execute().use {response->
             val body=response.body?.string().orEmpty()
-            if(_session.value?.userId!=original.userId)throw IOException("Account changed.")
-            if(!response.isSuccessful)
+            checkSession(original)
+            if(!response.isSuccessful) {
+                if(response.code==401||response.code==403)discardRejectedReads(SessionSnapshot(current,original.generation))
                 throw ApiException(response.code,"",when(response.code) {
                     413->"Video is too large. Choose a shorter clip."
                     400->"Video format or duration unsupported. Choose another clip."
                     else->"Video upload failed. Your original file is safe."
                 })
+            }
             JSONObject(body)
         }
     }
     suspend fun registerDevice(token:String,remove:Boolean=false)=deviceMutex.withLock {
+        val expected=snapshot()
         rpc("register_device",JSONObject().put("p_token",token).put("p_remove",remove))
-        withContext(Dispatchers.IO) {store.write("device_token",if(remove)null else token)}
+        withContext(Dispatchers.IO) {authMutex.withLock {
+            checkSession(expected)
+            store.write("device_token",if(remove)null else token)
+        }}
     }
     suspend fun forgetLocal()=deviceMutex.withLock {withContext(Dispatchers.IO) {authMutex.withLock {
-        store.write("session",null);store.write("pkce",null);store.write("device_token",null);uiReads.clear();_session.value=null;_recovery.value=false
+        clearSession();store.write("session",null);store.write("pkce",null);store.write("device_token",null)
     }}}
     suspend fun logout() = deviceMutex.withLock {withContext(Dispatchers.IO) {
-        val expected=_session.value?.let {validSession(it)}
+        val original=_session.value?.let {snapshot()}
+        val expected=original?.let {validSession(it)}
         authMutex.withLock {
+            original?.let {checkSession(it)}
             if(expected!=null && _session.value?.userId==expected.userId) {
                 store.read("device_token")?.let {token->raw("/rest/v1/rpc/register_device","POST",JSONObject().put("p_token",token).put("p_remove",true),expected.access)}
                 raw("/auth/v1/logout","POST",null,expected.access)
             }
-            store.write("session",null);store.write("pkce",null);store.write("device_token",null);uiReads.clear();_session.value=null;_recovery.value=false
+            clearSession();store.write("session",null);store.write("pkce",null);store.write("device_token",null)
         }
     }}
 }

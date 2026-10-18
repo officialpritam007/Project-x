@@ -28,6 +28,7 @@ import com.pritam.liquidchat.AppViewModel
     val unsent by model.unsent.collectAsStateWithLifecycle()
     val ready by model.ready.collectAsStateWithLifecycle()
     val session by model.session.collectAsStateWithLifecycle()
+    val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
     val chats=remember(allChats,session?.userId) {allChats.filter {it.account==session?.userId}}
     val profile by model.profile.collectAsStateWithLifecycle()
     val loaded by model.profileLoaded.collectAsStateWithLifecycle()
@@ -46,7 +47,7 @@ import com.pritam.liquidchat.AppViewModel
         }
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    key(session?.userId) {
+    key(session?.userId,sessionEpoch) {
     val conversationStates=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {

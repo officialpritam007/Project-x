@@ -12,6 +12,8 @@ import com.pritam.liquidchat.data.localLogout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.tasks.await
@@ -66,10 +68,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val profileLoaded=_profileLoaded.asStateFlow()
     private val _profileError=MutableStateFlow<String?>(null)
     val profileError=_profileError.asStateFlow()
+    private val profileMutex=Mutex()
     init {
         viewModelScope.launch { backend.restore(); _ready.value=true }
         viewModelScope.launch {
-            session.map { it?.userId }.distinctUntilChanged().collectLatest { id ->
+            combine(session.map { it?.userId },backend.uiReads.sessionEpoch) {id,epoch->id to epoch}
+                .distinctUntilChanged().collectLatest { (id,_) ->
                 _profile.value=null; _profileLoaded.value=false;_profileError.value=null;found.value=null;searchResults.value=emptyList();focusMessage.value=null
                 if(id!=null) loadProfile() else _profileLoaded.value=true
             }
@@ -92,18 +96,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             finally { _busy.value=false }
         }
     }
-    suspend fun loadProfile() {
-        val id=session.value?.userId ?: return
+    suspend fun loadProfile()=profileMutex.withLock {
+        val id=session.value?.userId ?: return@withLock
+        val epoch=backend.uiReads.epoch(id)
+        fun current()=session.value?.userId==id && backend.uiReads.epoch(id)==epoch
         _profileError.value=null
         try {
-            repository.dao.profile(id)?.let { if(session.value?.userId==id){_profile.value=JSONObject(it.json);_profileLoaded.value=true} }
+            // Keep the current session's profile while refreshing. Persisted rows carry
+            // no authorization context and must not be restored after an access change.
             val a=JSONArray(backend.request("/rest/v1/profiles?id=eq.$id&select=*&limit=1"))
-            if(session.value?.userId==id) {
+            if(current()) {
                 _profile.value=a.optJSONObject(0);_profileLoaded.value=true
                 _profile.value?.let {repository.dao.cacheProfile(CachedProfile(id,it.toString()))}
             }
         } catch(e: CancellationException) { throw e }
-        catch(e:Exception) { if(session.value?.userId==id){_profileError.value="Your profile is unavailable offline or while the service is unreachable. Connect and retry.";_notice.value=e.message ?: "Cannot load profile. Retry when connected."} }
+        catch(e:Exception) { if(current()){_profileError.value="Your profile is unavailable offline or while the service is unreachable. Connect and retry.";_notice.value=e.message ?: "Cannot load profile. Retry when connected."} }
     }
     fun signIn(email:String,password:String)=action { backend.signIn(email,password) }
     fun register(email:String,password:String)=action {

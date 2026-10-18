@@ -4,17 +4,10 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      enable_experimental_calls:
-        description: 'Build experimental foreground WebRTC calls (test only)'
-        type: boolean
-        required: true
-        default: false
 env:
-  # CI debug candidates must contain working voice/video calling on every branch.
-  # Manually dispatched runs can still select the calls-disabled configuration.
+  # Every distributed candidate is the requested calling-enabled beta.
   # Owner-signed production releases are separately gated by release.yml.
-  ENABLE_EXPERIMENTAL_CALLS: ${{ github.event_name != 'workflow_dispatch' || inputs.enable_experimental_calls }}
+  ENABLE_EXPERIMENTAL_CALLS: 'true'
 permissions:
   contents: read
 concurrency:
@@ -70,7 +63,7 @@ jobs:
               env.write('LIQUID_DEBUG_KEYSTORE_PATH='+str(key)+'\n')
           PYKEY
       - name: Tests, lint and APK
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug testReleaseUnitTest lintRelease bundleRelease
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest testReleaseUnitTest lintRelease bundleRelease
       - name: Inventory resolved release dependencies and declared licenses
         run: ./gradlew --no-daemon -I scripts/dependency_inventory.init.gradle :app:exportDependencyInventory
       - name: Validate APK signature, alignment and native page compatibility
@@ -122,6 +115,13 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Upload instrumentation fixture for the exact APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-instrumentation-fixture-${{ github.run_number }}
+          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload checks
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,22 +142,20 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
           log-accepted-android-sdk-licenses: false
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
       - name: Download exact distributable for emulator smoke check
         uses: actions/download-artifact@v4
         with:
           name: Liquid-Chat-debug-${{ github.run_number }}
           path: candidate-apk
+      - name: Download matching instrumentation fixture
+        uses: actions/download-artifact@v4
+        with:
+          name: candidate-instrumentation-fixture-${{ github.run_number }}
+          path: candidate-tests
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -170,7 +168,7 @@ jobs:
           target: google_apis
           disable-animations: true
           script: |
-            bash -c './gradlew --no-daemon connectedDebugAndroidTest; test_status=$?; adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi; LIQUID_DISPOSABLE_EMULATOR=1 bash scripts/smoke_candidate.sh candidate-apk/app-debug.apk app/build/outputs/candidate-smoke'
+            bash -c 'LIQUID_DISPOSABLE_EMULATOR=1 python3 scripts/run_candidate_instrumentation.py candidate-apk/app-debug.apk candidate-tests/app-debug-androidTest.apk app/build/outputs/androidTest-results; test_status=$?; adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; pull_status=$?; if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi; if [ "$pull_status" -ne 0 ]; then exit "$pull_status"; fi; LIQUID_DISPOSABLE_EMULATOR=1 bash scripts/smoke_candidate.sh candidate-apk/app-debug.apk app/build/outputs/candidate-smoke'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
