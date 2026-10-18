@@ -189,7 +189,7 @@ jobs:
           deno-version: v2.5.4
       - name: Type-check Edge Function sources
         working-directory: supabase/functions
-        run: deno check --frozen --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts
+        run: deno check --frozen --lock=deno.lock media/index.ts notify/index.ts account/index.ts media-cleanup/index.ts call-notify/index.ts
       - name: Validate private media and admin request boundaries
         working-directory: supabase/functions
         run: deno test --allow-env=WS_NO_BUFFER_UTIL,WS_NO_UTF_8_VALIDATE --frozen --lock=deno.lock media/inspect_test.ts account/admin_input_test.ts
