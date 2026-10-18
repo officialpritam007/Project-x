@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.UUID
+import java.io.IOException
 
 class MessageNotificationDedupeTest {
     @Test fun repeatedMessageIsClaimedOnlyOnceAcrossWorkerInstances() {
@@ -38,6 +39,32 @@ class MessageNotificationDedupeTest {
         } finally {
             MessageNotificationDedupe.clearAccount(context, first)
             MessageNotificationDedupe.clearAccount(context, second)
+        }
+    }
+
+    @Test fun postingFailureReleasesIncomingCallReceiptForLaterRetry() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val account = UUID.randomUUID().toString()
+        val callReceipt = "call-" + UUID.randomUUID()
+        var attempts = 0
+        try {
+            try {
+                MessageNotificationDedupe.postOnce(context, account, callReceipt) {
+                    attempts++
+                    throw SecurityException("Simulated platform notification rejection")
+                }
+                fail("Failed call notification must propagate an error")
+            } catch (expected: IOException) {
+                assertTrue(expected.cause is SecurityException)
+                assertEquals("Simulated platform notification rejection", expected.cause?.message)
+            }
+            assertFalse(MessageNotificationDedupe.wasPosted(context, account, callReceipt))
+            assertTrue(MessageNotificationDedupe.postOnce(context, account, callReceipt) { attempts++ })
+            assertTrue(MessageNotificationDedupe.wasPosted(context, account, callReceipt))
+            assertFalse(MessageNotificationDedupe.postOnce(context, account, callReceipt) { attempts++ })
+            assertEquals(2, attempts)
+        } finally {
+            MessageNotificationDedupe.clearAccount(context, account)
         }
     }
 

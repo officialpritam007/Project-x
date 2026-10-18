@@ -52,6 +52,26 @@ internal object MessageNotificationDedupe {
             .remove(key(account, messageId)).commit()
     }
 
+    /**
+     * Persist the receipt before notifying so dismissed alerts never repeat.
+     * If Android rejects the notification, release the receipt for a later valid retry.
+     * This applies equally to messages and incoming calls.
+     */
+    fun postOnce(context: Context, account: String, id: String, post: () -> Unit): Boolean {
+        if (!claim(context, account, id)) return false
+        try {
+            post()
+        } catch (e: RuntimeException) {
+            // The call worker retries IO failures while the server invitation remains valid.
+            // A raw SecurityException would otherwise be treated as non-retryable.
+            if (!forget(context, account, id)) {
+                throw IOException("Unable to release rejected notification receipt", e)
+            }
+            throw IOException("Android could not post notification", e)
+        }
+        return true
+    }
+
     fun clearAccount(context: Context, account: String) = synchronized(lock) {
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         val prefix = PREFIX + account + ":"
