@@ -142,6 +142,32 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
             JSONObject(body)
         }
     }
+    /** Authenticated, private video-story upload. The Edge Function re-validates the MP4. */
+    suspend fun uploadStoryVideo(file:java.io.File):JSONObject=withContext(Dispatchers.IO) {
+        if(!file.isFile||file.length() !in 1..(8L*1024*1024))
+            throw IOException("Compressed video must be 8 MB or less.")
+        val original=_session.value ?: throw ApiException(401,"","Please sign in.")
+        val current=validSession(original)
+        val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart("kind","story_video")
+            .addFormDataPart("file","story.mp4",file.asRequestBody("video/mp4".toMediaType()))
+            .build()
+        val req=Request.Builder().url(URL+"/functions/v1/media")
+            .header("apikey",PUBLIC_KEY)
+            .header("Authorization","Bearer ${current.access}")
+            .post(form).build()
+        http.newCall(req).execute().use {response->
+            val body=response.body?.string().orEmpty()
+            if(_session.value?.userId!=original.userId)throw IOException("Account changed.")
+            if(!response.isSuccessful)
+                throw ApiException(response.code,"",when(response.code) {
+                    413->"Video is too large. Choose a shorter clip."
+                    400->"Video format or duration unsupported. Choose another clip."
+                    else->"Video upload failed. Your original file is safe."
+                })
+            JSONObject(body)
+        }
+    }
     suspend fun registerDevice(token:String,remove:Boolean=false)=deviceMutex.withLock {
         rpc("register_device",JSONObject().put("p_token",token).put("p_remove",remove))
         withContext(Dispatchers.IO) {store.write("device_token",if(remove)null else token)}
