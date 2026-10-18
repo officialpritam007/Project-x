@@ -2,7 +2,7 @@ name: Signed release candidate (no publishing)
 on:
   workflow_dispatch:
 env:
-  ENABLE_EXPERIMENTAL_CALLS: ${{ vars.ENABLE_EXPERIMENTAL_CALLS }}
+  ENABLE_EXPERIMENTAL_CALLS: 'false' # Never ship unaccepted beta calling in signed releases
 permissions:
   contents: read
   actions: read
