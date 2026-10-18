@@ -72,7 +72,7 @@ import com.pritam.liquidchat.AppViewModel
             }
         }
         if(currentCall!=null && session!=null && acceptedPolicy) {
-            com.pritam.liquidchat.calls.CallOverlay(model.calls,chats.firstOrNull {it.id==currentCall?.conversation}?.name)
+            com.pritam.liquidchat.calls.CallOverlay(model.calls,chats.firstOrNull {it.id==currentCall?.conversation}?.name,model.backend,chats.firstOrNull {it.id==currentCall?.conversation}?.avatarId.orEmpty())
         }
         }
     }

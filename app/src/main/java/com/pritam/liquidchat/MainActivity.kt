@@ -12,10 +12,11 @@ class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if(intent?.hasExtra("callId")==true){setShowWhenLocked(true);setTurnScreenOn(true)}
         enableEdgeToEdge()
         intent?.data?.let(model::callback)
         intent?.getStringExtra("conversationId")?.let {model.openNotification(it,intent?.getStringExtra("accountId"))}
-        intent?.getStringExtra("callId")?.let {id->intent?.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it)}}
+        intent?.getStringExtra("callId")?.let {id->intent?.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it,com.pritam.liquidchat.calls.CallAnswerActivity.consume(id,it))}}
         setContent { LiquidApp(model) }
     }
     override fun onStart() {super.onStart();model.repository.foreground.value=true}
@@ -23,8 +24,9 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if(intent.hasExtra("callId")){setShowWhenLocked(true);setTurnScreenOn(true)}
         intent.data?.let(model::callback)
         intent.getStringExtra("conversationId")?.let {model.openNotification(it,intent.getStringExtra("accountId"))}
-        intent.getStringExtra("callId")?.let {id->intent.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it)}}
+        intent.getStringExtra("callId")?.let {id->intent.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it,com.pritam.liquidchat.calls.CallAnswerActivity.consume(id,it))}}
     }
 }

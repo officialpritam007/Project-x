@@ -45,6 +45,7 @@ do $$declare id uuid:=current_setting('liquid.call.id')::uuid;begin
  if (select count(*) from public.call_sessions where call_sessions.id=current_setting('liquid.call.id')::uuid)<>0 then
    raise exception 'FAIL: outsider read call';
  end if;
+ if jsonb_array_length(public.list_call_history())<>0 then raise exception 'FAIL: outsider read history';end if;
  if public.call_poll(id,0)->'call' <> 'null'::jsonb then raise exception 'FAIL: outsider poll exposed call';end if;
  begin
    perform public.call_candidate(id,'{"sdpMid":"0","candidate":"synthetic"}'::jsonb);
@@ -66,8 +67,9 @@ do $$declare id uuid:=current_setting('liquid.call.id')::uuid;begin
    raise exception 'FAIL: answer not visible';
  end if;
  perform public.call_candidate(id,'{"sdpMid":"0","sdpMLineIndex":0,"candidate":"synthetic-ice"}'::jsonb);
+ perform public.call_candidate(id,'{"sdpMid":"0","sdpMLineIndex":0,"candidate":"synthetic-ice"}'::jsonb);
  if jsonb_array_length(public.call_poll(id,0)->'signals')<>1 then
-   raise exception 'FAIL: candidate not visible';
+   raise exception 'FAIL: candidate missing or duplicated';
  end if;
 end $$;
 select set_config('request.jwt.claim.sub','91000000-0000-0000-0000-000000000001',true);
@@ -77,6 +79,7 @@ do $$declare id uuid:=current_setting('liquid.call.id')::uuid;begin
    raise exception 'FAIL: candidate invisible to peer';
  end if;
  perform public.call_hangup(id);
+ if public.list_call_history()->0->>'state'<>'ended' then raise exception 'FAIL: call history not ended';end if;
  if public.call_poll(id,0)->'call'->>'state'<>'ended' then
    raise exception 'FAIL: end not reflected';
  end if;

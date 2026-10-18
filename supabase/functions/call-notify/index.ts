@@ -65,7 +65,7 @@ Deno.serve(async (req:Request)=>{
     if(error)throw new Error("Call push unavailable");
     if(!claimed)return json({accepted:false},202);
     const recipients:Array<string>=Array.isArray(claimed.tokens)?claimed.tokens:[];
-    let delivered=0;
+    const delivered:string[]=[];
     await Promise.all(recipients.slice(0,12).map(async (device:string)=>{
       if(typeof device!=="string"||device.length>4096)return;
       try {
@@ -80,7 +80,7 @@ Deno.serve(async (req:Request)=>{
           },android:{priority:"high",ttl:"45s",collapse_key:`call-${claimed.recipientId}`}}}),
           signal:AbortSignal.timeout(8000)
         });
-        if(response.ok)delivered++;
+        if(response.ok)delivered.push(device);
         else {
           const failure=await response.json().catch(()=>({}));
           if(failure?.error?.details?.some((x:{errorCode?:string})=>x.errorCode==="UNREGISTERED"))
@@ -88,7 +88,10 @@ Deno.serve(async (req:Request)=>{
         }
       }catch { /* Do not leak FCM credentials or tokens to callers. */ }
     }));
-    return json({accepted:true,attempted:Math.min(recipients.length,12),delivered});
+    const {error:finishError}=await admin.rpc("finish_call_push",{p_call:input.callId,p_delivered:delivered});
+    if(finishError)throw new Error("Dispatch completion unavailable");
+    const complete=delivered.length===recipients.length;
+    return json({accepted:true,complete,attempted:Math.min(recipients.length,12),delivered:delivered.length},complete?200:503);
   }catch {
     return json({error:"Call push temporarily unavailable"},503);
   }

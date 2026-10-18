@@ -85,7 +85,7 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
                 if(!valid)return Result.success()
                 if(app.backend.session.value?.userId==account && !app.repository.foreground.value) {
                     val remaining=java.time.Duration.between(java.time.Instant.now(),expiresAt).toMillis()
-                    if(remaining>0)showIncoming(app,callId,account,call.optString("kind")=="video",remaining)
+                    if(remaining>0)showIncoming(app,callId,account,call.optString("kind")=="video",remaining,app.repository.dao.chat(account,conversation)?.name ?: "Liquid Chat")
                 }
                 Result.success()
             } catch(e:CancellationException){throw e}
@@ -116,21 +116,28 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             Result.success()
         } catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
     }
-    private fun showIncoming(context:Context,callId:String,account:String,video:Boolean,remaining:Long) {
+    private fun showIncoming(context:Context,callId:String,account:String,video:Boolean,remaining:Long,name:String) {
         if(android.os.Build.VERSION.SDK_INT>=33 &&
            ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
         val manager=context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("calls","Incoming calls",NotificationManager.IMPORTANCE_HIGH).apply {
+        manager.createNotificationChannel(NotificationChannel("incoming_calls_v2","Incoming calls",NotificationManager.IMPORTANCE_HIGH).apply {
             description="One-to-one voice and video call invitations"
+            enableVibration(true)
+            setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE),android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build())
         })
         val intent=Intent(context,MainActivity::class.java)
             .putExtra("callId",callId).putExtra("accountId",account)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,callId.hashCode(),intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        manager.notify(callId.hashCode(),NotificationCompat.Builder(context,"calls")
+        val answer=PendingIntent.getActivity(context,callId.hashCode(),Intent(context,com.pritam.liquidchat.calls.CallAnswerActivity::class.java).putExtra("callId",callId).putExtra("accountId",account),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val decline=PendingIntent.getBroadcast(context,callId.hashCode(),Intent(context,com.pritam.liquidchat.calls.DeclineCallReceiver::class.java).putExtra("callId",callId).putExtra("accountId",account),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        if(!MessageNotificationDedupe.claim(context,account,"call-$callId"))return
+        manager.notify(callId.hashCode(),NotificationCompat.Builder(context,"incoming_calls_v2")
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Incoming Liquid Chat call")
+            .setContentTitle(name)
+            .setStyle(NotificationCompat.CallStyle.forIncomingCall(androidx.core.app.Person.Builder().setName(name).setImportant(true).build(),decline,answer).setIsVideo(video))
+            .setFullScreenIntent(pending,true)
             .setContentText(if(video)"Video call · Tap to answer" else "Voice call · Tap to answer")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
