@@ -42,7 +42,7 @@ end $$;
 select set_config('request.jwt.claim.sub','91000000-0000-0000-0000-000000000003',true);
 select set_config('request.jwt.claims','{"sub":"91000000-0000-0000-0000-000000000003","role":"authenticated","session_id":"91000000-0000-0000-0000-000000000003"}',true);
 do $$declare id uuid:=current_setting('liquid.call.id')::uuid;begin
- if (select count(*) from public.call_sessions where call_sessions.id=id)<>0 then
+ if (select count(*) from public.call_sessions where call_sessions.id=current_setting('liquid.call.id')::uuid)<>0 then
    raise exception 'FAIL: outsider read call';
  end if;
  if public.call_poll(id,0)->'call' <> 'null'::jsonb then raise exception 'FAIL: outsider poll exposed call';end if;
