@@ -46,3 +46,28 @@ Deno.test("Video story validation accepts 30-second H264 720p and rejects abuse"
  bad(()=>inspectStoryVideoMp4(storyVideo().slice(0,-3)));
  bad(()=>inspectStoryVideoMp4(new Uint8Array(8*1024*1024+1)));
 });
+
+
+function withPaddedAudio(audioDurationMs:number):Uint8Array {
+ const source=storyVideo();
+ const view=new DataView(source.buffer);
+ const moovAt=view.getUint32(0);
+ const moovLength=view.getUint32(moovAt);
+ const mdhd=new Uint8Array(24);
+ new DataView(mdhd.buffer).setUint32(12,1000);
+ new DataView(mdhd.buffer).setUint32(16,audioDurationMs);
+ const hdlr=new Uint8Array(12);
+ hdlr.set(new TextEncoder().encode("soun"),8);
+ const stsd=new Uint8Array(8);
+ new DataView(stsd.buffer).setUint32(4,1);
+ const audioTrack=box("trak",box("tkhd",new Uint8Array(84)),
+    box("mdia",box("mdhd",mdhd),box("hdlr",hdrCorrect()),
+      box("minf",box("stbl",box("stsd",stsd,box("mp4a",new Uint8Array(32)))))));
+ function hdrCorrect():Uint8Array{return hdlr;}
+ const newMoov=box("moov",source.slice(moovAt+8,moovAt+moovLength),audioTrack);
+ return join(source.slice(0,moovAt),newMoov,source.slice(moovAt+moovLength));
+}
+Deno.test("AAC priming padding does not reject an exact 30-second story",()=>{
+ assert(inspectStoryVideoMp4(withPaddedAudio(30400)).duration===30000);
+ bad(()=>inspectStoryVideoMp4(withPaddedAudio(31001)));
+});
