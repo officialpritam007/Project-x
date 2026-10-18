@@ -237,6 +237,7 @@ class CallController(
                         }
                     }
                     "Connection failed" -> failure(java.io.IOException("Call could not connect. A TURN relay may be required."))
+                    "Audio focus lost" -> failure(java.io.IOException("Call interrupted by another audio session."))
                     "Ended" -> hangup()
                 }
             }})
