@@ -99,6 +99,8 @@ import kotlinx.coroutines.flow.drop
     var deleteChat by remember {mutableStateOf<Chat?>(null)}
     var query by rememberSaveable {mutableStateOf("")};var filter by rememberSaveable {mutableIntStateOf(0)}
     var menu by remember {mutableStateOf(false)};var stories by remember {mutableStateOf(false)};var ownStories by remember {mutableStateOf(false)}
+    var selectedStoryId by remember {mutableStateOf<String?>(null)}
+    var selectedMyStoryId by remember {mutableStateOf<String?>(null)}
     val profile by model.profile.collectAsStateWithLifecycle()
     val connection by model.connection.collectAsStateWithLifecycle()
     val results by model.searchResults.collectAsStateWithLifecycle()
@@ -112,7 +114,13 @@ import kotlinx.coroutines.flow.drop
                 }
             }
         }
-        HomeStoriesRow(model,onMine={ownStories=true},onStories={stories=true})
+        HomeStoriesRow(
+            model,onMine={ownStories=true},onStories={stories=true},
+            onOpenStory={id,mine->
+                if(mine){selectedMyStoryId=id;ownStories=true}
+                else {selectedStoryId=id;stories=true}
+            }
+        )
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
@@ -153,8 +161,10 @@ import kotlinx.coroutines.flow.drop
         TextButton(onClick={selectedChat=null;deleteChat=c}) {Text("Delete history for me")}
     }},confirmButton={TextButton(onClick={selectedChat=null}) {Text("Done")}})}
     deleteChat?.let {c->AlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
-    if(stories) MomentsDialog(model,mine=false,onDismiss={stories=false})
-    if(ownStories) MomentsDialog(model,mine=true,onDismiss={ownStories=false})
+    if(stories) MomentsDialog(model,mine=false,
+        onDismiss={stories=false;selectedStoryId=null},initialStoryId=selectedStoryId)
+    if(ownStories) MomentsDialog(model,mine=true,
+        onDismiss={ownStories=false;selectedMyStoryId=null},initialStoryId=selectedMyStoryId)
 }
 @Composable fun ContactsScreen(model:AppViewModel,chats:List<Chat>,busy:Boolean) {
     var username by rememberSaveable {mutableStateOf("")}

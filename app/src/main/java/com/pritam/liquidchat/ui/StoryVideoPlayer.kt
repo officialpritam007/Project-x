@@ -12,6 +12,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -57,14 +58,27 @@ import org.json.JSONObject
                         prepare()
                     }
                 }
-                DisposableEffect(player) {onDispose {player.stop();player.release()}}
+                var playbackError by remember(media,source) {mutableStateOf(false)}
+                DisposableEffect(player) {
+                    val observer=object:Player.Listener {
+                        override fun onPlayerError(error:PlaybackException) {
+                            playbackError=true
+                        }
+                    }
+                    player.addListener(observer)
+                    onDispose {
+                        player.removeListener(observer)
+                        player.stop()
+                        player.release()
+                    }
+                }
                 LaunchedEffect(player,paused,muted) {
                     player.volume=if(muted)0f else 1f
                     player.playWhenReady=!paused
                 }
                 LaunchedEffect(player) {
                     var reportedEnd=false
-                    while(true) {
+                    while(!playbackError) {
                         if(player.playbackState==Player.STATE_ENDED) {
                             if(!reportedEnd) {reportedEnd=true;currentOnProgress(1f);currentOnFinished()}
                             break
@@ -81,6 +95,12 @@ import org.json.JSONObject
                     update={it.player=player},
                     modifier=Modifier.fillMaxSize()
                 )
+                if(playbackError) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                        Text("Unable to play this story",color=Color.White)
+                        TextButton(onClick={url=null;retry++}) {Text("Retry playback")}
+                    }
+                }
             }
         } else if(failure) {
             Column(horizontalAlignment=Alignment.CenterHorizontally) {
