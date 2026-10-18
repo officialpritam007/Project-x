@@ -325,38 +325,158 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 }
 
 @Composable private fun MomentEditor(model:AppViewModel,kind:String,onDismiss:()->Unit,onPublished:()->Unit) {
-    val context=LocalContext.current;val scope=rememberCoroutineScope()
+    val context=LocalContext.current
+    val scope=rememberCoroutineScope()
     val session by model.session.collectAsStateWithLifecycle()
     val owner=session?.userId.orEmpty()
-    val id=remember {UUID.randomUUID().toString()}
+    var publishId by remember {mutableStateOf(UUID.randomUUID().toString())}
     var photo by remember {mutableStateOf<Images.Prepared?>(null)}
+    var video by remember {mutableStateOf<android.net.Uri?>(null)}
+    var videoDuration by remember {mutableLongStateOf(0L)}
+    var trimStart by remember {mutableLongStateOf(0L)}
+    var progress by remember {mutableIntStateOf(0)}
     var caption by rememberSaveable {mutableStateOf("")}
     var media by remember {mutableStateOf<String?>(null)}
     var busy by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf<String?>(null)}
-    val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null){busy=true;scope.launch {try {val prepared=Images.prepare(context,uri,owner);if(model.session.value?.userId!=owner){prepared.file.delete();throw CancellationException("Account changed")};photo?.file?.delete();photo=prepared}catch(e:CancellationException){throw e}catch(_:Exception){error="Could not open that photo. Choose an image under 10 MB."}finally{busy=false}}}}
-    DisposableEffect(Unit) {onDispose{photo?.file?.delete()}}
-    AlertDialog(onDismissRequest={if(!busy)onDismiss()},title={Text(if(kind=="story")"New story" else "New post")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Text("Visible to people in your saved contacts. Blocked contacts cannot view it.")
-        if(kind=="story")Text("Disappears after 24 hours.")
-        photo?.let {coil.compose.AsyncImage(it.file,"Photo to publish",Modifier.fillMaxWidth().heightIn(max=220.dp).aspectRatio(it.width.toFloat()/it.height))}
-        if(media==null)TextButton(onClick={picker.launch("image/*")},enabled=!busy){Text(if(photo==null)"Choose photo" else "Change photo")}
-        OutlinedTextField(caption,{caption=it.take(1000)},label={Text("Caption")},enabled=!busy&&media==null,modifier=Modifier.fillMaxWidth(),maxLines=4)
-        if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-        error?.let {Text(it,color=MaterialTheme.colorScheme.error)}
-    }},confirmButton={TextButton(enabled=photo!=null&&!busy,onClick={
-        val image=photo ?: return@TextButton;busy=true;error=null
-        scope.launch {
-            try {
-                if(model.session.value?.userId!=owner)throw CancellationException("Account changed")
-                if(media!=null) {
-                    try {model.backend.rpc("image_access",JSONObject().put("p_id",media))}
-                    catch(e:com.pritam.liquidchat.data.ApiException){if(e.status==403||e.code=="42501")media=null else throw e}
-                }
-                if(media==null)media=model.backend.uploadImage(image.file,null).getString("id")
-                model.backend.rpc("publish_moment",JSONObject().put("p_id",id).put("p_media",media).put("p_kind",kind).put("p_caption",caption.trim()))
-                onPublished()
-            }catch(e:CancellationException){throw e}catch(_:Exception){error="Could not publish. Your photo is still here; retry when connected."}finally{busy=false}
+
+    val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        if(uri!=null&&!busy) {
+            busy=true;error=null
+            scope.launch {
+                try {
+                    val prepared=Images.prepare(context,uri,owner)
+                    if(model.session.value?.userId!=owner) {
+                        prepared.file.delete()
+                        throw CancellationException("Account changed")
+                    }
+                    photo?.file?.delete()
+                    photo=prepared
+                    video=null
+                    media=null
+                    publishId=UUID.randomUUID().toString()
+                } catch(e:CancellationException) {throw e}
+                catch(_:Exception) {error="Could not open this photo. Choose another image."}
+                finally {busy=false}
+            }
         }
-    }){Text(if(error==null)"Publish" else "Retry")}},dismissButton={TextButton(onClick=onDismiss,enabled=!busy){Text("Cancel")}})
+    }
+    val videoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        if(uri!=null&&!busy&&kind=="story") {
+            busy=true;error=null
+            scope.launch {
+                try {
+                    val duration=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.pritam.liquidchat.data.StoryVideo.durationMs(context,uri)
+                    }
+                    if(model.session.value?.userId!=owner)throw CancellationException("Account changed")
+                    video=uri
+                    videoDuration=duration
+                    trimStart=0L
+                    photo?.file?.delete();photo=null
+                    media=null
+                    publishId=UUID.randomUUID().toString()
+                } catch(e:CancellationException) {throw e}
+                catch(_:Exception) {error="Could not read video. Choose a playable MP4 file."}
+                finally {busy=false}
+            }
+        }
+    }
+    DisposableEffect(Unit) {onDispose {photo?.file?.delete()}}
+    AlertDialog(
+        onDismissRequest={if(!busy)onDismiss()},
+        title={Text(if(kind=="story")"New story" else "New post")},
+        text={
+            Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                Text("Visible only to your saved contacts. Blocked contacts cannot view it.",
+                    style=MaterialTheme.typography.bodySmall)
+                if(kind=="story")Text("Stories disappear after 24 hours.",
+                    style=MaterialTheme.typography.labelMedium)
+                photo?.let {selected->
+                    coil.compose.AsyncImage(selected.file,"Photo preview",
+                        Modifier.fillMaxWidth().heightIn(max=200.dp)
+                            .aspectRatio(selected.width.toFloat()/selected.height.coerceAtLeast(1)))
+                }
+                if(video!=null) {
+                    GlassCard(Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment=Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Videocam,"Selected video",tint=MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Video selected · "+(videoDuration/1000)+" seconds")
+                        }
+                        val maximum=(videoDuration-30_000L).coerceAtLeast(0L)
+                        if(maximum>0L) {
+                            Text("Choose the beginning of a 30-second story clip",
+                                style=MaterialTheme.typography.bodySmall)
+                            Slider(value=trimStart.toFloat(),onValueChange={trimStart=it.toLong()},
+                                valueRange=0f..maximum.toFloat(),enabled=!busy)
+                        }
+                        Text("Start: "+(trimStart/1000)+"s · End: "+
+                            ((trimStart+30_000L).coerceAtMost(videoDuration)/1000)+"s",
+                            style=MaterialTheme.typography.labelSmall)
+                        Text("Export: H.264/AAC MP4, up to 720p and 8 MB.",
+                            style=MaterialTheme.typography.labelSmall)
+                    }
+                }
+                if(media==null) {
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {
+                            Icon(Icons.Outlined.PhotoLibrary,null)
+                            Spacer(Modifier.width(4.dp))
+                            Text(if(photo==null)"Photo" else "Change photo")
+                        }
+                        if(kind=="story")TextButton(onClick={videoPicker.launch("video/*")},enabled=!busy) {
+                            Icon(Icons.Outlined.VideoLibrary,null)
+                            Spacer(Modifier.width(4.dp))
+                            Text(if(video==null)"Video" else "Change video")
+                        }
+                    }
+                }
+                OutlinedTextField(caption,{caption=it.take(1000)},label={Text("Caption (optional)")},
+                    enabled=!busy&&media==null,modifier=Modifier.fillMaxWidth(),maxLines=3)
+                if(busy) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(if(video!=null)"Preparing/uploading video · $progress%" else "Publishing…",
+                        style=MaterialTheme.typography.labelSmall)
+                }
+                error?.let {Text(it,color=MaterialTheme.colorScheme.error)}
+            }
+        },
+        confirmButton={
+            TextButton(enabled=(photo!=null||video!=null)&&!busy&&owner.isNotEmpty(),onClick={
+                val selectedPhoto=photo
+                val selectedVideo=video
+                if(selectedPhoto==null&&selectedVideo==null)return@TextButton
+                busy=true;error=null;progress=0
+                scope.launch {
+                    try {
+                        if(model.session.value?.userId!=owner)throw CancellationException("Account changed")
+                        if(media!=null) {
+                            try {
+                                model.backend.rpc("image_access",JSONObject().put("p_id",media))
+                            } catch(e:com.pritam.liquidchat.data.ApiException) {
+                                if(e.status==403||e.code=="42501")media=null else throw e
+                            }
+                        }
+                        if(media==null) {
+                            media=if(selectedVideo!=null) {
+                                val encoded=com.pritam.liquidchat.data.StoryVideo.export(
+                                    context,selectedVideo,trimStart,onProgress={progress=it})
+                                try {model.backend.uploadStoryVideo(encoded).getString("id")}
+                                finally {encoded.delete()}
+                            } else model.backend.uploadImage(selectedPhoto!!.file,null).getString("id")
+                        }
+                        model.backend.rpc("publish_moment",JSONObject()
+                            .put("p_id",publishId).put("p_media",media)
+                            .put("p_kind",kind).put("p_caption",caption.trim()))
+                        onPublished()
+                    } catch(e:CancellationException) {throw e}
+                    catch(e:Exception) {
+                        error=e.message?.take(120) ?: "Could not publish. Your selected media is safe. Retry."
+                    } finally {busy=false}
+                }
+            }) {Text(if(error==null)"Publish" else "Retry")}
+        },
+        dismissButton={TextButton(onClick=onDismiss,enabled=!busy) {Text("Cancel")}}
+    )
 }
