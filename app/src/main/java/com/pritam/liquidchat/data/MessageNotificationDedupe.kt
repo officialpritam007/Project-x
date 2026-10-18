@@ -62,8 +62,12 @@ internal object MessageNotificationDedupe {
         try {
             post()
         } catch (e: RuntimeException) {
-            forget(context, account, id)
-            throw e
+            // The call worker retries IO failures while the server invitation remains valid.
+            // A raw SecurityException would otherwise be treated as non-retryable.
+            if (!forget(context, account, id)) {
+                throw IOException("Unable to release rejected notification receipt", e)
+            }
+            throw IOException("Android could not post notification", e)
         }
         return true
     }
