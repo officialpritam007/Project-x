@@ -101,7 +101,7 @@ private fun elapsedLabel(seconds:Long):String {
         mutableStateOf(model.backend.uiReads.peek(account,cacheKey,allowStale=true)!=null)
     }
     var loading by remember(account) {mutableStateOf(false)}
-    var more by remember(account) {mutableStateOf(false)}
+    var more by remember(account) {mutableStateOf(rows.size>=50)}
     var error by remember(account) {mutableStateOf<String?>(null)}
     var filter by remember(account) {mutableStateOf("All")}
     var details by remember {mutableStateOf<CallHistoryRow?>(null)}
@@ -152,8 +152,8 @@ private fun elapsedLabel(seconds:Long):String {
             verticalArrangement=Arrangement.spacedBy(8.dp),
             contentPadding=PaddingValues(bottom=120.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
         ) {
-            if(loading&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth())}
-            if((loadedOnce||error==null&&!loading)&&!loading&&error==null&&visible.isEmpty()) item(key="empty") {
+            if(loading&&!loadedOnce&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth())}
+            if(loadedOnce&&!loading&&error==null&&visible.isEmpty()) item(key="empty") {
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(if(filter=="Missed")"No missed calls" else "No recent calls",style=MaterialTheme.typography.titleMedium)
                     Text("Your voice and video call history will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)
