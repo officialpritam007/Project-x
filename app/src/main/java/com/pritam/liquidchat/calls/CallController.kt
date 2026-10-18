@@ -127,8 +127,33 @@ class CallController(
                 ensureOwner(account)
                 _view.value=_view.value?.copy(id=id,status="Ringing")
                 begin(id,account)
+                // Best-effort authenticated wakeup; a failed push never aborts foreground calling.
+                scope.launch(Dispatchers.IO) {
+                    try {backend.request("/functions/v1/call-notify","POST",JSONObject().put("callId",id))}
+                    catch(e:CancellationException){throw e}
+                    catch(_:Exception){}
+                }
             }catch(e:CancellationException){throw e}
             catch(e:Exception){failure(e)}
+        }
+    }
+
+    fun openIncomingNotification(callId:String,expectedAccount:String) {
+        if(!com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS
+            ||runCatching {UUID.fromString(callId)}.isFailure)return
+        scope.launch {
+            try {
+                backend.restore()
+                foreground.filter {it}.first()
+                if(backend.session.value?.userId!=expectedAccount||_view.value!=null)return@launch
+                val call=api.active(callId,0).call ?: return@launch
+                if(call.callee!=expectedAccount||call.state!="ringing"
+                    ||call.expiresAt.isBefore(Instant.now()))return@launch
+                owner=expectedAccount
+                _view.value=CallView(call.id,call.conversation,call.caller,call.kind,true,"Incoming call")
+                watchIncoming(call.id,expectedAccount)
+            }catch(e:CancellationException){throw e}
+            catch(_:Exception){}
         }
     }
 
