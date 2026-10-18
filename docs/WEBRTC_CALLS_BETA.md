@@ -11,7 +11,7 @@
 
 ## Build an explicitly opt-in beta APK
 
-Once the stabilization pull request is merged into `main`, open **GitHub Actions → Android candidate checks → Run workflow** and select **Enable experimental calls** = **true**. This enables calling **only for that manual test build**. Ordinary PR/main builds and the **signed release** deliberately force `ENABLE_EXPERIMENTAL_CALLS=false`. Avoid setting a repository-wide flag.
+For **PR #12** from the trusted `fix/calls-postmerge-stabilization` branch, GitHub Actions builds an **experimental-calling-enabled debug APK** so the owner can test on two real devices **before merging**. All other PRs, main pushes and the signed release deliberately force `ENABLE_EXPERIMENTAL_CALLS=false`. After PR #12 is merged, open **GitHub Actions → Android candidate checks → Run workflow** and select **Enable experimental calls** = **true** for a separate manual test APK. Avoid setting a repository-wide flag.
 
 Download the `app-debug.apk` artifact only from a completed, green workflow for the exact commit. Developer/debug signing is not Play signing. After a successful build, use two **different real user accounts on two different phones**.
 
