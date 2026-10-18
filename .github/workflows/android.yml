@@ -4,8 +4,14 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      enable_experimental_calls:
+        description: 'Build experimental foreground WebRTC calls (test only)'
+        type: boolean
+        required: true
+        default: false
 env:
-  ENABLE_EXPERIMENTAL_CALLS: ${{ vars.ENABLE_EXPERIMENTAL_CALLS }}
+  ENABLE_EXPERIMENTAL_CALLS: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_experimental_calls && 'true' || 'false' }}
 permissions:
   contents: read
 concurrency:
