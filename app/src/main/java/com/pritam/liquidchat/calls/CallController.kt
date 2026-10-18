@@ -88,8 +88,16 @@ class CallController(
             combine(backend.session,foreground) {s,fg->s?.userId.takeIf {fg}}
                 .collectLatest {id->
                     if(id==null) {
-                        if(_view.value!=null) {
-                            // No background recording or camera: end immediately on Activity background.
+                        val existing=_view.value
+                        if(existing!=null && !foreground.value) {
+                            if(existing.incoming) {
+                                // Incoming calls remain eligible for an FCM notification while the app is hidden.
+                                stopLocal()
+                            } else if(!ActiveCallService.running) {
+                                // If the foreground notification/service did not start, never keep capture alive.
+                                hangup()
+                            }
+                        } else if(existing!=null) {
                             hangup()
                         }
                         return@collectLatest
@@ -233,6 +241,9 @@ class CallController(
                 }
             }})
         engine=connection
+        // The service is launched only by a visible, permission-accepting user action.
+        ActiveCallService.onHangup={hangup()}
+        ActiveCallService.start(context,video)
         connection.start()
         return connection
     }
@@ -296,8 +307,9 @@ class CallController(
     fun renderer()=engine
 
     private fun ensureOwner(account:String) {
-        if(owner!=account||backend.session.value?.userId!=account||!foreground.value)
-            throw CancellationException("Account changed or app backgrounded")
+        if(owner!=account||backend.session.value?.userId!=account||
+            (!foreground.value&&!ActiveCallService.running))
+            throw CancellationException("Account changed or media service unavailable")
     }
     private fun failure(e:Exception) {
         val previous=_view.value
@@ -319,6 +331,8 @@ class CallController(
         iceSending?.cancel();iceSending=null
         candidateQueue?.close();candidateQueue=null
         engine?.close();engine=null
+        ActiveCallService.onHangup=null
+        ActiveCallService.stop(context)
         owner=null
         _view.value=null
         lastCandidate=0
