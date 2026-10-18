@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
+import androidx.compose.material.icons.outlined.Call
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,14 +28,20 @@ import androidx.compose.ui.platform.LocalContext
     AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp))
 }
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
-    val titles=listOf("Chats","Contacts","Settings","Profile")
+    val titles=listOf("Chats","Calls","Contacts","Settings","Profile")
+    // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
     GlassSurface(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=9.dp).navigationBarsPadding(),Glass.capsule) {
         Row(Modifier.padding(6.dp).selectableGroup()) {
             titles.forEachIndexed {i,title->
                 Box(Modifier.weight(1f).height(54.dp).clip(Glass.capsule).background(if(tab==i)Color(0xFF45CAEE).copy(alpha=.25f) else Color.Transparent).clickable(role=Role.Tab) {onTab(i)}.semantics {selected=tab==i;contentDescription=title},contentAlignment=Alignment.Center) {
-                    DesignIcon(if(tab==i)on[i] else off[i],null)
+                    if(i==1) {
+                        Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,tint=if(tab==i)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        val originalIndex=if(i>1)i-1 else i
+                        DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null)
+                    }
                 }
             }
         }
