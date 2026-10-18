@@ -2,6 +2,13 @@
 
 ## Current status (18 October 2026)
 
+> This document covers the experimental calling beta. PR #13 introduces
+> user-started microphone/camera foreground service support, an ongoing-call
+> notification and Android background media continuity. **It does not** add
+> full system Telecom integration, guaranteed background delivery, or TURN.
+> See [CALL_PRODUCTION_RELEASE_GATES.md](CALL_PRODUCTION_RELEASE_GATES.md)
+> for the actual deployment and two-phone acceptance gates.
+
 - Calling is **experimental**, 1:1 only; no calls or video data are recorded/stored by the backend.
 - Supabase call signaling migration **20261018045813** and one-shot call push migration **20261018045819** and call foreign-key indexes migration **20261018050349** are **deployed** to the connected Supabase Free project. Their existing data is preserved.
 - The optional **call-notify** Edge Function has been deployed and reports ACTIVE, version 1. It uses self-checked Firebase Auth JWTs and a `service_role`-only call claim.
@@ -36,7 +43,7 @@ The free plan still has rate/egress quotas. Experimental calls use foreground po
 
 - Database-side caller/callee/block checks and RLS; call SDP/ICE is retained temporarily (can include IP information). Scheduled cleanup removes expired call records/candidates after a grace interval.
 - Service-only, atomic push claim blocks duplicates; only caller-authenticated Edge requests can trigger the server claim.
-- Media stops immediately when the app leaves the foreground. There is **no** Telecom integration, persistent foreground calling service, Android full-screen call permission or group calling.
+- In the new hardening branch, accepted/started call media may continue in the background through a user-started microphone/camera foreground service. Recents/task removal or service termination ends capture. There is **no** full Telecom integration, guaranteed locked-screen ringing, Android full-screen call permission or group calling.
 - App kill, power saver, Android 14–16 background restrictions, notification permission denial, mobile data, Wi-Fi/NAT, Bluetooth, speaker/camera, mic mute, second incoming call, decline, block, account switch, user logout and real reconnect must all be checked manually.
 - CI, emulator tests and server-side SQL tests **cannot verify microphones, speakers, video quality, echo or device-to-device notification delivery.**
 - Do not publish until the beta acceptance checklist passes and an owner-signed release, privacy/disclosure review and usage-cost plan are completed.
