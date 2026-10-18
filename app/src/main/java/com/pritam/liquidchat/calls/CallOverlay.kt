@@ -82,7 +82,7 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
         return
     }
     val engine=controller.renderer()
-    val activeVideo=c.video&&!c.incoming&&engine!=null&&!terminal
+    val activeVideo=c.renderVideo&&engine!=null&&!terminal
     var swapped by remember(c.id) {mutableStateOf(false)}
     var largePreview by remember(c.id) {mutableStateOf(false)}
     var x by remember(c.id) {mutableFloatStateOf(0f)}
