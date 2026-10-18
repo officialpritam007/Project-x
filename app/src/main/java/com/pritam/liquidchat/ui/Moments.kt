@@ -55,12 +55,13 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
  */
 @Composable fun HomeStoriesRow(
     model:AppViewModel,onMine:()->Unit,onStories:()->Unit,
-    onOpenStory:(id:String,mine:Boolean)->Unit
+    onOpenStory:(id:String,mine:Boolean)->Unit,
+    refreshKey:Int=0
 ) {
     val session by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     var stories by remember(session?.userId) {mutableStateOf(emptyList<Moment>())}
-    LaunchedEffect(session?.userId,foreground) {
+    LaunchedEffect(session?.userId,foreground,refreshKey) {
         if(session==null||!foreground)return@LaunchedEffect
         val uid=session?.userId ?: return@LaunchedEffect
         try {
@@ -136,7 +137,8 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 @Composable fun MomentsPanel(
     model:AppViewModel,kind:String,mine:Boolean,archived:Boolean=false,
     modifier:Modifier=Modifier,bottomPadding:Dp=16.dp,
-    header:(@Composable ()->Unit)?=null, initialStoryId:String?=null
+    header:(@Composable ()->Unit)?=null, initialStoryId:String?=null,
+    openEditorInitially:Boolean=false
 ) {
     val account by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
@@ -146,7 +148,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     var error by remember {mutableStateOf<String?>(null)}
     var more by remember(kind,mine,archived) {mutableStateOf(false)}
     var epoch by remember {mutableIntStateOf(0)}
-    var editor by remember {mutableStateOf(false)}
+    var editor by remember(openEditorInitially,kind) {mutableStateOf(openEditorInitially && kind=="story")}
     var focused by remember {mutableStateOf<Moment?>(null)}
     var pendingStoryId by remember(initialStoryId) {mutableStateOf(initialStoryId)}
     var deleting by remember {mutableStateOf<Moment?>(null)}
@@ -335,7 +337,8 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 }
 
 @Composable fun MomentsDialog(
-    model:AppViewModel,mine:Boolean,onDismiss:()->Unit,initialStoryId:String?=null
+    model:AppViewModel,mine:Boolean,onDismiss:()->Unit,
+    initialStoryId:String?=null,openEditorInitially:Boolean=false
 ) {
     var tab by rememberSaveable {mutableIntStateOf(0)}
     androidx.compose.ui.window.Dialog(onDismissRequest=onDismiss,properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
@@ -344,7 +347,8 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                 Row {TextButton(onClick=onDismiss){Text("Back")};Text(if(mine)"My stories" else "Contacts",style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(12.dp))}
                 Row {listOf("Stories","Posts").forEachIndexed {i,label->FilterChip(tab==i,{tab=i},label={Text(label)})}}
                 MomentsPanel(model,if(tab==0)"story" else "post",mine,
-                    modifier=Modifier.weight(1f),initialStoryId=initialStoryId)
+                    modifier=Modifier.weight(1f),initialStoryId=initialStoryId,
+                    openEditorInitially=openEditorInitially&&mine&&tab==0)
             }
         }
     }
