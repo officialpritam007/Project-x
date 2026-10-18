@@ -83,6 +83,7 @@ private fun elapsedLabel(seconds:Long):String {
     return if(hours>0) "${hours}h ${minutes}m" else if(minutes>0) "${minutes}m ${seconds%60}s" else "${seconds}s"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable fun CallsScreen(model:AppViewModel,chats:List<Chat>) {
     val session by model.session.collectAsStateWithLifecycle()
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
