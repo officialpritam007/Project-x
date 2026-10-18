@@ -230,7 +230,7 @@ import kotlinx.coroutines.flow.drop
 internal fun canForwardTextMessage(message:Message,account:String?):Boolean =
     account!=null && message.account==account && message.status=="SENT" &&
     message.deletedAt.isEmpty() && message.mediaId.isEmpty() &&
-    message.localImage.isEmpty() && message.mediaKind!="voice" && message.body.isNotBlank()
+    message.localImage.isEmpty() && message.mediaKind=="image" && message.body.isNotBlank()
 
 internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(id in ids) ids-id else ids+id
