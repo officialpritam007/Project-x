@@ -44,6 +44,7 @@ import kotlinx.coroutines.delay
 import org.webrtc.SurfaceViewRenderer
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=null,avatar:String="") {
     val call by controller.view.collectAsStateWithLifecycle()
