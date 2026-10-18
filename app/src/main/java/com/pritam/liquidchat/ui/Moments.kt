@@ -53,10 +53,12 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
  * This is a client of the existing participant-scoped list_moments RPC; no public feed.
  * Selecting a story opens the original authenticated story flow.
  */
-@Composable fun HomeStoriesRow(model:AppViewModel,onMine:()->Unit,onStories:()->Unit) {
+@Composable fun HomeStoriesRow(
+    model:AppViewModel,onMine:()->Unit,onStories:()->Unit,
+    onOpenStory:(id:String,mine:Boolean)->Unit
+) {
     val session by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
-    val profile by model.profile.collectAsStateWithLifecycle()
     var stories by remember(session?.userId) {mutableStateOf(emptyList<Moment>())}
     LaunchedEffect(session?.userId,foreground) {
         if(session==null||!foreground)return@LaunchedEffect
@@ -84,11 +86,14 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
             item(key="my-story") {
                 StoryCard(
                     title="My Story",moment=myMoment,model=model,
-                    mine=true,onClick=onMine
+                    mine=true,onClick={
+                        if(myMoment!=null)onOpenStory(myMoment.id,true) else onMine()
+                    }
                 )
             }
             items(contactMoments,key={it.owner}) {moment->
-                StoryCard(title=moment.name,moment=moment,model=model,mine=false,onClick=onStories)
+                StoryCard(title=moment.name,moment=moment,model=model,mine=false,
+                    onClick={onOpenStory(moment.id,false)})
             }
             if(contactMoments.isEmpty())item(key="stories-shortcut") {
                 StoryCard(title="View Stories",moment=null,model=model,mine=false,onClick=onStories)
@@ -124,7 +129,11 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
 }
 
 /** No public feed: audiences are the creator's saved contacts, rechecked on every media request. */
-@Composable fun MomentsPanel(model:AppViewModel,kind:String,mine:Boolean,archived:Boolean=false,modifier:Modifier=Modifier,bottomPadding:Dp=16.dp,header:(@Composable ()->Unit)?=null) {
+@Composable fun MomentsPanel(
+    model:AppViewModel,kind:String,mine:Boolean,archived:Boolean=false,
+    modifier:Modifier=Modifier,bottomPadding:Dp=16.dp,
+    header:(@Composable ()->Unit)?=null, initialStoryId:String?=null
+) {
     val account by model.session.collectAsStateWithLifecycle()
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
@@ -135,6 +144,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     var epoch by remember {mutableIntStateOf(0)}
     var editor by remember {mutableStateOf(false)}
     var focused by remember {mutableStateOf<Moment?>(null)}
+    var pendingStoryId by remember(initialStoryId) {mutableStateOf(initialStoryId)}
     var deleting by remember {mutableStateOf<Moment?>(null)}
     var reporting by remember {mutableStateOf<Moment?>(null)}
     suspend fun load(append:Boolean=false) {
@@ -145,7 +155,16 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
             val body=JSONObject().put("p_kind",kind).put("p_mine",mine).put("p_archived",archived)
             if(append)items.lastOrNull()?.let {body.put("p_before",it.created).put("p_before_id",it.id)}
             val page=parseMoments(JSONArray(model.backend.rpc("list_moments",body)))
-            if(model.session.value?.userId==expected){items=if(append)(items+page).distinctBy {it.id} else page;more=page.size==30}
+            if(model.session.value?.userId==expected){
+                items=if(append)(items+page).distinctBy {it.id} else page
+                more=page.size==30
+                if(kind=="story"&&pendingStoryId!=null) {
+                    items.firstOrNull {it.id==pendingStoryId}?.let {
+                        focused=it
+                        pendingStoryId=null
+                    }
+                }
+            }
         } catch(e:CancellationException){throw e}catch(_:Exception){error="Could not load ${if(kind=="story")"stories" else "posts"}. Check your connection and retry."}finally {loading=false}
     }
     LaunchedEffect(kind,mine,archived,account?.userId,epoch) {if(account!=null){while(loading)kotlinx.coroutines.delay(50);load()}}
@@ -311,14 +330,17 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     }
 }
 
-@Composable fun MomentsDialog(model:AppViewModel,mine:Boolean,onDismiss:()->Unit) {
+@Composable fun MomentsDialog(
+    model:AppViewModel,mine:Boolean,onDismiss:()->Unit,initialStoryId:String?=null
+) {
     var tab by rememberSaveable {mutableIntStateOf(0)}
     androidx.compose.ui.window.Dialog(onDismissRequest=onDismiss,properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().systemBarsPadding().padding(12.dp)) {
                 Row {TextButton(onClick=onDismiss){Text("Back")};Text(if(mine)"My stories" else "Contacts",style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(12.dp))}
                 Row {listOf("Stories","Posts").forEachIndexed {i,label->FilterChip(tab==i,{tab=i},label={Text(label)})}}
-                MomentsPanel(model,if(tab==0)"story" else "post",mine,modifier=Modifier.weight(1f))
+                MomentsPanel(model,if(tab==0)"story" else "post",mine,
+                    modifier=Modifier.weight(1f),initialStoryId=initialStoryId)
             }
         }
     }
