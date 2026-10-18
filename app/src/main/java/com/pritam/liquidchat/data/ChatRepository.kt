@@ -193,6 +193,26 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }}
         enqueue(account)
     }
+    /**
+     * Forward an already-visible text message to another authenticated 1:1 chat.
+     * Never forward a media placeholder or a hidden/deleted message as plain text.
+     * The ordinary durable outbox assigns a new ID and enforces server block/RLS rules.
+     */
+    suspend fun forwardText(source:Message,destination:String) {
+        val account=account()
+        require(source.account==account && source.status=="SENT" && source.deletedAt.isEmpty())
+        require(source.mediaId.isEmpty() && source.localImage.isEmpty() && source.mediaKind=="image")
+        require(destination!=source.conversation) {"Choose a different conversation."}
+        val current=dao.message(account,source.id) ?: throw IOException("Source message is no longer available.")
+        require(!dao.hidden(account,source.id) && current.conversation==source.conversation &&
+            current.status=="SENT" && current.deletedAt.isEmpty() &&
+            current.mediaId.isEmpty() && current.localImage.isEmpty() && current.mediaKind=="image" &&
+            current.body==source.body && current.body.isNotBlank())
+        require(dao.chat(account,destination)!=null) {"Choose an existing contact."}
+        checkAccount(account)
+        send(destination,current.body)
+    }
+
     suspend fun sendImage(cid:String,image:Images.Prepared,caption:String,draftVersion:Long?=null) {
         val account=account()
         val message=Message(account,UUID.randomUUID().toString(),cid,account,caption.ifBlank {"Photo"},localImage=image.file.absolutePath,imageWidth=image.width,imageHeight=image.height)
