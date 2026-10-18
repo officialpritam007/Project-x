@@ -38,7 +38,11 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
     private var restored=false
     suspend fun restore() = withContext(Dispatchers.IO) { authMutex.withLock {
         if(!restored) {
-            store.read("session")?.let { runCatching { _session.value = decode(JSONObject(it)) } }
+            store.read("session")?.let { runCatching {
+                val restoredSession=decode(JSONObject(it))
+                uiReads.activate(restoredSession.userId)
+                _session.value=restoredSession
+            } }
             restored=true
         }
     } }
@@ -47,7 +51,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         val s=decode(j)
         j.put("expires_at",s.expires)
         store.write("session",j.toString())
-        if(_session.value?.userId!=s.userId)uiReads.clear()
+        uiReads.activate(s.userId)
         _session.value=s
     }
     private fun raw(path: String, method: String, body: JSONObject?, token: String?): String {
