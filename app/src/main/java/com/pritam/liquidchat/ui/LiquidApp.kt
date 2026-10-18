@@ -17,6 +17,13 @@ import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 
+/**
+ * Keep a valid cached profile visible during transient request failures. An
+ * initial failure without cached profile is a recoverable error, not onboarding.
+ */
+internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:String?,error:String?):Boolean =
+    !loaded || (profileId!=null && profileId!=account) || (profileId==null && error!=null)
+
 @Composable fun LiquidApp(model: AppViewModel) {
     val context=androidx.compose.ui.platform.LocalContext.current
     val permission=androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
@@ -69,7 +76,7 @@ import com.pritam.liquidchat.AppViewModel
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
             else if(recovery) {Box(Modifier.padding(padding)) {RecoveryScreen(model,busy)}}
             else if(!acceptedPolicy) {Box(Modifier.padding(padding)) {UserPolicyScreen(busy,model::acceptPolicy,model::logout)}}
-            else if(!loaded||(profile!=null&&profile?.optString("id")!=session?.userId)) {Column(Modifier.padding(padding).padding(24.dp)) {Text(profileError ?: "Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
+            else if(profileRequiresRetry(loaded,profile?.optString("id"),session?.userId,profileError)) {Column(Modifier.padding(padding).padding(24.dp)) {Text(profileError ?: "Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
             else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}
             else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {
