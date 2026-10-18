@@ -21,6 +21,9 @@ data class CallView(
     val compact:Boolean=false
 ) {
     val video get()=kind=="video"
+    // An accepted incoming call keeps its direction, but is no longer an
+    // unanswered invitation that should disappear when the app backgrounds.
+    val unansweredIncoming get()=incoming && status=="Incoming call"
     // Direction is immutable: accepted incoming calls remain incoming, but must show video.
     val renderVideo get()=video && id!=null && status!="Incoming call"
 }
@@ -98,8 +101,10 @@ class CallController(
                     if(id==null) {
                         val existing=_view.value
                         if(existing!=null && !foreground.value) {
-                            if(existing.incoming) {
-                                // Incoming calls remain eligible for an FCM notification while the app is hidden.
+                            if(existing.unansweredIncoming) {
+                                // Only unaccepted invitations are dismissed in background.
+                                // Accepted incoming calls use the same foreground service
+                                // continuity and safety checks as outgoing calls.
                                 stopLocal()
                             } else if(!ActiveCallService.running) {
                                 // If the foreground notification/service did not start, never keep capture alive.
@@ -197,7 +202,8 @@ class CallController(
                 val answer=connection.answerOffer(snapshot.offer)
                 ensureOwner(account)
                 api.respond(snapshot.id,true,answer)
-                _view.value=_view.value?.copy(status="Connecting",incoming=false)
+                // Direction is immutable; status alone marks the invitation answered.
+                _view.value=_view.value?.copy(status="Connecting",answerRequested=false)
                 begin(snapshot.id,account)
             }catch(e:CancellationException){throw e}catch(e:Exception){failure(e)}
         }
