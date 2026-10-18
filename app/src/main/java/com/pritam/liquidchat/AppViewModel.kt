@@ -182,6 +182,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val logoutPrompt=MutableStateFlow(false)
     fun dismissLogout() {logoutPrompt.value=false}
     fun logout() {if(unsent.value>0)logoutPrompt.value=true else finishLogout()}
+    override fun onCleared() {
+        calls.hangup()
+        super.onCleared()
+    }
     fun finishLogout()=action {
         logoutPrompt.value=false
         val id=session.value?.userId
