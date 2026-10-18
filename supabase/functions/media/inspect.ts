@@ -123,7 +123,11 @@ export function inspectStoryVideoMp4(data:Uint8Array):{duration:number;width:num
       samples=Number(big);
     } else throw new Error("Invalid duration version");
     const milliseconds=Math.round(samples/scale*1000);
-    if(!scale||!Number.isFinite(milliseconds)||milliseconds<500||milliseconds>30000)
+    // AAC encoders can add priming/padding samples after the last video frame.
+    // Enforce the exact 30s limit on video frames, with only 1s container padding
+    // tolerated for AAC. The persisted story duration comes from the video track.
+    const maximum=handler==="vide"?30000:31000;
+    if(!scale||!Number.isFinite(milliseconds)||milliseconds<500||milliseconds>maximum)
       throw new Error("Video must be 0.5–30 seconds");
     const minf=required(m,"minf"),stbl=required(atoms(minf.start,minf.end),"stbl");
     const stsd=required(atoms(stbl.start,stbl.end),"stsd");
