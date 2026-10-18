@@ -1,5 +1,6 @@
 package com.pritam.liquidchat.calls
 
+import android.media.RingtoneManager
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -31,6 +32,15 @@ fun CallOverlay(controller:CallController,displayName:String?) {
     val c=call ?: return
     BackHandler {if(c.id!=null)controller.hangup() else controller.dismissError()}
     val context=LocalContext.current
+    val shouldRing=c.incoming && c.status=="Incoming call"
+    DisposableEffect(c.id,shouldRing) {
+        val ringtone=if(shouldRing)runCatching {
+            val uri=RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            RingtoneManager.getRingtone(context,uri)
+        }.getOrNull() else null
+        runCatching {ringtone?.play()}
+        onDispose {runCatching {ringtone?.stop()}}
+    }
     val needed=remember(c.video) {
         if(c.video) arrayOf(Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA)
         else arrayOf(Manifest.permission.RECORD_AUDIO)

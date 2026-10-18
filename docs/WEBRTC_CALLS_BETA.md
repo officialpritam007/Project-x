@@ -1,69 +1,48 @@
-# Liquid Chat — 1:1 WebRTC calls (draft beta)
+# Liquid Chat — voice/video calling beta
 
-## Status / rollback boundary
+## Current status (18 October 2026)
 
-Implementation branch: feature/one-to-one-webrtc-calls. This is **NOT a production release**.
-No existing chat/moment/storage migration is rewritten. Do not merge or enable it until CI, RLS
-fixture tests and two physical phones with different user accounts pass. The new migration
-is committed only; its presence in GitHub does **not** deploy it to Supabase.
+- Calling is **experimental**, 1:1 only; no calls or video data are recorded/stored by the backend.
+- Supabase call signaling migration **20261018045813** and one-shot call push migration **20261018045819** and call foreign-key indexes migration **20261018050349** are **deployed** to the connected Supabase Free project. Their existing data is preserved.
+- The optional **call-notify** Edge Function has been deployed and reports ACTIVE, version 1. It uses self-checked Firebase Auth JWTs and a `service_role`-only call claim.
+- `supabase/tests/calls_authorization.sql` passed as a rollback-only transaction against the deployed schema. No synthetic test users/calls remain.
+- Calling UI remains **disabled by default**. It is not production-ready until owner credentials and physical-device validation pass.
+- All 1:1 chats, messages, media, moments, profile and history features remain unchanged.
 
-By default, ENABLE_EXPERIMENTAL_CALLS=false. This intentionally disables the new buttons,
-incoming-call polling, and media capture. To test after the backend schema is deployed,
-set GitHub Actions variable ENABLE_EXPERIMENTAL_CALLS=true for the test build and rebuild.
-Keep the flag false for normal user distribution until calls are proven.
+## Build an explicitly opt-in beta APK
 
-## Architecture
+For **PR #12** from the trusted `fix/calls-postmerge-stabilization` branch, GitHub Actions builds an **experimental-calling-enabled debug APK** so the owner can test on two real devices **before merging**. All other PRs, main pushes and the signed release deliberately force `ENABLE_EXPERIMENTAL_CALLS=false`. After PR #12 is merged, open **GitHub Actions → Android candidate checks → Run workflow** and select **Enable experimental calls** = **true** for a separate manual test APK. Avoid setting a repository-wide flag.
 
-- Android 10+ Kotlin Compose: CallOverlay and CallController separate from the messages UI.
-- Native WebRTC (Maven Central io.github.webrtc-sdk:android:150.7871.01) uses DTLS/SRTP
-  transport and actual local mic/camera tracks.
-- Supabase: private membership/block-checked public RPCs; no audio/video flows into the DB.
-  RLS permits participant-only SELECT on metadata and ICE. SQL RPCs handle writes.
-- Signaling is retrieved by short foreground-only polling; **not** background incoming calls.
-- Network uses public Cloudflare STUN only. No TURN key, server credential, paid plan,
-  SMS, video server, Cloudinary integration or extra database is introduced.
-- A call lasts only while the Activity is foreground. Leaving the app ends the call.
-  There is no Android Telecom/ConnectionService, persistent notification,
-  Bluetooth audio route selector, ringing when killed/locked, or call history yet.
-- No end-to-end cryptography claim beyond WebRTC transport encryption. SDP and ICE can
-  include participants' IP/network identifiers; retention removes expired sessions
-  and ICE via a 15-minute pg_cron job after a 1-hour grace period.
+Download the `app-debug.apk` artifact only from a completed, green workflow for the exact commit. Developer/debug signing is not Play signing. After a successful build, use two **different real user accounts on two different phones**.
 
-## Required staging steps
+## Owner-only Firebase setup (do not paste credentials in issues or chat)
 
-1. Back up and inspect the existing Supabase schema. Review the additive migration
-   supabase/migrations/20261018000000_one_to_one_call_signaling.sql against currently
-   deployed migrations. Test it **first** in a disposable/staging database.
-2. Run supabase/tests/calls_authorization.sql under the DB owner in that staging schema;
-   its effects roll back. Check anon, outsider, participants, blocked pairs, direct
-   table-write denial, candidate privacy, declined and ended call behavior.
-3. Re-run original authorization.sql, message_actions.sql, moments_voice.sql and
-   content_reporting.sql; inspect Supabase Security/Performance advisors.
-4. Only after explicit acceptance deploy the additive migration via the normal
-   migration process. No previous migration edits and no destructive reset.
-5. Enable the experimental flag for a controlled beta build. CI must pass on exactly
-   that SHA, including Android API29/35/36 and minified release.
-6. Install the matching debug APK on two devices with different verified users and
-   open the same conversation on both. Accept mic/camera runtime permission.
-7. Test audio answer/decline/hangup, video camera/mute, speaker, screen rotation,
-   no echo, network reconnect, app background/return, block, account switch/logout,
-   RLS unauthorized RPC probes, media/data usage, and multiple device OEMs.
-8. Only then consider FCM incoming-call signaling and Telecom integration. Background
-   microphone/camera foreground-service rules and Android 14–16 restrictions require
-   explicit implementation/tests. Do not add FGS permissions blindly.
+Firebase Cloud Messaging is free, but configured Android identifiers and server credentials are necessary.
 
-## Blocking limitations / next milestones
+1. GitHub → Project-x → Settings → Secrets and variables → Actions → **Variables**: set `FCM_APP_ID`, `FCM_PROJECT_ID`, `FCM_API_KEY`, `FCM_SENDER_ID` for the same Android Firebase application/package. These are client configuration, not a private service key.
+2. Supabase project → Edge Functions → Secrets: set `FCM_SERVICE_ACCOUNT_JSON` to the Firebase **service-account JSON**; never put this into Android, GitHub files, a PR, or a message. Ensure its `project_id` matches Android Firebase configuration.
+3. Install the test APK on both phones; allow notifications, microphone and camera permissions when prompted. Verify FCM registration and data-only incoming-call push with app foreground/background.
+4. The receiver treats incoming FCM data as **untrusted**. It queries `call_poll` with the signed-in user token before displaying a short-lived call notification; notification taps re-check the same call before offering Answer/Decline.
 
-- **TURN required for reliable cellular/restrictive NAT connectivity.** Cloudflare TURN
-  may offer a no-cost allowance but may require account/billing setup; never enable
-  pay-as-you-go without the owner's informed permission. TURN keys remain server-only;
-  use ephemeral credentials via an authenticated Edge endpoint with per-user quotas.
-- Current polling is intended for a few beta testers, not large-scale production.
-  Replace with authorized Realtime notifications + reconciling RPC polls and ensure
-  accurate missed-call behavior.
-- FCM config/credentials and true foreground/background incoming notification delivery
-  must pass a two-device test; do not claim feature ready based solely on Android CI.
-- Review expiry behavior, ICE retry, answering two concurrent devices, Bluetooth/headset
-  routing, audio focus, Wi-Fi-to-cell handoff, rate limits, privacy retention and
-  accessibility before public rollout.
-- Only merge after CI and production security/QA owner approval.
+If FCM secret is not configured, the optional wakeup endpoint returns 503, while foreground signaling calls may still work. Do not claim background/locked-screen delivery until verified.
+
+## Networking and zero-charge operation
+
+Native WebRTC media uses DTLS/SRTP with Cloudflare **STUN-only** (`stun.cloudflare.com`). Carrier-grade NAT/restrictive firewalls may block direct connections. **TURN has not been configured or paid service provisioned.** Cloudflare TURN has a shared no-cost allowance but may be usage-billed above that and require a billing account. Zero unexpected charges takes priority: never enable TURN until the owner explicitly approves a strict quota/billing strategy.
+
+The free plan still has rate/egress quotas. Experimental calls use foreground polling, so limit beta testers and monitor Supabase usage.
+
+## Security and device acceptance
+
+- Database-side caller/callee/block checks and RLS; call SDP/ICE is retained temporarily (can include IP information). Scheduled cleanup removes expired call records/candidates after a grace interval.
+- Service-only, atomic push claim blocks duplicates; only caller-authenticated Edge requests can trigger the server claim.
+- Media stops immediately when the app leaves the foreground. There is **no** Telecom integration, persistent foreground calling service, Android full-screen call permission or group calling.
+- App kill, power saver, Android 14–16 background restrictions, notification permission denial, mobile data, Wi-Fi/NAT, Bluetooth, speaker/camera, mic mute, second incoming call, decline, block, account switch, user logout and real reconnect must all be checked manually.
+- CI, emulator tests and server-side SQL tests **cannot verify microphones, speakers, video quality, echo or device-to-device notification delivery.**
+- Do not publish until the beta acceptance checklist passes and an owner-signed release, privacy/disclosure review and usage-cost plan are completed.
+
+## GitHub CI and migration synchronization
+
+- Original migration file `20261018000000_one_to_one_call_signaling.sql` was renamed to `20261018045813_one_to_one_call_signaling.sql` to match the **actual** applied Supabase migration version.
+- Next migration is `20261018045819_call_push_claim.sql`, also matching deployed history.
+- Foreign-key indexes are tracked in \`20261018050349_call_foreign_key_indexes.sql\`; performance advisor reports no remaining unindexed call foreign keys.\n- Future migrations must be additive and never replay or overwrite previous production data.

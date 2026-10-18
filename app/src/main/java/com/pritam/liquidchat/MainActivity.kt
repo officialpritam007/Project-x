@@ -15,6 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         intent?.data?.let(model::callback)
         intent?.getStringExtra("conversationId")?.let {model.openNotification(it,intent?.getStringExtra("accountId"))}
+        intent?.getStringExtra("callId")?.let {id->intent?.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it)}}
         setContent { LiquidApp(model) }
     }
     override fun onStart() {super.onStart();model.repository.foreground.value=true}
@@ -24,5 +25,6 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         intent.data?.let(model::callback)
         intent.getStringExtra("conversationId")?.let {model.openNotification(it,intent.getStringExtra("accountId"))}
+        intent.getStringExtra("callId")?.let {id->intent.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it)}}
     }
 }
