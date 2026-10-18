@@ -67,9 +67,25 @@ import com.pritam.liquidchat.data.Images
         }
         ProfileHero(model,large=true)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            listOf("Set Photo" to "◎","Edit Info" to "✎","Settings" to "⚙").forEachIndexed {i,(label,glyph)->
+            val actions=listOf(
+                "Set Photo" to Icons.Outlined.PhotoCamera,
+                "Edit Info" to Icons.Outlined.Edit,
+                "Settings" to Icons.Outlined.Settings
+            )
+            actions.forEachIndexed {i,(label,icon)->
                 GlassSurface(Modifier.weight(1f)) {
-                    Column(Modifier.fillMaxWidth().heightIn(min=62.dp).clickable(enabled=!busy) {when(i){0->picker.launch("image/*");1->edit=true;else->onSettings()}}.padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally) {Text(glyph,fontSize=24.sp);Text(label,fontSize=13.sp,fontWeight=FontWeight.Bold)}
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(min=72.dp)
+                            .clickable(enabled=!busy) {
+                                when(i){0->picker.launch("image/*");1->edit=true;else->onSettings()}
+                            }.padding(8.dp),
+                        horizontalAlignment=Alignment.CenterHorizontally,
+                        verticalArrangement=Arrangement.Center
+                    ) {
+                        Icon(icon,contentDescription=null,tint=MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(4.dp))
+                        Text(label,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -98,10 +114,21 @@ import com.pritam.liquidchat.data.Images
                 Triple("Devices","Coming soon",0xFF00B6C9),
                 Triple("Power Saving","Battery saving controls",0xFFF99020),
                 Triple("Language","Coming soon · English",0xFFB851E0))
-            val glyphs=listOf("◎","◉","⚿","◖","◫","▣","▭","▱","◎")
+            val icons=listOf(
+                Icons.Outlined.Person,Icons.Outlined.ChatBubbleOutline,Icons.Outlined.Lock,
+                Icons.Outlined.Notifications,Icons.Outlined.Storage,Icons.Outlined.Dashboard,
+                Icons.Outlined.Devices,Icons.Outlined.BatteryFull,Icons.Outlined.Language
+            )
             rows.forEachIndexed {i,(title,subtitle,color)->
                 Row(Modifier.fillMaxWidth().heightIn(min=49.dp).clickable {onSection(title)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(36.dp).background(Color(color),Glass.compact),contentAlignment=Alignment.Center){Text(glyphs[i],color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold)}
+                    Box(
+                        Modifier.size(36.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer,Glass.compact),
+                        contentAlignment=Alignment.Center
+                    ) {
+                        Icon(icons[i],null,Modifier.size(20.dp),
+                            tint=MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
                     Column(Modifier.weight(1f)) {Text(title,fontSize=16.sp,fontWeight=FontWeight.Bold);Text(subtitle,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}
                 }
                 if(i<rows.lastIndex)HorizontalDivider(color=Color.White.copy(alpha=.6f))
