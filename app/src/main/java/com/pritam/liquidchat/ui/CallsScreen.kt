@@ -1,5 +1,11 @@
 package com.pritam.liquidchat.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -87,6 +93,11 @@ internal fun callHistoryPage(data:JSONArray,account:String)=CallHistoryPage(
     data.length()>=50
 )
 
+/** Same runtime microphone/camera permissions as the conversation call buttons. */
+internal fun callHistoryRequiredPermissions(kind:String):Array<String> =
+    if(kind=="video") arrayOf(Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA)
+    else arrayOf(Manifest.permission.RECORD_AUDIO)
+
 private fun elapsedLabel(seconds:Long):String {
     val hours=seconds/3600
     val minutes=(seconds%3600)/60
@@ -123,8 +134,33 @@ private fun elapsedLabel(seconds:Long):String {
     var filter by remember(account,sessionEpoch) {mutableStateOf("All")}
     var details by remember(account,sessionEpoch) {mutableStateOf<CallHistoryRow?>(null)}
     val loadMutex=remember(account,sessionEpoch) {Mutex()}
+    val context=LocalContext.current
+    var pendingRedial by remember(account,sessionEpoch) {mutableStateOf<CallHistoryRow?>(null)}
+    var permissionError by remember(account,sessionEpoch) {mutableStateOf<String?>(null)}
 
     fun currentAccount()=account!=null&&model.backend.session.value?.userId==account&&model.backend.uiReads.epoch(account)==sessionEpoch
+    val callPermissions=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {granted->
+        val call=pendingRedial
+        pendingRedial=null
+        if(call!=null&&currentAccount()&&model.calls.view.value==null) {
+            if(callHistoryRequiredPermissions(call.kind).all {granted[it]==true})
+                model.calls.start(call.conversation,call.peer,call.kind)
+            else permissionError=if(call.kind=="video")
+                "Microphone and camera permissions are required for video calls."
+                else "Microphone permission is required for voice calls."
+        }
+    }
+    fun redial(call:CallHistoryRow) {
+        if(!currentAccount()||model.calls.view.value!=null||call.kind !in listOf("audio","video"))return
+        permissionError=null
+        val required=callHistoryRequiredPermissions(call.kind)
+        if(required.all {ContextCompat.checkSelfPermission(context,it)==PackageManager.PERMISSION_GRANTED}) {
+            model.calls.start(call.conversation,call.peer,call.kind)
+        } else {
+            pendingRedial=call
+            callPermissions.launch(required)
+        }
+    }
     suspend fun refresh(append:Boolean=false,force:Boolean=false)=loadMutex.withLock {
         if(!currentAccount()||(append&&(!more||before==null)))return@withLock
         val requestVersion=model.backend.uiReads.version(account,cacheKey)
@@ -175,6 +211,12 @@ private fun elapsedLabel(seconds:Long):String {
                 FilterChip(selected=filter==choice,onClick={filter=choice},label={Text(choice)},shape=Glass.capsule)
             }
         }
+        if(permissionError!=null) GlassCard(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Text(permissionError.orEmpty(),Modifier.weight(1f),color=MaterialTheme.colorScheme.error)
+                TextButton(onClick={permissionError=null}) {Text("Dismiss")}
+            }
+        }
         if(error!=null) GlassCard(Modifier.fillMaxWidth()) {
             Text(error.orEmpty(),color=MaterialTheme.colorScheme.error)
             TextButton(onClick={scope.launch {refresh(append=retryAppend,force=true)}},enabled=!loading) {Text("Retry")}
@@ -211,8 +253,8 @@ private fun elapsedLabel(seconds:Long):String {
                             }
                             Text(call.timeLabel,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick={model.calls.start(call.conversation,call.peer,call.kind)},
-                            enabled=currentCall==null && account!=null) {
+                        IconButton(onClick={redial(call)},
+                            enabled=currentCall==null && account!=null && call.kind in listOf("audio","video")) {
                             Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,
                                 if(call.kind=="video")"Video call again" else "Voice call again",
                                 tint=MaterialTheme.colorScheme.primary)
@@ -243,7 +285,7 @@ private fun elapsedLabel(seconds:Long):String {
                         Spacer(Modifier.width(8.dp))
                         Text("Message")
                     }
-                    Button(onClick={details=null;model.calls.start(call.conversation,call.peer,call.kind)},enabled=currentCall==null&&account!=null) {
+                    Button(onClick={details=null;redial(call)},enabled=currentCall==null&&account!=null&&call.kind in listOf("audio","video")) {
                         Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,null)
                         Spacer(Modifier.width(8.dp))
                         Text("Call again")
