@@ -72,6 +72,8 @@ class CallController(
     private var engine:CallEngine?=null
     private var polling:Job?=null
     private var incomingWatch:Job?=null
+    private var reconnectWatch:Job?=null
+    private var connectionGeneration=0L
     private var iceSending:Job?=null
     private var candidateQueue:Channel<JSONObject>?=null
     private var lastCandidate=0L
@@ -181,15 +183,28 @@ class CallController(
     }
 
     private fun newEngine(video:Boolean):CallEngine {
+        val generation=++connectionGeneration
         val candidateChannel=Channel<JSONObject>(256)
         candidateQueue=candidateChannel
         val connection=CallEngine(context,video,
-            {candidate->candidateChannel.trySend(candidate)},
+            {candidate->if(generation==connectionGeneration)candidateChannel.trySend(candidate)},
             {status->scope.launch {
-                val state=_view.value
-                if(state!=null && !state.incoming) {
-                    _view.value=state.copy(status=status)
-                    if(status=="Connection failed"||status=="Ended")hangup()
+                if(generation!=connectionGeneration)return@launch // Ignore stale native callbacks after teardown.
+                val state=_view.value ?: return@launch
+                if(state.incoming)return@launch
+                _view.value=state.copy(status=status)
+                when(status) {
+                    "Connected" -> {reconnectWatch?.cancel();reconnectWatch=null}
+                    "Reconnecting" -> {
+                        reconnectWatch?.cancel()
+                        reconnectWatch=scope.launch {
+                            delay(20_000L)
+                            if(generation==connectionGeneration && _view.value?.status=="Reconnecting")
+                                failure(java.io.IOException("Connection lost. Please try again."))
+                        }
+                    }
+                    "Connection failed" -> failure(java.io.IOException("Call could not connect. A TURN relay may be required."))
+                    "Ended" -> hangup()
                 }
             }})
         engine=connection
@@ -268,6 +283,8 @@ class CallController(
         if(_view.value?.id==null)stopLocal()
     }
     private fun stopLocal() {
+        connectionGeneration++
+        reconnectWatch?.cancel();reconnectWatch=null
         incomingWatch?.cancel();incomingWatch=null
         polling?.cancel();polling=null
         iceSending?.cancel();iceSending=null
