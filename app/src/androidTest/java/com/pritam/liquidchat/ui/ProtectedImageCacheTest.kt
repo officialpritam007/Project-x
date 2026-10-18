@@ -35,6 +35,7 @@ class ProtectedImageCacheTest {
     private val signs=AtomicInteger()
     private val downloads=AtomicInteger()
     private var ttl=60
+    private var revokeAfterFirst=false
     private var rejectFirst=false
     private var rejectEveryDownload=false
     private fun response(request:Request,body:ResponseBody,status:Int=200)=Response.Builder()
@@ -49,7 +50,11 @@ class ProtectedImageCacheTest {
             val request=chain.request()
             when(request.url.encodedPath) {
                 "/auth/v1/token"->json(request,session())
-                "/functions/v1/media"->{val n=signs.incrementAndGet();json(request,JSONObject().put("url","https://media.example.invalid/$n.png").put("expires_in",ttl))}
+                "/functions/v1/media"->{
+                    val n=signs.incrementAndGet()
+                    if(revokeAfterFirst&&n>1)response(request,"{}".toResponseBody("application/json".toMediaType()),403)
+                    else json(request,JSONObject().put("url","https://media.example.invalid/$n.png").put("expires_in",ttl))
+                }
                 "/rest/v1/rpc/set_avatar"->json(request,JSONObject())
                 else->error("Unexpected backend request")
             }
@@ -57,10 +62,13 @@ class ProtectedImageCacheTest {
         return Backend(store,http).also {runBlocking {it.signIn("fixture@example.invalid","fixture")}}
     }
     private fun imageLoader():ImageLoader {
-        val bitmap=Bitmap.createBitmap(16,16,Bitmap.Config.ARGB_8888).apply {eraseColor(Color.RED)}
-        val bytes=ByteArrayOutputStream().also {bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}.toByteArray()
         return ImageLoader.Builder(context).okHttpClient(OkHttpClient.Builder().addInterceptor {chain->
             val n=downloads.incrementAndGet()
+            val link=chain.request().url.pathSegments.last().substringBefore('.').toInt()
+            val color=when(link){1->Color.RED;2->Color.BLUE;else->Color.GREEN}
+            val bitmap=Bitmap.createBitmap(16,16,Bitmap.Config.ARGB_8888).apply {eraseColor(color)}
+            val bytes=ByteArrayOutputStream().also {bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}.toByteArray()
+            bitmap.recycle()
             response(chain.request(),bytes.toResponseBody("image/png".toMediaType()),if(rejectEveryDownload||(rejectFirst&&n==1))403 else 200)
         }.build()).build()
     }
@@ -74,10 +82,10 @@ class ProtectedImageCacheTest {
             context.getSharedPreferences("protected-image-fixture",Context.MODE_PRIVATE).edit().clear().commit()
         }
     }
-    private fun awaitImage() {
+    private fun awaitImage(color:Int=Color.RED) {
         compose.waitUntil(10_000) {downloads.get()>0}
         compose.waitUntil(10_000) {
-            runCatching {compose.onNodeWithContentDescription("Fixture image").captureToImage().asAndroidBitmap().let {it.getPixel(it.width/2,it.height/2)==Color.RED}}.getOrDefault(false)
+            runCatching {compose.onNodeWithContentDescription("Fixture image").captureToImage().asAndroidBitmap().let {it.getPixel(it.width/2,it.height/2)==color}}.getOrDefault(false)
         }
     }
     private fun assertTransferCountsStay(expected:Int) {
@@ -101,19 +109,30 @@ class ProtectedImageCacheTest {
         compose.runOnIdle {shown.value=true};awaitImage()
         assertTransferCountsStay(1)
         runBlocking {backend.rpc("set_avatar")}
-        compose.waitUntil(10_000) {downloads.get()==2};awaitImage()
+        compose.waitUntil(10_000) {downloads.get()==2};awaitImage(Color.BLUE)
         assertEquals(2,signs.get())
         // A fresh login of the same user cannot reuse the previous session's bitmap.
         runBlocking {backend.signIn("fixture@example.invalid","fixture")}
-        compose.waitUntil(10_000) {downloads.get()==3};awaitImage()
+        compose.waitUntil(10_000) {downloads.get()==3};awaitImage(Color.GREEN)
         assertEquals(3,signs.get())
     }
     @Test fun expiredImageTransferRenewsLinkOnceAutomatically() {
         rejectFirst=true
         fixture {backend->
             compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
-            awaitImage();assertEquals(2,signs.get());assertEquals(2,downloads.get())
+            awaitImage(Color.BLUE);assertEquals(2,signs.get());assertEquals(2,downloads.get())
             compose.onNodeWithText("Retry image").assertDoesNotExist()
+        }
+    }
+    @Test fun expiredPermissionIsRecheckedAndRevokedImageDisappears() {
+        ttl=3;revokeAfterFirst=true
+        fixture {backend->
+            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            awaitImage()
+            awaitRetry()
+            compose.onNodeWithContentDescription("Fixture image").assertDoesNotExist()
+            assertEquals(1,downloads.get())
+            assertTrue(signs.get() in 2..3)
         }
     }
     @Test fun repeatedTransferRejectionStopsAndManualRetryIsBounded() {

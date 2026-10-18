@@ -99,15 +99,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun loadProfile()=profileMutex.withLock {
         val id=session.value?.userId ?: return@withLock
         val epoch=backend.uiReads.epoch(id)
-        fun current()=session.value?.userId==id && backend.uiReads.epoch(id)==epoch
+        val cacheScope=backend.profileCacheScope(id)
+        fun current()=session.value?.userId==id && backend.uiReads.epoch(id)==epoch && backend.profileCacheScope(id)==cacheScope
         _profileError.value=null
         try {
-            // Keep the current session's profile while refreshing. Persisted rows carry
-            // no authorization context and must not be restored after an access change.
+            // Offline hydration is allowed only for this login and authorization scope.
+            // Keep the current in-memory profile during refresh to avoid old avatar flashes.
+            if(!_profileLoaded.value && cacheScope!=null)repository.dao.profile(id)?.let {cached->
+                val json=runCatching {JSONObject(cached.json)}.getOrNull()
+                if(json!=null && json.optString("id")==id && json.optString("_liquid_cache_scope")==cacheScope && current()) {
+                    json.remove("_liquid_cache_scope")
+                    _profile.value=json;_profileLoaded.value=true
+                }
+            }
             val a=JSONArray(backend.request("/rest/v1/profiles?id=eq.$id&select=*&limit=1"))
             if(current()) {
                 _profile.value=a.optJSONObject(0);_profileLoaded.value=true
-                _profile.value?.let {repository.dao.cacheProfile(CachedProfile(id,it.toString()))}
+                _profile.value?.let {
+                    val cached=JSONObject(it.toString()).put("_liquid_cache_scope",cacheScope)
+                    repository.dao.cacheProfile(CachedProfile(id,cached.toString()))
+                }
             }
         } catch(e: CancellationException) { throw e }
         catch(e:Exception) { if(current()){_profileError.value="Your profile is unavailable offline or while the service is unreachable. Connect and retry.";_notice.value=e.message ?: "Cannot load profile. Retry when connected."} }
@@ -118,6 +129,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun reset(email:String)=action { backend.reset(email);_notice.value="If that address can receive a reset, an email is on its way. Open it on this device." }
     fun callback(uri: Uri)=action { backend.callback(uri) }
+    suspend fun setAvatar(media:String?=null) {
+        val id=session.value?.userId ?: return
+        val epoch=backend.uiReads.epoch(id)
+        backend.rpc("set_avatar",JSONObject().apply {if(media!=null)put("p_media",media)})
+        if(session.value?.userId==id && backend.uiReads.epoch(id)==epoch) {
+            _profile.value?.let {previous->
+                val updated=JSONObject(previous.toString()).put("avatar_id",media ?: JSONObject.NULL)
+                _profile.value=updated
+                val cached=JSONObject(updated.toString()).put("_liquid_cache_scope",backend.profileCacheScope(id))
+                repository.dao.cacheProfile(CachedProfile(id,cached.toString()))
+            }
+            repository.refresh()
+            loadProfile()
+        }
+    }
     fun saveProfile(username:String,name:String,bio:String)=action {
         backend.rpc("save_profile",JSONObject().put("p_username",username).put("p_name",name).put("p_bio",bio));loadProfile()
     }

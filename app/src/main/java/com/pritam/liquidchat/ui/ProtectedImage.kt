@@ -8,6 +8,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import coil.Coil
 import coil.compose.AsyncImage
 import coil.memory.MemoryCache
@@ -15,7 +18,10 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.imageUrl
+import com.pritam.liquidchat.data.imageUrlRefreshDelay
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable fun ProtectedImage(
     backend:Backend,id:String,local:String="",description:String,
@@ -26,6 +32,7 @@ import kotlinx.coroutines.CancellationException
     val sessionEpoch by backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
     val account=session?.userId
     val context=LocalContext.current
+    val lifecycle=LocalLifecycleOwner.current.lifecycle
     val key="signed-image:$id"
     // Resource versions survive URL expiry, and change on auth or avatar invalidation.
     val version=remember(account,id,revision) {backend.uiReads.version(account,key)}
@@ -36,16 +43,22 @@ import kotlinx.coroutines.CancellationException
     var failed by remember(memoryKey) {mutableStateOf(false)}
     var retry by remember(memoryKey) {mutableIntStateOf(0)}
     var autoRetried by remember(memoryKey) {mutableStateOf(false)}
-    LaunchedEffect(memoryKey,retry) {
+    LaunchedEffect(memoryKey,retry,lifecycle) {
+        val expectedEpoch=sessionEpoch
         if(local.isNotEmpty()) {url=local;return@LaunchedEffect}
         if(account.isNullOrBlank()||version==null||id.isBlank()||id=="null")return@LaunchedEffect
-        // A decoded bitmap needs no signing request on tab switches.
-        if(cached&&retry==0) {url=id;return@LaunchedEffect}
-        try {
-            val signed=backend.imageUrl(account,id,force=retry>0)
-            if(backend.uiReads.epoch(account)==sessionEpoch) {url=signed;failed=false}
-        } catch(e:CancellationException) {throw e}
-        catch(_:Exception) {failed=true}
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while(isActive) {
+                try {
+                    // Cache hits require no network. Revalidate access at expiry while
+                    // keeping the decoded bitmap stable across successful renewals.
+                    val signed=backend.imageUrl(account,id,force=retry>0)
+                    if(backend.uiReads.epoch(account)==expectedEpoch) {url=signed;failed=false}
+                } catch(e:CancellationException) {throw e}
+                catch(_:Exception) {url=null;failed=true;return@repeatOnLifecycle}
+                delay(backend.imageUrlRefreshDelay(account,id))
+            }
+        }
     }
     val request=remember(url,memoryKey,retry) {
         ImageRequest.Builder(context).data(url).memoryCacheKey(memoryKey)

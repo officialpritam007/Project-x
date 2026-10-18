@@ -25,3 +25,11 @@ internal suspend fun Backend.imageUrl(
     }
     throw IOException("Image link expired. Retry when connected.")
 }
+
+internal fun Backend.imageUrlRefreshDelay(account:String,id:String):Long {
+    val remaining=runCatching {
+        JSONObject(uiReads.peek(account,"signed-image:$id") ?: return 250L)
+            .getLong("valid_until")-System.nanoTime()/1_000_000L
+    }.getOrDefault(250L)
+    return remaining.coerceIn(250L,40_000L)
+}

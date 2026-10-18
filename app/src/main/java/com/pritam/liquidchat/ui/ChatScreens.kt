@@ -513,7 +513,7 @@ import kotlinx.coroutines.flow.drop
     val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,id)
-        try {val uploaded=model.backend.uploadImage(image.file,null);model.backend.rpc("set_avatar",org.json.JSONObject().put("p_media",uploaded.getString("id")));model.loadProfile()} finally {image.file.delete()}
+        try {val uploaded=model.backend.uploadImage(image.file,null);model.setAvatar(uploaded.getString("id"))} finally {image.file.delete()}
     }}
     var confirm by remember {mutableStateOf(false)}
     var edit by remember {mutableStateOf(false)}
@@ -531,7 +531,7 @@ import kotlinx.coroutines.flow.drop
             Spacer(Modifier.height(12.dp))
             Text(profile?.optString("display_name").orEmpty(),style=MaterialTheme.typography.titleLarge)
             Text("@${profile?.optString("username").orEmpty()}");Text(profile?.optString("bio").orEmpty())
-            Row {TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text("Edit photo")};TextButton(onClick={model.action {model.backend.rpc("set_avatar");model.loadProfile()}},enabled=!busy) {Text("Remove photo")}}
+            Row {TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text("Edit photo")};TextButton(onClick={model.action {model.setAvatar()}},enabled=!busy) {Text("Remove photo")}}
             TextButton(onClick={edit=true}) {Text("Edit profile")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
