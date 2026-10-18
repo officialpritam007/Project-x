@@ -15,6 +15,13 @@ class CallHistoryRowTest {
         assertEquals("Declined",row(outgoing=true,outcome="declined").direction)
     }
 
+    @Test fun callHistoryRedialRequestsSameMediaPermissionsAsChat() {
+        assertArrayEquals(arrayOf(android.Manifest.permission.RECORD_AUDIO),
+            callHistoryRequiredPermissions("audio"))
+        assertArrayEquals(arrayOf(android.Manifest.permission.RECORD_AUDIO,android.Manifest.permission.CAMERA),
+            callHistoryRequiredPermissions("video"))
+    }
+
     @Test fun durationRequiresAConnectedCallAndNonNegativeTimes() {
         assertNull(row().durationSeconds)
         assertNull(row(answered="bad",ended="2026-10-18T12:00:30Z").durationSeconds)
