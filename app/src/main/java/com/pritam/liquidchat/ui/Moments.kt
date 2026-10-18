@@ -35,8 +35,18 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-@Immutable data class Moment(val id:String,val owner:String,val media:String,val name:String,val caption:String,val created:String,val expires:String?,val width:Int,val height:Int)
-internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()).map {index->val j=array.getJSONObject(index);Moment(j.getString("id"),j.getString("owner_id"),j.getString("media_id"),j.getString("display_name"),j.getString("caption"),j.getString("created_at"),if(j.isNull("expires_at"))null else j.getString("expires_at"),j.getInt("width"),j.getInt("height"))}
+@Immutable data class Moment(
+    val id:String,val owner:String,val media:String,val name:String,val caption:String,
+    val created:String,val expires:String?,val width:Int,val height:Int,
+    val mediaKind:String="image",val durationMs:Long=0L
+)
+internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()).map {index->
+    val j=array.getJSONObject(index)
+    Moment(j.getString("id"),j.getString("owner_id"),j.getString("media_id"),
+        j.getString("display_name"),j.getString("caption"),j.getString("created_at"),
+        if(j.isNull("expires_at"))null else j.getString("expires_at"),j.getInt("width"),j.getInt("height"),
+        j.optString("media_kind","image"),j.optLong("duration_ms",0L))
+}
 
 /**
  * Option C: compact, horizontal story cards on the existing Chats tab.
@@ -94,7 +104,9 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     ) {
         GlassSurface(Modifier.size(width=94.dp,height=116.dp),Glass.card) {
             Box(Modifier.fillMaxSize().clip(Glass.card),contentAlignment=Alignment.Center) {
-                if(moment!=null)
+                if(moment?.mediaKind=="story_video")
+                    Icon(Icons.Outlined.Videocam,"Video story",modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
+                else if(moment!=null)
                     ProtectedImage(model.backend,moment.media,description="$title story",
                         modifier=Modifier.fillMaxSize(),scale=ContentScale.Crop)
                 else
@@ -160,7 +172,12 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(moment.name,fontWeight=FontWeight.Bold)
                     Text(remember(moment.created){runCatching{java.time.Instant.parse(moment.created).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM · HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
-                    ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=androidx.compose.ui.layout.ContentScale.Crop)
+                    if(moment.mediaKind=="story_video") {
+                        Box(Modifier.fillMaxWidth().height(190.dp).clickable {focused=moment},contentAlignment=Alignment.Center) {
+                            Icon(Icons.Outlined.PlayCircle,"Play video story",modifier=Modifier.size(56.dp),tint=MaterialTheme.colorScheme.primary)
+                            Text("Video story · ${(moment.durationMs/1000)}s",Modifier.align(Alignment.BottomCenter).padding(12.dp))
+                        }
+                    } else ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=ContentScale.Crop)
                     if(moment.caption.isNotBlank())Text(moment.caption)
                     if(moment.owner!=account?.userId)Row {
                         TextButton(onClick={reporting=moment},enabled=!loading){Text("Report ${if(kind=="story")"story" else "post"}")}
