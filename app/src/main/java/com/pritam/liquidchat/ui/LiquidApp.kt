@@ -55,7 +55,13 @@ import com.pritam.liquidchat.AppViewModel
         if(logoutPrompt) AlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
         Box(Modifier.fillMaxSize()) {
         Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
-        Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
+        Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent,
+            topBar={
+                if(currentCall?.minimized==true && (currentCall?.video!=true || currentCall?.compact==true)) {
+                    val caller=chats.firstOrNull {it.id==currentCall?.conversation}
+                    currentCall?.let {MinimizedCallPill(model.calls,it,caller?.name)}
+                }
+            }, bottomBar={
             if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
