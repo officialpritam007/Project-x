@@ -89,23 +89,38 @@ private fun elapsedLabel(seconds:Long):String {
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
     val account=session?.userId
-    var rows by remember(account) {mutableStateOf(emptyList<CallHistoryRow>())}
+    val cacheKey="calls:recent"
+    var rows by remember(account) {
+        mutableStateOf(
+            model.backend.uiReads.peek(account,cacheKey,allowStale=true)
+                ?.let {runCatching {CallHistoryRow.parse(JSONArray(it),account.orEmpty())}.getOrNull()}
+                ?: emptyList()
+        )
+    }
+    var loadedOnce by remember(account) {
+        mutableStateOf(model.backend.uiReads.peek(account,cacheKey,allowStale=true)!=null)
+    }
     var loading by remember(account) {mutableStateOf(false)}
     var more by remember(account) {mutableStateOf(false)}
     var error by remember(account) {mutableStateOf<String?>(null)}
     var filter by remember(account) {mutableStateOf("All")}
     var details by remember {mutableStateOf<CallHistoryRow?>(null)}
 
-    suspend fun refresh(append:Boolean=false) {
+    suspend fun refresh(append:Boolean=false,force:Boolean=false) {
         if(loading||account==null)return
         loading=true
         error=null
         try {
             val params=JSONObject()
             if(append)rows.lastOrNull()?.let {params.put("p_before",it.created)}
-            val page=CallHistoryRow.parse(JSONArray(model.backend.rpc("list_call_history",params)),account)
+            val result=if(append)model.backend.rpc("list_call_history",params)
+                else model.backend.uiReads.load(account,cacheKey,60_000L,force=force) {
+                    model.backend.rpc("list_call_history",params)
+                }
+            val page=CallHistoryRow.parse(JSONArray(result),account)
             if(model.backend.session.value?.userId==account) {
                 rows=if(append)(rows+page).distinctBy {it.id} else page
+                loadedOnce=true
                 more=page.size>=50
             }
         } catch(e:CancellationException) {throw e}
@@ -119,7 +134,7 @@ private fun elapsedLabel(seconds:Long):String {
         verticalArrangement=Arrangement.spacedBy(12.dp)
     ) {
         GlassHeader("Calls") {
-            IconButton(onClick={scope.launch {refresh()}},enabled=!loading) {
+            IconButton(onClick={scope.launch {refresh(force=true)}},enabled=!loading) {
                 Icon(Icons.Outlined.Refresh,"Refresh call history")
             }
         }
@@ -138,7 +153,7 @@ private fun elapsedLabel(seconds:Long):String {
             contentPadding=PaddingValues(bottom=120.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
         ) {
             if(loading&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth())}
-            if(!loading&&error==null&&visible.isEmpty()) item(key="empty") {
+            if((loadedOnce||error==null&&!loading)&&!loading&&error==null&&visible.isEmpty()) item(key="empty") {
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(if(filter=="Missed")"No missed calls" else "No recent calls",style=MaterialTheme.typography.titleMedium)
                     Text("Your voice and video call history will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)

@@ -28,6 +28,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         const val PUBLIC_KEY = "sb_publishable_EIfZYiBXr4XR5eTW6vcPxw_qPLsQs78"
         const val CALLBACK = "liquidchat://auth/callback"
     }
+    val uiReads=UiReadCache()
     private val authMutex = Mutex()
     private val deviceMutex=Mutex()
     private val _session = MutableStateFlow<Session?>(null)
@@ -46,6 +47,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         val s=decode(j)
         j.put("expires_at",s.expires)
         store.write("session",j.toString())
+        if(_session.value?.userId!=s.userId)uiReads.clear()
         _session.value=s
     }
     private fun raw(path: String, method: String, body: JSONObject?, token: String?): String {
@@ -173,7 +175,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         withContext(Dispatchers.IO) {store.write("device_token",if(remove)null else token)}
     }
     suspend fun forgetLocal()=deviceMutex.withLock {withContext(Dispatchers.IO) {authMutex.withLock {
-        store.write("session",null);store.write("pkce",null);store.write("device_token",null);_session.value=null;_recovery.value=false
+        store.write("session",null);store.write("pkce",null);store.write("device_token",null);uiReads.clear();_session.value=null;_recovery.value=false
     }}}
     suspend fun logout() = deviceMutex.withLock {withContext(Dispatchers.IO) {
         val expected=_session.value?.let {validSession(it)}
@@ -182,7 +184,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
                 store.read("device_token")?.let {token->raw("/rest/v1/rpc/register_device","POST",JSONObject().put("p_token",token).put("p_remove",true),expected.access)}
                 raw("/auth/v1/logout","POST",null,expected.access)
             }
-            store.write("session",null);store.write("pkce",null);store.write("device_token",null);_session.value=null;_recovery.value=false
+            store.write("session",null);store.write("pkce",null);store.write("device_token",null);uiReads.clear();_session.value=null;_recovery.value=false
         }
     }}
 }
