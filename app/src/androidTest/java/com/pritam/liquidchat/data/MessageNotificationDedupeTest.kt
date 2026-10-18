@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.UUID
+import java.io.IOException
 
 class MessageNotificationDedupeTest {
     @Test fun repeatedMessageIsClaimedOnlyOnceAcrossWorkerInstances() {
@@ -53,8 +54,9 @@ class MessageNotificationDedupeTest {
                     throw SecurityException("Simulated platform notification rejection")
                 }
                 fail("Failed call notification must propagate an error")
-            } catch (expected: SecurityException) {
-                assertEquals("Simulated platform notification rejection", expected.message)
+            } catch (expected: IOException) {
+                assertTrue(expected.cause is SecurityException)
+                assertEquals("Simulated platform notification rejection", expected.cause?.message)
             }
             assertFalse(MessageNotificationDedupe.wasPosted(context, account, callReceipt))
             assertTrue(MessageNotificationDedupe.postOnce(context, account, callReceipt) { attempts++ })
