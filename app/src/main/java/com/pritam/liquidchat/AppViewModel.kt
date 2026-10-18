@@ -173,6 +173,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         check(session.value?.userId==current.userId)
         val result=JSONObject(backend.request("/functions/v1/account","POST",JSONObject().put("action","delete")))
         backend.forgetLocal();repository.clearAccount(current.userId)
+        com.pritam.liquidchat.data.MessageNotificationDedupe.clearAccount(getApplication(),current.userId)
         policyPrefs.edit().remove("accepted_${current.userId}").apply();policyEpoch.value++
         getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
         androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
@@ -187,7 +188,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val id=session.value?.userId
         val revoked=localLogout(revokeRemote={backend.logout()},clearLocal={
             backend.forgetLocal()
-            if(id!=null){repository.clearAccount(id);policyPrefs.edit().remove("accepted_$id").apply();policyEpoch.value++}
+            if(id!=null){
+                repository.clearAccount(id)
+                com.pritam.liquidchat.data.MessageNotificationDedupe.clearAccount(getApplication(),id)
+                policyPrefs.edit().remove("accepted_$id").apply();policyEpoch.value++
+            }
             getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
             androidx.work.WorkManager.getInstance(getApplication<Application>()).cancelAllWorkByTag("device-registration")
             getApplication<Application>().getSharedPreferences("device",android.content.Context.MODE_PRIVATE).edit().remove("fcm_token").apply()
