@@ -39,7 +39,7 @@ class LiquidMessagingService:FirebaseMessagingService() {
             // KEEP coalesces duplicate push deliveries while a worker is pending/running.
             // Persistent receipts in show() also cover re-deliveries after work completes.
             WorkManager.getInstance(this).enqueueUniqueWork(
-                "message-push-$"+"recipient-$"+"messageId", ExistingWorkPolicy.KEEP, request.build())
+                "message-push-" + recipient + "-" + messageId, ExistingWorkPolicy.KEEP, request.build())
         } else WorkManager.getInstance(this).enqueue(request.build())
     }
 }
