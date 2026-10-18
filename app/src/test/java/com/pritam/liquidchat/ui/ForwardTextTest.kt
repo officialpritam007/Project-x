@@ -26,6 +26,7 @@ class ForwardTextTest {
         assertFalse(canForwardTextMessage(message().copy(mediaId="media-id"),account))
         assertFalse(canForwardTextMessage(message().copy(localImage="/local/photo.jpg"),account))
         assertFalse(canForwardTextMessage(message().copy(mediaKind="voice",body="Voice message"),account))
+        assertFalse(canForwardTextMessage(message().copy(mediaKind="video",body="Video"),account))
     }
 
     @Test fun textMultiSelectionTogglesWithoutDuplicateIds() {
