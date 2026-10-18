@@ -226,24 +226,39 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     var index by remember(initialId) {mutableIntStateOf(stories.indexOfFirst {it.id==initialId}.coerceAtLeast(0))}
     index=index.coerceIn(0,stories.lastIndex)
     var paused by remember {mutableStateOf(false)}
+    var muted by remember {mutableStateOf(true)}
     var progress by remember(index) {mutableFloatStateOf(0f)}
-    LaunchedEffect(index,paused,stories.size) {
-        while(progress<1f) {
-            delay(50)
-            if(!paused)progress=(progress+.01f).coerceAtMost(1f)
-        }
-        if(!paused) {
-            if(index<stories.lastIndex)index++ else onDismiss()
+    val current=stories[index]
+    val foreground by model.repository.foreground.collectAsStateWithLifecycle()
+    val currentCall by model.calls.view.collectAsStateWithLifecycle()
+    val effectivePause=paused||!foreground||currentCall!=null
+    // Photos advance after five seconds; MP4 progress is driven by the actual player.
+    LaunchedEffect(index,effectivePause,stories.size,current.mediaKind) {
+        if(current.mediaKind!="story_video") {
+            while(progress<1f) {
+                delay(50)
+                if(!effectivePause)progress=(progress+.01f).coerceAtMost(1f)
+            }
+            if(!effectivePause) {
+                if(index<stories.lastIndex)index++ else onDismiss()
+            }
         }
     }
-    val current=stories[index]
     androidx.compose.ui.window.Dialog(
         onDismissRequest=onDismiss,
         properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)
     ) {
         Surface(Modifier.fillMaxSize(),color=Color.Black) {
             Box(Modifier.fillMaxSize()) {
-                ProtectedImage(model.backend,current.media,
+                if(current.mediaKind=="story_video") {
+                    StoryVideoPlayer(
+                        backend=model.backend,media=current.media,
+                        paused=effectivePause,muted=muted,
+                        onProgress={progress=it},
+                        onFinished={if(index<stories.lastIndex)index++ else onDismiss()},
+                        modifier=Modifier.fillMaxSize()
+                    )
+                } else ProtectedImage(model.backend,current.media,
                     description="${current.name}'s story",modifier=Modifier.fillMaxSize(),
                     scale=ContentScale.Fit)
                 Box(Modifier.fillMaxSize().pointerInput(index,stories.size) {
@@ -278,6 +293,12 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         Column(Modifier.weight(1f)) {
                             Text(current.name,color=Color.White,fontWeight=FontWeight.SemiBold)
                             Text("24-hour story",color=Color.White.copy(alpha=.78f),style=MaterialTheme.typography.labelSmall)
+                        }
+                        if(current.mediaKind=="story_video") {
+                            IconButton(onClick={muted=!muted}) {
+                                Icon(if(muted)Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                                    if(muted)"Unmute story" else "Mute story",tint=Color.White)
+                            }
                         }
                         IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close story",tint=Color.White)}
                     }
