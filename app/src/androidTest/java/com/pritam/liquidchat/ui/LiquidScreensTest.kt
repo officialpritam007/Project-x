@@ -45,20 +45,21 @@ class LiquidScreensTest {
                 Box(Modifier.fillMaxSize()) {
                     Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
                     Box(Modifier.fillMaxSize().padding(top=28.dp)) {
-                            when(screen){0->ChatsScreen(model,chats);1->ContactsScreen(model,chats,false);2->SettingsHome(model){};3->MyProfileScreen(model,false){};4->ConversationScreen(model,"preview-chat",chats,false);else->Column {MessageBubble(Message("preview","incoming","preview-chat","peer","An incoming message",reactions="{\"peer\":\"❤️\",\"preview\":\"👍\"}"),chats[0],model,{},false);MessageBubble(Message("preview","outgoing","preview-chat","preview","An outgoing message",seq=5,status="SENT",replyTo="incoming",editedAt="2026-10-17T08:00:00Z",starred=true),chats[0],model,{},false)}}
+                            when(screen){0->ChatsScreen(model,chats);1->CallsScreen(model,chats);2->ContactsScreen(model,chats,false);3->SettingsHome(model){};4->MyProfileScreen(model,false){};5->ConversationScreen(model,"preview-chat",chats,false);else->Column {MessageBubble(Message("preview","incoming","preview-chat","peer","An incoming message",reactions="{\"peer\":\"❤️\",\"preview\":\"👍\"}"),chats[0],model,{},false);MessageBubble(Message("preview","outgoing","preview-chat","preview","An outgoing message",seq=5,status="SENT",replyTo="incoming",editedAt="2026-10-17T08:00:00Z",starred=true),chats[0],model,{},false)}}
                     }
-                    if(screen<4)Box(Modifier.align(Alignment.BottomCenter)){GlassNavigation(screen){screen=it}}
+                    if(screen<5)Box(Modifier.align(Alignment.BottomCenter)){GlassNavigation(screen){screen=it}}
                 }
             }
         }
+        compose.onNodeWithContentDescription("Calls").performClick();compose.onNodeWithText("No recent calls").assertExists();capture("02-calls")
         compose.onNodeWithContentDescription("Contacts").performClick();compose.onNodeWithText("Invite Friends").assertExists();capture("02-contacts")
         compose.onNodeWithContentDescription("Settings").performClick();compose.onNodeWithText("Liquid Chat Settings").assertExists();capture("03-settings")
         compose.onNodeWithContentDescription("Profile").performClick();compose.onNodeWithText("Set Photo").assertExists();capture("04-profile")
         compose.onNodeWithTag("moments-list").performScrollToNode(hasText("Add a post"));compose.onNodeWithText("Add a post").assertIsDisplayed();capture("04b-profile-posts")
         compose.onNodeWithContentDescription("Chats").performClick();compose.onNodeWithText("Salma 💗✨👀").assertExists();capture("01-chats")
         compose.onNodeWithText("Search Chats").performTextInput("notfound");compose.onNodeWithText("Salma 💗✨👀").assertDoesNotExist()
-        compose.runOnIdle {screen=4};compose.onNodeWithContentDescription("Hold to record voice message").assertExists();capture("05-conversation")
-        compose.runOnIdle {screen=5};compose.onNodeWithText("An incoming message").assertExists();compose.onNodeWithText("edited").assertExists();compose.onNodeWithContentDescription("Starred").assertExists();capture("06-message-bubbles")
+        compose.runOnIdle {screen=5};compose.onNodeWithContentDescription("Hold to record voice message").assertExists();capture("05-conversation")
+        compose.runOnIdle {screen=6};compose.onNodeWithText("An incoming message").assertExists();compose.onNodeWithText("edited").assertExists();compose.onNodeWithContentDescription("Starred").assertExists();capture("06-message-bubbles")
     }
     @Test fun glassCanRenderAnActualMovingBackdropWithoutBlurringItsLabel() {
         var offset by mutableIntStateOf(0)
