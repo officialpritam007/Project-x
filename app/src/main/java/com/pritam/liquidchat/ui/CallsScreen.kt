@@ -94,6 +94,9 @@ internal fun callHistoryPage(data:JSONArray,account:String)=CallHistoryPage(
 )
 
 /** Same runtime microphone/camera permissions as the conversation call buttons. */
+internal fun callHistoryCanRedial(callsEnabled:Boolean,kind:String,hasAccount:Boolean,callInProgress:Boolean):Boolean =
+    callsEnabled && hasAccount && !callInProgress && kind in listOf("audio","video")
+
 internal fun callHistoryRequiredPermissions(kind:String):Array<String> =
     if(kind=="video") arrayOf(Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA)
     else arrayOf(Manifest.permission.RECORD_AUDIO)
@@ -151,7 +154,9 @@ private fun elapsedLabel(seconds:Long):String {
         }
     }
     fun redial(call:CallHistoryRow) {
-        if(!currentAccount()||model.calls.view.value!=null||call.kind !in listOf("audio","video"))return
+        if(!currentAccount() || !callHistoryCanRedial(
+            com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
+            call.kind,account!=null,model.calls.view.value!=null))return
         permissionError=null
         val required=callHistoryRequiredPermissions(call.kind)
         if(required.all {ContextCompat.checkSelfPermission(context,it)==PackageManager.PERMISSION_GRANTED}) {
@@ -254,7 +259,8 @@ private fun elapsedLabel(seconds:Long):String {
                             Text(call.timeLabel,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick={redial(call)},
-                            enabled=currentCall==null && account!=null && call.kind in listOf("audio","video")) {
+                            enabled=callHistoryCanRedial(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
+                                call.kind,account!=null,currentCall!=null)) {
                             Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,
                                 if(call.kind=="video")"Video call again" else "Voice call again",
                                 tint=MaterialTheme.colorScheme.primary)
@@ -285,7 +291,9 @@ private fun elapsedLabel(seconds:Long):String {
                         Spacer(Modifier.width(8.dp))
                         Text("Message")
                     }
-                    Button(onClick={details=null;redial(call)},enabled=currentCall==null&&account!=null&&call.kind in listOf("audio","video")) {
+                    Button(onClick={details=null;redial(call)},
+                        enabled=callHistoryCanRedial(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
+                            call.kind,account!=null,currentCall!=null)) {
                         Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,null)
                         Spacer(Modifier.width(8.dp))
                         Text("Call again")
