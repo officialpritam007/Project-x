@@ -32,7 +32,15 @@ class LiquidMessagingService:FirebaseMessagingService() {
             request.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
         }
         data["recipientId"]?.let {request.addTag("account-$it")}
-        WorkManager.getInstance(this).enqueue(request.build())
+        val recipient=data["recipientId"]
+        val messageId=data["messageId"]
+        if(data["event"]!="incoming_call" && recipient!=null && messageId!=null &&
+           runCatching { UUID.fromString(recipient);UUID.fromString(messageId) }.isSuccess) {
+            // KEEP coalesces duplicate push deliveries while a worker is pending/running.
+            // Persistent receipts in show() also cover re-deliveries after work completes.
+            WorkManager.getInstance(this).enqueueUniqueWork(
+                "message-push-$"+"recipient-$"+"messageId", ExistingWorkPolicy.KEEP, request.build())
+        } else WorkManager.getInstance(this).enqueue(request.build())
     }
 }
 class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(context,params) {
@@ -70,6 +78,8 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         val cid=inputData.getString("conversationId") ?: return Result.failure()
         val id=inputData.getString("messageId") ?: return Result.failure()
         if(runCatching {UUID.fromString(cid);UUID.fromString(id)}.isFailure)return Result.failure()
+        // Skip expensive repeat sync/RPC if this device already posted this exact message.
+        if(MessageNotificationDedupe.wasPosted(applicationContext,account,id))return Result.success()
         return try {
             app.repository.sync()
             val message=app.repository.dao.message(account,id) ?: return Result.success()
@@ -115,6 +125,20 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         manager.createNotificationChannel(NotificationChannel("messages","Messages",NotificationManager.IMPORTANCE_HIGH))
         val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).putExtra("accountId",account).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,id.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        manager.notify(id.hashCode(),NotificationCompat.Builder(context,"messages").setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true).setVisibility(if(previews)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET).setCategory(NotificationCompat.CATEGORY_MESSAGE).build())
+        val notification=NotificationCompat.Builder(context,"messages")
+            .setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(pending)
+            .setAutoCancel(true).setOnlyAlertOnce(true)
+            .setVisibility(if(previews)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE).build()
+        // Commit before notifying: notifications dismissed by the user must never alert again.
+        if(!MessageNotificationDedupe.claim(context,account,id))return
+        try {
+            manager.notify(id.hashCode(),notification)
+        } catch(e:RuntimeException) {
+            // No alert was posted. A later valid FCM/WorkManager attempt may retry.
+            MessageNotificationDedupe.forget(context,account,id)
+            throw e
+        }
     }
 }
