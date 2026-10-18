@@ -32,8 +32,14 @@ import com.pritam.liquidchat.data.Images
             if(avatar.isNotEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
             else Text(name.split(" ").filter {it.isNotBlank()}.take(2).joinToString("") {it.take(1)}.uppercase(),fontSize=39.sp,color=Color.White)
         }
-        Text(name,fontSize=25.sp,fontWeight=FontWeight.Bold)
-        Text(if(large)"online" else "@${profile?.optString("username").orEmpty()} • online",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(name.ifBlank {"My Profile"},fontSize=25.sp,fontWeight=FontWeight.Bold)
+        // A user profile is not a presence indicator. Never label anyone online without
+        // an authenticated, live presence observation that respects privacy settings.
+        val username=profile?.optString("username").orEmpty().takeIf {it.isNotBlank()}
+        val bio=profile?.optString("bio").orEmpty().takeIf {it.isNotBlank()}
+        username?.let {Text("@$it",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+        if(large&&bio!=null)Text(bio,fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines=2)
     }
 }
 @Composable fun MyProfileScreen(model:AppViewModel,busy:Boolean,onSettings:()->Unit) {
@@ -83,15 +89,15 @@ import com.pritam.liquidchat.data.Images
         Box(Modifier.clickable {onSection("Account")}) {ProfileHero(model)}
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val rows=listOf(
-                Triple("Account","Number, Username, Bio",0xFF00A8D8),
+                Triple("Account","Username, Bio, Sign-in",0xFF00A8D8),
                 Triple("Chat Settings","Wallpaper, Night Mode, Animations",0xFFF9A600),
-                Triple("Privacy & Security","Last Seen, Devices, Passkeys",0xFF11C748),
+                Triple("Privacy & Security","Last Seen, Blocked Contacts",0xFF11C748),
                 Triple("Notifications","Sounds, Messages, Badges",0xFFFF3565),
                 Triple("Data and Storage","Media download settings",0xFF357EEB),
-                Triple("Chat Folders","Sort chats into folders",0xFF07ACD7),
-                Triple("Devices","Manage connected devices",0xFF00B6C9),
+                Triple("Chat Folders","Coming soon",0xFF07ACD7),
+                Triple("Devices","Coming soon",0xFF00B6C9),
                 Triple("Power Saving","Battery saving controls",0xFFF99020),
-                Triple("Language","English",0xFFB851E0))
+                Triple("Language","Coming soon · English",0xFFB851E0))
             val glyphs=listOf("◎","◉","⚿","◖","◫","▣","▭","▱","◎")
             rows.forEachIndexed {i,(title,subtitle,color)->
                 Row(Modifier.fillMaxWidth().heightIn(min=49.dp).clickable {onSection(title)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
