@@ -100,6 +100,10 @@ class ActiveCallService : Service() {
     }
     override fun onDestroy() {
         running=false
+        // If Android revokes the foreground service unexpectedly, end media too.
+        val listener=onHangup
+        onHangup=null
+        listener?.invoke()
         super.onDestroy()
     }
 }
