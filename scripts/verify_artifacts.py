@@ -22,7 +22,13 @@ def verify_native(archive):
             # 16 KB page-size compatibility is required on 64-bit Android ABIs.
             # Keep 32-bit ABIs at their 4 KB ELF requirement; rejecting armeabi-v7a
             # would incorrectly discard supported 32-bit handsets.
-            match=re.search(r'(?:^|/)lib/(arm64-v8a|x86_64|armeabi-v7a|x86)/[^/]+\.so
+            parts=name.split('/')
+            if len(parts)<3 or parts[-3]!='lib' or parts[-2] not in ('arm64-v8a','x86_64','armeabi-v7a','x86'):
+                raise ValueError(f'Unexpected native library packaging: {name}')
+            abi=parts[-2]
+            required_alignment=16384 if abi in ('arm64-v8a','x86_64') else 4096
+            endian='<' if data[5]==1 else '>'
+            wide=data[4]==2
             offset=struct.unpack_from(endian+('Q' if wide else 'I'),data,32 if wide else 28)[0]
             size,count=struct.unpack_from(endian+'HH',data,54 if wide else 42)
             alignments=[]
