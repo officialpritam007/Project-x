@@ -34,8 +34,20 @@ Deno.serve(async (req:Request)=>{
     const jwt=header.slice(7);
     const {data:{user},error:authError}=await admin.auth.getUser(jwt);
     if(authError||!user)return json({error:"Sign in required"},401);
-    const raw=await req.text();
-    if(raw.length>512)return json({error:"Invalid request"},400);
+    const reader=req.body?.getReader();
+    const decoder=new TextDecoder();
+    let raw="";
+    if(reader)while(true){
+      const {value,done}=await reader.read();
+      if(done)break;
+      raw+=decoder.decode(value,{stream:true});
+      if(raw.length>512){
+        await reader.cancel();
+        return json({error:"Invalid request"},413);
+      }
+    }
+    raw+=decoder.decode();
+    if(raw.length>512)return json({error:"Invalid request"},413);
     const input=JSON.parse(raw||"{}");
     if(typeof input.callId!=="string"||!uuidPattern.test(input.callId))
       return json({error:"Invalid call ID"},400);
@@ -54,8 +66,8 @@ Deno.serve(async (req:Request)=>{
     if(!claimed)return json({accepted:false},202);
     const recipients:Array<string>=Array.isArray(claimed.tokens)?claimed.tokens:[];
     let delivered=0;
-    for(const device of recipients.slice(0,12)){
-      if(typeof device!=="string"||device.length>4096)continue;
+    await Promise.all(recipients.slice(0,12).map(async (device:string)=>{
+      if(typeof device!=="string"||device.length>4096)return;
       try {
         const response=await fetch(`https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`,{
           method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
@@ -75,7 +87,7 @@ Deno.serve(async (req:Request)=>{
             await admin.rpc("remove_invalid_device",{p_token:device,p_recipient:claimed.recipientId});
         }
       }catch { /* Do not leak FCM credentials or tokens to callers. */ }
-    }
+    }));
     return json({accepted:true,attempted:Math.min(recipients.length,12),delivered});
   }catch {
     return json({error:"Call push temporarily unavailable"},503);
