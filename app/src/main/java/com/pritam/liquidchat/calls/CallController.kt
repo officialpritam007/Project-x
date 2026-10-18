@@ -71,6 +71,7 @@ class CallController(
     private var owner:String?=null
     private var engine:CallEngine?=null
     private var polling:Job?=null
+    private var incomingWatch:Job?=null
     private var iceSending:Job?=null
     private var candidateQueue:Channel<JSONObject>?=null
     private var lastCandidate=0L
@@ -100,6 +101,7 @@ class CallController(
                                     owner=id
                                     _view.value=CallView(incoming.id,incoming.conversation,incoming.caller,
                                         incoming.kind,true,"Incoming call")
+                                    watchIncoming(incoming.id,id)
                                 }
                             } catch(e:CancellationException){throw e}catch(_:Exception){}
                         }
@@ -131,6 +133,7 @@ class CallController(
     fun accept() {
         val current=_view.value ?: return
         if(!current.incoming||current.id==null||engine!=null||!foreground.value)return
+        incomingWatch?.cancel();incomingWatch=null
         val account=backend.session.value?.userId ?: return
         _view.value=current.copy(status="Connecting")
         scope.launch {
@@ -158,6 +161,23 @@ class CallController(
         val id=_view.value?.id
         stopLocal()
         if(id!=null)scope.launch {try {api.hangup(id)}catch(_:Exception){}}
+    }
+
+    private fun watchIncoming(callId:String,account:String) {
+        incomingWatch?.cancel()
+        incomingWatch=scope.launch {
+            while(isActive && owner==account && _view.value?.id==callId && _view.value?.incoming==true) {
+                delay(1500)
+                try {
+                    val call=api.active(callId,0).call
+                    if(call==null || call.state!="ringing" || call.expiresAt.isBefore(Instant.now())) {
+                        stopLocal()
+                        break
+                    }
+                } catch(e:CancellationException) {throw e}
+                catch(_:Exception) { /* Transient signaling failure: do not falsely report a decline. */ }
+            }
+        }
     }
 
     private fun newEngine(video:Boolean):CallEngine {
@@ -248,6 +268,7 @@ class CallController(
         if(_view.value?.id==null)stopLocal()
     }
     private fun stopLocal() {
+        incomingWatch?.cancel();incomingWatch=null
         polling?.cancel();polling=null
         iceSending?.cancel();iceSending=null
         candidateQueue?.close();candidateQueue=null
