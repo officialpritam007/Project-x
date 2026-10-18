@@ -67,7 +67,13 @@ import com.pritam.liquidchat.AppViewModel
             else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}
             else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {
                 conversationStates.SaveableStateProvider("main-tab-$tab") {
-                    when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
+                    when(tab) {
+                        0->ChatsScreen(model,chats,onContacts={tab=2},onProfile={tab=4})
+                        1->CallsScreen(model,chats)
+                        2->ContactsScreen(model,chats,busy)
+                        3->SettingsScreen(model,busy)
+                        else->MyProfileScreen(model,busy,onSettings={tab=3})
+                    }
                 }
             }
         }
