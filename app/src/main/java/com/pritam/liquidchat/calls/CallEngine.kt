@@ -186,8 +186,11 @@ class CallEngine(private val context: Context, private val video: Boolean,
     suspend fun acceptAnswer(answer:String) {setRemote("answer",answer)}
     private suspend fun setRemote(type:String,description:String) {
         setDescription(SessionDescription(SessionDescription.Type.fromCanonicalForm(type),description),false)
-        remoteReady=true
-        synchronized(queuedIce) { queuedIce.forEach {peer?.addIceCandidate(it)};queuedIce.clear() }
+        synchronized(queuedIce) {
+            remoteReady=true
+            queuedIce.forEach {peer?.addIceCandidate(it)}
+            queuedIce.clear()
+        }
     }
     fun remoteCandidate(json:JSONObject) {
         val ice=IceCandidate(json.optString("sdpMid","0"),json.optInt("sdpMLineIndex"),json.getString("candidate"))
