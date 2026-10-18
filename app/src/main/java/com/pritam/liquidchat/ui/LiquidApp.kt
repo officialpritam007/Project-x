@@ -55,7 +55,13 @@ import com.pritam.liquidchat.AppViewModel
         if(logoutPrompt) AlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
         Box(Modifier.fillMaxSize()) {
         Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
-        Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent, bottomBar={
+        Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent,
+            topBar={
+                if(currentCall?.minimized==true && (currentCall?.video!=true || currentCall?.compact==true)) {
+                    val caller=chats.firstOrNull {it.id==currentCall?.conversation}
+                    currentCall?.let {MinimizedCallPill(model.calls,it,caller?.name)}
+                }
+            }, bottomBar={
             if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
@@ -67,12 +73,18 @@ import com.pritam.liquidchat.AppViewModel
             else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {ConversationScreen(model,active!!,chats,busy)}}}
             else Box(Modifier.fillMaxSize().padding(top=padding.calculateTopPadding())) {
                 conversationStates.SaveableStateProvider("main-tab-$tab") {
-                    when(tab) {0->ChatsScreen(model,chats,onContacts={tab=1},onProfile={tab=3});1->ContactsScreen(model,chats,busy);2->SettingsScreen(model,busy);else->MyProfileScreen(model,busy,onSettings={tab=2})}
+                    when(tab) {
+                        0->ChatsScreen(model,chats,onContacts={tab=2},onProfile={tab=4})
+                        1->CallsScreen(model,chats)
+                        2->ContactsScreen(model,chats,busy)
+                        3->SettingsScreen(model,busy)
+                        else->MyProfileScreen(model,busy,onSettings={tab=3})
+                    }
                 }
             }
         }
         if(currentCall!=null && session!=null && acceptedPolicy) {
-            com.pritam.liquidchat.calls.CallOverlay(model.calls,chats.firstOrNull {it.id==currentCall?.conversation}?.name)
+            com.pritam.liquidchat.calls.CallOverlay(model.calls,chats.firstOrNull {it.id==currentCall?.conversation}?.name,model.backend,chats.firstOrNull {it.id==currentCall?.conversation}?.avatarId.orEmpty())
         }
         }
     }

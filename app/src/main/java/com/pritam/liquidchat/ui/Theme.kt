@@ -26,20 +26,38 @@ object Glass {
 val LocalGlassState=staticCompositionLocalOf<HazeState?> {null}
 @Composable fun Modifier.glassSource(zIndex:Float=1f):Modifier {val state=LocalGlassState.current;return if(state!=null)this.hazeSource(state,zIndex=zIndex) else this}
 val LocalGlassDark = staticCompositionLocalOf { false }
-private val Light = lightColorScheme(primary=Glass.cyan, onPrimary=Color.White, primaryContainer=Color(0xFFDAEFFB),onPrimaryContainer=Color(0xFF00749C),background=Color(0xFFEEF4F7), surface=Color(0xFFFAFCFD), onSurface=Color(0xFF16191E), onSurfaceVariant=Color(0xFF53616D),outlineVariant=Color.White.copy(alpha=.8f))
-private val Dark = darkColorScheme(primary=Color(0xFF75DCF5), primaryContainer=Color(0xFF164B5A),onPrimaryContainer=Color(0xFFC1F2FC),background=Color(0xFF111D25), surface=Color(0xFF22323D), onSurface=Color(0xFFF2F5FC), onSurfaceVariant=Color(0xFFBECBD4))
+// L2 Aurora Light / D1 Midnight Titanium: evolve the original ice-blue Figma identity.
+private val Light = lightColorScheme(
+    primary=Glass.cyan, onPrimary=Color.White,
+    primaryContainer=Color(0xFFD9F0FB),onPrimaryContainer=Color(0xFF075979),
+    background=Color(0xFFEAF3F9),surface=Color(0xFFFAFCFF),
+    onSurface=Color(0xFF193247),onSurfaceVariant=Color(0xFF526B7B),
+    outlineVariant=Color(0xFFC4D9E7)
+)
+private val Dark = darkColorScheme(
+    primary=Color(0xFF8DDFFF),onPrimary=Color(0xFF07364C),
+    primaryContainer=Color(0xFF1D445B),onPrimaryContainer=Color(0xFFCCEDFF),
+    background=Color(0xFF101A29),surface=Color(0xFF263A50),
+    onSurface=Color(0xFFF4F8FF),onSurfaceVariant=Color(0xFFB7CDDF),
+    outlineVariant=Color(0xFF51677B)
+)
 @Composable fun LiquidTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val haze=remember {HazeState()}
     CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze) {
         MaterialTheme(colorScheme=if(dark) Dark else Light, shapes=Shapes(small=Glass.compact, medium=Glass.card, large=Glass.hero), content=content)
     }
 }
-@Composable fun glassBackground(): Brush = Brush.linearGradient(if(LocalGlassDark.current) listOf(Color(0xFF142C38),Color(0xFF1E2933),Color(0xFF153840)) else listOf(Color(0xFFD6EDF4),Color(0xFFEEF4F7),Color(0xFFE1EBF1),Color(0xFFE8F4F5),Color(0xFFCAE7EE)))
+@Composable fun glassBackground(): Brush = Brush.linearGradient(
+    if(LocalGlassDark.current)
+        listOf(Color(0xFF0B1929),Color(0xFF1C2A40),Color(0xFF192538),Color(0xFF102D3C))
+    else
+        listOf(Color(0xFFD4EDFB),Color(0xFFE8F3FA),Color(0xFFECE6F5),Color(0xFFEAF4F9),Color(0xFFD1E9F5))
+)
 /** Source-backed live blur with foreground text outside the captured effect. */
 @Composable fun GlassSurface(modifier: Modifier=Modifier, shape: Shape=Glass.card, content: @Composable () -> Unit) {
     val dark=LocalGlassDark.current
     val opaque=LocalDisplayOptions.current.reducedTransparency
-    val tint=if(dark) Color(0xFF22323D) else Color.White
+    val tint=if(dark) Color(0xFF263A50) else Color.White
     Surface(modifier.shadow(11.dp,shape,ambientColor=Color(0xFF244D65).copy(alpha=.11f),spotColor=Color(0xFF244D65).copy(alpha=.11f)),shape=shape,color=if(opaque)tint else Color.Transparent,border=BorderStroke(1.dp,if(dark)Color.White.copy(alpha=.18f) else Color.White.copy(alpha=.98f))) {
         val state=LocalGlassState.current
         val effect=if(!opaque&&state!=null)Modifier.hazeEffect(state,style=HazeStyle(backgroundColor=MaterialTheme.colorScheme.background,tint=HazeTint(tint.copy(alpha=.44f)),blurRadius=30.dp,noiseFactor=0f,fallbackTint=HazeTint(tint.copy(alpha=.9f)))) else Modifier

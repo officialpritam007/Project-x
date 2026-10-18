@@ -112,19 +112,7 @@ import kotlinx.coroutines.flow.drop
                 }
             }
         }
-        Row(Modifier.padding(top=10.dp,start=4.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(28.dp)) {
-            Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable {ownStories=true}) {
-                Box {
-                    Avatar(profile?.optString("display_name").orEmpty(),profile?.optString("avatar_id").orEmpty().takeUnless {it=="null"}.orEmpty(),model.backend,self=true,size=50.dp)
-                    Surface(Modifier.align(Alignment.BottomEnd).size(21.dp),shape=CircleShape,color=Color(0xFF00A6E8)) {Box(contentAlignment=Alignment.Center){Text("+",color=Color.White)}}
-                }
-                Spacer(Modifier.height(12.dp));Text("My Story",fontSize=12.sp,fontWeight=FontWeight.Bold)
-            }
-            Column(horizontalAlignment=Alignment.CenterHorizontally,modifier=Modifier.clickable {stories=true}) {
-                Box(Modifier.size(50.dp).background(Color(0xFF00A6E8),CircleShape),contentAlignment=Alignment.Center){Text("➤",color=Color.White,fontSize=24.sp)}
-                Spacer(Modifier.height(12.dp));Text("Stories",fontSize=12.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        HomeStoriesRow(model,onMine={ownStories=true},onStories={stories=true})
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}

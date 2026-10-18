@@ -15,9 +15,14 @@ import java.util.UUID
 data class CallView(
     val id:String?,val conversation:String,val peer:String,val kind:String,
     val incoming:Boolean,val status:String,val muted:Boolean=false,
-    val cameraEnabled:Boolean=true,val speaker:Boolean=false
+    val cameraEnabled:Boolean=true,val speaker:Boolean=false,
+    val connectedAt:Long=0,val minimized:Boolean=false,val audioRoute:String="",
+    val remoteVideoReady:Boolean=false,val answerRequested:Boolean=false,
+    val compact:Boolean=false
 ) {
     val video get()=kind=="video"
+    // Direction is immutable: accepted incoming calls remain incoming, but must show video.
+    val renderVideo get()=video && id!=null && status!="Incoming call"
 }
 
 private data class CallRecord(
@@ -70,6 +75,7 @@ class CallController(
     val view=_view.asStateFlow()
     @Volatile private var owner:String?=null
     @Volatile private var engine:CallEngine?=null
+    private var operation:Job?=null
     private var polling:Job?=null
     private var incomingWatch:Job?=null
     private var reconnectWatch:Job?=null
@@ -128,7 +134,7 @@ class CallController(
         val account=backend.session.value!!.userId
         _view.value=CallView(null,conversation,peer,kind,false,"Preparing",speaker=kind=="video")
         owner=account
-        scope.launch {
+        operation=scope.launch {
             try {
                 val connection=newEngine(kind=="video")
                 val offer=connection.createOffer()
@@ -139,28 +145,37 @@ class CallController(
                 begin(id,account)
                 // Best-effort authenticated wakeup; a failed push never aborts foreground calling.
                 scope.launch(Dispatchers.IO) {
-                    try {backend.request("/functions/v1/call-notify","POST",JSONObject().put("callId",id))}
-                    catch(e:CancellationException){throw e}
-                    catch(_:Exception){}
+                    for(attempt in 0..2) {
+                        if(owner!=account||_view.value?.id!=id)return@launch
+                        try {
+                            val result=JSONObject(backend.request("/functions/v1/call-notify","POST",JSONObject().put("callId",id)))
+                            if(result.optBoolean("complete")||!result.optBoolean("accepted"))return@launch
+                        } catch(e:CancellationException){throw e}catch(_:Exception){}
+                        delay(5000L)
+                    }
                 }
             }catch(e:CancellationException){throw e}
             catch(e:Exception){failure(e)}
         }
     }
 
-    fun openIncomingNotification(callId:String,expectedAccount:String) {
+    fun openIncomingNotification(callId:String,expectedAccount:String,answerRequested:Boolean=false) {
         if(!com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS
             ||runCatching {UUID.fromString(callId)}.isFailure)return
         scope.launch {
             try {
                 backend.restore()
                 foreground.filter {it}.first()
-                if(backend.session.value?.userId!=expectedAccount||_view.value!=null)return@launch
+                if(backend.session.value?.userId!=expectedAccount)return@launch
+                if(_view.value?.id==callId) {
+                    _view.value=_view.value?.copy(minimized=false,answerRequested=answerRequested);return@launch
+                }
+                if(_view.value!=null)return@launch
                 val call=api.active(callId,0).call ?: return@launch
                 if(call.callee!=expectedAccount||call.state!="ringing"
                     ||call.expiresAt.isBefore(Instant.now()))return@launch
                 owner=expectedAccount
-                _view.value=CallView(call.id,call.conversation,call.caller,call.kind,true,"Incoming call",speaker=call.kind=="video")
+                _view.value=CallView(call.id,call.conversation,call.caller,call.kind,true,"Incoming call",speaker=call.kind=="video",answerRequested=answerRequested)
                 watchIncoming(call.id,expectedAccount)
             }catch(e:CancellationException){throw e}
             catch(_:Exception){}
@@ -169,11 +184,12 @@ class CallController(
 
     fun accept() {
         val current=_view.value ?: return
-        if(!current.incoming||current.id==null||engine!=null||!foreground.value)return
+        if(!current.incoming||current.status!="Incoming call"||current.id==null||engine!=null||!foreground.value)return
         incomingWatch?.cancel();incomingWatch=null
         val account=backend.session.value?.userId ?: return
-        _view.value=current.copy(status="Connecting")
-        scope.launch {
+        _view.value=current.copy(status="Connecting",answerRequested=false)
+        dismissNotification(current.id)
+        operation=scope.launch {
             try {
                 val snapshot=api.active(current.id,0).call ?: error("Call expired")
                 if(snapshot.callee!=account||snapshot.state!="ringing"||snapshot.expiresAt.isBefore(Instant.now())) error("Call expired")
@@ -190,6 +206,7 @@ class CallController(
     fun decline() {
         val current=_view.value ?: return
         val id=current.id
+        id?.let(::dismissNotification)
         stopLocal()
         if(id!=null)scope.launch {try {api.respond(id,false)}catch(_:Exception){}}
     }
@@ -203,8 +220,10 @@ class CallController(
     private fun watchIncoming(callId:String,account:String) {
         incomingWatch?.cancel()
         incomingWatch=scope.launch {
+            val deadline=android.os.SystemClock.elapsedRealtime()+45000L
             while(isActive && owner==account && _view.value?.id==callId && _view.value?.incoming==true) {
                 delay(1500)
+                if(android.os.SystemClock.elapsedRealtime()>=deadline){stopLocal();break}
                 try {
                     val call=api.active(callId,0).call
                     if(call==null || call.state!="ringing" || call.expiresAt.isBefore(Instant.now())) {
@@ -227,8 +246,8 @@ class CallController(
             {status->scope.launch {
                 if(generation!=connectionGeneration)return@launch // Ignore stale native callbacks after teardown.
                 val state=_view.value ?: return@launch
-                if(state.incoming)return@launch
-                _view.value=state.copy(status=status)
+                if(state.incoming&&state.status=="Incoming call")return@launch
+                _view.value=state.copy(status=status,connectedAt=if(status=="Connected"&&state.connectedAt==0L)android.os.SystemClock.elapsedRealtime() else state.connectedAt)
                 when(status) {
                     "Connected" -> {
                         mediaConnected=true
@@ -247,7 +266,7 @@ class CallController(
                     "Audio focus lost" -> failure(java.io.IOException("Call interrupted by another audio session."))
                     "Ended" -> hangup()
                 }
-            }})
+            }}, {local->if(!local)scope.launch {if(generation==connectionGeneration)_view.value=_view.value?.copy(remoteVideoReady=true)}})
         engine=connection
         // The service is launched only by a visible, permission-accepting user action.
         ActiveCallService.onHangup={hangup()}
@@ -262,18 +281,28 @@ class CallController(
         iceSending=scope.launch(Dispatchers.IO) {
             for(candidate in queue) {
                 if(owner!=account||_view.value?.id!=id)break
-                try{api.candidate(id,candidate)}catch(e:CancellationException){throw e}
-                catch(_:Exception) {
-                    // A missed candidate can make STUN-only setup fail; don't leak credentials to logs.
+                for(attempt in 0..2) {
+                    try {api.candidate(id,candidate);break}
+                    catch(e:CancellationException){throw e}
+                    catch(e:Exception) {
+                        if(attempt==2) {withContext(Dispatchers.Main){failure(java.io.IOException("Call signaling could not recover."))};return@launch}
+                        delay(500L*(attempt+1))
+                    }
                 }
             }
         }
         polling=scope.launch(Dispatchers.IO) {
             var remoteAnswer=false
             var lastHeartbeat=System.currentTimeMillis()
+            var lastSuccess=android.os.SystemClock.elapsedRealtime()
             try {
                 while(isActive&&owner==account&&_view.value?.id==id) {
-                    val snapshot=api.active(id,lastCandidate)
+                    val snapshot=try {api.active(id,lastCandidate)} catch(e:CancellationException){throw e} catch(e:Exception) {
+                        if(e is com.pritam.liquidchat.data.ApiException && e.status in listOf(400,401,403,404))throw e
+                        if(android.os.SystemClock.elapsedRealtime()-lastSuccess>20000L)throw java.io.IOException("Signaling connection lost. Please call again.")
+                        delay(1500);continue
+                    }
+                    lastSuccess=android.os.SystemClock.elapsedRealtime()
                     val call=snapshot.call
                     if(call==null || call.expiresAt.isBefore(Instant.now()) ||
                         call.state=="ended"||call.state=="declined") {
@@ -293,7 +322,7 @@ class CallController(
                         remoteAnswer=true
                     }
                     if(call.state=="accepted" && System.currentTimeMillis()-lastHeartbeat>12000L) {
-                        api.heartbeat(id);lastHeartbeat=System.currentTimeMillis()
+                        try {api.heartbeat(id);lastHeartbeat=System.currentTimeMillis()}catch(e:CancellationException){throw e}catch(_:java.io.IOException){}
                     }
                     for(i in 0 until snapshot.candidates.length()) {
                         val row=snapshot.candidates.getJSONObject(i)
@@ -320,6 +349,14 @@ class CallController(
         val v=_view.value ?: return
         engine?.speaker(!v.speaker);_view.value=v.copy(speaker=!v.speaker)
     }
+    fun minimize() {_view.value=_view.value?.copy(minimized=true,compact=false)}
+    fun expand() {_view.value=_view.value?.copy(minimized=false,compact=false)}
+    // Pure presentation state: switching between floating video and a compact pill never
+    // touches WebRTC, signaling, microphone, camera capture or existing call identity.
+    fun toggleCompact() {_view.value=_view.value?.let {if(it.minimized&&it.video)it.copy(compact=!it.compact) else it}}
+    fun audioRoutes()=engine?.audioRoutes().orEmpty()
+    fun selectAudioRoute(id:Int) {if(engine?.selectAudioRoute(id)==true)_view.value=_view.value?.copy(audioRoute=engine?.routeName().orEmpty(),speaker=engine?.routeName()=="Speaker")}
+    private fun dismissNotification(id:String) {context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())}
     fun renderer()=engine
 
     private fun ensureOwner(account:String) {
@@ -334,12 +371,14 @@ class CallController(
         if(id!=null) scope.launch(Dispatchers.IO) {
             try {api.hangup(id)}catch(_:Exception){}
         }
-        if(previous!=null) _view.value=previous.copy(status=e.message ?: "Call unavailable",id=null)
+        if(previous!=null) _view.value=previous.copy(status=e.message ?: "Call unavailable",id=null,incoming=false,minimized=false,answerRequested=false)
     }
     fun dismissError() {
         if(_view.value?.id==null)stopLocal()
     }
     private fun stopLocal() {
+        _view.value?.id?.let(::dismissNotification)
+        operation?.cancel();operation=null
         connectionGeneration++
         mediaConnected=false
         connectWatch?.cancel();connectWatch=null

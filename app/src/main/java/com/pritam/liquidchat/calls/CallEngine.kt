@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Foreground-only WebRTC peer: DTLS/SRTP transports media directly; Supabase carries SDP/ICE only. */
 class CallEngine(private val context: Context, private val video: Boolean,
                  private val sendCandidate: (JSONObject) -> Unit,
-                 private val connectionChanged: (String) -> Unit) : Closeable {
+                 private val connectionChanged: (String) -> Unit,
+                 private val frameReceived:(Boolean)->Unit = {}) : Closeable {
     companion object {
         private val initialized = AtomicBoolean(false)
 
@@ -137,7 +138,10 @@ class CallEngine(private val context: Context, private val video: Boolean,
 
     fun attachRenderer(renderer: SurfaceViewRenderer, local: Boolean) = synchronized(rendererLock) {
         if (closed) return@synchronized
-        renderer.init(egl.eglBaseContext,null)
+        renderer.init(egl.eglBaseContext,object:RendererCommon.RendererEvents {
+            override fun onFirstFrameRendered() {frameReceived(local)}
+            override fun onFrameResolutionChanged(width:Int,height:Int,rotation:Int) {}
+        })
         renderer.setEnableHardwareScaler(true)
         renderer.setMirror(local)
         // Local preview is above the remote SurfaceView, below Compose controls.
@@ -160,7 +164,26 @@ class CallEngine(private val context: Context, private val video: Boolean,
     fun mute(mute:Boolean) {audioTrack?.setEnabled(!mute)}
     fun setCameraEnabled(enabled:Boolean) {videoTrack?.setEnabled(enabled)}
     fun switchCamera() {(capturer as? CameraVideoCapturer)?.switchCamera(null)}
-    fun speaker(enabled:Boolean) {audioManager.isSpeakerphoneOn=enabled}
+    fun speaker(enabled:Boolean) {
+        if(android.os.Build.VERSION.SDK_INT>=31) {
+            val type=if(enabled)android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+            audioManager.availableCommunicationDevices.firstOrNull {it.type==type}?.let {audioManager.setCommunicationDevice(it)}
+        } else audioManager.isSpeakerphoneOn=enabled
+    }
+    fun audioRoutes():List<Pair<Int,String>> = runCatching {
+        if(android.os.Build.VERSION.SDK_INT>=31)audioManager.availableCommunicationDevices.map {it.id to deviceName(it)}
+        else listOf(-1 to "Earpiece / wired headset",-2 to "Speaker",-3 to "Bluetooth headset")
+    }.getOrDefault(emptyList())
+    private fun deviceName(d:android.media.AudioDeviceInfo):String=when(d.type) {
+        android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER->"Speaker"
+        android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE->"Earpiece"
+        else->d.productName.toString()
+    }
+    fun routeName():String=if(android.os.Build.VERSION.SDK_INT>=31)audioManager.communicationDevice?.let(::deviceName).orEmpty() else if(audioManager.isSpeakerphoneOn)"Speaker" else "Earpiece / headset"
+    fun selectAudioRoute(id:Int):Boolean=runCatching {
+        if(android.os.Build.VERSION.SDK_INT>=31)audioManager.availableCommunicationDevices.firstOrNull {it.id==id}?.let {audioManager.setCommunicationDevice(it)} ?: false
+        else {audioManager.isSpeakerphoneOn=id== -2;if(id== -3){audioManager.startBluetoothSco();audioManager.isBluetoothScoOn=true}else {audioManager.stopBluetoothSco();audioManager.isBluetoothScoOn=false};true}
+    }.getOrDefault(false)
 
     private suspend fun createDescription(offer:Boolean): SessionDescription =
         suspendCancellableCoroutine { cont ->
@@ -242,6 +265,8 @@ class CallEngine(private val context: Context, private val video: Boolean,
         factory?.dispose()
         audioFocusRequest?.let {audioManager.abandonAudioFocusRequest(it)}
         audioFocusRequest=null
+        if(android.os.Build.VERSION.SDK_INT>=31)audioManager.clearCommunicationDevice()
+        else {audioManager.stopBluetoothSco();audioManager.isBluetoothScoOn=false}
         audioManager.mode=originalMode
         audioManager.isSpeakerphoneOn=originalSpeaker
         egl.release()
