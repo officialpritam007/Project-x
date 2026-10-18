@@ -179,14 +179,14 @@ grant execute on function public.call_start(uuid,text,text),public.call_respond(
 
 -- SDP and ICE candidates can contain network identifiers; enforce short retention.
 create function private.purge_expired_calls() returns integer
-language plpgsql security definer set search_path='' as $
+language plpgsql security definer set search_path='' as $$
 declare removed integer;
 begin
  delete from public.call_sessions
  where expires_at < now()-interval '1 hour';
  get diagnostics removed = row_count;
  return removed;
-end $;
+end $$;
 revoke all on function private.purge_expired_calls() from public,anon,authenticated;
 -- Existing project already uses pg_cron. This job deletes call metadata, not chat messages.
 select cron.schedule('liquid-call-retention','*/15 * * * *',
