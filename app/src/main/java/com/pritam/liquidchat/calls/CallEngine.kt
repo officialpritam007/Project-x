@@ -2,6 +2,8 @@ package com.pritam.liquidchat.calls
 
 import android.content.Context
 import android.media.AudioManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.*
 import org.json.JSONObject
@@ -16,6 +18,20 @@ class CallEngine(private val context: Context, private val video: Boolean,
                  private val connectionChanged: (String) -> Unit) : Closeable {
     companion object {
         private val initialized = AtomicBoolean(false)
+
+        @Synchronized
+        internal fun createFactory(context: Context, eglContext: EglBase.Context): PeerConnectionFactory {
+            if (initialized.compareAndSet(false, true)) {
+                PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions
+                    .builder(context.applicationContext).createInitializationOptions())
+            }
+            // Camera preview bypasses codecs. Without these factories audio can connect
+            // while SDP has no usable video codecs and both remote surfaces stay black.
+            return PeerConnectionFactory.builder()
+                .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglContext, true, false))
+                .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglContext))
+                .createPeerConnectionFactory()
+        }
     }
     private val egl = EglBase.create()
     private var factory: PeerConnectionFactory? = null
@@ -29,20 +45,32 @@ class CallEngine(private val context: Context, private val video: Boolean,
     private var texture: SurfaceTextureHelper? = null
     private var localRenderer: SurfaceViewRenderer? = null
     private var remoteRenderer: SurfaceViewRenderer? = null
+    private val rendererLock = Any()
     private var remoteReady = false
     private val queuedIce = mutableListOf<IceCandidate>()
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val originalMode = audioManager.mode
     private val originalSpeaker = audioManager.isSpeakerphoneOn
-    private var closed = false
+    private var audioFocusRequest: AudioFocusRequest? = null
+    @Volatile private var closed = false
 
     fun start() {
-        if (initialized.compareAndSet(false, true)) {
-            PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context.applicationContext).createInitializationOptions())
-        }
+        val focusRequest=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build())
+            .setOnAudioFocusChangeListener {change->
+                if(change==AudioManager.AUDIOFOCUS_LOSS)
+                    connectionChanged("Audio focus lost")
+            }
+            .build()
+        if(audioManager.requestAudioFocus(focusRequest)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            error("Could not acquire audio focus")
+        audioFocusRequest=focusRequest
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isSpeakerphoneOn = video
-        factory = PeerConnectionFactory.builder().createPeerConnectionFactory()
+        factory = createFactory(context, egl.eglBaseContext)
         val config = PeerConnection.RTCConfiguration(listOf(
             PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
         )).apply {
@@ -99,24 +127,33 @@ class CallEngine(private val context: Context, private val video: Boolean,
         }
     }
 
-    private fun receiveVideo(track: VideoTrack) {
-        if (remoteVideo !== track) {
+    private fun receiveVideo(track: VideoTrack) = synchronized(rendererLock) {
+        if (!closed && remoteVideo !== track) {
+            remoteRenderer?.let { remoteVideo?.removeSink(it) }
             remoteVideo = track
             remoteRenderer?.let(track::addSink)
         }
     }
 
-    fun attachRenderer(renderer: SurfaceViewRenderer, local: Boolean) {
+    fun attachRenderer(renderer: SurfaceViewRenderer, local: Boolean) = synchronized(rendererLock) {
+        if (closed) return@synchronized
         renderer.init(egl.eglBaseContext,null)
         renderer.setEnableHardwareScaler(true)
         renderer.setMirror(local)
+        // Local preview is above the remote SurfaceView, below Compose controls.
+        renderer.setZOrderMediaOverlay(local)
         if (local) { localRenderer=renderer; videoTrack?.addSink(renderer) }
         else { remoteRenderer=renderer; remoteVideo?.addSink(renderer) }
     }
 
     fun detachRenderer(renderer: SurfaceViewRenderer, local: Boolean) {
-        if (local) {videoTrack?.removeSink(renderer);if(localRenderer===renderer)localRenderer=null}
-        else {remoteVideo?.removeSink(renderer);if(remoteRenderer===renderer)remoteRenderer=null}
+        synchronized(rendererLock) {
+            if (local && localRenderer===renderer) {
+                videoTrack?.removeSink(renderer);localRenderer=null
+            } else if (!local && remoteRenderer===renderer) {
+                remoteVideo?.removeSink(renderer);remoteRenderer=null
+            }
+        }
         renderer.release()
     }
 
@@ -170,19 +207,32 @@ class CallEngine(private val context: Context, private val video: Boolean,
     suspend fun acceptAnswer(answer:String) {setRemote("answer",answer)}
     private suspend fun setRemote(type:String,description:String) {
         setDescription(SessionDescription(SessionDescription.Type.fromCanonicalForm(type),description),false)
-        remoteReady=true
-        synchronized(queuedIce) { queuedIce.forEach {peer?.addIceCandidate(it)};queuedIce.clear() }
+        synchronized(queuedIce) {
+            remoteReady=true
+            queuedIce.forEach {peer?.addIceCandidate(it)}
+            queuedIce.clear()
+        }
     }
     fun remoteCandidate(json:JSONObject) {
         val ice=IceCandidate(json.optString("sdpMid","0"),json.optInt("sdpMLineIndex"),json.getString("candidate"))
         synchronized(queuedIce) {
-            if(remoteReady)peer?.addIceCandidate(ice) else queuedIce.add(ice)
+            if(remoteReady) peer?.addIceCandidate(ice)
+            else if(queuedIce.size<256) queuedIce.add(ice)
+            // A peer cannot force unbounded pre-answer ICE memory growth.
         }
     }
 
     override fun close() {
-        if(closed)return
-        closed=true
+        synchronized(rendererLock) {
+            if(closed)return
+            closed=true
+            localRenderer?.let {videoTrack?.removeSink(it)}
+            remoteRenderer?.let {remoteVideo?.removeSink(it)}
+            localRenderer=null
+            remoteRenderer=null
+            remoteVideo=null
+        }
+        synchronized(queuedIce) {queuedIce.clear();remoteReady=false}
         try {capturer?.stopCapture()} catch(_:InterruptedException) {Thread.currentThread().interrupt()}
         capturer?.dispose()
         texture?.dispose()
@@ -190,6 +240,8 @@ class CallEngine(private val context: Context, private val video: Boolean,
         videoTrack?.dispose();audioTrack?.dispose()
         videoSource?.dispose();audioSource?.dispose()
         factory?.dispose()
+        audioFocusRequest?.let {audioManager.abandonAudioFocusRequest(it)}
+        audioFocusRequest=null
         audioManager.mode=originalMode
         audioManager.isSpeakerphoneOn=originalSpeaker
         egl.release()

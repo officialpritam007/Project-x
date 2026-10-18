@@ -11,7 +11,7 @@ on:
         required: true
         default: false
 env:
-  ENABLE_EXPERIMENTAL_CALLS: ${{ ((github.event_name == 'workflow_dispatch' && inputs.enable_experimental_calls) || (github.event_name == 'pull_request' && github.head_ref == 'fix/calls-postmerge-stabilization' && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
+  ENABLE_EXPERIMENTAL_CALLS: ${{ ((github.event_name == 'workflow_dispatch' && inputs.enable_experimental_calls) || (github.event_name == 'pull_request' && (github.head_ref == 'fix/calls-postmerge-stabilization' || github.head_ref == 'hardening/production-calling-readiness') && github.event.pull_request.head.repo.full_name == github.repository)) && 'true' || 'false' }}
 permissions:
   contents: read
 concurrency:

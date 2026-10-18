@@ -49,22 +49,23 @@ fun CallOverlay(controller:CallController,displayName:String?) {
         if(needed.all {result[it]==true})controller.accept() else controller.decline()
     }
     val engine=controller.renderer()
+    val activeVideo=c.video && !c.incoming && engine!=null
 
     // An overlay (rather than a nested navigation route) keeps the existing conversation state intact.
     Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize().background(glassBackground())) {
-            if(c.video && !c.incoming && engine!=null) {
+            if(activeVideo && engine!=null) {
                 VideoRenderer(engine,false,Modifier.fillMaxSize())
-                Box(Modifier.align(Alignment.TopEnd).padding(top=48.dp,end=20.dp)
+                Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top=18.dp,end=18.dp)
                     .size(width=112.dp,height=154.dp)) {
                     VideoRenderer(engine,true,Modifier.fillMaxSize())
                 }
             }
             Column(Modifier.fillMaxSize().systemBarsPadding().padding(18.dp),
                 verticalArrangement=Arrangement.SpaceBetween,horizontalAlignment=Alignment.CenterHorizontally) {
-                GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
-                    Column(Modifier.fillMaxWidth().padding(22.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                        Text(displayName ?: "Liquid Chat",style=MaterialTheme.typography.headlineSmall,
+                GlassSurface(Modifier.fillMaxWidth().padding(end=if(activeVideo)128.dp else 0.dp),Glass.hero) {
+                    Column(Modifier.fillMaxWidth().padding(if(activeVideo)14.dp else 22.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                        Text(displayName ?: "Liquid Chat",style=if(activeVideo)MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
                             color=MaterialTheme.colorScheme.onSurface)
                         Text(if(c.video)"Video call" else "Voice call",style=MaterialTheme.typography.bodyMedium)
                         Text(c.status,style=MaterialTheme.typography.titleMedium,

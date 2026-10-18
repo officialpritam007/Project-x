@@ -68,12 +68,14 @@ class CallController(
     private val api=CallApi(backend)
     private val _view=MutableStateFlow<CallView?>(null)
     val view=_view.asStateFlow()
-    private var owner:String?=null
-    private var engine:CallEngine?=null
+    @Volatile private var owner:String?=null
+    @Volatile private var engine:CallEngine?=null
     private var polling:Job?=null
     private var incomingWatch:Job?=null
     private var reconnectWatch:Job?=null
-    private var connectionGeneration=0L
+    private var connectWatch:Job?=null
+    @Volatile private var mediaConnected=false
+    @Volatile private var connectionGeneration=0L
     private var iceSending:Job?=null
     private var candidateQueue:Channel<JSONObject>?=null
     private var lastCandidate=0L
@@ -88,8 +90,16 @@ class CallController(
             combine(backend.session,foreground) {s,fg->s?.userId.takeIf {fg}}
                 .collectLatest {id->
                     if(id==null) {
-                        if(_view.value!=null) {
-                            // No background recording or camera: end immediately on Activity background.
+                        val existing=_view.value
+                        if(existing!=null && !foreground.value) {
+                            if(existing.incoming) {
+                                // Incoming calls remain eligible for an FCM notification while the app is hidden.
+                                stopLocal()
+                            } else if(!ActiveCallService.running) {
+                                // If the foreground notification/service did not start, never keep capture alive.
+                                hangup()
+                            }
+                        } else if(existing!=null) {
                             hangup()
                         }
                         return@collectLatest
@@ -209,6 +219,7 @@ class CallController(
 
     private fun newEngine(video:Boolean):CallEngine {
         val generation=++connectionGeneration
+        mediaConnected=false
         val candidateChannel=Channel<JSONObject>(256)
         candidateQueue=candidateChannel
         val connection=CallEngine(context,video,
@@ -219,7 +230,11 @@ class CallController(
                 if(state.incoming)return@launch
                 _view.value=state.copy(status=status)
                 when(status) {
-                    "Connected" -> {reconnectWatch?.cancel();reconnectWatch=null}
+                    "Connected" -> {
+                        mediaConnected=true
+                        connectWatch?.cancel();connectWatch=null
+                        reconnectWatch?.cancel();reconnectWatch=null
+                    }
                     "Reconnecting" -> {
                         reconnectWatch?.cancel()
                         reconnectWatch=scope.launch {
@@ -229,10 +244,14 @@ class CallController(
                         }
                     }
                     "Connection failed" -> failure(java.io.IOException("Call could not connect. A TURN relay may be required."))
+                    "Audio focus lost" -> failure(java.io.IOException("Call interrupted by another audio session."))
                     "Ended" -> hangup()
                 }
             }})
         engine=connection
+        // The service is launched only by a visible, permission-accepting user action.
+        ActiveCallService.onHangup={hangup()}
+        ActiveCallService.start(context,video)
         connection.start()
         return connection
     }
@@ -260,6 +279,14 @@ class CallController(
                         call.state=="ended"||call.state=="declined") {
                         withContext(Dispatchers.Main) {stopLocal()}
                         return@launch
+                    }
+                    if(call.state=="accepted" && !mediaConnected && connectWatch==null) {
+                        val generation=connectionGeneration
+                        connectWatch=scope.launch {
+                            delay(30_000L)
+                            if(generation==connectionGeneration && !mediaConnected && _view.value?.id==id)
+                                failure(java.io.IOException("Call connection timed out; this network may need TURN."))
+                        }
                     }
                     if(call.state=="accepted" && call.answer.isNotBlank() && call.caller==account && !remoteAnswer) {
                         engine?.acceptAnswer(call.answer)
@@ -296,8 +323,9 @@ class CallController(
     fun renderer()=engine
 
     private fun ensureOwner(account:String) {
-        if(owner!=account||backend.session.value?.userId!=account||!foreground.value)
-            throw CancellationException("Account changed or app backgrounded")
+        if(owner!=account||backend.session.value?.userId!=account||
+            (!foreground.value&&!ActiveCallService.running))
+            throw CancellationException("Account changed or media service unavailable")
     }
     private fun failure(e:Exception) {
         val previous=_view.value
@@ -313,12 +341,16 @@ class CallController(
     }
     private fun stopLocal() {
         connectionGeneration++
+        mediaConnected=false
+        connectWatch?.cancel();connectWatch=null
         reconnectWatch?.cancel();reconnectWatch=null
         incomingWatch?.cancel();incomingWatch=null
         polling?.cancel();polling=null
         iceSending?.cancel();iceSending=null
         candidateQueue?.close();candidateQueue=null
         engine?.close();engine=null
+        ActiveCallService.onHangup=null
+        ActiveCallService.stop(context)
         owner=null
         _view.value=null
         lastCandidate=0
