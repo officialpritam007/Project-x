@@ -88,7 +88,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                     title="My Story",moment=myMoment,model=model,
                     mine=true,onClick={
                         if(myMoment!=null)onOpenStory(myMoment.id,true) else onMine()
-                    }
+                    },onAdd=onMine
                 )
             }
             items(contactMoments,key={it.owner}) {moment->
@@ -101,7 +101,10 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
         }
     }
 }
-@Composable private fun StoryCard(title:String,moment:Moment?,model:AppViewModel,mine:Boolean,onClick:()->Unit) {
+@Composable private fun StoryCard(
+    title:String,moment:Moment?,model:AppViewModel,mine:Boolean,
+    onClick:()->Unit,onAdd:(()->Unit)?=null
+) {
     Column(
         Modifier.width(94.dp).clickable(onClick=onClick),
         horizontalAlignment=Alignment.CenterHorizontally,
@@ -119,7 +122,8 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         null,modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
                 if(mine)
                     Surface(
-                        modifier=Modifier.align(Alignment.BottomEnd).padding(5.dp),
+                        modifier=Modifier.align(Alignment.BottomEnd).padding(5.dp)
+                            .clickable {onAdd?.invoke()},
                         shape=RoundedCornerShape(50),color=MaterialTheme.colorScheme.primary
                     ) {Icon(Icons.Outlined.Add,"Add a story",Modifier.padding(3.dp),tint=MaterialTheme.colorScheme.onPrimary)}
             }
