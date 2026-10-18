@@ -5,6 +5,13 @@ internal object PushRecovery {
     const val CALL_WINDOW_MS = 45_000L
     const val CALL_BACKOFF_MS = 10_000L
     const val MAX_CALL_RETRIES = 3
+    const val MAX_REGISTRATION_RETRIES = 6
+
+    /** Retry temporary FCM/network/service failures, but not rejected credentials. */
+    fun retryRegistration(error:Exception,attempt:Int):Boolean =
+        attempt in 0 until MAX_REGISTRATION_RETRIES &&
+            (error !is ApiException || error.status==408 || error.status==429 || error.status>=500)
+
 
     fun callExpired(receivedAt:Long,now:Long):Boolean =
         receivedAt<=0 || now<receivedAt || now-receivedAt>=CALL_WINDOW_MS

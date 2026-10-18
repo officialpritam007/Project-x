@@ -3,11 +3,11 @@ package com.pritam.liquidchat
 import android.app.Application
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.SessionStore
+import com.pritam.liquidchat.data.DeviceRegistrationWork
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.tasks.await
 
 class LiquidApplication : Application() {
     private val scope=kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob()+kotlinx.coroutines.Dispatchers.IO)
@@ -18,7 +18,8 @@ class LiquidApplication : Application() {
             scope.launch {
                 backend.restore()
                 backend.session.map {it?.userId}.distinctUntilChanged().collectLatest {id->
-                    if(id!=null) runCatching {val token=com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await();getSharedPreferences("device",MODE_PRIVATE).edit().putString("fcm_token",token).apply();backend.registerDevice(token)}
+                    // Durable WorkManager registration retries when FCM/Internet is unavailable.
+                    if(id!=null) DeviceRegistrationWork.enqueue(this@LiquidApplication)
                 }
             }
         }

@@ -25,6 +25,18 @@ class PushRecoveryTest {
         assertFalse(PushRecovery.retryCall(receivedAt,receivedAt-1,0))
     }
 
+    @Test fun fcmTokenRegistrationRetriesOnlyRecoverableFailures() {
+        assertTrue(PushRecovery.retryRegistration(IOException("offline"),0))
+        assertTrue(PushRecovery.retryRegistration(ApiException(503,"","server unavailable"),0))
+        assertTrue(PushRecovery.retryRegistration(ApiException(429,"","rate limited"),2))
+        assertTrue(PushRecovery.retryRegistration(ApiException(408,"","timeout"),0))
+        assertFalse(PushRecovery.retryRegistration(ApiException(401,"","revoked session"),0))
+        assertFalse(PushRecovery.retryRegistration(ApiException(403,"","denied"),0))
+        assertFalse(PushRecovery.retryRegistration(ApiException(400,"","invalid token"),0))
+        assertFalse(PushRecovery.retryRegistration(IOException("offline"),6))
+        assertFalse(PushRecovery.retryRegistration(IOException("offline"),-1))
+    }
+
     @Test fun authorizedPushPostsEvenWhenSyncDidNotPopulateLocalCache()=runBlocking {
         val events=mutableListOf<String>()
         val localCache=mutableListOf<String>()
