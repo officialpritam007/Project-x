@@ -73,6 +73,8 @@ class CallController(
     private var polling:Job?=null
     private var incomingWatch:Job?=null
     private var reconnectWatch:Job?=null
+    private var connectWatch:Job?=null
+    private var mediaConnected=false
     private var connectionGeneration=0L
     private var iceSending:Job?=null
     private var candidateQueue:Channel<JSONObject>?=null
@@ -217,6 +219,7 @@ class CallController(
 
     private fun newEngine(video:Boolean):CallEngine {
         val generation=++connectionGeneration
+        mediaConnected=false
         val candidateChannel=Channel<JSONObject>(256)
         candidateQueue=candidateChannel
         val connection=CallEngine(context,video,
@@ -227,7 +230,11 @@ class CallController(
                 if(state.incoming)return@launch
                 _view.value=state.copy(status=status)
                 when(status) {
-                    "Connected" -> {reconnectWatch?.cancel();reconnectWatch=null}
+                    "Connected" -> {
+                        mediaConnected=true
+                        connectWatch?.cancel();connectWatch=null
+                        reconnectWatch?.cancel();reconnectWatch=null
+                    }
                     "Reconnecting" -> {
                         reconnectWatch?.cancel()
                         reconnectWatch=scope.launch {
@@ -272,6 +279,14 @@ class CallController(
                         call.state=="ended"||call.state=="declined") {
                         withContext(Dispatchers.Main) {stopLocal()}
                         return@launch
+                    }
+                    if(call.state=="accepted" && !mediaConnected && connectWatch==null) {
+                        val generation=connectionGeneration
+                        connectWatch=scope.launch {
+                            delay(30_000L)
+                            if(generation==connectionGeneration && !mediaConnected && _view.value?.id==id)
+                                failure(java.io.IOException("Call connection timed out; this network may need TURN."))
+                        }
                     }
                     if(call.state=="accepted" && call.answer.isNotBlank() && call.caller==account && !remoteAnswer) {
                         engine?.acceptAnswer(call.answer)
@@ -326,6 +341,8 @@ class CallController(
     }
     private fun stopLocal() {
         connectionGeneration++
+        mediaConnected=false
+        connectWatch?.cancel();connectWatch=null
         reconnectWatch?.cancel();reconnectWatch=null
         incomingWatch?.cancel();incomingWatch=null
         polling?.cancel();polling=null
