@@ -170,6 +170,9 @@ $$;
 revoke all on function private.call_start(uuid,text,text),private.call_respond(uuid,boolean,text),
  private.call_hangup(uuid),private.call_heartbeat(uuid),private.call_candidate(uuid,jsonb),
  private.call_poll(uuid,bigint) from public,anon,authenticated;
+grant execute on function private.call_start(uuid,text,text),private.call_respond(uuid,boolean,text),
+ private.call_hangup(uuid),private.call_heartbeat(uuid),private.call_candidate(uuid,jsonb),
+ private.call_poll(uuid,bigint) to authenticated;
 revoke all on function public.call_start(uuid,text,text),public.call_respond(uuid,boolean,text),
  public.call_hangup(uuid),public.call_heartbeat(uuid),public.call_candidate(uuid,jsonb),
  public.call_poll(uuid,bigint) from public,anon;
