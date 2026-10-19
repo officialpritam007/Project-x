@@ -147,3 +147,10 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Both Privacy & Security and MB Privacy provide a saved local switch for Android `FLAG_SECURE`. It blocks standard screenshots and recent-app thumbnails on protected app windows, and reversibly clears the flag.
 - Default is **off** for accessibility and support screenshots. It does not stop external cameras or substitute for end-to-end encryption.
 - The option is not in theme export and does not alter Supabase account settings, calling, or media authorization.
+
+
+## Privacy cleanup — deleted chats
+
+- After a successful authenticated Supabase `set_conversation(p_delete=true)`, local chat history, draft, scheduled texts and appearance row are removed together; the private wallpaper JPEG and dedicated Android per-contact notification channel/preferences are also removed. Home wallpaper and all other conversations remain intact.
+- Failed server deletion no longer erases locally scheduled messages first. No remote customer data, Supabase schema or paid provider is changed. User-visible failures from local cleanup are not silently presented as successful erasure.
+- Tests verify that per-chat file/channel erasure does not delete another conversation or account's settings. Physical delete/account-switch acceptance remains open.
