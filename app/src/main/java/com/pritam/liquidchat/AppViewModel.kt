@@ -18,6 +18,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.tasks.await
 
+/** Drop results from older keystrokes, a different account or a changed auth scope. */
+internal fun searchRequestCurrent(
+    requestedVersion:Long,currentVersion:Long,
+    requestedAccount:String,currentAccount:String?,
+    requestedEpoch:Long?,currentEpoch:Long?
+):Boolean = requestedVersion==currentVersion &&
+    requestedAccount==currentAccount && requestedEpoch!=null && requestedEpoch==currentEpoch
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val displayPrefs=app.getSharedPreferences("display",android.content.Context.MODE_PRIVATE)
@@ -42,6 +50,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val searchResults=MutableStateFlow<List<Message>>(emptyList())
     val focusMessage=MutableStateFlow<String?>(null)
     private var searchJob:kotlinx.coroutines.Job?=null
+    private var searchVersion=0L
     val session=backend.session
     private val policyPrefs=app.getSharedPreferences("user_policy",android.content.Context.MODE_PRIVATE)
     private val policyEpoch=MutableStateFlow(0)
@@ -192,13 +201,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun block(peer:String,blocked:Boolean)=action {repository.block(peer,blocked);_notice.value=if(blocked)"Contact blocked" else "Contact unblocked"}
     fun search(query:String) {
         searchJob?.cancel()
+        val requestedVersion=++searchVersion
         val expected=session.value?.userId
-        if(query.isBlank()||expected==null){searchResults.value=emptyList();return}
+        // Never display results from a previous query while debouncing this one.
+        searchResults.value=emptyList()
+        if(query.isBlank()||expected==null)return
+        val expectedEpoch=backend.uiReads.epoch(expected)
+        fun current()=searchRequestCurrent(requestedVersion,searchVersion,expected,
+            session.value?.userId,expectedEpoch,backend.uiReads.epoch(expected))
         searchJob=viewModelScope.launch {
             kotlinx.coroutines.delay(200)
-            try {val results=repository.search(query);if(session.value?.userId==expected)searchResults.value=results}
-            catch(e:CancellationException){throw e}
-            catch(_:Exception){if(session.value?.userId==expected){searchResults.value=emptyList();_notice.value="Search is unavailable. Please retry."}}
+            try {
+                val results=repository.search(query)
+                if(current())searchResults.value=results
+            } catch(e:CancellationException){throw e}
+              catch(_:Exception){
+                if(current()) {
+                    searchResults.value=emptyList()
+                    _notice.value="Search is unavailable. Please retry."
+                }
+            }
         }
     }
     fun report(peer:String,reason:String,messageIds:List<String> = emptyList())=action {
