@@ -169,3 +169,10 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Original Liquid Chat visual defaults are restored, including accent, font family, conversation bubble style/colors, header/navigation dimensions, wallpaper dimming and quick reactions.
 - Security and accessibility state is **preserved**: hide outgoing typing, hide inbox previews, prevent screenshots, reduced motion and reduced transparency. No on-disk wallpaper files, messages, user accounts or Supabase records are removed. All values use existing local display persistence.
 - Android regression test verifies that resetting all modified visuals does not silently turn off privacy/accessibility controls. Proprietary MBWhatsApp theme import remains unsupported.
+
+## Stage 9 — actual bottom navigation reordering (pending CI)
+
+- MB Home Screen now exposes five reorderable destinations, **Chats / Calls / Contacts / Settings / Profile**. Adjacent up/down buttons move each destination without changing its original integer navigation route ID, content, title or icon. Voice/video Calling stays reachable regardless of visual order.
+- Persist a validated five-ID permutation in existing local SharedPreferences. Original `0,1,2,3,4` is the backward-compatible default; corrupted, duplicate or omitted IDs reset to the safe original layout. No hidden/removed tabs.
+- Liquid Chat theme JSON import/export carries the validated order, while private account data remains excluded.
+- Unit tests cover all five IDs, swaps, corrupt restore and boundary movements; Android theme instrumentation includes a nondefault order. Final device TalkBack/large text acceptance remains required.
