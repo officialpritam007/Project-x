@@ -123,7 +123,7 @@ internal fun startVoiceWithFocusHandoff(
             }
         }
     }
-    error?.let {message->AlertDialog(onDismissRequest={error=null},text={Text(message)},confirmButton={TextButton(onClick={error=null}){Text("OK")}})}
+    error?.let {message->LiquidAlertDialog(onDismissRequest={error=null},text={Text(message)},confirmButton={TextButton(onClick={error=null}){Text("OK")}})}
 }
 
 /** Fixed choices avoid accidental chip-speed drift and keep playback accessible. */
