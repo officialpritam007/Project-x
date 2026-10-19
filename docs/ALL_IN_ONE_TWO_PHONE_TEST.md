@@ -158,3 +158,5 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB23 | Account switch/logout and inspect Android notification channels | No prior account's contact labels remain, no alert routed to stale user channel |
 | MB24 | Block notifications at OS level, send a message | Android block is respected; no app bypass of global/channel permission |
 | MB25 | Receive voice/video call with per-chat message sound enabled | Calling channel and incoming-call controls remain independent and functional |
+
+| MB26 | Switch System/Serif/Mono/Cursive font, restart and import/export a theme | All Material3 screen typography updates live; choice persists; no missing glyphs or unreadable chat/navigation labels |
