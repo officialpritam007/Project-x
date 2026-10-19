@@ -5,6 +5,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SharedMediaPaginationTest {
+    @Test fun deletionDuringPageLoadCannotBeUndoneByItsOlderSnapshot() {
+        val photo=Message("owner","photo","chat","peer","caption",seq=4,mediaId="private")
+        val other=photo.copy(id="other",seq=3)
+        assertEquals(listOf(other),mergeSharedMediaRows(listOf(photo),listOf(photo,other),false,setOf("photo")))
+        assertEquals(listOf(other),mergeSharedMediaRows(listOf(photo),listOf(photo,other),true,setOf("photo")))
+        assertEquals(listOf(photo,other),mergeSharedMediaRows(listOf(photo),listOf(photo,other),false,emptySet()))
+    }
     private fun page(deleted:Boolean)= (60L downTo 31L).map {seq->
         Message("owner","id-$seq","chat","peer","body",seq=seq,
             deletedAt=if(deleted||seq==31L)"2026-10-19T00:00:00Z" else "")

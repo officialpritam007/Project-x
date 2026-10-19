@@ -12,6 +12,7 @@ import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 /** A refresh supersedes every older page, including a manually launched append. */
 internal class SharedMediaRequests {
@@ -32,6 +33,9 @@ internal fun sharedMediaPage(raw:List<Message>,before:Long):SharedMediaPage {
     return SharedMediaPage(raw.filter {it.deletedAt.isEmpty()},cursor,
         raw.size==30&&cursor!=null&&cursor>0&&cursor<before)
 }
+
+internal fun mergeSharedMediaRows(existing:List<Message>,page:List<Message>,reset:Boolean,revoked:Set<String>):List<Message> =
+    (if(reset)page else existing+page).filter {it.deletedAt.isEmpty()&&it.id !in revoked}.distinctBy {it.id}
 
 /**
  * Only media/starred changes require reloading their RPC pages; ordinary text
@@ -63,8 +67,20 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
     val requests=remember(chat.id,account,epoch) {SharedMediaRequests()}
     val refreshKeys=remember(kind,sourceVersion) {sharedMediaRefreshKeys(sourceVersion,kind)}
     val scope=rememberCoroutineScope()
+    var revokedInRequest by remember(chat.id,account,epoch) {mutableStateOf<Set<String>>(emptySet())}
+    LaunchedEffect(chat.id,account,epoch) {
+        model.repository.revocations.collect {event->
+            if(event.account==account&&model.backend.uiReads.epoch(account)==epoch) {
+                if(loading)revokedInRequest=revokedInRequest+event.id
+                rows=rows.filterNot {it.id==event.id}
+            }
+        }
+    }
     suspend fun page(reset:Boolean) {
         val request=requests.begin(reset) ?: return
+        // Earlier revocations are already committed on the server. Retain only
+        // those arriving during this fresh RPC so a delayed page cannot undo them.
+        revokedInRequest=emptySet()
         val requestedKind=kind
         val requestedAccount=account
         val requestedEpoch=epoch
@@ -81,7 +97,7 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
                 else model.repository.sharedMedia(chat.id,before,requestedKind)
             if(!current())return
             val result=sharedMediaPage(fetched,before)
-            rows=if(reset)result.visible else (rows+result.visible).distinctBy {it.id}
+            rows=mergeSharedMediaRows(rows,result.visible,reset,revokedInRequest)
             cursor=result.cursor
             more=result.more
         } catch(e:kotlinx.coroutines.CancellationException){throw e}

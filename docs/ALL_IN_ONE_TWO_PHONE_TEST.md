@@ -43,7 +43,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | M11 | Copy and multi-select-forward text to another existing one-to-one chat | Selected text/order retained; destination/sender correct; no group creation |
 | M12 | Search text with Sender/Type/Date filters, including query changes mid-search | Only matching downloaded history; no stale/foreign/deleted result; jump navigates correctly |
 | M13 | Delete-for-everyone a text/photo/voice on A; restart/reconnect B | Tombstone only; body, quote, reaction, attachment and search content stay absent |
-| M14 | Play voice on B, scroll it offscreen, then delete/hide it | Cached active playback stops when deletion/hide reaches B |
+| M14 | Play cached voice on B and old uncached voice from Shared Media; scroll offscreen, then delete/hide it | Both playback paths stop when deletion/hide reaches B; old gallery item disappears without retaining its private body in Room |
 | M15 | Delete-for-me an item/history, restart and sync both devices | A's hidden content stays hidden; B's own copy follows its intended independent visibility |
 | M16 | Toggle receipts/online/last-seen privacy; inspect from the peer | Hidden state not inferred from heartbeat; read/delivery labels match permitted watermarks |
 | M17 | Block in either direction; attempt messaging/calling/media/Stories/Posts | New unauthorized actions/access denied; unblocking recovers permitted access |
@@ -90,7 +90,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | S02 | Interrupt upload, restart, retry; exceed a documented quota/format limit with disposable media | Recoverable failure; original/queued file retained where intended; no false Sent or extra charge setup |
 | S03 | Hold/release voice, slide-cancel, hands-free lock/discard/send | Actual playable recording; cancellation leaves no queued phantom; mic stops on background |
 | S04 | Play/pause/seek voice at 1×/1.5×/2×, scroll away/back | Correct speed/state; one player; chat/account/background transitions release it |
-| S05 | Scroll Shared Media/Voice/Starred while unrelated text arrives; switch tabs and load older | No needless full reload, duplicate/reordered page or stale account result |
+| S05 | Scroll Shared Media/Voice/Starred while unrelated text arrives; switch tabs/load older; delete an item during a delayed page load | No needless full reload, duplicate/reordered page, restored deleted item or stale account result |
 | S06 | Publish photo Story with caption; inspect horizontal carousel/full-screen viewer | Loaded image gets viewing time; progress/tap navigation/hold-pause works |
 | S07 | Publish video shorter than 30s and trim a longer video; include portrait/landscape/ultra-wide | Local bounded MP4 export, real preparation/upload progress, playback and mute/unmute |
 | S08 | Tap previous on first video, navigate between photo/video, background or receive call | Video restarts correctly; Story playback pauses; no audio/video continues after closing |
