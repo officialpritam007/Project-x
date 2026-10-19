@@ -180,3 +180,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB39 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
 | MB36 | Set chat-specific photo, custom notification channel and scheduled text, then delete that chat | No residual photo, sound/channel contact name, draft, schedule or stale appearance; other chats and Home wallpaper stay intact |
 | MB37 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
+
+
+| MB37 | Schedule a text for later, edit its message/body and time twice, then leave app/reboot | Schedule list reflects new text/time; original UUID and reply remain; no early/duplicate delivery; current composer draft unaffected |
+| MB38 | Cancel or send scheduled text as it reaches the due boundary, then try Edit | Already-sent/removed schedule cannot be resurrected or edited, and the app reports the outcome |
