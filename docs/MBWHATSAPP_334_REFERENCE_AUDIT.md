@@ -20,7 +20,7 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 | Privacy, Ghost mode, hide ticks | `mb_privacy_settings`, changelog | **Partial**: real presence/read-receipt server settings exist. Combined Ghost Mode now toggles server-backed presence/read receipts; per-contact exceptions and alternative tick suppression **not implemented**; never show a working-looking toggle without matching server guarantees. |
 | Notifications | `mb_notify_settings`, changelog icon/toast/filters | **Partial**: FCM, permission/channel status and existing deduplication are present. Custom notification icons/sounds and contact-specific alerts remain. |
 | Themes and presets | `mb_themes_settings`, color pickers, own font assets | **Partial**: six persisted primary accent palettes work across Material3; accurate import/export, font/theme packs and screenshot parity still require verification. |
-| Scheduled messages / editing diff | v2.6.1 changelog | **Not yet**: requires durable scheduling, exact-once outbox, timezone/reboot/account-switch policies; edited-body histories require explicit database/access rules. |
+| Scheduled messages / editing diff | v2.6.1 changelog | **Partial**: Room v8 + persistent WorkManager text scheduling, cancel list, due-time idempotent outbox transfer, account/logout/delete protections. Actual device scheduling precision remains unverified; edited-body history and cross-device schedules remain unimplemented. |
 | Read-more, message preview and mark read | changelog v2.6, v2.8 | **Partial**: read-more and mark-read exist; long-press preview layout not verified. |
 | Story/status editor, playback/download | changelog, status reference resources | **Partial**: 24h stories and video story tooling exist; WhatsApp-specific downloads / once-view bypass must not be copied as a backend promise. |
 | Sticker maker, custom emoji, reactions | sticker layouts, assets, changelog | **Partial**: emoji picker/reactions present, full sticker pipeline not complete. |
@@ -68,3 +68,13 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Home header can show the authenticated user's profile name instead of the branded title. Archive filter can be hidden without deleting archived messages and restored through MB Preferences.
 - Unit tests cover Ghost Mode flags and legacy display defaults. This still requires exact-commit build, emulator and physical-acceptance validation.
 - **Known incomplete reference work:** exact resource/pixel replication, theme/font import/export, launcher icons, scheduled messages, document scanning, stickers, status downloads, notification-specific policies and native system-level call quality checks. No unavailable feature has been labelled production-ready.
+
+## Branch 1 continuation — scheduled text messages (candidate only)
+
+- New Room v8 `scheduled_texts` table and `Migration7To8`, additive with no Supabase schema mutation.
+- Android WorkManager keeps a scheduled text separate from the pending text outbox until due. When due, an account-scoped transaction moves the same UUID into the existing idempotent message queue. Standard network retry and delivery status then apply.
+- Conversation menu supports **Schedule message**, native date/time picker, scheduled text list and cancellation. Allowed time: one minute to 180 days ahead; text up to 4000 characters. Draft consumption is version-guarded and leaves newer drafts untouched.
+- WorkManager schedule registration is restored when an account becomes foreground. Sign-out and account erasure clear local schedules; deleting a conversation cancels its future texts. The worker checks the authenticated account before dispatch and never uses another account's session.
+- Database instrumentation covers non-dispatch-before-due, user isolation and safe deletion. Room v1→v8 migration fixture preserves older pending messages and drafts.
+- **Limitations:** schedules are stored *locally on this device*, not synchronized to other devices or the Supabase server. Android power/battery policies can delay exact dispatch. Clearing app data, uninstalling or signing out removes local schedules. No scheduled media, recurring/group messages, or server-time SLA. Real reboot/Doze/device acceptance remains required; this is not yet a production scheduling guarantee.
+- Calling remains enabled by existing workflow configuration. Candidate version 1.0.0-rc6-mb-preview (13); exact-head CI plus exact merged-main checks are required before release.
