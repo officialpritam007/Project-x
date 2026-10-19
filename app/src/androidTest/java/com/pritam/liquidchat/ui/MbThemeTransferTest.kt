@@ -12,11 +12,12 @@ class MbThemeTransferTest {
             appearance="Dark",blurIntensity=81,bubbleStyle="Compact",
             bubbleColor="Rose",messageFontSize=20,navIconSize=27,
             showNavLabels=true,accentColor="Purple",showProfileAsTitle=true,fontPreset="Mono",
-            homeWallpaperDim=15,chatWallpaperDim=87
+            homeWallpaperDim=15,chatWallpaperDim=87,quickReactions="👏,👍,❤️"
         )
         val encoded=MbThemeTransfer.export(expected)
         assertFalse(encoded.contains("user_id"))
         assertFalse(encoded.contains("token"))
+        assertFalse(encoded.contains("hideHomePreviews"))
         assertEquals(expected,MbThemeTransfer.decode(encoded,DisplayOptions()))
     }
     @Test fun rejectsForeignFormatsAndLargeFiles() {
