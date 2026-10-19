@@ -12,7 +12,7 @@ class MbThemeTransferTest {
             appearance="Dark",blurIntensity=81,bubbleStyle="Compact",
             bubbleColor="Rose",messageFontSize=20,navIconSize=27,
             showNavLabels=true,accentColor="Purple",showProfileAsTitle=true,fontPreset="Mono",
-            quickReactions="😍,🥰,🔥",hideHomePreviews=false
+            quickReactions="👏,👍,❤️",hideHomePreviews=false
         )
         val encoded=MbThemeTransfer.export(expected)
         assertFalse(encoded.contains("user_id"))
