@@ -57,6 +57,8 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Upsert suspend fun putAppearance(appearance:ChatAppearance)
     @Query("delete from chat_appearance where account=:account") suspend fun clearAppearance(account:String)
     @Query("select * from contacts where account=:account order by name,id") fun contacts(account:String):Flow<List<Contact>>
+    @Query("select * from contacts where account=:account") suspend fun allContacts(account:String):List<Contact>
+    @Query("delete from contacts where account=:account and id=:id") suspend fun removeContact(account:String,id:String)
     @Query("delete from contacts where account=:account") suspend fun clearContacts(account:String)
     @Upsert suspend fun putContacts(contacts:List<Contact>)
     @Query("select * from chats where account=:account order by pinnedAt desc,pendingAt desc,lastSeq desc,id desc") fun chats(account:String):Flow<List<Chat>>
