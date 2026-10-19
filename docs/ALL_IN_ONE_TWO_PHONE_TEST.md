@@ -163,3 +163,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 
 | MB27 | Hide outgoing typing while entering text, then toggle it back on | Peer stops seeing this device's typing signal (including immediately after toggle); incoming typing still works; preference survives restart and is not altered by theme import |
+
+
+| MB32 | Enable Privacy > Block screenshots and app previews; attempt screenshot and app-switcher preview | Android blocks screenshots and obscures recent-app thumbnails; existing call overlay remains functional |
+| MB33 | Disable screenshot block and restart app | Screenshots work again; setting persists across process death and does not change server privacy/notification preferences |
