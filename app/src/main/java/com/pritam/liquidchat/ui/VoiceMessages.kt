@@ -161,7 +161,9 @@ private object VoicePlayback {
     val selected=VoicePlayback.id==message.id
     val playing=selected&&VoicePlayback.playing
     LaunchedEffect(selected,playing) {while(selected&&playing){VoicePlayback.tick();delay(200)}}
-    DisposableEffect(message.id) {onDispose {if(VoicePlayback.id==message.id)VoicePlayback.stop()}}
+    // This item may leave the LazyColumn solely because it was scrolled offscreen.
+    // Keep playback running while the current chat is visible; the screen-scoped
+    // VoicePlaybackLifecycle stops audio when the chat/account or activity changes.
     Column(Modifier.widthIn(max=285.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             IconButton(enabled=!loading&&(!selected||VoicePlayback.ready),onClick={
