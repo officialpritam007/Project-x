@@ -8,6 +8,7 @@ class CallWindowPrivacyTest {
     private val incoming=CallView("validated-call","chat","peer","video",true,"Incoming call")
     @Test fun onlyValidatedFullCallOverlayCanShowOverDeviceLock() {
         assertTrue(callWindowMayShowWhenLocked(incoming))
+        assertFalse(callWindowMayShowWhenLocked(incoming,policyAccepted=false))
         assertTrue(callWindowMayShowWhenLocked(incoming.copy(status="Connected")))
         assertFalse(callWindowMayShowWhenLocked(incoming.copy(minimized=true)))
         assertFalse(callWindowMayShowWhenLocked(incoming.copy(id=null,status="Preparing")))
