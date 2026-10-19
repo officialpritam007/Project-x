@@ -394,6 +394,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var wallpaperRevision by remember(cid,session?.userId) {mutableIntStateOf(0)}
     var scheduleOpen by remember(cid) {mutableStateOf(false)}
     var schedulesOpen by remember(cid) {mutableStateOf(false)}
+    var scheduleEditingId by remember(cid) {mutableStateOf<String?>(null)}
     var scheduleBody by remember(cid) {mutableStateOf("")}
     var scheduleReplyTo by remember(cid) {mutableStateOf("")}
     var scheduleDraftVersion by remember(cid) {mutableLongStateOf(0L)}
@@ -565,6 +566,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         GlassActionRow("Schedule message",Icons.Outlined.Schedule,
                             onClick={
                                 menu=false
+                                scheduleEditingId=null
                                 scheduleBody=body
                                 scheduleReplyTo=replyTo
                                 scheduleDraftVersion=draftVersion
@@ -698,8 +700,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
     },onDismiss={emojiPicker=false})
     if(scheduleOpen) LiquidAlertDialog(
-        onDismissRequest={scheduleOpen=false},
-        title={Text("Schedule a message")},
+        onDismissRequest={scheduleOpen=false;scheduleEditingId=null},
+        title={Text(if(scheduleEditingId==null)"Schedule a message" else "Edit scheduled message")},
         text={Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
             verticalArrangement=Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(scheduleBody,{if(it.length<=4000)scheduleBody=it},
@@ -733,19 +735,25 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             val expectedReply=scheduleReplyTo
             val version=scheduleDraftVersion
             val sendAt=scheduleAt
-            val consumeVersion=version.takeIf {it>0L&&body==text&&replyTo==expectedReply&&draftVersion==it}
+            val editId=scheduleEditingId
+            val consumeVersion=version.takeIf {editId==null&&it>0L&&body==text&&replyTo==expectedReply&&draftVersion==it}
             model.action {
-                model.repository.scheduleText(cid,text,expectedReply,sendAt,consumeVersion)
+                if(editId!=null) {
+                    model.repository.editScheduledText(cid,editId,text,sendAt)
+                } else {
+                    model.repository.scheduleText(cid,text,expectedReply,sendAt,consumeVersion)
+                }
                 scheduleOpen=false
+                scheduleEditingId=null
                 if(consumeVersion!=null && body==text && replyTo==expectedReply && draftVersion==version) {
                     input=TextFieldValue("")
                     replyTo=""
                 }
             }
         },enabled=!busy&&scheduleBody.isNotBlank()&&scheduleAt>=System.currentTimeMillis()+60_000L) {
-            Text("Schedule")
+            Text(if(scheduleEditingId==null)"Schedule" else "Save changes")
         }},
-        dismissButton={TextButton(onClick={scheduleOpen=false}) {Text("Cancel")}}
+        dismissButton={TextButton(onClick={scheduleOpen=false;scheduleEditingId=null}) {Text("Cancel")}}
     )
     if(schedulesOpen) LiquidActionSheet(title="Scheduled messages",onDismiss={schedulesOpen=false}) {
         if(scheduledTexts.isEmpty()) Text("No scheduled messages for this conversation.",
@@ -762,6 +770,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         style=MaterialTheme.typography.bodySmall,
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                IconButton(onClick={
+                    schedulesOpen=false
+                    scheduleEditingId=item.id
+                    scheduleBody=item.body
+                    scheduleReplyTo=item.replyTo
+                    scheduleDraftVersion=0L
+                    scheduleAt=item.sendAt
+                    scheduleOpen=true
+                },enabled=!busy) {Icon(Icons.Outlined.Edit,"Edit scheduled message")}
                 IconButton(onClick={model.action {model.repository.cancelScheduledText(item.id)}},
                     enabled=!busy) {Icon(Icons.Outlined.Close,"Cancel scheduled message")}
             }
