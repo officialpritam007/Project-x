@@ -91,3 +91,12 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - MB Preferences now links to actual existing server-backed **Privacy** and Android-backed **Notifications** screens, in addition to General/Home/Conversation/Themes. Returning from nested sections leads back to MB Preferences.
 - Long-pressing a home conversation opens a read-only preview of up to three cached, authorized, non-deleted messages with a working **Open conversation** action. Media is represented by descriptive labels, not unauthorized image reads. The existing pin/archive/favorite/mute/delete actions remain.
 - The reference-specific visual modal geometry and unsupported notification or theme controls still require further work; never claim full screenshot matching based on these stateful counterparts.
+
+## Stage 4 — per-conversation notification channels (candidate)
+
+- Every conversation menu exposes a working **Custom notifications** dialog.
+- Opt-in creates a dedicated `NotificationChannel` per account + conversation. All normal FCM message alerts for that conversation then route to the selected Android channel, with an Android settings intent for the device-controlled sound, vibration and alert level. The original global `messages` channel remains the default when the user opts out.
+- Channel IDs are non-identifying SHA-256-derived values of account and conversation UUIDs. Settings are account-scoped, never read from FCM input, and previous-account channels/labels are removed on local account erasure.
+- This uses no paid service and does not change Supabase, message delivery, notification-deduplication, muted chat privacy, or incoming voice/video calling channels.
+- **Android limitation:** on Android 8+ installed channel sound/importance/vibration are controlled by the OS and user; apps cannot silently change existing channel sound or bypass blocked permissions.
+- Instrumentation tests cover default routing, account isolation, dedicated channel creation and cleanup; exact-head CI and two-phone notification acceptance remain release gates.
