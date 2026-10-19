@@ -1128,6 +1128,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Slider(value=display.blurIntensity.toFloat(),onValueChange={value->model.setDisplay(display.copy(blurIntensity=value.toInt()))},valueRange=0f..100f,enabled=!display.reducedTransparency,modifier=Modifier.fillMaxWidth())
             Text("Lower values reduce blur; Reduced transparency overrides this setting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        // MB General's cache control reuses the already-safe Coil-only cleanup.
+        // Never expose "clear all" actions that would erase the durable Room outbox.
+        if(section=="MB General Settings") DataStorage(model)
         if(section=="MB Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Home Screen",style=MaterialTheme.typography.titleLarge)
             Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
