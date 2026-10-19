@@ -144,7 +144,11 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }
         for(c in chats) {
             checkAccount(account)
-            dao.prune(account,c.id,c.deletedSeq)
+            // A periodic sync with no stale messages must not issue a DELETE.
+            // Even deleting zero rows can invalidate Room observers and churn the
+            // message LazyColumn. Still prune whenever local stale history exists.
+            if(c.deletedSeq>0 && dao.hasPrunableMessages(account,c.id,c.deletedSeq))
+                dao.prune(account,c.id,c.deletedSeq)
             if(c.lastSeq>c.syncSeq) {
                 var cursor=c.syncSeq
                 do {
