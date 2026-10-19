@@ -10,6 +10,10 @@ data class DisplayOptions(
     val blurIntensity:Int=55,
     val bubbleStyle:String="Tail",
     val bubbleColor:String="Original",
-    val messageFontSize:Int=16
+    val messageFontSize:Int=16,
+    val showNavLabels:Boolean=false,
+    val navIconSize:Int=24,
+    val navLabelSize:Int=11,
+    val headerTitleSize:Int=25
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
