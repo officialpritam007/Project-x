@@ -24,11 +24,26 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import java.io.File
 import java.io.IOException
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+
+/** Preserve orientation without stretching/cropping; even ultra-wide input fits server limits. */
+internal fun storyCanvasSize(width:Int,height:Int,rotation:Int):Pair<Int,Int> {
+    require(width>0&&height>0)
+    val rotated=((rotation%360)+360)%360 in listOf(90,270)
+    val displayWidth=if(rotated)height else width
+    val displayHeight=if(rotated)width else height
+    return when {
+        displayWidth>displayHeight->1280 to 720
+        displayWidth<displayHeight->720 to 1280
+        else->720 to 720
+    }
+}
 
 /** Bounded, local-only video story processing. No credentials or cloud encoding service. */
 object StoryVideo {
@@ -53,13 +68,24 @@ object StoryVideo {
     suspend fun export(
         context:Context,source:Uri,startMs:Long,onProgress:(Int)->Unit={}
     ):File=withContext(Dispatchers.Main) {
-        val duration=durationMs(context,source)
+        val (duration,canvas)=withContext(Dispatchers.IO) {
+            val metadata=MediaMetadataRetriever()
+            try {
+                metadata.setDataSource(context,source)
+                val duration=metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    ?.takeIf {it>0} ?: throw IOException("Video duration unavailable.")
+                val width=metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                val height=metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                val rotation=metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                duration to storyCanvasSize(width,height,rotation)
+            } finally {metadata.release()}
+        }
         val start=startMs.coerceIn(0L,(duration-500L).coerceAtLeast(0L))
         val end=(start+MAX_DURATION_MS).coerceAtMost(duration)
         if(end-start<500L)throw IOException("Video must be at least half a second.")
         val file=File(context.cacheDir,"story-"+UUID.randomUUID()+".mp4")
         try {
-            suspendCancellableCoroutine { continuation->
+            withTimeout(120_000L) {suspendCancellableCoroutine { continuation->
                 val clip=MediaItem.Builder().setUri(source)
                     .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder()
                         .setStartPositionMs(start)
@@ -67,7 +93,8 @@ object StoryVideo {
                         .build())
                     .build()
                 val edited=EditedMediaItem.Builder(clip)
-                    .setEffects(Effects(emptyList(),listOf(Presentation.createForHeight(720))))
+                    .setEffects(Effects(emptyList(),listOf(Presentation.createForWidthAndHeight(
+                        canvas.first,canvas.second,Presentation.LAYOUT_SCALE_TO_FIT))))
                     .build()
                 val encoder=DefaultEncoderFactory.Builder(context)
                     .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder()
@@ -98,19 +125,25 @@ object StoryVideo {
                 }
                 continuation.invokeOnCancellation {
                     polling.cancel()
-                    transformer.cancel()
-                    file.delete()
+                    // Timeout/cancellation may originate off the Transformer application looper.
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        transformer.cancel()
+                        file.delete()
+                    }
                 }
                 try {transformer.start(edited,file.absolutePath)}
                 catch(error:Exception) {
                     polling.cancel()
                     if(continuation.isActive)continuation.resumeWithException(error)
                 }
-            }
+            }}
             if(file.length()<=0||file.length()>MAX_BYTES)
                 throw IOException("Compressed video exceeds 8 MB. Select a shorter clip.")
             onProgress(100)
             file
+        } catch(e:TimeoutCancellationException) {
+            file.delete()
+            throw IOException("Video export timed out. Select a shorter clip and retry.",e)
         } catch(e:CancellationException) {
             file.delete()
             throw e
