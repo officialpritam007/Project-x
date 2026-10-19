@@ -46,11 +46,11 @@ private val Dark = darkColorScheme(
 )
 // iOS-inspired type hierarchy, while preserving Android font scaling and TalkBack.
 private val PremiumTypography=Typography(
-    headlineSmall=Typography().headlineSmall.copy(fontWeight=FontWeight.SemiBold,letterSpacing=(-.45).sp),
-    titleLarge=Typography().titleLarge.copy(fontWeight=FontWeight.SemiBold,letterSpacing=(-.3).sp),
+    headlineSmall=Typography().headlineSmall.copy(fontWeight=FontWeight.SemiBold,letterSpacing=(-0.45f).sp),
+    titleLarge=Typography().titleLarge.copy(fontWeight=FontWeight.SemiBold,letterSpacing=(-0.30f).sp),
     titleMedium=Typography().titleMedium.copy(fontWeight=FontWeight.SemiBold),
     titleSmall=Typography().titleSmall.copy(fontWeight=FontWeight.SemiBold),
-    bodyLarge=Typography().bodyLarge.copy(letterSpacing=.05.sp),
+    bodyLarge=Typography().bodyLarge.copy(letterSpacing=0.05f.sp),
     labelLarge=Typography().labelLarge.copy(fontWeight=FontWeight.Medium)
 )
 @Composable fun LiquidTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
