@@ -28,6 +28,25 @@ class ScheduledTextDatabaseTest {
         } finally {db.close()}
     }
 
+    @Test fun editingPendingSchedulePreservesIdentityAndNoImmediateMessage()=runBlocking {
+        val context=ApplicationProvider.getApplicationContext<Context>()
+        val db=Room.inMemoryDatabaseBuilder(context,LocalDatabase::class.java).build()
+        try {
+            val original=ScheduledText("alice","future-edit","chat-1","Original",
+                replyTo="reply-id",sendAt=System.currentTimeMillis()+3_600_000L)
+            db.dao().putScheduledText(original)
+            val changed=original.copy(body="Edited message",sendAt=original.sendAt+300_000L)
+            db.dao().putScheduledText(changed)
+            assertEquals(changed,db.dao().scheduledText("alice","future-edit"))
+            assertEquals(original.id,changed.id)
+            assertEquals(original.createdAt,changed.createdAt)
+            assertEquals(original.replyTo,changed.replyTo)
+            assertNull(db.dao().scheduledText("bob","future-edit"))
+            assertTrue(db.dao().pending("alice").isEmpty())
+            assertEquals(1,db.dao().scheduledTexts("alice","chat-1").first().size)
+        } finally {db.close()}
+    }
+
     @Test fun clearingConversationSchedulesNeverDeletesRealMessages()=runBlocking {
         val context=ApplicationProvider.getApplicationContext<Context>()
         val db=Room.inMemoryDatabaseBuilder(context,LocalDatabase::class.java).build()
