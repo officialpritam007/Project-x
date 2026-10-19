@@ -167,6 +167,7 @@ import com.pritam.liquidchat.data.Images
             modifier=Modifier.padding(start=10.dp,top=4.dp))
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val rows=listOf(
+                Triple("MB Preferences","General and conversation customization",Icons.Outlined.Palette),
                 Triple("Chat Settings","Appearance, motion and accessibility",Icons.Outlined.ChatBubbleOutline),
                 Triple("Privacy & Security","Last seen, read receipts and privacy",Icons.Outlined.Lock),
                 Triple("Notifications","Previews and Android notification controls",Icons.Outlined.Notifications),

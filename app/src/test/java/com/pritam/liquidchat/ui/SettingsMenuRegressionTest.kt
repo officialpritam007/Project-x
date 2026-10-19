@@ -14,6 +14,8 @@ class SettingsMenuRegressionTest {
     @Test fun powerSavingNeverShowsAppearancePanel() {
         assertEquals(SettingsPanel.POWER_SAVING,settingsPanelFor("Power Saving"))
         assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Chat Settings"))
+        assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("MB General Settings"))
+        assertEquals(SettingsPanel.OTHER,settingsPanelFor("MB Conversation Screen"))
         assertEquals(SettingsPanel.OTHER,settingsPanelFor("Privacy & Security"))
         assertEquals(SettingsPanel.OTHER,settingsPanelFor("Notifications"))
     }

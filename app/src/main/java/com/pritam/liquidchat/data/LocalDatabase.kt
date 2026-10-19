@@ -55,7 +55,28 @@ data class Draft(val account:String,val conversation:String,val body:String,val 
 @Entity(tableName="chat_appearance",primaryKeys=["account","conversation"])
 data class ChatAppearance(val account:String,val conversation:String,val palette:String="Ice")
 
+/** Future messages live outside the immediate outbox until their due time. */
+@Entity(tableName="scheduled_texts",primaryKeys=["account","id"],
+    indices=[Index(value=["account","conversation","sendAt"])])
+data class ScheduledText(
+    val account:String,val id:String,val conversation:String,val body:String,
+    val replyTo:String="",val sendAt:Long,val createdAt:Long=System.currentTimeMillis()
+)
+
 @Dao interface ChatDao {
+    @Query("select * from scheduled_texts where account=:account and conversation=:cid order by sendAt,id")
+    fun scheduledTexts(account:String,cid:String):Flow<List<ScheduledText>>
+    @Query("select * from scheduled_texts where account=:account order by sendAt,id")
+    suspend fun allScheduledTexts(account:String):List<ScheduledText>
+    @Query("select * from scheduled_texts where account=:account and id=:id")
+    suspend fun scheduledText(account:String,id:String):ScheduledText?
+    @Upsert suspend fun putScheduledText(value:ScheduledText)
+    @Query("delete from scheduled_texts where account=:account and id=:id")
+    suspend fun deleteScheduledText(account:String,id:String):Int
+    @Query("delete from scheduled_texts where account=:account")
+    suspend fun clearScheduledTexts(account:String)
+    @Query("delete from scheduled_texts where account=:account and conversation=:cid")
+    suspend fun clearScheduledConversation(account:String,cid:String)
     @Query("select exists(select 1 from hidden_messages where account=:account and id=:id)") suspend fun hidden(account:String,id:String):Boolean
     @Upsert suspend fun hide(message:HiddenMessage)
     @Query("delete from hidden_messages where account=:account") suspend fun clearHidden(account:String)
@@ -110,7 +131,7 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("delete from chats where account=:account") suspend fun clearChats(account:String)
     @Query("delete from cached_profile where account=:account") suspend fun clearProfile(account:String)
 }
-@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class,Draft::class,ChatAppearance::class,HiddenMessage::class],version=7,exportSchema=false)
+@Database(entities=[Chat::class,Message::class,CachedProfile::class,Contact::class,Draft::class,ChatAppearance::class,HiddenMessage::class,ScheduledText::class],version=8,exportSchema=false)
 abstract class LocalDatabase:RoomDatabase() { abstract fun dao():ChatDao }
 
 val Migration1To2=object:androidx.room.migration.Migration(1,2) {
@@ -161,5 +182,13 @@ val Migration5To6=object:androidx.room.migration.Migration(5,6) {
 val Migration6To7=object:androidx.room.migration.Migration(6,7) {
     override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS hidden_messages (account TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(account,id))")
+    }
+}
+
+/** Additive migration: never touch existing messages, chats, media or drafts. */
+val Migration7To8=object:androidx.room.migration.Migration(7,8) {
+    override fun migrate(db:androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS scheduled_texts (account TEXT NOT NULL, id TEXT NOT NULL, conversation TEXT NOT NULL, body TEXT NOT NULL, replyTo TEXT NOT NULL, sendAt INTEGER NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(account,id))")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_scheduled_texts_account_conversation_sendAt ON scheduled_texts(account,conversation,sendAt)")
     }
 }

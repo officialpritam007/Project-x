@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.drop
 }
 @OptIn(ExperimentalFoundationApi::class)
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
+    val homeDisplay=LocalDisplayOptions.current
     Surface(
         shape=Glass.card,
         color=if(LocalGlassDark.current)Color(0xFF20384D).copy(alpha=.62f) else Color.White.copy(alpha=.56f),
@@ -83,8 +84,8 @@ import kotlinx.coroutines.flow.drop
         Row(Modifier.fillMaxWidth().padding(vertical=11.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
-                Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium,maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium.copy(fontSize=homeDisplay.homeChatNameSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium.copy(fontSize=homeDisplay.homeChatPreviewSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
                 if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
@@ -112,14 +113,35 @@ import kotlinx.coroutines.flow.drop
     val profile by model.profile.collectAsStateWithLifecycle()
     val connection by model.connection.collectAsStateWithLifecycle()
     val results by model.searchResults.collectAsStateWithLifecycle()
+    val homePrivacy by model.repository.privateSettings.collectAsStateWithLifecycle()
+    val signedInAccount by model.session.collectAsStateWithLifecycle()
+    val inboxDisplay=LocalDisplayOptions.current
+    val activeFilter=if(inboxDisplay.hideArchiveAccess && filter==2)0 else filter
+    LaunchedEffect(menu,signedInAccount?.userId) {
+        if(menu && signedInAccount!=null) {
+            try {model.repository.loadSettings()}
+            catch(e:kotlinx.coroutines.CancellationException) {throw e}
+            catch(_:Exception) { /* Privacy controls remain disabled while unavailable. */ }
+        }
+    }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        GlassHeader("Liquid Chat",brand=true) {
+        GlassHeader(if(inboxDisplay.showProfileAsTitle)profile?.optString("display_name").orEmpty().ifBlank {"Liquid Chat"} else "Liquid Chat",brand=true) {
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
                 LiquidDropdownMenu(menu,{menu=false}) {
                     // The four filters already have visible, accessible chips below.
                     // Keep overflow for an action rather than duplicating navigation.
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
+                    val privacyLoaded=homePrivacy.has("show_presence") && homePrivacy.has("read_receipts") && homePrivacy.has("notification_previews")
+                    val ghost=ghostModeActive(homePrivacy.optBoolean("show_presence",true),homePrivacy.optBoolean("read_receipts",true))
+                    DropdownMenuItem(text={Text(if(ghost)"Disable Ghost Mode" else "Enable Ghost Mode")},
+                        enabled=privacyLoaded,onClick={
+                            menu=false
+                            model.action {
+                                val next=ghostModeSettings(!ghost)
+                                model.repository.settings(next.first,next.second,homePrivacy.optBoolean("notification_previews",true))
+                            }
+                        })
                 }
             }
         }
@@ -133,10 +155,12 @@ import kotlinx.coroutines.flow.drop
         )
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
+            listOf(0 to "All",1 to "Favorite",2 to "Archive",3 to "Unread")
+                .filter {it.first!=2 || !inboxDisplay.hideArchiveAccess}
+                .forEach { (index,label)->FilterChip(selected=activeFilter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
         }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
+        val visible=chats.filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
@@ -254,7 +278,7 @@ internal fun blockActionLabel(ownedBlocked:Boolean?):String =
 
 internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
 internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
-    "Chat Settings"->SettingsPanel.APPEARANCE
+    "Chat Settings","MB General Settings"->SettingsPanel.APPEARANCE
     "Power Saving"->SettingsPanel.POWER_SAVING
     else->SettingsPanel.OTHER
 }
@@ -280,6 +304,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val session by model.session.collectAsStateWithLifecycle()
     val messagesReady by model.messagesReady.collectAsStateWithLifecycle()
     val messages=remember(allMessages,cid,session?.userId) {allMessages.filter {it.conversation==cid&&it.account==session?.userId}}
+    val scheduledFlow=remember(model,cid) {model.repository.scheduledTexts(cid)}
+    val scheduledTexts by scheduledFlow.collectAsStateWithLifecycle(initialValue=emptyList())
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val focus by model.focusMessage.collectAsStateWithLifecycle()
     val contact by model.repository.contactState.collectAsStateWithLifecycle()
@@ -291,6 +317,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var emojiPicker by remember(cid) {mutableStateOf(false)}
     var palette by remember(cid) {mutableStateOf("Ice")}
     var appearance by remember(cid) {mutableStateOf(false)}
+    var scheduleOpen by remember(cid) {mutableStateOf(false)}
+    var schedulesOpen by remember(cid) {mutableStateOf(false)}
+    var scheduleBody by remember(cid) {mutableStateOf("")}
+    var scheduleReplyTo by remember(cid) {mutableStateOf("")}
+    var scheduleDraftVersion by remember(cid) {mutableLongStateOf(0L)}
+    var scheduleAt by remember(cid) {mutableLongStateOf(System.currentTimeMillis()+3_600_000L)}
     var searchOpen by remember(cid) {mutableStateOf(false)}
     var chatQuery by remember(cid) {mutableStateOf("")}
     var searchIndex by remember(cid) {mutableIntStateOf(0)}
@@ -411,6 +443,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             onClick={menu=false;details=true})
                         GlassActionRow("Search conversation",Icons.Outlined.Search,
                             onClick={menu=false;searchOpen=true})
+                        GlassActionRow("Schedule message",Icons.Outlined.Schedule,
+                            onClick={
+                                menu=false
+                                scheduleBody=body
+                                scheduleReplyTo=replyTo
+                                scheduleDraftVersion=draftVersion
+                                scheduleAt=System.currentTimeMillis()+3_600_000L
+                                scheduleOpen=true
+                            })
+                        GlassActionRow("Scheduled messages (${scheduledTexts.size})",Icons.Outlined.Event,
+                            onClick={menu=false;schedulesOpen=true})
                         GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
                             onClick={menu=false;starsOpen=true})
                         HorizontalDivider(Modifier.padding(vertical=8.dp))
@@ -533,6 +576,77 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val text=body.replaceRange(start,end,emoji)
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
     },onDismiss={emojiPicker=false})
+    if(scheduleOpen) LiquidAlertDialog(
+        onDismissRequest={scheduleOpen=false},
+        title={Text("Schedule a message")},
+        text={Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(scheduleBody,{if(it.length<=4000)scheduleBody=it},
+                label={Text("Message")},modifier=Modifier.fillMaxWidth(),maxLines=6,
+                keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences))
+            Text("Scheduled for " + java.time.Instant.ofEpochMilli(scheduleAt)
+                .atZone(java.time.ZoneId.systemDefault())
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")))
+            OutlinedButton(onClick={
+                val selected=java.util.Calendar.getInstance().apply {timeInMillis=scheduleAt}
+                android.app.DatePickerDialog(context,{_,year,month,day->
+                    android.app.TimePickerDialog(context,{_,hour,minute->
+                        scheduleAt=java.util.Calendar.getInstance().apply {
+                            set(year,month,day,hour,minute)
+                            set(java.util.Calendar.SECOND,0)
+                            set(java.util.Calendar.MILLISECOND,0)
+                        }.timeInMillis
+                    },selected.get(java.util.Calendar.HOUR_OF_DAY),selected.get(java.util.Calendar.MINUTE),
+                        android.text.format.DateFormat.is24HourFormat(context)).show()
+                },selected.get(java.util.Calendar.YEAR),selected.get(java.util.Calendar.MONTH),
+                    selected.get(java.util.Calendar.DAY_OF_MONTH)).apply {
+                    datePicker.minDate=System.currentTimeMillis()-86_400_000L
+                    datePicker.maxDate=System.currentTimeMillis()+180L*86_400_000L
+                }.show()
+            }) {Text("Choose date and time")}
+            Text("Stored on this device until due. Android may delay delivery; signing out or deleting the chat cancels local schedules.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }},
+        confirmButton={TextButton(onClick={
+            val text=scheduleBody
+            val expectedReply=scheduleReplyTo
+            val version=scheduleDraftVersion
+            val sendAt=scheduleAt
+            val consumeVersion=version.takeIf {it>0L&&body==text&&replyTo==expectedReply&&draftVersion==it}
+            model.action {
+                model.repository.scheduleText(cid,text,expectedReply,sendAt,consumeVersion)
+                scheduleOpen=false
+                if(consumeVersion!=null && body==text && replyTo==expectedReply && draftVersion==version) {
+                    input=TextFieldValue("")
+                    replyTo=""
+                }
+            }
+        },enabled=!busy&&scheduleBody.isNotBlank()&&scheduleAt>=System.currentTimeMillis()+60_000L) {
+            Text("Schedule")
+        }},
+        dismissButton={TextButton(onClick={scheduleOpen=false}) {Text("Cancel")}}
+    )
+    if(schedulesOpen) LiquidActionSheet(title="Scheduled messages",onDismiss={schedulesOpen=false}) {
+        if(scheduledTexts.isEmpty()) Text("No scheduled messages for this conversation.",
+            style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        scheduledTexts.forEach {item ->
+            Row(Modifier.fillMaxWidth().padding(vertical=8.dp),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(item.body,maxLines=3,overflow=TextOverflow.Ellipsis)
+                    Text(java.time.Instant.ofEpochMilli(item.sendAt)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")),
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick={model.action {model.repository.cancelScheduledText(item.id)}},
+                    enabled=!busy) {Icon(Icons.Outlined.Close,"Cancel scheduled message")}
+            }
+            HorizontalDivider()
+        }
+    }
     if(appearance)LiquidAlertDialog(onDismissRequest={appearance=false},title={Text("Chat wallpaper")},text={Column {listOf("Ice","Lilac","Mint","Sand").forEach {choice->TextButton(onClick={model.action {model.repository.setPalette(cid,choice);palette=choice;appearance=false}}) {Text(if(choice==palette)"✓ $choice" else choice)}}}},confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}})
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
@@ -699,6 +813,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val uploadFlow=remember(model,message.account,message.id) {model.repository.uploadProgress(message.account,message.id)}
     val uploadPercent by uploadFlow.collectAsStateWithLifecycle(initialValue=null)
     val mine=message.sender==message.account
+    val bubbleDisplay=LocalDisplayOptions.current
     var swipe by remember(message.id) {mutableFloatStateOf(0f)}
     val threshold=with(LocalDensity.current) {72.dp.toPx()}
     val replyCallback by rememberUpdatedState(onReply)
@@ -715,14 +830,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val bubbleWidth=minOf(maxWidth*.86f,480.dp)
     Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset((if(rtl)-swipe else swipe).toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f;crossed=false}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(
-            shape=androidx.compose.foundation.shape.RoundedCornerShape(
-                topStart=22.dp,topEnd=22.dp,
-                bottomStart=if(mine)22.dp else 8.dp,
-                bottomEnd=if(mine)8.dp else 22.dp
-            ),
+            shape=conversationBubbleShape(bubbleDisplay.bubbleStyle,mine),
             color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
-                else if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
-                else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
+                else conversationBubbleColor(bubbleDisplay.bubbleColor,mine,LocalGlassDark.current)
+                    ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                    else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
             border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
             shadowElevation=2.dp,
             modifier=Modifier.widthIn(max=bubbleWidth).glassSource()
@@ -742,7 +854,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if(message.mediaKind=="voice")VoicePlayer(model,message) else SharedImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge.copy(fontSize=bubbleDisplay.messageFontSize.sp),maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
                 if(message.status=="SENDING")uploadPercent?.let {percent->
                     LinearProgressIndicator(progress={percent/100f},modifier=Modifier.width(160.dp))
                     Text(if(percent<100)"Uploading · $percent%" else "Processing attachment…",style=MaterialTheme.typography.labelSmall)
@@ -777,7 +889,31 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=null}
+    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}
+
+    if(section=="MB Preferences") {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal=16.dp,vertical=12.dp)
+            .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+            verticalArrangement=Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                IconButton(onClick={section=null}) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")}
+                Text("MB Preferences",style=MaterialTheme.typography.headlineSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Customization",style=MaterialTheme.typography.titleLarge)
+                Text("Appearance options change your own Liquid Chat display without affecting messages or your contacts.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+                GlassActionRow("General Settings",Icons.Outlined.Palette,onClick={section="MB General Settings"})
+                HorizontalDivider()
+                GlassActionRow("Home Screen",Icons.Outlined.Home,onClick={section="MB Home Screen"})
+                HorizontalDivider()
+                GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
+            }
+        }
+        return
+    }
 
     val profile by model.profile.collectAsStateWithLifecycle()
     val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
@@ -798,7 +934,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val avatar=profile?.optString("avatar_id").orEmpty()
@@ -833,10 +969,90 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
             Text("Appearance",style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
+            Text("Main theme color",style=MaterialTheme.typography.labelLarge)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Cyan","Blue","Green","Purple","Rose","Amber").forEach {value->
+                    FilterChip(selected=display.accentColor==value,onClick={model.setDisplay(display.copy(accentColor=value))},label={Text(value)})
+                }
+            }
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
+            HorizontalDivider()
+            Text("Liquid Glass blur intensity",style=MaterialTheme.typography.titleSmall)
+            Text("${display.blurIntensity}%",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Slider(value=display.blurIntensity.toFloat(),onValueChange={value->model.setDisplay(display.copy(blurIntensity=value.toInt()))},valueRange=0f..100f,enabled=!display.reducedTransparency,modifier=Modifier.fillMaxWidth())
+            Text("Lower values reduce blur; Reduced transparency overrides this setting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if(section=="MB Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Home Screen",style=MaterialTheme.typography.titleLarge)
+            Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Show navigation labels",Modifier.weight(1f))
+                Switch(display.showNavLabels,{model.setDisplay(display.copy(showNavLabels=it))})
+            }
+            Text("Navigation icon size · ${display.navIconSize} dp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.navIconSize.toFloat(),onValueChange={model.setDisplay(display.copy(navIconSize=it.toInt()))},
+                valueRange=18f..30f,steps=11,modifier=Modifier.fillMaxWidth())
+            Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
+                valueRange=9f..15f,steps=5,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
+            HorizontalDivider()
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Show my profile name as title",Modifier.weight(1f))
+                Switch(display.showProfileAsTitle,{model.setDisplay(display.copy(showProfileAsTitle=it))})
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Hide Archive filter")
+                    Text("Archived conversations remain saved.",style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(display.hideArchiveAccess,{model.setDisplay(display.copy(hideArchiveAccess=it))})
+            }
+            Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
+                valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
+            HorizontalDivider()
+            Text("Conversation name size · ${display.homeChatNameSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeChatNameSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatNameSize=it.toInt()))},
+                valueRange=13f..20f,steps=6,modifier=Modifier.fillMaxWidth())
+            Text("Conversation preview size · ${display.homeChatPreviewSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeChatPreviewSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatPreviewSize=it.toInt()))},
+                valueRange=12f..18f,steps=5,modifier=Modifier.fillMaxWidth())
+        }
+        if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
+            Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Tail","Rounded","Compact").forEach {style ->
+                    FilterChip(selected=display.bubbleStyle==style,onClick={model.setDisplay(display.copy(bubbleStyle=style))},label={Text(style)})
+                }
+            }
+            Text("Message bubble color",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Original","Green","Lavender","Rose","Night").forEach {palette ->
+                    FilterChip(selected=display.bubbleColor==palette,onClick={model.setDisplay(display.copy(bubbleColor=palette))},label={Text(palette)})
+                }
+            }
+            Text("Message font size",style=MaterialTheme.typography.titleSmall)
+            Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
+                valueRange=14f..22f,steps=7,modifier=Modifier.fillMaxWidth())
+            HorizontalDivider()
+            Text("Preview",style=MaterialTheme.typography.titleSmall)
+            listOf(false,true).forEach {mine ->
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
+                    Surface(shape=conversationBubbleShape(display.bubbleStyle,mine),
+                        color=conversationBubbleColor(display.bubbleColor,mine,LocalGlassDark.current)
+                            ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                            else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)) {
+                        Text(if(mine)"Outgoing message" else "Incoming message",Modifier.padding(12.dp),
+                            style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp))
+                    }
+                }
+            }
         }
         if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {
             Text("Power Saving",style=MaterialTheme.typography.titleMedium)
@@ -864,6 +1080,27 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
         if(section in listOf("Privacy & Security","Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
+            if(section=="Privacy & Security") {
+                val loaded=settings.has("show_presence") && settings.has("read_receipts") && settings.has("notification_previews")
+                val enabled=ghostModeActive(settings.optBoolean("show_presence",true),settings.optBoolean("read_receipts",true))
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Ghost Mode",style=MaterialTheme.typography.titleSmall)
+                        Text("Hide online/last seen and new read receipts for your account.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=enabled,enabled=loaded&&!busy,onCheckedChange={checked ->
+                        model.action {
+                            val next=ghostModeSettings(checked)
+                            model.repository.settings(next.first,next.second,settings.optBoolean("notification_previews",true))
+                        }
+                    })
+                }
+                Text("Ghost Mode uses server-enforced account privacy. Switching it off restores both privacy controls; it cannot retract receipts already sent.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+            }
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
             listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
