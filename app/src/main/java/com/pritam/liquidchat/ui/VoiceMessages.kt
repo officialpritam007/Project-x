@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.*
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -35,8 +38,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import org.json.JSONObject
 
+/**
+ * A microphone gesture is allowed to dismiss the composer IME only after
+ * Android really started audio capture. Denied permissions, session errors
+ * and recorder failures must not disrupt a text draft.
+ */
+internal fun startVoiceWithFocusHandoff(
+    begin:()->Unit,recording:()->Boolean,dismissKeyboard:()->Unit
+):Boolean {
+    begin()
+    if(!recording())return false
+    dismissKeyboard()
+    return true
+}
+
 @Composable fun VoiceCapture(model:AppViewModel,cid:String,busy:Boolean) {
     val context=LocalContext.current
+    val focusManager=LocalFocusManager.current
+    val keyboard=LocalSoftwareKeyboardController.current
     val session by model.session.collectAsStateWithLifecycle()
     val account=session?.userId.orEmpty()
     val capture=remember(cid,account) {VoiceRecorder(context,account)}
@@ -45,13 +64,25 @@ import org.json.JSONObject
     fun start(locked:Boolean=false) {
         if(busy||account.isBlank())return
         if(ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {permission.launch(Manifest.permission.RECORD_AUDIO);return}
-        runCatching {capture.start(locked)}.onFailure {error="Recording could not start. Try again."}
+        runCatching {
+            startVoiceWithFocusHandoff(
+                begin={capture.start(locked)},
+                recording={capture.recording},
+                dismissKeyboard={
+                    // The parent chat uses imePadding(); first clear BasicTextField
+                    // focus, then hide the IME so the mic tray never overlaps it.
+                    focusManager.clearFocus(force=true)
+                    keyboard?.hide()
+                }
+            )
+        }.onFailure {error="Recording could not start. Try again."}
     }
     fun send() {
         val result=capture.finish() ?: return
         model.sendVoice(cid,result.first,result.second,account)
     }
     val lifecycle=LocalLifecycleOwner.current
+    BackHandler(enabled=capture.recording) {capture.cancel()}
     DisposableEffect(capture,lifecycle) {
         val observer=LifecycleEventObserver {_,event->if(event==Lifecycle.Event.ON_STOP)capture.cancel()}
         lifecycle.lifecycle.addObserver(observer)
@@ -84,8 +115,10 @@ import org.json.JSONObject
         },contentAlignment=Alignment.Center) {Icon(Icons.Outlined.Mic,null,tint=MaterialTheme.colorScheme.onPrimary)}
         if(capture.recording) androidx.compose.ui.window.Popup(alignment=Alignment.BottomEnd,offset=androidx.compose.ui.unit.IntOffset(0,-160),onDismissRequest={}) {
             GlassCard(Modifier.widthIn(max=350.dp)) {
-                Text("Recording ${capture.elapsed/1000}s / 120s")
-                Text(if(capture.locked)"Hands-free recording" else "Release to send · slide left to cancel · slide up to lock",style=MaterialTheme.typography.bodySmall)
+                Text("Recording ${capture.elapsed/1000}s / 120s",style=MaterialTheme.typography.titleSmall)
+                Text(if(capture.locked)"Hands-free recording · Back to discard"
+                    else "Release to send · left to cancel · up to lock",
+                    style=MaterialTheme.typography.bodySmall)
                 if(capture.locked)Row {TextButton(onClick=capture::cancel){Text("Discard")};TextButton(onClick={send()}){Text("Send voice")}}
             }
         }
