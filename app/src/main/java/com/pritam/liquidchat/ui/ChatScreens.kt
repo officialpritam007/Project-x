@@ -365,12 +365,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val body=input.text
     fun updateInput(value:TextFieldValue) {val changed=input.text!=value.text;input=value;if(changed)draftVersion=model.repository.saveDraft(cid,value.text,replyTo)}
     LaunchedEffect(cid,session?.userId) {
-        if(session?.userId==null) {
-            input=TextFieldValue("")
-            replyTo=""
-            palette="Ice"
-            return@LaunchedEffect
-        }
+        // Even without a live session, initialize an editable empty draft.
+        // The account key re-runs this effect when a different user signs in,
+        // preventing cross-account draft/wallpaper reuse.
         val draft=model.repository.draft(cid)
         input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0));replyTo=draft?.replyTo.orEmpty();draftVersion=draft?.updatedAt ?: 0;draftReady=true
         palette=model.repository.palette(cid)
