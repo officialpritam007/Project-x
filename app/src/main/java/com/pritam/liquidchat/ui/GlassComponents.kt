@@ -86,6 +86,7 @@ import androidx.compose.ui.platform.LocalContext
     AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp))
 }
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
+    val display=LocalDisplayOptions.current
     val titles=listOf("Chats","Calls","Contacts","Settings","Profile")
     // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
@@ -94,7 +95,7 @@ import androidx.compose.ui.platform.LocalContext
         Row(Modifier.padding(6.dp).selectableGroup()) {
             titles.forEachIndexed {i,title->
                 val selected=tab==i
-                val reducedMotion=LocalDisplayOptions.current.reducedMotion
+                val reducedMotion=display.reducedMotion
                 val selection by animateColorAsState(
                     targetValue=if(selected)MaterialTheme.colorScheme.primary.copy(alpha=.18f) else Color.Transparent,
                     animationSpec=tween(durationMillis=if(reducedMotion)0 else 220),
@@ -108,11 +109,17 @@ import androidx.compose.ui.platform.LocalContext
                         .semantics {this.selected=selected;contentDescription=title},
                     contentAlignment=Alignment.Center
                 ) {
-                    if(i==1) {
-                        Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,tint=if(tab==i)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        val originalIndex=if(i>1)i-1 else i
-                        DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null)
+                    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+                        if(i==1) {
+                            Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,modifier=Modifier.size(display.navIconSize.dp),
+                                tint=if(tab==i)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            val originalIndex=if(i>1)i-1 else i
+                            DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null,display.navIconSize)
+                        }
+                        if(display.showNavLabels) Text(title,fontSize=display.navLabelSize.sp,maxLines=1,
+                            overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -130,7 +137,7 @@ import androidx.compose.ui.platform.LocalContext
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
     GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
         Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(start=20.dp,end=8.dp),verticalAlignment=Alignment.CenterVertically) {
-            Text(title,Modifier.weight(1f),fontSize=25.sp,fontWeight=FontWeight.SemiBold,color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            Text(title,Modifier.weight(1f),fontSize=LocalDisplayOptions.current.headerTitleSize.sp,fontWeight=FontWeight.SemiBold,color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             trailing()
         }
     }
