@@ -38,7 +38,7 @@ internal object MbThemeTransfer {
      * Parse into immutable state first, only then persist all controls at once.
      * Unknown keys are ignored, invalid values revert to current settings.
      */
-    fun import(text:String,current:DisplayOptions):DisplayOptions {
+    fun decode(text:String,current:DisplayOptions):DisplayOptions {
         require(text.toByteArray(Charsets.UTF_8).size<=MAX_IMPORT_BYTES) {"Theme file is too large."}
         val j=JSONObject(text)
         require(j.optString("format")=="liquid-chat-theme" && j.optInt("version")==1) {
