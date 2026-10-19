@@ -180,3 +180,8 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB39 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
 | MB36 | Set chat-specific photo, custom notification channel and scheduled text, then delete that chat | No residual photo, sound/channel contact name, draft, schedule or stale appearance; other chats and Home wallpaper stay intact |
 | MB37 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
+
+
+| MB38 | Enable Hide notification message text for one chat, send text while app is backgrounded, expand alert | Notification title remains the chat, but collapsed/expanded body is only 'New message'; chat content unchanged |
+| MB39 | Disable global server notification previews while per-chat toggle is off | Global server restriction wins and no message text appears in notification |
+| MB40 | Delete a chat or change accounts after enabling per-chat preview privacy | Local redaction is erased only for the deleted or signed-out account and never transferred to the other account |
