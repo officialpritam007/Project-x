@@ -92,12 +92,20 @@ import org.json.JSONObject
     error?.let {message->AlertDialog(onDismissRequest={error=null},text={Text(message)},confirmButton={TextButton(onClick={error=null}){Text("OK")}})}
 }
 
+/** Fixed choices avoid accidental chip-speed drift and keep playback accessible. */
+internal fun nextVoicePlaybackSpeed(current:Float):Float = when(current) {
+    1f->1.5f
+    1.5f->2f
+    else->1f
+}
+
 private object VoicePlayback {
     var id by mutableStateOf<String?>(null);private set
     var playing by mutableStateOf(false);private set
     var position by mutableIntStateOf(0);private set
     var duration by mutableIntStateOf(1);private set
     var ready by mutableStateOf(false);private set
+    var speed by mutableFloatStateOf(1f);private set
     private var player:MediaPlayer?=null
     private var manager:AudioManager?=null
     private var focus:AudioFocusRequest?=null
@@ -120,9 +128,27 @@ private object VoicePlayback {
         } catch(_:Exception) {stop();onError()}
     }
     fun pauseResume() {if(!ready)return;val p=player ?: return;if(playing){p.pause();playing=false}else {p.start();playing=true}}
+    fun cycleSpeed() {
+        val next=nextVoicePlaybackSpeed(speed)
+        if(!ready) {speed=next;return}
+        val p=player ?: return
+        val wasPlaying=playing
+        try {
+            // MediaPlayer#setPlaybackParams can restart paused streams on some OEMs.
+            // Restore the preexisting paused/playing state after changing the speed.
+            p.playbackParams=p.playbackParams.setSpeed(next)
+            if(!wasPlaying && p.isPlaying)p.pause()
+            speed=next
+            playing=wasPlaying
+        } catch(_:IllegalStateException) {
+            // Retain the last known working speed and do not break playback.
+        } catch(_:IllegalArgumentException) {
+            // Unsupported speed on a device must not interrupt the current voice message.
+        }
+    }
     fun seek(ms:Int) {if(!ready)return;player?.seekTo(ms);position=ms}
     fun tick() {position=runCatching {player?.currentPosition ?: 0}.getOrDefault(0)}
-    fun stop() {generation++;runCatching {player?.release()};player=null;focus?.let {manager?.abandonAudioFocusRequest(it)};manager=null;focus=null;id=null;playing=false;ready=false;position=0}
+    fun stop() {generation++;runCatching {player?.release()};player=null;focus?.let {manager?.abandonAudioFocusRequest(it)};manager=null;focus=null;id=null;playing=false;ready=false;position=0;speed=1f}
 }
 @Composable fun VoicePlaybackLifecycle(key:Any?) {
     val lifecycle=LocalLifecycleOwner.current
@@ -135,7 +161,9 @@ private object VoicePlayback {
     val selected=VoicePlayback.id==message.id
     val playing=selected&&VoicePlayback.playing
     LaunchedEffect(selected,playing) {while(selected&&playing){VoicePlayback.tick();delay(200)}}
-    DisposableEffect(message.id) {onDispose {if(VoicePlayback.id==message.id)VoicePlayback.stop()}}
+    // This item may leave the LazyColumn solely because it was scrolled offscreen.
+    // Keep playback running while the current chat is visible; the screen-scoped
+    // VoicePlaybackLifecycle stops audio when the chat/account or activity changes.
     Column(Modifier.widthIn(max=285.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             IconButton(enabled=!loading&&(!selected||VoicePlayback.ready),onClick={
@@ -150,6 +178,12 @@ private object VoicePlayback {
                 }
             }) {if(loading||(selected&&!VoicePlayback.ready))CircularProgressIndicator(Modifier.size(20.dp)) else Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(playing)"Pause voice message" else "Play voice message")}
             Text("Voice message · ${message.durationMs/1000}s",modifier=Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
+            TextButton(
+                onClick={VoicePlayback.cycleSpeed()},
+                enabled=selected&&VoicePlayback.ready&&!loading,
+                contentPadding=PaddingValues(horizontal=6.dp)
+            ) {Text("${if(selected)VoicePlayback.speed else 1f}×",
+                style=MaterialTheme.typography.labelLarge)}
         }
         Slider(value=if(selected)VoicePlayback.position.toFloat() else 0f,onValueChange={VoicePlayback.seek(it.toInt())},valueRange=0f..(if(selected)VoicePlayback.duration else message.durationMs).coerceAtLeast(1).toFloat(),enabled=selected&&VoicePlayback.ready&&!loading)
         error?.let {Text(it,style=MaterialTheme.typography.labelSmall)}

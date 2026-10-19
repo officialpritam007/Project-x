@@ -38,6 +38,8 @@ class ProtectedImageCacheTest {
     private var revokeAfterFirst=false
     private var rejectFirst=false
     private var rejectEveryDownload=false
+    // Compose must stop observing this intercepted loader before it is shut down.
+    private val fixtureVisible=mutableStateOf(true)
     private fun response(request:Request,body:ResponseBody,status:Int=200)=Response.Builder()
         .request(request).protocol(Protocol.HTTP_1_1).code(status).message("fixture").body(body).build()
     private fun json(request:Request,value:JSONObject)=response(request,value.toString().toResponseBody("application/json".toMediaType()))
@@ -77,6 +79,11 @@ class ProtectedImageCacheTest {
         val loader=imageLoader();val backend=backend()
         Coil.setImageLoader(loader)
         try {body(backend)} finally {
+            // Stop image effects and settle recompositions before invalidating the
+            // fixture account and tearing down its HTTP/Coil resources.
+            // This also prevents teardown from racing an Android Activity destroy.
+            compose.runOnIdle {fixtureVisible.value=false}
+            compose.waitForIdle()
             runBlocking {backend.forgetLocal()}
             Coil.setImageLoader(original);loader.shutdown()
             context.getSharedPreferences("protected-image-fixture",Context.MODE_PRIVATE).edit().clear().commit()
@@ -103,7 +110,7 @@ class ProtectedImageCacheTest {
     }
     @Test fun tabReturnReusesBitmapAndAvatarMutationFetchesNewImage()=fixture {backend->
         val shown=mutableStateOf(true)
-        compose.setContent {LiquidTheme(false) {if(shown.value)ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+        compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {if(shown.value)ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
         awaitImage();assertEquals(1,signs.get());assertEquals(1,downloads.get())
         compose.runOnIdle {shown.value=false};compose.waitForIdle()
         compose.runOnIdle {shown.value=true};awaitImage()
@@ -119,7 +126,7 @@ class ProtectedImageCacheTest {
     @Test fun expiredImageTransferRenewsLinkOnceAutomatically() {
         rejectFirst=true
         fixture {backend->
-            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
             awaitImage(Color.BLUE);assertEquals(2,signs.get());assertEquals(2,downloads.get())
             compose.onNodeWithText("Retry image").assertDoesNotExist()
         }
@@ -127,7 +134,7 @@ class ProtectedImageCacheTest {
     @Test fun expiredPermissionIsRecheckedAndRevokedImageDisappears() {
         ttl=3;revokeAfterFirst=true
         fixture {backend->
-            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
             awaitImage()
             awaitRetry()
             compose.onNodeWithContentDescription("Fixture image").assertDoesNotExist()
@@ -138,7 +145,7 @@ class ProtectedImageCacheTest {
     @Test fun repeatedTransferRejectionStopsAndManualRetryIsBounded() {
         rejectEveryDownload=true
         fixture {backend->
-            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
             compose.waitUntil(10_000) {downloads.get()>=2}
             awaitRetry()
             assertTransferCountsStay(2)
