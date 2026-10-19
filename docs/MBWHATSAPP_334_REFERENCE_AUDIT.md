@@ -161,3 +161,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - After a successful authenticated Supabase `set_conversation(p_delete=true)`, local chat history, draft, scheduled texts and appearance row are removed together; the private wallpaper JPEG and dedicated Android per-contact notification channel/preferences are also removed. Home wallpaper and all other conversations remain intact.
 - Failed server deletion no longer erases locally scheduled messages first. No remote customer data, Supabase schema or paid provider is changed. User-visible failures from local cleanup are not silently presented as successful erasure.
 - Tests verify that per-chat file/channel erasure does not delete another conversation or account's settings. Physical delete/account-switch acceptance remains open.
+
+
+## Stage 11 — edit locally scheduled text before dispatch
+
+- Conversation > Scheduled messages now provides a working **Edit** action next to **Cancel**, with the original message text and due date prefilled. Editing keeps the UUID, reply linkage and created time; updates the private Room row atomically and replaces its Android WorkManager timer.
+- Edits are restricted to an authenticated account's matching conversation; a schedule that was already moved to the send outbox cannot be edited, and surfaces an error. The new time must be at least one minute and at most 180 days away. No old server-delivered message or peer history is modified.
+- New schedule creation preserves existing draft-consumption rules, while editing does not consume the current composer draft. UI list observes the actual Room Flow. Local-only, possible Android battery delay, logout/delete erasure and no cross-device synchronization remain explicit limitations.
+- Instrumentation checks unchanged UUID/reply/creation time, account isolation and never creating a pending immediate message just by editing.
