@@ -13,6 +13,26 @@ import com.pritam.liquidchat.data.Message
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
+/** A refresh supersedes every older page, including a manually launched append. */
+internal class SharedMediaRequests {
+    private var generation=0L
+    private var loading=false
+    fun begin(reset:Boolean):Long? {
+        if(!reset&&loading)return null
+        loading=true
+        return ++generation
+    }
+    fun current(request:Long)=request==generation
+    fun finish(request:Long) {if(current(request))loading=false}
+}
+
+internal data class SharedMediaPage(val visible:List<Message>,val cursor:Long?,val more:Boolean)
+internal fun sharedMediaPage(raw:List<Message>,before:Long):SharedMediaPage {
+    val cursor=raw.lastOrNull()?.seq
+    return SharedMediaPage(raw.filter {it.deletedAt.isEmpty()},cursor,
+        raw.size==30&&cursor!=null&&cursor>0&&cursor<before)
+}
+
 /**
  * Only media/starred changes require reloading their RPC pages; ordinary text
  * activity should not blank the gallery or re-download signed thumbnails.
@@ -39,33 +59,37 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
     var more by remember(chat.id,account,epoch) {mutableStateOf(true)}
     var loading by remember(chat.id,account,epoch) {mutableStateOf(false)}
     var failed by remember(chat.id,account,epoch) {mutableStateOf(false)}
+    var cursor by remember(chat.id,account,epoch) {mutableStateOf<Long?>(null)}
+    val requests=remember(chat.id,account,epoch) {SharedMediaRequests()}
     val refreshKeys=remember(kind,sourceVersion) {sharedMediaRefreshKeys(sourceVersion,kind)}
     val scope=rememberCoroutineScope()
     suspend fun page(reset:Boolean) {
+        val request=requests.begin(reset) ?: return
         val requestedKind=kind
         val requestedAccount=account
         val requestedEpoch=epoch
         if(requestedAccount==null || chat.account!=requestedAccount || requestedEpoch==null) {
-            rows=emptyList();more=false;loading=false;return
+            requests.finish(request);rows=emptyList();more=false;loading=false;return
         }
-        fun current()=kind==requestedKind &&
+        fun current()=requests.current(request) && kind==requestedKind &&
             model.backend.session.value?.userId==requestedAccount &&
             model.backend.uiReads.epoch(requestedAccount)==requestedEpoch
         loading=true;failed=false
         try {
-            val before=if(reset)Long.MAX_VALUE else rows.lastOrNull()?.seq ?: Long.MAX_VALUE
+            val before=if(reset)Long.MAX_VALUE else cursor ?: Long.MAX_VALUE
             val fetched=if(requestedKind=="star")model.repository.starred(chat.id,before)
                 else model.repository.sharedMedia(chat.id,before,requestedKind)
             if(!current())return
-            val visible=fetched.filter {it.deletedAt.isEmpty()}
-            rows=if(reset)visible else (rows+visible).distinctBy {it.id}
-            more=fetched.size==30
+            val result=sharedMediaPage(fetched,before)
+            rows=if(reset)result.visible else (rows+result.visible).distinctBy {it.id}
+            cursor=result.cursor
+            more=result.more
         } catch(e:kotlinx.coroutines.CancellationException){throw e}
           catch(_:Exception){if(current())failed=true}
-        finally {if(current())loading=false}
+        finally {if(current())loading=false;requests.finish(request)}
     }
     LaunchedEffect(chat.id,account,epoch,kind,refreshKeys) {
-        rows=emptyList();more=true;page(true)
+        rows=emptyList();cursor=null;more=true;page(true)
     }
     AlertDialog(onDismissRequest=onDismiss,title={Text(chat.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {Avatar(chat.name,chat.avatarId,model.backend);Column {Text("@${chat.username}");TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}}) {Text("Save contact")}}}
