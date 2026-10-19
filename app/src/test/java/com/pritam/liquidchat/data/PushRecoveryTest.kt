@@ -50,6 +50,21 @@ class PushRecoveryTest {
         assertEquals(listOf("sync","authorize","post:server-preview"),events)
     }
 
+    @Test fun authorizedForegroundChatSuppressionMarksMessageAsHandled()=runBlocking {
+        var handled=0
+        val trace=mutableListOf<String>()
+        deliverMessagePush(sync={trace+="sync"},preview={trace+="preview";"authorized"},
+            canPost={false},post={fail("Active conversation should not alert")},
+            onSuppressed={handled++;trace+="handled"})
+        assertEquals(1,handled)
+        assertEquals(listOf("sync","preview","handled"),trace)
+    }
+
+    @Test fun unauthorizedPreviewNeverClaimsAReceipt()=runBlocking {
+        deliverMessagePush<String>(sync={},preview={null},canPost={false},
+            post={fail("No notification")},onSuppressed={fail("No receipt for denied push")})
+    }
+
     @Test fun serverSuppressedPushNeverPosts()=runBlocking {
         deliverMessagePush<String>(sync={},preview={null},canPost={error("No authorized preview")},post={fail("Suppressed push posted")})
     }
