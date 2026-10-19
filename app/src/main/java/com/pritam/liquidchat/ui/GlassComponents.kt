@@ -93,9 +93,9 @@ import androidx.compose.ui.platform.LocalContext
     onDismissRequest:()->Unit,
     confirmButton:@Composable ()->Unit,
     modifier:Modifier=Modifier,
-    dismissButton:(@Composable ()->Unit)?=null,
-    title:(@Composable ()->Unit)?=null,
-    text:(@Composable ()->Unit)?=null
+    dismissButton: @Composable (() -> Unit)? = null,
+    title: @Composable (() -> Unit)? = null,
+    text: @Composable (() -> Unit)? = null
 ) {
     val dark=LocalGlassDark.current
     val reduced=LocalDisplayOptions.current.reducedTransparency
