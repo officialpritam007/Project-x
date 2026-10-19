@@ -14,6 +14,8 @@ data class DisplayOptions(
     val showNavLabels:Boolean=false,
     val navIconSize:Int=24,
     val navLabelSize:Int=11,
-    val headerTitleSize:Int=25
+    val headerTitleSize:Int=25,
+    val homeChatNameSize:Int=16,
+    val homeChatPreviewSize:Int=14
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
