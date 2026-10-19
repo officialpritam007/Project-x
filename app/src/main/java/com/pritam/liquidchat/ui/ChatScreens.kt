@@ -304,7 +304,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val session by model.session.collectAsStateWithLifecycle()
     val messagesReady by model.messagesReady.collectAsStateWithLifecycle()
     val messages=remember(allMessages,cid,session?.userId) {allMessages.filter {it.conversation==cid&&it.account==session?.userId}}
-    val scheduledTexts by model.repository.scheduledTexts(cid).collectAsStateWithLifecycle(initialValue=emptyList())
+    val scheduledFlow=remember(model,cid) {model.repository.scheduledTexts(cid)}
+    val scheduledTexts by scheduledFlow.collectAsStateWithLifecycle(initialValue=emptyList())
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val focus by model.focusMessage.collectAsStateWithLifecycle()
     val contact by model.repository.contactState.collectAsStateWithLifecycle()
