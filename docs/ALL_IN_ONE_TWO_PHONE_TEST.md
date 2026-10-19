@@ -178,3 +178,10 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 | MB32 | Home photo selected: change dimming 0/50/100, restart and switch dark mode | Veil updates without reloading full inbox; 50 preserves previous defaults; text remains selectable |
 | MB33 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
+
+
+| MB37 | MB Conversation Screen: remove a default quick-reaction emoji, enable 👏, long-press a sent message | Reaction bar updates live; all selected choices send the real Supabase reaction action, toggling current reaction removes it |
+| MB38 | Attempt six-plus selection, reset quick reactions, and restart | UI never offers unsupported emojis or exceeds six; selected preset survives restart; reset restores original six |
+| MB39 | Export/import a theme with modified reactions; open the same message | Reaction preset round-trips; no personal messages, account secrets or preview-privacy option exported |
+| MB40 | Enable Hide chat-list message previews, receive a new text/photo, reopen Chats | Inbox shows generic preview even for incoming content; chat history is unchanged and unopened push previews follow separate notification settings |
+| MB41 | Disable hide previews after restart | Actual preview text returns; no re-sending or data mutation occurs |
