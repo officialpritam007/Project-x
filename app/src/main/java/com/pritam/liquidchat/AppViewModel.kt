@@ -24,7 +24,7 @@ internal fun searchRequestCurrent(
     requestedAccount:String,currentAccount:String?,
     requestedEpoch:Long?,currentEpoch:Long?
 ):Boolean = requestedVersion==currentVersion &&
-    requestedAccount==currentAccount && requestedEpoch==currentEpoch
+    requestedAccount==currentAccount && requestedEpoch!=null && requestedEpoch==currentEpoch
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
