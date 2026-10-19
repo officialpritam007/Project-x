@@ -22,6 +22,8 @@ data class DisplayOptions(
     val hideArchiveAccess:Boolean=false,
     val fontPreset:String="System",
     val hideOutgoingTyping:Boolean=false,
-    val preventScreenshots:Boolean=false
+    val preventScreenshots:Boolean=false,
+    val hideHomePreviews:Boolean=false,
+    val quickReactions:String=MbQuickReactions.defaultSetting
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
