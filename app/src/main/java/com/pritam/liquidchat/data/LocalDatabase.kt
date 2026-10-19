@@ -88,6 +88,7 @@ data class ScheduledText(
     @Query("select * from chat_appearance where account=:account and conversation=:cid") suspend fun appearance(account:String,cid:String):ChatAppearance?
     @Upsert suspend fun putAppearance(appearance:ChatAppearance)
     @Query("delete from chat_appearance where account=:account") suspend fun clearAppearance(account:String)
+    @Query("delete from chat_appearance where account=:account and conversation=:cid") suspend fun removeAppearance(account:String,cid:String)
     @Query("select * from contacts where account=:account order by name,id") fun contacts(account:String):Flow<List<Contact>>
     @Query("select * from contacts where account=:account") suspend fun allContacts(account:String):List<Contact>
     @Query("delete from contacts where account=:account and id=:id") suspend fun removeContact(account:String,id:String)
