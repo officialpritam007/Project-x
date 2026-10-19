@@ -66,6 +66,41 @@ def write_junit(output, returncode, path):
     return failures
 
 
+SHARD_COUNT = 4
+# Explicit suite floor: never turn an incomplete discovery/test fixture into green CI.
+MINIMUM_INSTRUMENTATION_TESTS = 80
+
+
+def verify_sharded_cases(cases, errors, minimum=MINIMUM_INSTRUMENTATION_TESTS):
+    problems = list(errors)
+    seen = set()
+    for case in cases:
+        key = (case["class"], case["name"])
+        if key in seen:
+            problems.append(f"Duplicate instrumented test across shards: {key}.")
+        seen.add(key)
+        if case["code"] in (-3, -4):
+            problems.append(f"Skipped mandatory instrumentation test: {key}.")
+    if len(seen) < minimum:
+        problems.append(f"Incomplete instrumentation suite: {len(seen)} distinct, expected at least {minimum}.")
+    return problems
+
+
+def combine_junit(shard_paths, target, validation_errors):
+    suite = ElementTree.Element("testsuite", name="ExactCandidateInstrumentationSharded")
+    for source in shard_paths:
+        root = ElementTree.parse(source).getroot()
+        for case in root.findall("testcase"):
+            suite.append(case)
+    if validation_errors:
+        case = ElementTree.SubElement(suite, "testcase", classname="runner", name="shardCoverage")
+        ElementTree.SubElement(case, "failure").text = "\n".join(validation_errors)
+    suite.set("tests", str(len(suite.findall("testcase"))))
+    suite.set("failures", str(len(suite.findall("./testcase/failure"))))
+    suite.set("skipped", str(len(suite.findall("./testcase/skipped"))))
+    ElementTree.ElementTree(suite).write(target, encoding="utf-8", xml_declaration=True)
+
+
 def disposable_emulator():
     if os.environ.get("LIQUID_DISPOSABLE_EMULATOR") != "1":
         raise RuntimeError("A disposable emulator must be explicitly selected.")
@@ -98,21 +133,39 @@ def main():
     # never rebuild it on a different runner with different FCM/signing values.
     for apk in (args.candidate, args.tests):
         subprocess.run(adb + ["install", "-r", str(apk)], check=True)
-    command = adb + ["shell", "am", "instrument", "-w", "-r",
-                     "-e", "expectedExperimentalCalls", "true", RUNNER]
-    try:
-        result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, timeout=15 * 60)
-    except subprocess.TimeoutExpired as error:
-        output = error.stdout or ""
-        if isinstance(output, bytes):
-            output = output.decode("utf-8", errors="replace")
-        result = subprocess.CompletedProcess(command, 124, output + "\nInstrumentation timed out.\n")
-    (args.report_dir / "instrumentation.txt").write_text(result.stdout, encoding="utf-8")
-    failures = write_junit(result.stdout, result.returncode, args.report_dir / "junit.xml")
-    print(result.stdout)
-    if failures:
-        raise SystemExit("\n".join(failures))
+    all_cases = []
+    all_failures = []
+    paths = []
+    logs = []
+    # Separate Android test processes reduce Compose/Activity teardown races,
+    # but every test MUST still be executed exactly once and none may be skipped.
+    for index in range(SHARD_COUNT):
+        command = adb + ["shell", "am", "instrument", "-w", "-r",
+                         "-e", "expectedExperimentalCalls", "true",
+                         "-e", "numShards", str(SHARD_COUNT),
+                         "-e", "shardIndex", str(index), RUNNER]
+        try:
+            result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, timeout=6 * 60)
+        except subprocess.TimeoutExpired as error:
+            output = error.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", errors="replace")
+            result = subprocess.CompletedProcess(command, 124,
+                                                 output + "\nInstrumentation shard timed out.\n")
+        logs.append(f"=== SHARD {index + 1}/{SHARD_COUNT} ===\n" + result.stdout)
+        report = args.report_dir / f"junit-shard-{index}.xml"
+        paths.append(report)
+        problems = write_junit(result.stdout, result.returncode, report)
+        cases, _ = evaluate_output(result.stdout, result.returncode)
+        all_cases.extend(cases)
+        all_failures.extend(f"Shard {index + 1}: {item}" for item in problems)
+    (args.report_dir / "instrumentation.txt").write_text("\n".join(logs), encoding="utf-8")
+    print("\n".join(logs))
+    all_failures = verify_sharded_cases(all_cases, all_failures)
+    combine_junit(paths, args.report_dir / "junit.xml", all_failures)
+    if all_failures:
+        raise SystemExit("\n".join(all_failures))
 
 
 if __name__ == "__main__":

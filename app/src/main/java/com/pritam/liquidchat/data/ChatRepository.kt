@@ -557,6 +557,9 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun clearAccount(account:String) {
         active.value=null;contactState.value=JSONObject();privateSettings.value=JSONObject()
         WorkManager.getInstance(context).cancelAllWorkByTag("account-$account")
+        // Clean up contact names stored as system notification channel labels.
+        // A channel cleanup failure must not block the more important local data erasure.
+        runCatching {ConversationNotificationChannels.clearAccount(context,account)}
         syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account);dao.clearHidden(account);dao.clearScheduledTexts(account)}}}}
         withContext(Dispatchers.IO) {
             for(directory in listOf(java.io.File(context.filesDir,"media/$account"),java.io.File(context.cacheDir,"camera"))) {

@@ -196,9 +196,12 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         if(android.os.Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
         val manager=context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("messages","Messages",NotificationManager.IMPORTANCE_HIGH))
+        // Per-contact sound/vibration is controlled by an opt-in Android channel.
+        // The user must configure sound preferences through the system UI.
+        val channel=ConversationNotificationChannels.channelForMessage(context,account,cid,title)
         val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).putExtra("accountId",account).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,id.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification=NotificationCompat.Builder(context,"messages")
+        val notification=NotificationCompat.Builder(context,channel)
             .setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(pending)
             .setAutoCancel(true).setOnlyAlertOnce(true)

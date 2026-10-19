@@ -19,6 +19,8 @@ data class DisplayOptions(
     val homeChatPreviewSize:Int=14,
     val accentColor:String="Cyan",
     val showProfileAsTitle:Boolean=false,
-    val hideArchiveAccess:Boolean=false
+    val hideArchiveAccess:Boolean=false,
+    val fontPreset:String="System",
+    val hideOutgoingTyping:Boolean=false
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}

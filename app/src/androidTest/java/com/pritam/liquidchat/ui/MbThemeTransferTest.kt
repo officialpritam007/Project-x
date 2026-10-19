@@ -11,7 +11,7 @@ class MbThemeTransferTest {
         val expected=DisplayOptions(
             appearance="Dark",blurIntensity=81,bubbleStyle="Compact",
             bubbleColor="Rose",messageFontSize=20,navIconSize=27,
-            showNavLabels=true,accentColor="Purple",showProfileAsTitle=true
+            showNavLabels=true,accentColor="Purple",showProfileAsTitle=true,fontPreset="Mono"
         )
         val encoded=MbThemeTransfer.export(expected)
         assertFalse(encoded.contains("user_id"))

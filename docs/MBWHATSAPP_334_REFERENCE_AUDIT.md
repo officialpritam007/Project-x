@@ -91,3 +91,34 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - MB Preferences now links to actual existing server-backed **Privacy** and Android-backed **Notifications** screens, in addition to General/Home/Conversation/Themes. Returning from nested sections leads back to MB Preferences.
 - Long-pressing a home conversation opens a read-only preview of up to three cached, authorized, non-deleted messages with a working **Open conversation** action. Media is represented by descriptive labels, not unauthorized image reads. The existing pin/archive/favorite/mute/delete actions remain.
 - The reference-specific visual modal geometry and unsupported notification or theme controls still require further work; never claim full screenshot matching based on these stateful counterparts.
+
+## Stage 4 — per-conversation notification channels (candidate)
+
+- Every conversation menu exposes a working **Custom notifications** dialog.
+- Opt-in creates a dedicated `NotificationChannel` per account + conversation. All normal FCM message alerts for that conversation then route to the selected Android channel, with an Android settings intent for the device-controlled sound, vibration and alert level. The original global `messages` channel remains the default when the user opts out.
+- Channel IDs are non-identifying SHA-256-derived values of account and conversation UUIDs. Settings are account-scoped, never read from FCM input, and previous-account channels/labels are removed on local account erasure.
+- This uses no paid service and does not change Supabase, message delivery, notification-deduplication, muted chat privacy, or incoming voice/video calling channels.
+- **Android limitation:** on Android 8+ installed channel sound/importance/vibration are controlled by the OS and user; apps cannot silently change existing channel sound or bypass blocked permissions.
+- Instrumentation tests cover default routing, account isolation, dedicated channel creation and cleanup; exact-head CI and two-phone notification acceptance remain release gates.
+
+## Stage 4 continuation — locally-selectable Android font families
+
+- MB General Settings adds live **System / Serif / Mono / Cursive** fonts, applied across Material3 type scale and persisted with the existing appearance options.
+- Theme JSON export/import also round-trips the selected font preset. The original System typography remains the default; no user data or backend settings are modified.
+- These are built-in Android fonts, **not proprietary MBWhatsApp font binaries**. Original MBWhatsApp font and emoji pack parity is still open.
+
+
+## Stage 4 continuation — outgoing typing privacy
+
+- MB Privacy / Privacy & Security exposes **Hide outgoing typing**. On this device, the conversation effect stops sending typing=true and sends a typing=false on cancellation when hiding is activated. Incoming typing indicators remain unaffected.
+- This is deliberately device-local (unlike Ghost Mode's Supabase-backed presence/read receipts) and is not exported in a theme file. Other devices signed into the same account may still send their own typing signals. No server-wide or WhatsApp-protocol anti-typing guarantee is claimed.
+
+## Stage 4 continuation — cache management entry
+
+- MB General Settings now includes the existing functional **Data & Storage** panel with image-cache size and a confirmed **Clear cached images** action. The action clears Coil disk/memory thumbnails only, preserving Room message history, drafts, outbox, Cloudinary/Supabase media, and protected previews. This is not an unsafe global delete or an auto-cleaner guarantee.
+
+## CI blocker evidence and correction (run #339)
+
+- PR-head Build #339 compiled with matching APK SHA and passed Edge checks and API29 instrumentation. API35 instrumentation failed: Compose SlotWriter/Activity disposal crash during `ProtectedImageCacheTest.repeatedTransferRejectionStopsAndManualRetryIsBounded` after 73 of 82 attempted tests. **This is a failed gate, not a green test.** The earlier corrupt SDK image in main run #323 was a separate infrastructure fault.
+- Follow-up CI fix partitions Android instrumentation into four independent runner processes using AndroidJUnitRunner's `numShards`/`shardIndex`. All shards must complete, every test must execute once, no skipped tests accepted, and a minimum 80 distinct tests are required for this candidate. Shard JUnit reports and a combined report remain published.
+- Sharding reduces a known cross-test Compose disposal/race surface but must not be treated as a bug fix until the exact new CI run passes. Physical rendering/network/device testing remains pending.

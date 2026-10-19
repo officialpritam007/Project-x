@@ -146,3 +146,20 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB18 | Compare actual MBWhatsApp reference screens at matched device widths | Record all missing controls, icons, layout/animation mismatches; never claim pixel parity without evidence |
 
 **Known limitations:** schedules are device-local and WorkManager is subject to Android's timing restrictions; logout/uninstall/data clearance removes them. Real carrier TURN reliability, precise theme/font import/export, WhatsApp-specific status/once-view retrieval, document scanning, custom stickers and more reference menu items are still unimplemented. Do not mistake the rc6 candidate for the full MBWhatsApp clone.
+
+## MB per-contact notifications (include in the owner's one final two-phone round)
+
+| ID | Exercise | Expected result |
+|---|---|---|
+| MB19 | Open conversation > Custom notifications > enable separate channel | Android creates a chat-specific channel without mutating global Messages channel |
+| MB20 | Open Android channel settings, choose a different sound/vibration, send three fresh FCM messages from peer | Distinct per-chat user-chosen channel, only one alert per message, no duplicates |
+| MB21 | Set conversation muted on server; send a fresh message | No unauthorized incoming alert; custom channel cannot bypass mute |
+| MB22 | Disable per-chat toggle, send another fresh message | Falls back to global Messages channel; user's previous channel settings not silently reset |
+| MB23 | Account switch/logout and inspect Android notification channels | No prior account's contact labels remain, no alert routed to stale user channel |
+| MB24 | Block notifications at OS level, send a message | Android block is respected; no app bypass of global/channel permission |
+| MB25 | Receive voice/video call with per-chat message sound enabled | Calling channel and incoming-call controls remain independent and functional |
+
+| MB26 | Switch System/Serif/Mono/Cursive font, restart and import/export a theme | All Material3 screen typography updates live; choice persists; no missing glyphs or unreadable chat/navigation labels |
+
+
+| MB27 | Hide outgoing typing while entering text, then toggle it back on | Peer stops seeing this device's typing signal (including immediately after toggle); incoming typing still works; preference survives restart and is not altered by theme import |
