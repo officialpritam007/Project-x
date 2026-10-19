@@ -199,13 +199,18 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         // Per-contact sound/vibration is controlled by an opt-in Android channel.
         // The user must configure sound preferences through the system UI.
         val channel=ConversationNotificationChannels.channelForMessage(context,account,cid,title)
+        // Local per-conversation privacy is deliberately stricter than the
+        // server's global previews flag. Neither the collapsed notification nor
+        // BigTextStyle may contain a suppressed message body.
+        val showBody=previews && !ConversationNotificationChannels.hiddenPreview(context,account,cid)
+        val visibleBody=if(showBody)body else "New message"
         val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).putExtra("accountId",account).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,id.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification=NotificationCompat.Builder(context,channel)
-            .setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body)).setContentIntent(pending)
+            .setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(visibleBody)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(visibleBody)).setContentIntent(pending)
             .setAutoCancel(true).setOnlyAlertOnce(true)
-            .setVisibility(if(previews)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
+            .setVisibility(if(showBody)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE).build()
         // Commit before notifying: notifications dismissed by the user must never alert again.
         MessageNotificationDedupe.postOnce(context,account,id) {
