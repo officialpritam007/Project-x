@@ -22,6 +22,16 @@ import java.util.concurrent.TimeUnit
 internal fun stableContactSnapshot(previous:JSONObject,incoming:JSONObject):JSONObject =
     if(previous.toString()==incoming.toString())previous else incoming
 
+/**
+ * Do not invalidate the entire inbox on every periodic or Realtime sync.
+ * A changed chat is still upserted, including updated previews, receipts,
+ * unread count, pinned/favourite/archive and synchronized cursors.
+ */
+internal fun changedChatRows(incoming:List<Chat>,existing:List<Chat>):List<Chat> {
+    val previous=existing.associateBy {it.id}
+    return incoming.filter {previous[it.id]!=it}
+}
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ChatRepository(private val context:Context,val backend:Backend,val db:LocalDatabase) {
     val dao=db.dao()
@@ -109,9 +119,16 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         } while(true)
         checkAccount(account)
         db.withTransaction {
-            dao.putChats(chats)
             val existing=dao.allChats(account)
-            for(c in existing) if(chats.none {it.id==c.id}) {dao.removeHistory(account,c.id);dao.deleteChat(account,c.id)}
+            val changed=changedChatRows(chats,existing)
+            // Room invalidations force inbox and avatar recomposition even if
+            // the server snapshot has not changed. Avoid redundant upserts.
+            if(changed.isNotEmpty())dao.putChats(changed)
+            val incomingIds=chats.mapTo(HashSet(chats.size)) {it.id}
+            for(c in existing) if(c.id !in incomingIds) {
+                dao.removeHistory(account,c.id)
+                dao.deleteChat(account,c.id)
+            }
         }
         for(c in chats) {
             checkAccount(account)
