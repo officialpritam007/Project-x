@@ -80,6 +80,12 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     LaunchedEffect(c.id,c.answerRequested) {if(c.answerRequested&&shouldRing)answer()}
     var routes by remember {mutableStateOf<List<Pair<Int,String>>?>(null)}
     val bluetoothPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {routes=controller.audioRoutes()}
+    fun openAudioRoutes() {
+        if(android.os.Build.VERSION.SDK_INT>=31 &&
+            ContextCompat.checkSelfPermission(context,Manifest.permission.BLUETOOTH_CONNECT)!=PackageManager.PERMISSION_GRANTED)
+            bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+        else routes=controller.audioRoutes()
+    }
     // The compact pill is laid out by Scaffold; video can instead float over the chat.
     if(c.minimized) {
         val minimizedEngine=controller.renderer()
@@ -167,14 +173,21 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                 else if(shouldRing)Row(horizontalArrangement=Arrangement.spacedBy(48.dp)) {
                     CallControl("Decline",Icons.Outlined.CallEnd,{controller.decline()},true)
                     CallControl("Accept",Icons.Outlined.Call,{answer()},false)
+                } else if(activeVideo) {
+                    // Do not cover a large part of the actual remote video with a
+                    // two-row toolbar. This narrow strip fits ordinary phones and
+                    // retains every capture/output control and End call action.
+                    ActiveVideoControlStrip(
+                        muted=c.muted,cameraEnabled=c.cameraEnabled,audioRoute=c.audioRoute,
+                        onMute=controller::toggleMute,onAudio=::openAudioRoutes,
+                        onCamera=controller::toggleCamera,onSwitch=controller::switchCamera,
+                        onHangup=controller::hangup
+                    )
                 } else GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
                     Column(Modifier.padding(12.dp),horizontalAlignment=Alignment.CenterHorizontally) {
                         if(!terminal)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
                             IconButton(onClick=controller::toggleMute) {Icon(if(c.muted)Icons.Outlined.MicOff else Icons.Outlined.Mic,if(c.muted)"Unmute" else "Mute")}
-                            IconButton(onClick={
-                                if(android.os.Build.VERSION.SDK_INT>=31&&ContextCompat.checkSelfPermission(context,Manifest.permission.BLUETOOTH_CONNECT)!=PackageManager.PERMISSION_GRANTED)bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
-                                else routes=controller.audioRoutes()
-                            }) {Icon(Icons.Outlined.Headset,"Select audio output")}
+                            IconButton(onClick=::openAudioRoutes) {Icon(Icons.Outlined.Headset,"Select audio output")}
                             if(c.video) {
                                 IconButton(onClick=controller::toggleCamera) {Icon(if(c.cameraEnabled)Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,"Toggle camera")}
                                 IconButton(onClick=controller::switchCamera) {Icon(Icons.Outlined.Cameraswitch,"Switch camera")}
@@ -240,6 +253,42 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
         )
     }
 }
+@Composable internal fun ActiveVideoControlStrip(
+    muted:Boolean,cameraEnabled:Boolean,audioRoute:String,
+    onMute:()->Unit,onAudio:()->Unit,onCamera:()->Unit,onSwitch:()->Unit,onHangup:()->Unit
+) {
+    GlassSurface(Modifier.fillMaxWidth(),Glass.capsule) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal=6.dp,vertical=4.dp),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.SpaceEvenly
+        ) {
+            IconButton(onClick=onMute) {
+                Icon(if(muted)Icons.Outlined.MicOff else Icons.Outlined.Mic,
+                    if(muted)"Unmute microphone" else "Mute microphone")
+            }
+            IconButton(onClick=onAudio) {
+                Icon(Icons.Outlined.Headset,
+                    "Select audio output" + if(audioRoute.isBlank())"" else ", current: $audioRoute")
+            }
+            IconButton(onClick=onCamera) {
+                Icon(if(cameraEnabled)Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
+                    if(cameraEnabled)"Turn camera off" else "Turn camera on")
+            }
+            IconButton(onClick=onSwitch) {
+                Icon(Icons.Outlined.Cameraswitch,"Switch camera")
+            }
+            FilledIconButton(
+                onClick=onHangup,
+                modifier=Modifier.size(48.dp),
+                colors=IconButtonDefaults.filledIconButtonColors(containerColor=Color(0xFFC93B48))
+            ) {
+                Icon(Icons.Outlined.CallEnd,"End call",tint=Color.White)
+            }
+        }
+    }
+}
+
 @Composable private fun CallControl(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,action:()->Unit,danger:Boolean) {
     Column(horizontalAlignment=Alignment.CenterHorizontally) {
         FilledIconButton(onClick=action,modifier=Modifier.size(64.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=if(danger)Color(0xFFC93B48) else Color(0xFF16875A))) {Icon(icon,label,tint=Color.White)}
