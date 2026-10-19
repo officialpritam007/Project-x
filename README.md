@@ -1,5 +1,7 @@
 # Liquid Chat
-Native Android one-to-one messaging by Pritam Pal. Kotlin + Compose, Supabase Free, FCM, Cloudinary. No groups, calls, or E2EE claim.
+Native Android one-to-one messaging by Pritam Pal. Kotlin + Compose, Supabase Free, FCM and protected media fallback/optional authenticated Cloudinary. The test candidate enables experimental one-to-one voice/video calls and photo/video Stories. No groups or E2EE claim.
+
+Current scope, verification and explicit limitations: [All-in-One implementation report](docs/ALL_IN_ONE_IMPLEMENTATION_REPORT.md), [one-round two-phone checklist](docs/ALL_IN_ONE_TWO_PHONE_TEST.md), and [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Candidate CI enables calls; owner-signed production remains separately gated.
 
 ## Build / install
 JDK 17, Android SDK 35, Gradle 8.11.1. Run `./gradlew testDebugUnitTest lintDebug assembleDebug`.

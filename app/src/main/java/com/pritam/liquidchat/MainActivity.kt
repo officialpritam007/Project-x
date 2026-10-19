@@ -8,11 +8,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
 import com.pritam.liquidchat.calls.CallView
 import com.pritam.liquidchat.ui.LiquidApp
 
 /** Only a server-validated, full call overlay may be displayed over the device lock. */
-internal fun callWindowMayShowWhenLocked(call:CallView?):Boolean=call?.id!=null&&!call.minimized
+internal fun callWindowMayShowWhenLocked(call:CallView?,policyAccepted:Boolean=true):Boolean=
+    policyAccepted&&call?.id!=null&&!call.minimized
 
 class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels()
@@ -22,8 +24,12 @@ class MainActivity : ComponentActivity() {
         // controller state for the whole Activity lifetime, including while stopped,
         // and revoke window access on hangup, error, logout or minimization.
         lifecycleScope.launch {
-            model.calls.view.collect {call->
-                val overLock=callWindowMayShowWhenLocked(call)
+            combine(model.calls.view,model.acceptedPolicy,model.session) {call,accepted,session->
+                call to (accepted&&session!=null)
+            }.collect {(call,accepted)->
+                // Match LiquidApp's overlay gate; the consent/auth screens must
+                // never inherit over-lock access while the call UI is hidden.
+                val overLock=callWindowMayShowWhenLocked(call,accepted)
                 setShowWhenLocked(overLock)
                 setTurnScreenOn(overLock&&call?.unansweredIncoming==true)
             }

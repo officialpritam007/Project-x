@@ -1,6 +1,6 @@
 # Liquid Chat — voice/video calling beta
 
-## Current status (18 October 2026)
+## Current status (19 October 2026)
 
 > This document covers the experimental calling beta. PR #13 introduces
 > user-started microphone/camera foreground service support, an ongoing-call
@@ -11,14 +11,14 @@
 
 - Calling is **experimental**, 1:1 only; no calls or video data are recorded/stored by the backend.
 - Supabase call signaling migration **20261018045813** and one-shot call push migration **20261018045819** and call foreign-key indexes migration **20261018050349** are **deployed** to the connected Supabase Free project. Their existing data is preserved.
-- The optional **call-notify** Edge Function has been deployed and reports ACTIVE, version 1. It uses self-checked Firebase Auth JWTs and a `service_role`-only call claim.
+- The **call-notify** Edge Function is deployed and reports ACTIVE, version 4 at the latest read-only review. It validates Supabase user JWTs and uses a `service_role`-only call claim. FCM delivery still needs real-device acceptance.
 - `supabase/tests/calls_authorization.sql` passed as a rollback-only transaction against the deployed schema. No synthetic test users/calls remain.
-- Calling UI remains **disabled by default**. It is not production-ready until owner credentials and physical-device validation pass.
+- Calling UI is **enabled in Android candidate CI APKs** and verified in the installed candidate by instrumentation. Owner-signed production releases retain their separate disabled-call gate until provider/device/release requirements pass.
 - All 1:1 chats, messages, media, moments, profile and history features remain unchanged.
 
-## Build an explicitly opt-in beta APK
+## Build the calling-enabled test candidate
 
-For **PR #12** from the trusted `fix/calls-postmerge-stabilization` branch, GitHub Actions builds an **experimental-calling-enabled debug APK** so the owner can test on two real devices **before merging**. All other PRs, main pushes and the signed release deliberately force `ENABLE_EXPERIMENTAL_CALLS=false`. After PR #12 is merged, open **GitHub Actions → Android candidate checks → Run workflow** and select **Enable experimental calls** = **true** for a separate manual test APK. Avoid setting a repository-wide flag.
+`.github/workflows/android.yml` sets `ENABLE_EXPERIMENTAL_CALLS=true` for candidate PRs, main pushes and manual candidate runs. No extra opt-in input is needed. The separate owner-signed production workflow remains gated. Development uses automated checks and verified merges; the owner receives one final integrated APK and one physical test round, not an installation request after each PR.
 
 Download the `app-debug.apk` artifact only from a completed, green workflow for the exact commit. Developer/debug signing is not Play signing. After a successful build, use two **different real user accounts on two different phones**.
 
@@ -43,7 +43,7 @@ The free plan still has rate/egress quotas. Experimental calls use foreground po
 
 - Database-side caller/callee/block checks and RLS; call SDP/ICE is retained temporarily (can include IP information). Scheduled cleanup removes expired call records/candidates after a grace interval.
 - Service-only, atomic push claim blocks duplicates; only caller-authenticated Edge requests can trigger the server claim.
-- In the new hardening branch, accepted/started call media may continue in the background through a user-started microphone/camera foreground service. Recents/task removal or service termination ends capture. There is **no** full Telecom integration, guaranteed locked-screen ringing, Android full-screen call permission or group calling.
+- Accepted/started call media may continue in the background through a user-started microphone/camera foreground service. Recents/task removal or service termination ends capture. Full-screen invitation access is subject to Android permission/OEM restrictions; it is not guaranteed. Full Telecom integration, process-death call restore and group calling are not implemented.
 - App kill, power saver, Android 14–16 background restrictions, notification permission denial, mobile data, Wi-Fi/NAT, Bluetooth, speaker/camera, mic mute, second incoming call, decline, block, account switch, user logout and real reconnect must all be checked manually.
 - CI, emulator tests and server-side SQL tests **cannot verify microphones, speakers, video quality, echo or device-to-device notification delivery.**
 - Do not publish until the beta acceptance checklist passes and an owner-signed release, privacy/disclosure review and usage-cost plan are completed.
