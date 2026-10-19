@@ -6,13 +6,28 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.pritam.liquidchat.calls.CallView
 import com.pritam.liquidchat.ui.LiquidApp
+
+/** Only a server-validated, full call overlay may be displayed over the device lock. */
+internal fun callWindowMayShowWhenLocked(call:CallView?):Boolean=call?.id!=null&&!call.minimized
 
 class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if(intent?.hasExtra("callId")==true){setShowWhenLocked(true);setTurnScreenOn(true)}
+        // Intent extras are untrusted on an exported Activity. Observe validated
+        // controller state for the whole Activity lifetime, including while stopped,
+        // and revoke window access on hangup, error, logout or minimization.
+        lifecycleScope.launch {
+            model.calls.view.collect {call->
+                val overLock=callWindowMayShowWhenLocked(call)
+                setShowWhenLocked(overLock)
+                setTurnScreenOn(overLock&&call?.unansweredIncoming==true)
+            }
+        }
         enableEdgeToEdge()
         intent?.data?.let(model::callback)
         intent?.getStringExtra("conversationId")?.let {model.openNotification(it,intent?.getStringExtra("accountId"))}
@@ -24,7 +39,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if(intent.hasExtra("callId")){setShowWhenLocked(true);setTurnScreenOn(true)}
         intent.data?.let(model::callback)
         intent.getStringExtra("conversationId")?.let {model.openNotification(it,intent.getStringExtra("accountId"))}
         intent.getStringExtra("callId")?.let {id->intent.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it,com.pritam.liquidchat.calls.CallAnswerActivity.consume(id,it))}}

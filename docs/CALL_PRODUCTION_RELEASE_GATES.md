@@ -17,7 +17,7 @@
 7. **Controlled rollout**: signed release currently forces ENABLE_EXPERIMENTAL_CALLS=false. Keep this fail-safe until every gate above is passed and the owner authorizes a new release build with calling enabled. No CI/build success replaces actual devices or consent.
 
 ## Test APK
-Use the trusted GitHub Actions workflow on the appropriate feature branch with `enable_experimental_calls=true`, or the dedicated trusted PR beta artifact. In Actions, download `Liquid-Chat-debug-...` only after all relevant jobs on that commit complete successfully. Do not distribute it as a Play-ready app.
+The Android candidate workflow sets `ENABLE_EXPERIMENTAL_CALLS=true` for PR/main/manual candidate builds. Use only the final integrated artifact identified in #24 after all five checks pass; its installed calling flag is tested directly. The separate owner-signed release workflow remains gated. Download `Liquid-Chat-debug-...` as the test APK, not the unsigned AAB, and use `ALL_IN_ONE_TWO_PHONE_TEST.md` for one consolidated acceptance round. This is not a Play-ready production release.
 
 ## References
 - Android microphone/camera FGS and Android 14+ restrictions: https://developer.android.com/develop/background-work/services/fgs/service-types
