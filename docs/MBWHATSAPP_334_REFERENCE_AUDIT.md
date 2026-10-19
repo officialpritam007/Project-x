@@ -161,3 +161,12 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - After a successful authenticated Supabase `set_conversation(p_delete=true)`, local chat history, draft, scheduled texts and appearance row are removed together; the private wallpaper JPEG and dedicated Android per-contact notification channel/preferences are also removed. Home wallpaper and all other conversations remain intact.
 - Failed server deletion no longer erases locally scheduled messages first. No remote customer data, Supabase schema or paid provider is changed. User-visible failures from local cleanup are not silently presented as successful erasure.
 - Tests verify that per-chat file/channel erasure does not delete another conversation or account's settings. Physical delete/account-switch acceptance remains open.
+
+
+## Stage 10 — local per-chat FCM text preview privacy (pending CI)
+
+- Conversation > Custom notifications now includes **Hide notification message text**, persisted on the signed-in device separately for each account and conversation. It does not require a separate custom sound channel or a Supabase migration.
+- `ReceiveWorker.show` consumes only authorized server-generated preview metadata; if either global preview privacy is off or this conversation's local redaction is on, both collapsed and expanded Android notification text become **New message** and lockscreen visibility uses SECRET. Per-chat local privacy can never override stricter server privacy.
+- Account logout and chat deletion remove redaction keys, preserving all other contacts. FCM message dedupe, mute/block enforcement, call notifications and background retry remain unchanged.
+- Unit tests verify the complete global/local privacy matrix; Android instrumentation verifies separate account/conversation storage and cleanup. Incoming text hidden in notifications is still visible to authorized participants inside the conversation.
+- Other devices on the same account require separate local settings; exact Android manufacturer lockscreen behavior still needs the user's final two-phone acceptance.
