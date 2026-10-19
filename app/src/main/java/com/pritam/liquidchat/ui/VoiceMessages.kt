@@ -161,6 +161,11 @@ internal fun invalidatesVoicePlayback(message:Message?,wasCached:Boolean):Boolea
     DisposableEffect(key,lifecycle) {val observer=LifecycleEventObserver {_,e->if(e==Lifecycle.Event.ON_STOP)VoicePlayback.stop()};lifecycle.lifecycle.addObserver(observer);onDispose {lifecycle.lifecycle.removeObserver(observer);VoicePlayback.stop()}}
     val id=VoicePlayback.id
     val account=VoicePlayback.account
+    LaunchedEffect(model,key) {
+        model.repository.revocations.collect {event->
+            if(VoicePlayback.account==event.account&&VoicePlayback.id==event.id)VoicePlayback.stop()
+        }
+    }
     LaunchedEffect(id,account) {
         if(id!=null&&account!=null) {
             var wasCached=false

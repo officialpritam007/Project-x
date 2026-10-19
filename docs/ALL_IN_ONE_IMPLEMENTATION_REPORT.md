@@ -20,6 +20,7 @@ The original `INPUT_MASTER_WORK_PLAN.md` and historical phase reports are preser
 | #49 | Calling/video-Story privacy disclosures and consent versions; 200% text selected UI checks | Merged after all five checks in `39213148137`; light/dark/reduced-transparency semantics tests |
 | #50 | Handle transient/duck audio interruptions; reject disposed-peer SDP immediately | Merged after all five checks in `39213450681`; focus-transition and native teardown instrumentation |
 | #51 | Restrict lock-screen window access to validated full call UI; reset on end/error/minimize/logout | Exact-head CI required; untrusted intent extras cannot grant over-lock visibility |
+| #53 | Propagate deletion/hide of uncached older Shared Media to playback/gallery; prevent an in-flight page restoring it | Exact-head CI required; account-scoped revocation stream, no old body cached, real Room/flow instrumentation and page reducer regression |
 
 The integration package versions the final candidate as **1.0.0-rc3 (10)**, prevents the compact chat-header status/username from wrapping beneath call controls, and updates stale README/calling/free-tier instructions. It preserves both visible call actions and the Liquid Glass palette. The companion physical checklist contains **69 unique acceptance cases**.
 
@@ -46,7 +47,7 @@ Only verified PRs may be merged. If a listed change's new exact-head CI fails, i
 | Text forwarding/multi-select/copy, reply/reaction/edit/star, long text/quote jump | Implemented; scoped forwarding to existing 1:1 chats, stable IDs, read-more and quote navigation; unit/Compose/SQL | Final M09–M12; batch delete/media forwarding not implemented |
 | Enhanced history search | Implemented local query race isolation and per-conversation sender/type/date filters | Final M12; searches downloaded history, not an unbounded server-wide index |
 | Image/camera/voice/private signed media, durable upload retries and progress | Implemented protected JPEG/AAC pipeline, fallback quotas, real byte progress, authorized views and cleanup | Final S01–S05/S12; not arbitrary file/video chat attachments |
-| Voice record hold/lock/cancel, seek, focus, 1×/1.5×/2× and scroll continuity | Implemented; foreground capture and account/navigation cleanup; AAC instrumentation and speed/state tests | Final S03–S04/M14; waveform envelope not implemented |
+| Voice record hold/lock/cancel, seek, focus, 1×/1.5×/2× and scroll continuity | Implemented; foreground capture, account/navigation cleanup and deletion/hide revocation even for uncached older Shared Media; AAC/Room/flow/speed tests | Final S03–S04/M14; waveform envelope not implemented |
 | Photo/video Stories ≤30s, 720p MP4, carousel/viewer/progress/tap/hold/mute | Implemented; actual decode/export fixture and parser tests, loaded-photo timing, bounded oriented export | Final S06–S08; actual local phone encoders/player and long-video trim |
 | Story 24-hour expiry/audience/privacy and upload/mutation/pagination | Implemented; server expiry/contact/block enforcement, local expiry/cursor, cache invalidation and upload stages; live rollback suite | Final S09–S10; scheduled cleanup after expiry is not immediate physical deletion |
 | Story seen/unseen backend receipts | **Deferred by explicit prior user decision**: not approved for implementation | No fabricated seen state/counts |

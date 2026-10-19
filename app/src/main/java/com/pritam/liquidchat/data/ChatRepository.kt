@@ -40,6 +40,8 @@ internal fun scrubDeletedMessage(message:Message):Message =
         replyTo="",reactions="{}",starred=false
     )
 
+data class MessageRevocation(val account:String,val id:String)
+
 internal fun changedContactRows(incoming:List<Contact>,existing:List<Contact>):List<Contact> {
     val previous=existing.associateBy {it.account to it.id}
     return incoming.filter {previous[it.account to it.id]!=it}
@@ -60,6 +62,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     val connection=_connection.asStateFlow()
     private val _uploadProgress=MutableStateFlow<Map<Pair<String,String>,Int>>(emptyMap())
     fun uploadProgress(account:String,id:String)=_uploadProgress.map {it[account to id]}.distinctUntilChanged()
+    private val _revocations=MutableSharedFlow<MessageRevocation>(extraBufferCapacity=64)
+    val revocations=_revocations.asSharedFlow()
     private val signals=MutableSharedFlow<Unit>(extraBufferCapacity=1)
     init {
         scope.launch {
@@ -383,19 +387,28 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         dao.localPreview(account,cid,latest?.let {if(it.status=="SENT")it.body.take(160) else "${it.status.lowercase().replaceFirstChar {it.uppercase()}}: ${it.body.take(160)}"}.orEmpty(),latest?.takeIf {it.status!="SENT"}?.localTime ?: 0,latest?.serverTime.orEmpty())
     }
     private suspend fun putVisible(message:Message)=db.withTransaction {
+        if(message.deletedAt.isNotEmpty())_revocations.emit(MessageRevocation(message.account,message.id))
         if(!dao.hidden(message.account,message.id)&&
             (message.seq==0L||message.seq>(dao.chat(message.account,message.conversation)?.deletedSeq ?: 0)))
             dao.putPreservingAcceptance(scrubDeletedMessage(message))
     }
-    private suspend fun applySnapshot(j:JSONObject,account:String,existingOnly:Boolean=false) {
+    internal suspend fun applySnapshot(j:JSONObject,account:String,existingOnly:Boolean=false) {
         val id=j.getString("id");val old=dao.message(account,id)
         if(j.optBoolean("hidden")) {
+            _revocations.emit(MessageRevocation(account,id))
             dao.hide(HiddenMessage(account,id))
             old?.localImage?.takeIf {it.isNotEmpty()}?.let {java.io.File(it).delete()}
             dao.removeMessage(account,id)
             if(old!=null)refreshLocalPreview(account,old.conversation)
             context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
-        } else if(old!=null||!existingOnly) {
+        } else if(old==null&&existingOnly) {
+            // An older Shared Media item need not exist in Room. Publish only its
+            // revocation identity; never cache the old body just to notify viewers.
+            if(!j.isNull("deleted_at")&&j.optString("deleted_at").isNotBlank()) {
+                _revocations.emit(MessageRevocation(account,id))
+                context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
+            }
+        } else {
             val parsed=parseMessage(j,account)
             val message=parsed.copy(localTime=old?.localTime ?: parsed.localTime)
             if(message.deletedAt.isNotEmpty()) {
