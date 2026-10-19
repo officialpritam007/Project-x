@@ -6,8 +6,10 @@ internal object MbNavigationOrder {
     val titles=listOf("Chats","Calls","Contacts","Settings","Profile")
 
     fun parse(raw:String?):List<Int> {
-        val values=raw?.split(",")?.mapNotNull {it.trim().toIntOrNull()}
-        return if(values?.size==5 && values.toSet()==setOf(0,1,2,3,4)) values
+        val tokens=raw?.split(",") ?: return listOf(0,1,2,3,4)
+        if(tokens.size!=5)return listOf(0,1,2,3,4)
+        val values=tokens.map {it.trim().toIntOrNull() ?: return listOf(0,1,2,3,4)}
+        return if(values.toSet()==setOf(0,1,2,3,4)) values
             else listOf(0,1,2,3,4)
     }
 
