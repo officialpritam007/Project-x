@@ -85,7 +85,7 @@ import kotlinx.coroutines.flow.drop
             Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
                 Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium.copy(fontSize=homeDisplay.homeChatNameSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium.copy(fontSize=homeDisplay.homeChatPreviewSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(inboxSnippet(chat.preview,"Say hello to @${chat.username}",homeDisplay.hideHomePreviews),style=MaterialTheme.typography.bodyMedium.copy(fontSize=homeDisplay.homeChatPreviewSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
                 if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
@@ -870,7 +870,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         Text("Quick reactions",style=MaterialTheme.typography.labelMedium,
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.SpaceEvenly) {
-                            listOf("👍","❤️","😂","😮","😢","🙏").forEach {emoji->
+                            MbQuickReactions.selected(display.quickReactions).forEach {emoji->
                                 TextButton(
                                     modifier=Modifier.size(48.dp),
                                     onClick={
@@ -1085,6 +1085,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     }
 }
+@OptIn(ExperimentalLayoutApi::class)
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
     var section by rememberSaveable {mutableStateOf<String?>(null)}
     var unavailable by remember {mutableStateOf<String?>(null)}
@@ -1287,6 +1288,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
                 Switch(display.hideArchiveAccess,{model.setDisplay(display.copy(hideArchiveAccess=it))})
             }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Hide chat-list message previews",style=MaterialTheme.typography.titleSmall)
+                    Text("Shows a generic label instead of the last message in Chats. Does not change push notification previews.",
+                        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked=display.hideHomePreviews,
+                    onCheckedChange={model.setDisplay(display.copy(hideHomePreviews=it))})
+            }
+            HorizontalDivider()
             Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
                 valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
@@ -1324,6 +1335,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     FilterChip(selected=display.bubbleColor==palette,onClick={model.setDisplay(display.copy(bubbleColor=palette))},label={Text(palette)})
                 }
             }
+            HorizontalDivider()
+            Text("Quick reaction emojis · choose 1–6",style=MaterialTheme.typography.titleSmall)
+            Text("Only reactions accepted by the current messaging server can be selected.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            androidx.compose.foundation.layout.FlowRow(
+                modifier=Modifier.fillMaxWidth(),
+                horizontalArrangement=Arrangement.spacedBy(8.dp),
+                verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                val selected=MbQuickReactions.selected(display.quickReactions)
+                MbQuickReactions.available.forEach {emoji->
+                    FilterChip(selected=emoji in selected,
+                        onClick={model.setDisplay(display.copy(
+                            quickReactions=MbQuickReactions.toggle(display.quickReactions,emoji)))},
+                        label={Text(emoji)},
+                        enabled=(emoji in selected && selected.size>1) ||
+                                (emoji !in selected && selected.size<6))
+                }
+            }
+            TextButton(onClick={model.setDisplay(display.copy(
+                quickReactions=MbQuickReactions.defaultSetting))}) {Text("Reset quick reactions")}
             Text("Message font size",style=MaterialTheme.typography.titleSmall)
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
