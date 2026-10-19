@@ -155,3 +155,12 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - 50% is the backward-compatible default and retains the previous exact dark/light overlay transparency; 0% removes the contrast veil and 100% reaches a bounded 90%-opacity overlay. No media bytes, Supabase data, unread state or call flow changes.
 - Only user-selected private photo wallpapers use the slider; built-in gradient/color palettes continue unchanged. Theme JSON import/export round-trips both values with the existing 32-KiB typed validation.
 - JVM tests check scale/clamping and old defaults, instrumentation checks JSON round-trip. Visual QA still required at the owner's final two-phone round.
+
+
+## Stage 7 — real reaction presets and local inbox snippet privacy (candidate)
+
+- MB Conversation Screen lets the owner select **1–6 quick-reaction emojis** from the exact seven accepted by the deployed `public.message_action(...,'react',...)` function: 👍 ❤️ 😂 😮 😢 🙏 👏. The previous six defaults remain unchanged until the user explicitly changes them. The existing message action sheet reads the selected emojis and sends only the authenticated server action; tapping one's existing reaction continues to toggle it off. No fake local-only reactions or additional Supabase migrations.
+- Settings input and exported Liquid Chat themes validate reaction membership, size and duplicates. Unsupported emoji imported from another JSON theme revert to the default known-good palette.
+- MB Home Screen adds **Hide chat-list message previews**, stored on this device. It redacts last-message text from the inbox rows with a generic label, preserving actual messages and their delivery/read status. It explicitly does not change search results, in-chat history, OS notification contents or the separate Supabase notification-preview control. The privacy flag is not exported in a theme file.
+- New JVM and Android tests verify original defaults, valid/invalid emoji, maximum six selections, minimum one, theme roundtrip and private inbox snippet redaction. Exact-head CI, merged-main tests and two-phone owner acceptance still required.
+- VersionCode 15 / versionName 1.0.0-rc8-mb-preview; production signing and full MBWhatsApp 3.3.4 visual parity remain incomplete.
