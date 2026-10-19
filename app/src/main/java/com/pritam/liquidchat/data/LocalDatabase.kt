@@ -30,6 +30,13 @@ data class Message(
     @ColumnInfo(defaultValue="'{}'") val reactions:String="{}",
     @ColumnInfo(defaultValue="0") val starred:Boolean=false
 )
+/**
+ * The accepted server snapshot wins over any stale local QUEUED/SENDING/FAILED write.
+ * Identical snapshots must not invalidate observing Room flows and recompose bubbles.
+ */
+internal fun shouldPersistMessage(previous:Message?,incoming:Message):Boolean =
+    !(previous?.status=="SENT" && incoming.status!="SENT") && previous!=incoming
+
 @Immutable
 @Entity(tableName="contacts",primaryKeys=["account","id"])
 data class Contact(val account:String,val id:String,val name:String,val username:String,val avatarId:String="",val bio:String="")
@@ -64,7 +71,7 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("select * from chats where account=:account order by pinnedAt desc,pendingAt desc,lastSeq desc,id desc") fun chats(account:String):Flow<List<Chat>>
     @Query("select * from chats where account=:account") suspend fun allChats(account:String):List<Chat>
     @Query("select * from chats where account=:account and id=:id") suspend fun chat(account:String,id:String):Chat?
-    @Query("update chats set syncSeq=:seq where account=:account and id=:cid") suspend fun syncCursor(account:String,cid:String,seq:Long)
+    @Query("update chats set syncSeq=:seq where account=:account and id=:cid and syncSeq<:seq") suspend fun syncCursor(account:String,cid:String,seq:Long)
     @Upsert suspend fun putChats(chats:List<Chat>)
     @Query("delete from chats where account=:account and id=:id") suspend fun deleteChat(account:String,id:String)
     @Query("select * from messages where account=:account and conversation=:cid order by case when seq=0 then 1 else 0 end, seq,localTime,id") fun messages(account:String,cid:String):Flow<List<Message>>
@@ -76,11 +83,12 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("update chats set preview=:preview,pendingAt=:pending,lastAt=:lastAt where account=:account and id=:cid") suspend fun localPreview(account:String,cid:String,preview:String,pending:Long,lastAt:String)
     @Query("select * from messages where account=:account and id=:id") suspend fun message(account:String,id:String):Message?
     @Query("delete from messages where account=:account and id=:id") suspend fun removeMessage(account:String,id:String)
-    @Query("update chats set changeCursor=:cursor where account=:account and id=:cid") suspend fun changeCursor(account:String,cid:String,cursor:Long)
+    @Query("update chats set changeCursor=:cursor where account=:account and id=:cid and changeCursor<:cursor") suspend fun changeCursor(account:String,cid:String,cursor:Long)
     @Upsert suspend fun put(message:Message)
     @Transaction suspend fun putPreservingAcceptance(message:Message) {
-        // A concurrent server snapshot wins over stale worker progress/failure.
-        if(message.status!="SENT" && this.message(message.account,message.id)?.status=="SENT")return
+        // Avoid redundant timeline invalidations on duplicate FCM/realtime/history
+        // snapshots while preserving server acceptance over stale worker state.
+        if(!shouldPersistMessage(this.message(message.account,message.id),message))return
         put(message)
     }
     @Upsert suspend fun putAll(messages:List<Message>)

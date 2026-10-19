@@ -174,7 +174,9 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                         val j=updates.getJSONObject(i);applySnapshot(j,account,existingOnly=true)
                         changedCursor=maxOf(changedCursor,j.getLong("change_seq"))
                     }
-                    dao.changeCursor(account,c.id,changedCursor)
+                    // An unchanged cursor is not a database mutation. Updating
+                    // it every sync forces inbox re-collection even with no changes.
+                    if(changedCursor>c.changeCursor)dao.changeCursor(account,c.id,changedCursor)
                 }
                 if(updates.length()<100)break
             }while(true)
