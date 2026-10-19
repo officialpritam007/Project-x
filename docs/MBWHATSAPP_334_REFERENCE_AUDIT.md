@@ -100,3 +100,9 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - This uses no paid service and does not change Supabase, message delivery, notification-deduplication, muted chat privacy, or incoming voice/video calling channels.
 - **Android limitation:** on Android 8+ installed channel sound/importance/vibration are controlled by the OS and user; apps cannot silently change existing channel sound or bypass blocked permissions.
 - Instrumentation tests cover default routing, account isolation, dedicated channel creation and cleanup; exact-head CI and two-phone notification acceptance remain release gates.
+
+## Stage 4 continuation — locally-selectable Android font families
+
+- MB General Settings adds live **System / Serif / Mono / Cursive** fonts, applied across Material3 type scale and persisted with the existing appearance options.
+- Theme JSON export/import also round-trips the selected font preset. The original System typography remains the default; no user data or backend settings are modified.
+- These are built-in Android fonts, **not proprietary MBWhatsApp font binaries**. Original MBWhatsApp font and emoji pack parity is still open.
