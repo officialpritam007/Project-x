@@ -15,6 +15,7 @@ import java.security.MessageDigest
 internal object ConversationNotificationChannels {
     private const val FILE="conversation_notification_channels"
     private const val PREFIX="enabled:"
+    private const val HIDE_PREVIEW_PREFIX="hide-preview:"
     private const val CHANNEL_PREFIX="liquid-contact-"
     const val DEFAULT_CHANNEL="messages"
 
@@ -25,6 +26,17 @@ internal object ConversationNotificationChannels {
     }
 
     private fun enabledKey(account:String,cid:String)="$PREFIX$account:$cid"
+    private fun hidePreviewKey(account:String,cid:String)="$HIDE_PREVIEW_PREFIX$account:$cid"
+    fun hiddenPreview(context:Context,account:String,cid:String):Boolean =
+        context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
+            .getBoolean(hidePreviewKey(account,cid),false)
+
+    fun setHiddenPreview(context:Context,account:String,cid:String,hidden:Boolean) {
+        val saved=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
+            .edit().putBoolean(hidePreviewKey(account,cid),hidden).commit()
+        check(saved) {"Unable to save conversation notification preview privacy."}
+    }
+
     fun enabled(context:Context,account:String,cid:String):Boolean =
         context.getSharedPreferences(FILE,Context.MODE_PRIVATE).getBoolean(enabledKey(account,cid),false)
 
@@ -65,7 +77,8 @@ internal object ConversationNotificationChannels {
     /** Delete only a conversation's obsolete Android channel and its preference. */
     fun clearConversation(context:Context,account:String,cid:String) {
         val ok=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
-            .edit().remove(enabledKey(account,cid)).commit()
+            .edit().remove(enabledKey(account,cid))
+            .remove(hidePreviewKey(account,cid)).commit()
         check(ok) {"Unable to remove the deleted conversation's notification preference."}
         context.getSystemService(NotificationManager::class.java)
             .deleteNotificationChannel(channelId(account,cid))
@@ -76,6 +89,7 @@ internal object ConversationNotificationChannels {
         val prefs=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
         val prefix="$PREFIX$account:"
         val channels=prefs.all.keys.filter {it.startsWith(prefix)}
+        val privatePreviews=prefs.all.keys.filter {it.startsWith("$HIDE_PREVIEW_PREFIX$account:")}
         val manager=context.getSystemService(NotificationManager::class.java)
         channels.forEach {key->
             val cid=key.removePrefix(prefix)
@@ -83,6 +97,7 @@ internal object ConversationNotificationChannels {
         }
         val edit=prefs.edit()
         channels.forEach {edit.remove(it)}
+        privatePreviews.forEach {edit.remove(it)}
         check(edit.commit()) {"Unable to remove previous account notification settings."}
     }
 }
