@@ -183,3 +183,6 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 
 | MB36 | Customize colors, fonts, bubbles, reactions and wallpapers; turn on screenshot/typing/snippet privacy, then MB Themes > Restore defaults | Visual defaults restored and persisted, private wallpapers/files and messages untouched; screenshot protection, typing privacy, hidden previews and accessibility flags remain enabled |
+
+| MB36 | Under MB Home Settings reorder all five tabs, restart, open Chats/Calls/Contacts/Settings/Profile | Every destination remains functional and call buttons remain accessible; custom visual order persists |
+| MB37 | Restore default tab order, then export/import a theme with a custom order | Each action applies live and returns a correct, valid five-tab permutation; no tab disappears or duplicates |
