@@ -21,6 +21,7 @@ data class DisplayOptions(
     val showProfileAsTitle:Boolean=false,
     val hideArchiveAccess:Boolean=false,
     val fontPreset:String="System",
-    val hideOutgoingTyping:Boolean=false
+    val hideOutgoingTyping:Boolean=false,
+    val preventScreenshots:Boolean=false
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
