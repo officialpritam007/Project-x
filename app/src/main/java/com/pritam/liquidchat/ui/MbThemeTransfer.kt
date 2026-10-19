@@ -33,6 +33,8 @@ internal object MbThemeTransfer {
         put("showProfileAsTitle",options.showProfileAsTitle)
         put("hideArchiveAccess",options.hideArchiveAccess)
         put("fontPreset",options.fontPreset)
+        put("homeWallpaperDim",options.homeWallpaperDim)
+        put("chatWallpaperDim",options.chatWallpaperDim)
     }.toString(2)
 
     /**
@@ -71,7 +73,9 @@ internal object MbThemeTransfer {
             accentColor=choice("accentColor",setOf("Cyan","Blue","Green","Purple","Rose","Amber"),current.accentColor),
             showProfileAsTitle=bool("showProfileAsTitle",current.showProfileAsTitle),
             hideArchiveAccess=bool("hideArchiveAccess",current.hideArchiveAccess),
-            fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset)
+            fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset),
+            homeWallpaperDim=number("homeWallpaperDim",current.homeWallpaperDim,0,100),
+            chatWallpaperDim=number("chatWallpaperDim",current.chatWallpaperDim,0,100)
         )
     }
 }
