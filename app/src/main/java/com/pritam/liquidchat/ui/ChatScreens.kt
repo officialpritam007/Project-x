@@ -241,7 +241,7 @@ internal fun blockActionLabel(ownedBlocked:Boolean?):String =
     when(ownedBlocked) { true->"Unblock contact"; false->"Block contact"; null->"Checking block status…" }
 
 internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
-internal fun settingsPanelFor(section:String):SettingsPanel = when(section) {
+internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
     "Chat Settings"->SettingsPanel.APPEARANCE
     "Power Saving"->SettingsPanel.POWER_SAVING
     else->SettingsPanel.OTHER
