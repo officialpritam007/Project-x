@@ -147,3 +147,12 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Both Privacy & Security and MB Privacy provide a saved local switch for Android `FLAG_SECURE`. It blocks standard screenshots and recent-app thumbnails on protected app windows, and reversibly clears the flag.
 - Default is **off** for accessibility and support screenshots. It does not stop external cameras or substitute for end-to-end encryption.
 - The option is not in theme export and does not alter Supabase account settings, calling, or media authorization.
+
+
+## Stage 7 — real reaction presets and local inbox snippet privacy (candidate)
+
+- MB Conversation Screen lets the owner select **1–6 quick-reaction emojis** from the exact seven accepted by the deployed `public.message_action(...,'react',...)` function: 👍 ❤️ 😂 😮 😢 🙏 👏. The previous six defaults remain unchanged until the user explicitly changes them. The existing message action sheet reads the selected emojis and sends only the authenticated server action; tapping one's existing reaction continues to toggle it off. No fake local-only reactions or additional Supabase migrations.
+- Settings input and exported Liquid Chat themes validate reaction membership, size and duplicates. Unsupported emoji imported from another JSON theme revert to the default known-good palette.
+- MB Home Screen adds **Hide chat-list message previews**, stored on this device. It redacts last-message text from the inbox rows with a generic label, preserving actual messages and their delivery/read status. It explicitly does not change search results, in-chat history, OS notification contents or the separate Supabase notification-preview control. The privacy flag is not exported in a theme file.
+- New JVM and Android tests verify original defaults, valid/invalid emoji, maximum six selections, minimum one, theme roundtrip and private inbox snippet redaction. Exact-head CI, merged-main tests and two-phone owner acceptance still required.
+- VersionCode 15 / versionName 1.0.0-rc8-mb-preview; production signing and full MBWhatsApp 3.3.4 visual parity remain incomplete.
