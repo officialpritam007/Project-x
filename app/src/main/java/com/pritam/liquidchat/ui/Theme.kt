@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import dev.chrisbanes.haze.*
 
@@ -53,6 +54,32 @@ private val PremiumTypography=Typography(
     bodyLarge=Typography().bodyLarge.copy(letterSpacing=0.05f.sp),
     labelLarge=Typography().labelLarge.copy(fontWeight=FontWeight.Medium)
 )
+/** Four built-in Android font families; no unlicensed/private MBWhatsApp fonts. */
+internal fun liquidTypography(preset:String):Typography {
+    val family=when(preset) {
+        "Serif" -> FontFamily.Serif
+        "Mono" -> FontFamily.Monospace
+        "Cursive" -> FontFamily.Cursive
+        else -> return PremiumTypography
+    }
+    return Typography(
+        displayLarge=PremiumTypography.displayLarge.copy(fontFamily=family),
+        displayMedium=PremiumTypography.displayMedium.copy(fontFamily=family),
+        displaySmall=PremiumTypography.displaySmall.copy(fontFamily=family),
+        headlineLarge=PremiumTypography.headlineLarge.copy(fontFamily=family),
+        headlineMedium=PremiumTypography.headlineMedium.copy(fontFamily=family),
+        headlineSmall=PremiumTypography.headlineSmall.copy(fontFamily=family),
+        titleLarge=PremiumTypography.titleLarge.copy(fontFamily=family),
+        titleMedium=PremiumTypography.titleMedium.copy(fontFamily=family),
+        titleSmall=PremiumTypography.titleSmall.copy(fontFamily=family),
+        bodyLarge=PremiumTypography.bodyLarge.copy(fontFamily=family),
+        bodyMedium=PremiumTypography.bodyMedium.copy(fontFamily=family),
+        bodySmall=PremiumTypography.bodySmall.copy(fontFamily=family),
+        labelLarge=PremiumTypography.labelLarge.copy(fontFamily=family),
+        labelMedium=PremiumTypography.labelMedium.copy(fontFamily=family),
+        labelSmall=PremiumTypography.labelSmall.copy(fontFamily=family)
+    )
+}
 /** User-selected primary theme; Cyan deliberately retains the original palette exactly. */
 internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
     val base=if(dark)Dark else Light
@@ -74,7 +101,7 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
         MaterialTheme(
             colorScheme=liquidAccentScheme(dark,LocalDisplayOptions.current.accentColor),
             shapes=Shapes(small=Glass.compact,medium=Glass.card,large=Glass.hero),
-            typography=PremiumTypography,
+            typography=liquidTypography(LocalDisplayOptions.current.fontPreset),
             content=content
         )
     }
