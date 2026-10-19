@@ -699,6 +699,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val uploadFlow=remember(model,message.account,message.id) {model.repository.uploadProgress(message.account,message.id)}
     val uploadPercent by uploadFlow.collectAsStateWithLifecycle(initialValue=null)
     val mine=message.sender==message.account
+    val bubbleDisplay=LocalDisplayOptions.current
     var swipe by remember(message.id) {mutableFloatStateOf(0f)}
     val threshold=with(LocalDensity.current) {72.dp.toPx()}
     val replyCallback by rememberUpdatedState(onReply)
@@ -715,14 +716,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val bubbleWidth=minOf(maxWidth*.86f,480.dp)
     Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset((if(rtl)-swipe else swipe).toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f;crossed=false}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(
-            shape=androidx.compose.foundation.shape.RoundedCornerShape(
-                topStart=22.dp,topEnd=22.dp,
-                bottomStart=if(mine)22.dp else 8.dp,
-                bottomEnd=if(mine)8.dp else 22.dp
-            ),
+            shape=conversationBubbleShape(bubbleDisplay.bubbleStyle,mine),
             color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
-                else if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
-                else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
+                else conversationBubbleColor(bubbleDisplay.bubbleColor,mine,LocalGlassDark.current)
+                    ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                    else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
             border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
             shadowElevation=2.dp,
             modifier=Modifier.widthIn(max=bubbleWidth).glassSource()
@@ -742,7 +740,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if(message.mediaKind=="voice")VoicePlayer(model,message) else SharedImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge.copy(fontSize=bubbleDisplay.messageFontSize.sp),maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
                 if(message.status=="SENDING")uploadPercent?.let {percent->
                     LinearProgressIndicator(progress={percent/100f},modifier=Modifier.width(160.dp))
                     Text(if(percent<100)"Uploading · $percent%" else "Processing attachment…",style=MaterialTheme.typography.labelSmall)
