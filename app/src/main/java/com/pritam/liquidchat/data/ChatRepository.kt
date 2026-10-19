@@ -444,7 +444,23 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         if(delete)drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.removeHistory(id,c.id);dao.removeDraft(id,c.id)}}}
         sync()
     }
-    suspend fun block(peer:String,blocked:Boolean) {backend.rpc("set_block",JSONObject().put("p_peer",peer).put("p_blocked",blocked))}
+    /**
+     * Supabase blocks_owner SELECT policy only exposes blocks created by
+     * this user. A peer blocking us must not appear as an owned block.
+     */
+    suspend fun ownBlockState(peer:String):Boolean {
+        val id=account()
+        require(runCatching {UUID.fromString(peer)}.isSuccess) {"Invalid contact."}
+        val rows=JSONArray(backend.request("/rest/v1/blocks?actor=eq.$id&target=eq.$peer&select=target&limit=1"))
+        checkAccount(id)
+        return rows.length()>0
+    }
+    suspend fun block(peer:String,blocked:Boolean) {
+        val id=account()
+        require(runCatching {UUID.fromString(peer)}.isSuccess) {"Invalid contact."}
+        backend.rpc("set_block",JSONObject().put("p_peer",peer).put("p_blocked",blocked))
+        checkAccount(id)
+    }
     suspend fun search(query:String)=dao.search(account(),query.replace("\\","\\\\").replace("%","\\%").replace("_","\\_"))
     suspend fun typing(cid:String,typing:Boolean) {backend.rpc("update_typing",JSONObject().put("p_conversation",cid).put("p_typing",typing))}
     suspend fun loadSettings() {
