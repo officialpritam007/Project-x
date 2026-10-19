@@ -1,5 +1,7 @@
 package com.pritam.liquidchat.calls
 
+import com.pritam.liquidchat.ui.LiquidAlertDialog
+
 import android.Manifest
 import android.app.Activity
 import android.content.ContextWrapper
@@ -224,7 +226,7 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
         }
     }
     if (permissionError) {
-        AlertDialog(
+        LiquidAlertDialog(
             onDismissRequest = { permissionError = false },
             title = { Text("Permission needed") },
             text = {
