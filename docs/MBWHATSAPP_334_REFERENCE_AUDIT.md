@@ -106,3 +106,9 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - MB General Settings adds live **System / Serif / Mono / Cursive** fonts, applied across Material3 type scale and persisted with the existing appearance options.
 - Theme JSON export/import also round-trips the selected font preset. The original System typography remains the default; no user data or backend settings are modified.
 - These are built-in Android fonts, **not proprietary MBWhatsApp font binaries**. Original MBWhatsApp font and emoji pack parity is still open.
+
+
+## Stage 4 continuation — outgoing typing privacy
+
+- MB Privacy / Privacy & Security exposes **Hide outgoing typing**. On this device, the conversation effect stops sending typing=true and sends a typing=false on cancellation when hiding is activated. Incoming typing indicators remain unaffected.
+- This is deliberately device-local (unlike Ghost Mode's Supabase-backed presence/read receipts) and is not exported in a theme file. Other devices signed into the same account may still send their own typing signals. No server-wide or WhatsApp-protocol anti-typing guarantee is claimed.
