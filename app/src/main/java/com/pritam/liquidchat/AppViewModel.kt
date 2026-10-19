@@ -29,9 +29,10 @@ internal fun searchRequestCurrent(
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val displayPrefs=app.getSharedPreferences("display",android.content.Context.MODE_PRIVATE)
-    val display=MutableStateFlow(com.pritam.liquidchat.ui.DisplayOptions(displayPrefs.getString("appearance","System") ?: "System",displayPrefs.getString("animation","Balanced") ?: "Balanced",displayPrefs.getBoolean("reducedMotion",false),displayPrefs.getBoolean("reducedTransparency",false)))
+    val display=MutableStateFlow(com.pritam.liquidchat.ui.DisplayOptions(displayPrefs.getString("appearance","System") ?: "System",displayPrefs.getString("animation","Balanced") ?: "Balanced",displayPrefs.getBoolean("reducedMotion",false),displayPrefs.getBoolean("reducedTransparency",false),displayPrefs.getInt("blurIntensity",55).coerceIn(0,100)))
     fun setDisplay(options:com.pritam.liquidchat.ui.DisplayOptions) {
-        displayPrefs.edit().putString("appearance",options.appearance).putString("animation",options.animation).putBoolean("reducedMotion",options.reducedMotion).putBoolean("reducedTransparency",options.reducedTransparency).apply();display.value=options
+        val safe=options.copy(blurIntensity=options.blurIntensity.coerceIn(0,100))
+        displayPrefs.edit().putString("appearance",safe.appearance).putString("animation",safe.animation).putBoolean("reducedMotion",safe.reducedMotion).putBoolean("reducedTransparency",safe.reducedTransparency).putInt("blurIntensity",safe.blurIntensity).apply();display.value=safe
     }
     val backend: Backend=(app as LiquidApplication).backend
     val repository=(app as LiquidApplication).repository
