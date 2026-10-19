@@ -40,6 +40,27 @@ class ConversationNotificationChannelsTest {
         }
     }
 
+    @Test fun chatDeletionRemovesOneNotificationChannelWithoutAffectingOtherChats() {
+        val context=ApplicationProvider.getApplicationContext<Context>()
+        val manager=context.getSystemService(NotificationManager::class.java)
+        val owner="delete-channel-test-account"
+        val deleted="deleted-chat"
+        val retained="kept-chat"
+        try {
+            ConversationNotificationChannels.setEnabled(context,owner,deleted,"Deleted Person",true)
+            ConversationNotificationChannels.setEnabled(context,owner,retained,"Retained Person",true)
+            val removedId=ConversationNotificationChannels.channelId(owner,deleted)
+            val retainedId=ConversationNotificationChannels.channelId(owner,retained)
+            ConversationNotificationChannels.clearConversation(context,owner,deleted)
+            assertFalse(ConversationNotificationChannels.enabled(context,owner,deleted))
+            assertNull(manager.getNotificationChannel(removedId))
+            assertTrue(ConversationNotificationChannels.enabled(context,owner,retained))
+            assertNotNull(manager.getNotificationChannel(retainedId))
+        } finally {
+            ConversationNotificationChannels.clearAccount(context,owner)
+        }
+    }
+
     @Test fun cleanupDeletesOnlyTheSignedOutAccountsChannels() {
         val context=ApplicationProvider.getApplicationContext<Context>()
         val manager=context.getSystemService(NotificationManager::class.java)

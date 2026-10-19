@@ -62,6 +62,15 @@ internal object ConversationNotificationChannels {
             .putExtra(Settings.EXTRA_APP_PACKAGE,context.packageName)
             .putExtra(Settings.EXTRA_CHANNEL_ID,channelId(account,cid))
 
+    /** Delete only a conversation's obsolete Android channel and its preference. */
+    fun clearConversation(context:Context,account:String,cid:String) {
+        val ok=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
+            .edit().remove(enabledKey(account,cid)).commit()
+        check(ok) {"Unable to remove the deleted conversation's notification preference."}
+        context.getSystemService(NotificationManager::class.java)
+            .deleteNotificationChannel(channelId(account,cid))
+    }
+
     /** Do not expose a signed-out account's contacts in system notification settings. */
     fun clearAccount(context:Context,account:String) {
         val prefs=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)

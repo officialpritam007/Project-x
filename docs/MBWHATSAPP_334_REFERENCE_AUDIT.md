@@ -155,3 +155,9 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - 50% is the backward-compatible default and retains the previous exact dark/light overlay transparency; 0% removes the contrast veil and 100% reaches a bounded 90%-opacity overlay. No media bytes, Supabase data, unread state or call flow changes.
 - Only user-selected private photo wallpapers use the slider; built-in gradient/color palettes continue unchanged. Theme JSON import/export round-trips both values with the existing 32-KiB typed validation.
 - JVM tests check scale/clamping and old defaults, instrumentation checks JSON round-trip. Visual QA still required at the owner's final two-phone round.
+
+## Privacy cleanup — deleted chats
+
+- After a successful authenticated Supabase `set_conversation(p_delete=true)`, local chat history, draft, scheduled texts and appearance row are removed together; the private wallpaper JPEG and dedicated Android per-contact notification channel/preferences are also removed. Home wallpaper and all other conversations remain intact.
+- Failed server deletion no longer erases locally scheduled messages first. No remote customer data, Supabase schema or paid provider is changed. User-visible failures from local cleanup are not silently presented as successful erasure.
+- Tests verify that per-chat file/channel erasure does not delete another conversation or account's settings. Physical delete/account-switch acceptance remains open.

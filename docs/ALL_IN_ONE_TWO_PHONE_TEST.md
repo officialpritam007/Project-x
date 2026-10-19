@@ -176,5 +176,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |
 
 
-| MB32 | Home photo selected: change dimming 0/50/100, restart and switch dark mode | Veil updates without reloading full inbox; 50 preserves previous defaults; text remains selectable |
-| MB33 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
+| MB38 | Home photo selected: change dimming 0/50/100, restart and switch dark mode | Veil updates without reloading full inbox; 50 preserves previous defaults; text remains selectable |
+| MB39 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
+| MB36 | Set chat-specific photo, custom notification channel and scheduled text, then delete that chat | No residual photo, sound/channel contact name, draft, schedule or stale appearance; other chats and Home wallpaper stay intact |
+| MB37 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
