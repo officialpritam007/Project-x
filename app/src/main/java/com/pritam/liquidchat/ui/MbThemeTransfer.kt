@@ -12,6 +12,16 @@ internal object MbThemeTransfer {
     const val MAX_IMPORT_BYTES = 32 * 1024
     const val MIME_TYPE = "application/json"
 
+    /** Restore visuals only, without silently revoking privacy or accessibility choices. */
+    fun resetAppearance(current:DisplayOptions):DisplayOptions =
+        DisplayOptions().copy(
+            reducedMotion=current.reducedMotion,
+            reducedTransparency=current.reducedTransparency,
+            hideOutgoingTyping=current.hideOutgoingTyping,
+            hideHomePreviews=current.hideHomePreviews,
+            preventScreenshots=current.preventScreenshots
+        )
+
     fun export(options:DisplayOptions):String = JSONObject().apply {
         put("format","liquid-chat-theme")
         put("version",1)

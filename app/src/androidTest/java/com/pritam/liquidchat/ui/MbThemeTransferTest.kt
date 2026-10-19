@@ -20,6 +20,29 @@ class MbThemeTransferTest {
         assertFalse(encoded.contains("hideHomePreviews"))
         assertEquals(expected,MbThemeTransfer.decode(encoded,DisplayOptions()))
     }
+    @Test fun resetAppearanceKeepsPrivacyAndAccessibilityButRestoresVisualDefaults() {
+        val custom=DisplayOptions(
+            appearance="Dark",accentColor="Rose",bubbleStyle="Compact",
+            bubbleColor="Night",messageFontSize=21,navIconSize=30,
+            fontPreset="Cursive",homeWallpaperDim=3,chatWallpaperDim=88,
+            quickReactions=MbQuickReactions.defaultSetting,
+            preventScreenshots=true,hideHomePreviews=true,hideOutgoingTyping=true,
+            reducedMotion=true,reducedTransparency=true
+        )
+        val restored=MbThemeTransfer.resetAppearance(custom)
+        assertEquals("System",restored.appearance)
+        assertEquals("Cyan",restored.accentColor)
+        assertEquals("Tail",restored.bubbleStyle)
+        assertEquals(16,restored.messageFontSize)
+        assertEquals(50,restored.homeWallpaperDim)
+        assertEquals(50,restored.chatWallpaperDim)
+        assertTrue(restored.preventScreenshots)
+        assertTrue(restored.hideHomePreviews)
+        assertTrue(restored.hideOutgoingTyping)
+        assertTrue(restored.reducedMotion)
+        assertTrue(restored.reducedTransparency)
+    }
+
     @Test fun rejectsForeignFormatsAndLargeFiles() {
         val invalid="{\"format\":\"mbwhatsapp\",\"version\":1}"
         val result=runCatching {MbThemeTransfer.decode(invalid,DisplayOptions())}
