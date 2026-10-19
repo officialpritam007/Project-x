@@ -1,6 +1,6 @@
 # Liquid Chat — one comprehensive two-phone acceptance round
 
-Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These are physical/provider acceptance checks, not claims that development is unfinished whenever a phone is required.
+Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 73 cases are physical/provider acceptance checks for the Option 3 calling-enabled rc4 candidate, not assertions that emulator CI proves real device behaviour.
 
 ## Prepare both phones
 
@@ -25,6 +25,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | A08 | Edit name/bio/avatar, return between tabs; remove avatar | Change propagates; cached old avatar is invalidated; no continuous reload |
 | A09 | Toggle Favorite/Archive/Pin/Mark unread and use all inbox filters | Correct rows and indicators; manual unread appears even with zero unread count |
 | A10 | Lose network while a previously loaded profile/feed is visible | Cache stays usable with honest retry/error state; no empty full-screen reload loop |
+| A11 | In Data & Storage, cancel/confirm local image-cache clearing with an offline draft/outbox item | Cancel preserves cache; confirmation clears only local image cache while drafts, queued sends and remote media remain safe |
 
 ## Messaging, keyboard, privacy and offline state
 
@@ -47,6 +48,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | M15 | Delete-for-me an item/history, restart and sync both devices | A's hidden content stays hidden; B's own copy follows its intended independent visibility |
 | M16 | Toggle receipts/online/last-seen privacy; inspect from the peer | Hidden state not inferred from heartbeat; read/delivery labels match permitted watermarks |
 | M17 | Block in either direction; attempt messaging/calling/media/Stories/Posts | New unauthorized actions/access denied; unblocking recovers permitted access |
+| M18 | Long-press sent/failed/deleted messages; check six reactions, Reply/Forward/Copy and Delete | Quick reactions, actions and safety stay clearly separated; >=48dp targets; destructive confirm remains; no deleted body/media leaks |
 
 ## Notification acceptance
 
@@ -59,6 +61,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | N05 | Deny notifications, then re-enable and restore/login/token rotation | No crash; registration recovers; token/device delivery verified on both phones |
 | N06 | Log out A while a push is pending; sign into another account | No cross-account alert/content or registration to a stale login |
 | N07 | Exercise Doze/OEM battery saver, app restart and phone restart | Record delivery delay/restriction honestly; no guaranteed wakeup claim |
+| N08 | Deny/re-enable Android notification permission, then return to Liquid Chat Notifications | Status refreshes on resume, OS settings shortcut opens, in-app notification previews remain an independent choice |
 
 ## One-to-one voice and video calls
 
@@ -99,6 +102,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | S11 | Create Post, refresh, archive, restore, delete and paginate | Correct private feed, stable thumbnails and mutation refresh; no permanent empty/loading placeholder |
 | S12 | Keep media visible through signed-link renewal and then revoke access | Stable permitted image, bounded retry on transfer error, eventual revocation at link/authorization expiry |
 | S13 | Submit a disposable content report and block | Correct private reference/reason; no public report evidence or privilege escalation |
+| S14 | Star a text, photo and voice message, open Contact > Starred, then delete/revoke media | Correct text, authenticated photo preview and voice player; deleted/revoked content never resurfaces |
 
 ## Final cleanup and result
 
