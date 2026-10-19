@@ -29,10 +29,12 @@ internal suspend fun <T:Any> deliverMessagePush(
     sync:suspend ()->Unit,
     preview:suspend ()->T?,
     canPost:()->Boolean,
-    post:(T)->Unit
+    post:(T)->Unit,
+    onSuppressed:()->Unit={}
 ) {
     sync()
     val authorized=preview() ?: return
     // Recheck account/active conversation after both suspending operations.
-    if(canPost())post(authorized)
+    // Do not write a receipt for an unauthorised/null server preview.
+    if(canPost())post(authorized) else onSuppressed()
 }
