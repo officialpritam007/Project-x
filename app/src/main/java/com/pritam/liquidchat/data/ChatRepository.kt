@@ -76,6 +76,11 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
             combine(backend.session.map {it?.userId}.distinctUntilChanged(),foreground) {id,fg->if(fg) id else null}.collectLatest { account ->
                 if(account==null) return@collectLatest
                 enqueue(account)
+                // Re-register local schedules when this account signs in after a reboot.
+                for(pendingSchedule in dao.allScheduledTexts(account)) {
+                    checkAccount(account)
+                    enqueueScheduledText(pendingSchedule)
+                }
                 coroutineScope {
                     launch { while(isActive) {safeSync();delay(60000)} }
                     launch {
@@ -128,6 +133,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     fun chats()=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id-> if(id==null) flowOf(emptyList()) else dao.chats(id).distinctUntilChanged()}
     fun messages(cid:String)=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id->if(id==null) flowOf(emptyList()) else dao.messages(id,cid).distinctUntilChanged()}
     fun unsent()=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id->if(id==null) flowOf(0) else dao.unsent(id).distinctUntilChanged()}
+    fun scheduledTexts(cid:String)=backend.session.map {it?.userId}.distinctUntilChanged()
+        .flatMapLatest {id->if(id==null)flowOf(emptyList()) else dao.scheduledTexts(id,cid).distinctUntilChanged()}
     private suspend fun safeSync() {
         try {sync();_connection.value="Connected"} catch(e:CancellationException) {throw e}
         catch(_:Exception) {_connection.value="Offline or service unavailable · saved messages remain available"}
@@ -254,6 +261,70 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         require(palette in listOf("Ice","Lilac","Mint","Sand"));val id=account()
         dao.putAppearance(ChatAppearance(id,cid,palette));checkAccount(id)
     }
+    /** Local, account-scoped scheduling; queued only when WorkManager reaches sendAt. */
+    suspend fun scheduleText(cid:String,body:String,replyTo:String="",sendAt:Long,draftVersion:Long?=null):ScheduledText {
+        val now=System.currentTimeMillis()
+        require(body.isNotBlank() && body.length<=4000) {"Enter up to 4000 characters."}
+        require(sendAt>=now+60_000L && sendAt<=now+180L*24L*3600_000L) {"Choose between 1 minute and 180 days from now."}
+        val user=account()
+        require(dao.chat(user,cid)!=null) {"Choose an existing conversation."}
+        val scheduled=ScheduledText(user,UUID.randomUUID().toString(),cid,body,replyTo,sendAt,now)
+        draftMutex.withLock {db.withTransaction {
+            checkAccount(user)
+            dao.putScheduledText(scheduled)
+            if(draftVersion!=null)dao.consumeDraft(user,cid,body,replyTo,draftVersion)
+        }}
+        enqueueScheduledText(scheduled)
+        return scheduled
+    }
+
+    /** Moving schedule -> queued message is atomic and uses the same UUID for retry/idempotence. */
+    suspend fun dispatchScheduledText(expected:String,id:String) {
+        checkAccount(expected)
+        var future:ScheduledText?=null
+        var moved=false
+        db.withTransaction {
+            checkAccount(expected)
+            val scheduled=dao.scheduledText(expected,id) ?: return@withTransaction
+            if(scheduled.sendAt>System.currentTimeMillis()) {
+                future=scheduled
+                return@withTransaction
+            }
+            check(dao.chat(expected,scheduled.conversation)!=null) {"Scheduled conversation is no longer available."}
+            if(dao.message(expected,id)==null) {
+                val queued=Message(expected,scheduled.id,scheduled.conversation,expected,scheduled.body,replyTo=scheduled.replyTo)
+                putVisible(queued)
+                dao.pendingPreview(expected,scheduled.conversation,"Queued: ${scheduled.body.take(160)}",queued.localTime)
+            }
+            dao.deleteScheduledText(expected,id)
+            moved=true
+        }
+        future?.let {enqueueScheduledText(it)}
+        if(moved)enqueue(expected)
+    }
+
+    suspend fun cancelScheduledText(id:String) {
+        val account=account()
+        val deleted=db.withTransaction {
+            checkAccount(account)
+            dao.deleteScheduledText(account,id)
+        }
+        if(deleted==0)throw IOException("This scheduled message is already being sent or was removed.")
+        WorkManager.getInstance(context).cancelUniqueWork("scheduled-$account-$id")
+    }
+
+    private fun enqueueScheduledText(item:ScheduledText) {
+        val delay=(item.sendAt-System.currentTimeMillis()).coerceAtLeast(0L)
+        val request=OneTimeWorkRequestBuilder<ScheduledTextWorker>()
+            .setInputData(workDataOf("account" to item.account,"scheduledId" to item.id))
+            .setInitialDelay(delay,TimeUnit.MILLISECONDS)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS)
+            .addTag("account-${item.account}")
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "scheduled-${item.account}-${item.id}",ExistingWorkPolicy.REPLACE,request)
+    }
+
     suspend fun send(cid:String,body:String,replyTo:String="",draftVersion:Long?=null) {
         require(body.isNotBlank() && body.length<=4000)
         val account=account()
@@ -480,7 +551,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun clearAccount(account:String) {
         active.value=null;contactState.value=JSONObject();privateSettings.value=JSONObject()
         WorkManager.getInstance(context).cancelAllWorkByTag("account-$account")
-        syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account);dao.clearHidden(account)}}}}
+        syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account);dao.clearHidden(account);dao.clearScheduledTexts(account)}}}}
         withContext(Dispatchers.IO) {
             for(directory in listOf(java.io.File(context.filesDir,"media/$account"),java.io.File(context.cacheDir,"camera"))) {
                 check(!directory.exists() || directory.deleteRecursively()) {"Local media cleanup could not finish. Clear this app's stored data in Android Settings to complete removal."}
