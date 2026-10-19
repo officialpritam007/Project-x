@@ -10,27 +10,63 @@ import androidx.compose.ui.unit.dp
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
+/**
+ * Only media/starred changes require reloading their RPC pages; ordinary text
+ * activity should not blank the gallery or re-download signed thumbnails.
+ */
+internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<String> =
+    messages.asSequence().filter {message->
+        message.deletedAt.isEmpty() && when(kind) {
+            "star"->message.starred
+            "voice"->message.mediaKind=="voice" && message.mediaId.isNotEmpty()
+            else->message.mediaKind=="image" && message.mediaId.isNotEmpty()
+        }
+    }.map {message->
+        "${message.id}|${message.mediaId}|${message.editedAt}|${message.starred}"
+    }.toList()
+
 @Composable internal fun ContactMediaDialog(model:AppViewModel,chat:Chat,sourceVersion:List<Message>,initialKind:String="image",onDismiss:()->Unit) {
-    var kind by remember {mutableStateOf(initialKind)}
-    var rows by remember {mutableStateOf(emptyList<Message>())}
-    var more by remember {mutableStateOf(true)}
-    var loading by remember {mutableStateOf(false)}
-    var failed by remember {mutableStateOf(false)}
+    val session by model.session.collectAsStateWithLifecycle()
+    val account=session?.userId
+    // Observe auth-scope changes even if the user ID stays the same.
+    val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
+    val epoch=model.backend.uiReads.epoch(account).takeIf {it==sessionEpoch}
+    var kind by remember(chat.id,account) {mutableStateOf(initialKind)}
+    var rows by remember(chat.id,account,epoch) {mutableStateOf(emptyList<Message>())}
+    var more by remember(chat.id,account,epoch) {mutableStateOf(true)}
+    var loading by remember(chat.id,account,epoch) {mutableStateOf(false)}
+    var failed by remember(chat.id,account,epoch) {mutableStateOf(false)}
+    val refreshKeys=remember(kind,sourceVersion) {sharedMediaRefreshKeys(sourceVersion,kind)}
     val scope=rememberCoroutineScope()
     suspend fun page(reset:Boolean) {
         val requestedKind=kind
+        val requestedAccount=account
+        val requestedEpoch=epoch
+        if(requestedAccount==null || chat.account!=requestedAccount || requestedEpoch==null) {
+            rows=emptyList();more=false;loading=false;return
+        }
+        fun current()=kind==requestedKind &&
+            model.backend.session.value?.userId==requestedAccount &&
+            model.backend.uiReads.epoch(requestedAccount)==requestedEpoch
         loading=true;failed=false
         try {
             val before=if(reset)Long.MAX_VALUE else rows.lastOrNull()?.seq ?: Long.MAX_VALUE
-            val page=if(kind=="star")model.repository.starred(chat.id,before) else model.repository.sharedMedia(chat.id,before,kind)
-            if(kind!=requestedKind)return
-            rows=if(reset)page else (rows+page).distinctBy {it.id};more=page.size==30
-        } catch(e:kotlinx.coroutines.CancellationException){throw e} catch(_:Exception){if(kind==requestedKind)failed=true}
-        finally {if(kind==requestedKind)loading=false}
+            val fetched=if(requestedKind=="star")model.repository.starred(chat.id,before)
+                else model.repository.sharedMedia(chat.id,before,requestedKind)
+            if(!current())return
+            val visible=fetched.filter {it.deletedAt.isEmpty()}
+            rows=if(reset)visible else (rows+visible).distinctBy {it.id}
+            more=fetched.size==30
+        } catch(e:kotlinx.coroutines.CancellationException){throw e}
+          catch(_:Exception){if(current())failed=true}
+        finally {if(current())loading=false}
     }
-    LaunchedEffect(kind,sourceVersion) {rows=emptyList();more=true;page(true)}
+    LaunchedEffect(chat.id,account,epoch,kind,refreshKeys) {
+        rows=emptyList();more=true;page(true)
+    }
     AlertDialog(onDismissRequest=onDismiss,title={Text(chat.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {Avatar(chat.name,chat.avatarId,model.backend);Column {Text("@${chat.username}");TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}}) {Text("Save contact")}}}
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->FilterChip(selected=kind==value,onClick={kind=value},label={Text(label)})}}
