@@ -140,7 +140,7 @@ import com.pritam.liquidchat.data.Images
             .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         verticalArrangement=Arrangement.spacedBy(14.dp)
     ) {
-        GlassHeader("Settings")
+        GlassHeader("Liquid Chat Settings")
         Text("YOUR ACCOUNT",style=MaterialTheme.typography.labelMedium,
             color=MaterialTheme.colorScheme.onSurfaceVariant,
             modifier=Modifier.padding(start=10.dp,top=3.dp))
