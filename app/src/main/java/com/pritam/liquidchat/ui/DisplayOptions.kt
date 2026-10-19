@@ -7,6 +7,9 @@ data class DisplayOptions(
     val animation:String="Balanced",
     val reducedMotion:Boolean=false,
     val reducedTransparency:Boolean=false,
-    val blurIntensity:Int=55
+    val blurIntensity:Int=55,
+    val bubbleStyle:String="Tail",
+    val bubbleColor:String="Original",
+    val messageFontSize:Int=16
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
