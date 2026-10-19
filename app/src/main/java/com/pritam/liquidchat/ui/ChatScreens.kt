@@ -1359,6 +1359,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             if(section=="Privacy & Security" || section=="MB Privacy") {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
+                        Text("Block screenshots and app previews",style=MaterialTheme.typography.titleSmall)
+                        Text("Android blocks screenshots and app-switcher thumbnails on this phone; a separate camera can still photograph the screen.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.preventScreenshots,
+                        onCheckedChange={model.setDisplay(display.copy(preventScreenshots=it))})
+                }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
                         Text("Hide outgoing typing",style=MaterialTheme.typography.titleSmall)
                         Text("This device will not advertise typing to contacts. Other signed-in devices have separate settings.",
                             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
