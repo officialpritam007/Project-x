@@ -30,6 +30,13 @@ data class Message(
     @ColumnInfo(defaultValue="'{}'") val reactions:String="{}",
     @ColumnInfo(defaultValue="0") val starred:Boolean=false
 )
+/**
+ * The accepted server snapshot wins over any stale local QUEUED/SENDING/FAILED write.
+ * Identical snapshots must not invalidate observing Room flows and recompose bubbles.
+ */
+internal fun shouldPersistMessage(previous:Message?,incoming:Message):Boolean =
+    !(previous?.status=="SENT" && incoming.status!="SENT") && previous!=incoming
+
 @Immutable
 @Entity(tableName="contacts",primaryKeys=["account","id"])
 data class Contact(val account:String,val id:String,val name:String,val username:String,val avatarId:String="",val bio:String="")
@@ -79,8 +86,9 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("update chats set changeCursor=:cursor where account=:account and id=:cid") suspend fun changeCursor(account:String,cid:String,cursor:Long)
     @Upsert suspend fun put(message:Message)
     @Transaction suspend fun putPreservingAcceptance(message:Message) {
-        // A concurrent server snapshot wins over stale worker progress/failure.
-        if(message.status!="SENT" && this.message(message.account,message.id)?.status=="SENT")return
+        // Avoid redundant timeline invalidations on duplicate FCM/realtime/history
+        // snapshots while preserving server acceptance over stale worker state.
+        if(!shouldPersistMessage(this.message(message.account,message.id),message))return
         put(message)
     }
     @Upsert suspend fun putAll(messages:List<Message>)
