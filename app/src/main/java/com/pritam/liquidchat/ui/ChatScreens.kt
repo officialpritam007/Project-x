@@ -825,6 +825,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
             }
         }
+        if(section=="Notifications") NotificationSystemSettings()
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
         TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
