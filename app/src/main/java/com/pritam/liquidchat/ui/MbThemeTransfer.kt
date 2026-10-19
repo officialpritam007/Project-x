@@ -43,6 +43,7 @@ internal object MbThemeTransfer {
         put("showProfileAsTitle",options.showProfileAsTitle)
         put("hideArchiveAccess",options.hideArchiveAccess)
         put("fontPreset",options.fontPreset)
+        put("navigationOrder",MbNavigationOrder.normalize(options.navigationOrder))
         put("quickReactions",MbQuickReactions.normalize(options.quickReactions))
         put("homeWallpaperDim",options.homeWallpaperDim)
         put("chatWallpaperDim",options.chatWallpaperDim)
@@ -85,6 +86,8 @@ internal object MbThemeTransfer {
             showProfileAsTitle=bool("showProfileAsTitle",current.showProfileAsTitle),
             hideArchiveAccess=bool("hideArchiveAccess",current.hideArchiveAccess),
             fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset),
+            navigationOrder=if(j.has("navigationOrder") && j.opt("navigationOrder") is String)
+                MbNavigationOrder.normalize(j.optString("navigationOrder")) else current.navigationOrder,
             quickReactions=if(j.has("quickReactions") && j.opt("quickReactions") is String)
                 MbQuickReactions.normalize(j.optString("quickReactions")) else current.quickReactions,
             homeWallpaperDim=number("homeWallpaperDim",current.homeWallpaperDim,0,100),
