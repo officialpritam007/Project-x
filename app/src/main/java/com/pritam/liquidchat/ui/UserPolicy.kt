@@ -46,7 +46,7 @@ internal val ACTIVE_USER_POLICY_VERSION: String
 
 @Composable internal fun ReportContentDialog(title:String,explanation:String,onSubmit:(String)->Unit,onDismiss:()->Unit) {
     var reason by rememberSaveable {mutableStateOf("")}
-    AlertDialog(onDismissRequest=onDismiss,title={Text(title)},text={Column(Modifier.verticalScroll(rememberScrollState())) {
+    LiquidAlertDialog(onDismissRequest=onDismiss,title={Text(title)},text={Column(Modifier.verticalScroll(rememberScrollState())) {
         Text(explanation)
         OutlinedTextField(reason,{reason=it.take(800)},label={Text("Reason")},supportingText={Text("${reason.length} / 800")},modifier=Modifier.fillMaxWidth())
     }},confirmButton={TextButton(onClick={onSubmit(reason.trim())},enabled=reason.isNotBlank()) {Text("Submit report")}},dismissButton={TextButton(onClick=onDismiss) {Text("Cancel")}})
