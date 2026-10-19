@@ -58,6 +58,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     val active=MutableStateFlow<String?>(null)
     private val _connection=MutableStateFlow("Connecting…")
     val connection=_connection.asStateFlow()
+    private val _uploadProgress=MutableStateFlow<Map<Pair<String,String>,Int>>(emptyMap())
+    fun uploadProgress(account:String,id:String)=_uploadProgress.map {it[account to id]}.distinctUntilChanged()
     private val signals=MutableSharedFlow<Unit>(extraBufferCapacity=1)
     init {
         scope.launch {
@@ -335,7 +337,13 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                 }
                 if(accepted==null) {
                     if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
-                        val upload=backend.uploadImage(java.io.File(sending.localImage),m.conversation,sending.mediaKind=="voice")
+                        val key=expected to m.id
+                        val upload=try {
+                            backend.uploadImage(java.io.File(sending.localImage),m.conversation,sending.mediaKind=="voice") {percent->
+                                if(backend.session.value?.userId==expected)
+                                    _uploadProgress.update {it+(key to percent)}
+                            }
+                        } finally {_uploadProgress.update {it-key}}
                         sending=sending.copy(mediaId=upload.getString("id"),imageWidth=upload.getInt("width"),imageHeight=upload.getInt("height"),durationMs=upload.optInt("duration_ms",sending.durationMs))
                         currentCoroutineContext().ensureActive();checkAccount(expected);putVisible(sending)
                     }

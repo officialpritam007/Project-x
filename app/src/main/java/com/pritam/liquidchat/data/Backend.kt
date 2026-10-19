@@ -258,11 +258,11 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         persist(j); store.write("pkce",null); _recovery.value=pending.getString("purpose")=="recovery"
     } }
     suspend fun updatePassword(password: String) { request("/auth/v1/user","PUT",JSONObject().put("password",password)); _recovery.value=false }
-    suspend fun uploadImage(file:java.io.File,cid:String?,voice:Boolean=false):JSONObject = withContext(Dispatchers.IO) {
+    suspend fun uploadImage(file:java.io.File,cid:String?,voice:Boolean=false,onProgress:(Int)->Unit={}):JSONObject = withContext(Dispatchers.IO) {
         val original=snapshot()
         val current=validSession(original)
         val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart("file",if(voice)"voice.m4a" else "photo.jpg",file.asRequestBody((if(voice)"audio/mp4" else "image/jpeg").toMediaType()))
+            .addFormDataPart("file",if(voice)"voice.m4a" else "photo.jpg",UploadProgressBody(file.asRequestBody((if(voice)"audio/mp4" else "image/jpeg").toMediaType()),onProgress))
         if(voice)form.addFormDataPart("kind","voice")
         if(cid!=null)form.addFormDataPart("conversation_id",cid)
         val req=Request.Builder().url(URL+"/functions/v1/media").header("apikey",PUBLIC_KEY).header("Authorization","Bearer ${current.access}").post(form.build()).build()
@@ -277,14 +277,14 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         }
     }
     /** Authenticated, private video-story upload. The Edge Function re-validates the MP4. */
-    suspend fun uploadStoryVideo(file:java.io.File):JSONObject=withContext(Dispatchers.IO) {
+    suspend fun uploadStoryVideo(file:java.io.File,onProgress:(Int)->Unit={}):JSONObject=withContext(Dispatchers.IO) {
         if(!file.isFile||file.length() !in 1..(8L*1024*1024))
             throw IOException("Compressed video must be 8 MB or less.")
         val original=snapshot()
         val current=validSession(original)
         val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
             .addFormDataPart("kind","story_video")
-            .addFormDataPart("file","story.mp4",file.asRequestBody("video/mp4".toMediaType()))
+            .addFormDataPart("file","story.mp4",UploadProgressBody(file.asRequestBody("video/mp4".toMediaType()),onProgress))
             .build()
         val req=Request.Builder().url(URL+"/functions/v1/media")
             .header("apikey",PUBLIC_KEY)
