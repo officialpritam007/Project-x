@@ -61,6 +61,29 @@ class ConversationNotificationChannelsTest {
         }
     }
 
+    @Test fun privateMessagePreviewsAreScopedByAccountAndChat() {
+        val context=ApplicationProvider.getApplicationContext<Context>()
+        val owner="preview-test-account-a"
+        val other="preview-test-account-b"
+        val cid1="preview-chat-a"
+        val cid2="preview-chat-b"
+        try {
+            assertFalse(ConversationNotificationChannels.hiddenPreview(context,owner,cid1))
+            ConversationNotificationChannels.setHiddenPreview(context,owner,cid1,true)
+            assertTrue(ConversationNotificationChannels.hiddenPreview(context,owner,cid1))
+            assertFalse(ConversationNotificationChannels.hiddenPreview(context,other,cid1))
+            assertFalse(ConversationNotificationChannels.hiddenPreview(context,owner,cid2))
+            ConversationNotificationChannels.clearConversation(context,owner,cid1)
+            assertFalse(ConversationNotificationChannels.hiddenPreview(context,owner,cid1))
+            ConversationNotificationChannels.setHiddenPreview(context,owner,cid1,true)
+            ConversationNotificationChannels.clearAccount(context,owner)
+            assertFalse(ConversationNotificationChannels.hiddenPreview(context,owner,cid1))
+        } finally {
+            ConversationNotificationChannels.clearAccount(context,owner)
+            ConversationNotificationChannels.clearAccount(context,other)
+        }
+    }
+
     @Test fun cleanupDeletesOnlyTheSignedOutAccountsChannels() {
         val context=ApplicationProvider.getApplicationContext<Context>()
         val manager=context.getSystemService(NotificationManager::class.java)
