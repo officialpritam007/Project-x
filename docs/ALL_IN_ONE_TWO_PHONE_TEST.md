@@ -180,3 +180,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB39 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
 | MB36 | Set chat-specific photo, custom notification channel and scheduled text, then delete that chat | No residual photo, sound/channel contact name, draft, schedule or stale appearance; other chats and Home wallpaper stay intact |
 | MB37 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
+
+
+| MB36 | Under MB Home Settings reorder all five tabs, restart, open Chats/Calls/Contacts/Settings/Profile | Every destination remains functional and call buttons remain accessible; custom visual order persists |
+| MB37 | Restore default tab order, then export/import a theme with a custom order | Each action applies live and returns a correct, valid five-tab permutation; no tab disappears or duplicates |
