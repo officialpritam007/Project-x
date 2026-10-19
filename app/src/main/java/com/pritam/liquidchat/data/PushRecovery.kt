@@ -24,15 +24,26 @@ internal object PushRecovery {
     }
 }
 
+/**
+ * A server-authorized message visible in the active foreground chat is already
+ * consumed by this device, even though no Android alert should be displayed.
+ * Never associate a receipt with a logged-out or newly switched account.
+ */
+internal fun handledInForegroundChat(sessionAccount:String?,expectedAccount:String,
+    foreground:Boolean,activeConversation:String?,messageConversation:String):Boolean =
+    sessionAccount==expectedAccount && foreground && activeConversation==messageConversation
+
 /** Cache pagination/sync races must not override an authorized notification preview. */
 internal suspend fun <T:Any> deliverMessagePush(
     sync:suspend ()->Unit,
     preview:suspend ()->T?,
     canPost:()->Boolean,
-    post:(T)->Unit
+    post:(T)->Unit,
+    onSuppressed:()->Unit={}
 ) {
     sync()
     val authorized=preview() ?: return
     // Recheck account/active conversation after both suspending operations.
-    if(canPost())post(authorized)
+    // Do not write a receipt for an unauthorised/null server preview.
+    if(canPost())post(authorized) else onSuppressed()
 }

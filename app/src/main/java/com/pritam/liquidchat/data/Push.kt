@@ -140,8 +140,20 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
                     if(raw=="null")null else org.json.JSONObject(raw).takeIf {it.optString("conversation_id")==cid}
                 },
                 canPost={app.backend.session.value?.userId==account &&
-                    !(app.repository.foreground.value&&app.repository.active.value==cid)},
-                post={preview->show(app,cid,id,preview.getString("title"),preview.getString("body"),account,preview.optBoolean("previews"))}
+                    !handledInForegroundChat(app.backend.session.value?.userId,account,
+                        app.repository.foreground.value,app.repository.active.value,cid)},
+                post={preview->show(app,cid,id,preview.getString("title"),preview.getString("body"),account,preview.optBoolean("previews"))},
+                onSuppressed={
+                    // This authenticated message has already been handled by the
+                    // foreground active chat. Persist the same dedupe receipt as
+                    // a visible notification, preventing a later duplicate FCM
+                    // from alerting after the user leaves this conversation.
+                    // Account switches and any other suppression reason MUST NOT
+                    // generate a receipt for a different session.
+                    if(handledInForegroundChat(app.backend.session.value?.userId,account,
+                            app.repository.foreground.value,app.repository.active.value,cid))
+                        MessageNotificationDedupe.claim(applicationContext,account,id)
+                }
             )
             Result.success()
         } catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
