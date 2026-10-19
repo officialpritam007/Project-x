@@ -12,14 +12,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
-internal const val USER_POLICY_VERSION="2026-10-17-v1"
+internal const val USER_POLICY_VERSION="2026-10-19-video-stories-v2"
 internal val ACTIVE_USER_POLICY_VERSION: String
-    get() = if(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) "2026-10-18-calls-service-v3" else USER_POLICY_VERSION
+    get() = if(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) "2026-10-19-calls-video-stories-v4" else USER_POLICY_VERSION
 
 @Composable internal fun UserPolicyText() {
     Text("Be respectful. Do not share harassment, threats, hateful content, scams, illegal goods, sexual exploitation, child sexual abuse material, or intimate images without consent.")
     Text("Share only content you have the right and consent to share. Use Report on a message, story, post or contact to request review, and Block to stop contact. Reports are private to the service operator; relevant reported content may be reviewed.")
     Text("Liquid Chat stores account/profile details, messages, photos, voice recordings, device notification tokens and privacy settings to provide messaging. Supabase operates the core backend and protected media fallback; Google Firebase provides push delivery. Authenticated Cloudinary media may be used when configured.")
+    Text("Photo and video Stories are shared with your saved contacts and expire after 24 hours. Video Stories are trimmed to at most 30 seconds and compressed on your device before upload. Posts remain until you archive or delete them. Block and audience rules protect future access; recipients can still save shared content.")
     Text("Connections use HTTPS. Messages are not end-to-end encrypted. Session tokens are encrypted with Android Keystore on this device. Recipients can save or capture shared content; deleting a message cannot erase their saved copies. Previously issued media links may work briefly until expiry.")
     if(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) Text("Experimental one-to-one voice/video calls use microphone and, for video, camera permissions. WebRTC transports encrypted media directly where possible; Supabase processes temporary call signaling, ICE candidates and possible IP/network identifiers. We do not record or store call audio/video. Once you start or answer a call, microphone/camera use may continue while the app is in the background under an ongoing-call notification; use End call to stop. Removing the app task or signing out ends the call. Incoming-call push may show an invitation notification. Some networks require a TURN relay not available in this beta.")
     Text("Delete your account in Settings → Account. Owned media and account identifiers enter the erasure workflow; sent text may remain in the recipient's history under Deleted account. Operational and abuse records may be retained for security and policy enforcement.")

@@ -14,7 +14,17 @@ Supabase provides authentication, Postgres, realtime, Edge Functions and the pri
 
 Other participants receive content you intentionally share. Story/Post access follows the creator's saved-contact audience and block rules. Reports may include an explanation and references to selected messages or content; authorized operators may review relevant content. Reports are not exposed to ordinary app users.
 
-## Device storage and controls
+## Voice/video calls and video Stories in the test candidate
+
+The calling-enabled test candidate uses microphone permission for calls and voice recordings, and camera permission for video calls. After the user starts or answers a call, microphone/camera capture can continue in the background while the ongoing-call notification is present. Its End action, signing out, or removing the app task ends local call media. A process-death call recovery or system-dialer/Telecom integration is not provided.
+
+WebRTC sends encrypted real-time media between participants where a direct connection is possible. Call audio/video is not recorded or uploaded as stored media by this implementation. Supabase processes expiring call signaling/SDP, ICE candidates that may include IP/network identifiers, and call-history metadata. Public STUN infrastructure assists network traversal; the current candidate does not configure a TURN media relay. Do not claim connectivity on every network or public-production call acceptance from this test build.
+
+Video Stories are selected by the user, trimmed locally to no more than 30 seconds, compressed to H.264/AAC MP4 within the 720/1280-pixel bounds and uploaded through the protected media pipeline. Stories expire after 24 hours and remain subject to the creator's saved-contact audience and both-way blocks. Signed access, existing recipient copies and scheduled physical cleanup have the same limitations as other shared media. Story seen/unseen receipts are not implemented.
+
+The signed production release currently keeps calls disabled pending its separate release gates. Review the actual distributed artifact's calling flag and providers before publishing this policy or completing Play declarations.
+
+## Local storage and account controls
 
 Authentication/PKCE tokens are encrypted with Android Keystore. Cached messages/drafts are stored in app-private Room storage, not an encrypted chat database. Android backups are disabled. Media URLs are short-lived (currently photos 60 seconds, voice 180 seconds); an already issued URL or saved/downloaded copy may remain usable until expiry or outside the app's control. Do not promise immediate worldwide revocation of saved copies.
 
