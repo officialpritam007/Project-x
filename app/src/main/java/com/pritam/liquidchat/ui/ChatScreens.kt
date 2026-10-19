@@ -134,9 +134,10 @@ import kotlinx.coroutines.flow.drop
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
             items(visible,key={"chat-${it.id}"}) {chat->
-                Box(Modifier.combinedClickable(onClick={model.open(chat.id)},onLongClick={selectedChat=chat})) {
-                    ChatRow(chat,model.backend,onClick={model.open(chat.id)},onLongClick={selectedChat=chat})
-                }
+                // ChatRow already provides the full combined clickable surface.
+                // Wrapping it in a second clickable creates overlapping semantics
+                // and can trigger duplicate navigation / long-press actions.
+                ChatRow(chat,model.backend,onClick={model.open(chat.id)},onLongClick={selectedChat=chat})
             }
             if(query.isNotBlank()) {
                 val visibleResults=results.filter {it.deletedAt.isEmpty()}
