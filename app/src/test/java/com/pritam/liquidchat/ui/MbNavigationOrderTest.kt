@@ -19,7 +19,7 @@ class MbNavigationOrderTest {
         assertEquals(setOf(0,1,2,3,4),MbNavigationOrder.parse(end).toSet())
     }
     @Test fun corruptedOrDuplicatedOrderFallsBackToSafeDefault() {
-        for(input in listOf("0,1,1,3,4","0,1,2,3","5,1,2,3,4","0,1,2,3,4,6","junk","",",,,")) {
+        for(input in listOf("0,1,1,3,4","0,1,2,3","5,1,2,3,4","0,1,2,3,4,6","0,1,2,3,4,unknown","junk","",",,,")) {
             assertEquals("Invalid order: $input",MbNavigationOrder.DEFAULT,MbNavigationOrder.normalize(input))
         }
     }
