@@ -29,7 +29,7 @@ internal fun searchRequestCurrent(
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val displayPrefs=app.getSharedPreferences("display",android.content.Context.MODE_PRIVATE)
-    val display=MutableStateFlow(com.pritam.liquidchat.ui.DisplayOptions(displayPrefs.getString("appearance","System") ?: "System",displayPrefs.getString("animation","Balanced") ?: "Balanced",displayPrefs.getBoolean("reducedMotion",false),displayPrefs.getBoolean("reducedTransparency",false),displayPrefs.getInt("blurIntensity",55).coerceIn(0,100),displayPrefs.getString("bubbleStyle","Tail")?.takeIf {it in setOf("Tail","Rounded","Compact")} ?: "Tail",displayPrefs.getString("bubbleColor","Original")?.takeIf {it in setOf("Original","Green","Lavender","Rose","Night")} ?: "Original",displayPrefs.getInt("messageFontSize",16).coerceIn(14,22),displayPrefs.getBoolean("showNavLabels",false),displayPrefs.getInt("navIconSize",24).coerceIn(18,30),displayPrefs.getInt("navLabelSize",11).coerceIn(9,15),displayPrefs.getInt("headerTitleSize",25).coerceIn(20,30)))
+    val display=MutableStateFlow(com.pritam.liquidchat.ui.DisplayOptions(displayPrefs.getString("appearance","System") ?: "System",displayPrefs.getString("animation","Balanced") ?: "Balanced",displayPrefs.getBoolean("reducedMotion",false),displayPrefs.getBoolean("reducedTransparency",false),displayPrefs.getInt("blurIntensity",55).coerceIn(0,100),displayPrefs.getString("bubbleStyle","Tail")?.takeIf {it in setOf("Tail","Rounded","Compact")} ?: "Tail",displayPrefs.getString("bubbleColor","Original")?.takeIf {it in setOf("Original","Green","Lavender","Rose","Night")} ?: "Original",displayPrefs.getInt("messageFontSize",16).coerceIn(14,22),displayPrefs.getBoolean("showNavLabels",false),displayPrefs.getInt("navIconSize",24).coerceIn(18,30),displayPrefs.getInt("navLabelSize",11).coerceIn(9,15),displayPrefs.getInt("headerTitleSize",25).coerceIn(20,30),displayPrefs.getInt("homeChatNameSize",16).coerceIn(13,20),displayPrefs.getInt("homeChatPreviewSize",14).coerceIn(12,18)))
     fun setDisplay(options:com.pritam.liquidchat.ui.DisplayOptions) {
         val safe=options.copy(
             blurIntensity=options.blurIntensity.coerceIn(0,100),
@@ -38,9 +38,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             messageFontSize=options.messageFontSize.coerceIn(14,22),
             navIconSize=options.navIconSize.coerceIn(18,30),
             navLabelSize=options.navLabelSize.coerceIn(9,15),
-            headerTitleSize=options.headerTitleSize.coerceIn(20,30)
+            headerTitleSize=options.headerTitleSize.coerceIn(20,30),
+            homeChatNameSize=options.homeChatNameSize.coerceIn(13,20),
+            homeChatPreviewSize=options.homeChatPreviewSize.coerceIn(12,18)
         )
-        displayPrefs.edit().putString("appearance",safe.appearance).putString("animation",safe.animation).putBoolean("reducedMotion",safe.reducedMotion).putBoolean("reducedTransparency",safe.reducedTransparency).putInt("blurIntensity",safe.blurIntensity).putString("bubbleStyle",safe.bubbleStyle).putString("bubbleColor",safe.bubbleColor) .putInt("messageFontSize",safe.messageFontSize).putBoolean("showNavLabels",safe.showNavLabels).putInt("navIconSize",safe.navIconSize).putInt("navLabelSize",safe.navLabelSize).putInt("headerTitleSize",safe.headerTitleSize).apply()
+        displayPrefs.edit().putString("appearance",safe.appearance).putString("animation",safe.animation).putBoolean("reducedMotion",safe.reducedMotion).putBoolean("reducedTransparency",safe.reducedTransparency).putInt("blurIntensity",safe.blurIntensity).putString("bubbleStyle",safe.bubbleStyle).putString("bubbleColor",safe.bubbleColor) .putInt("messageFontSize",safe.messageFontSize).putBoolean("showNavLabels",safe.showNavLabels).putInt("navIconSize",safe.navIconSize).putInt("navLabelSize",safe.navLabelSize).putInt("headerTitleSize",safe.headerTitleSize).putInt("homeChatNameSize",safe.homeChatNameSize).putInt("homeChatPreviewSize",safe.homeChatPreviewSize).apply()
         display.value=safe
     }
     val backend: Backend=(app as LiquidApplication).backend
