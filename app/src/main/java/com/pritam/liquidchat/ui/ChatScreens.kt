@@ -254,7 +254,7 @@ internal fun blockActionLabel(ownedBlocked:Boolean?):String =
 
 internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
 internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
-    "Chat Settings"->SettingsPanel.APPEARANCE
+    "Chat Settings","MB General Settings"->SettingsPanel.APPEARANCE
     "Power Saving"->SettingsPanel.POWER_SAVING
     else->SettingsPanel.OTHER
 }
@@ -775,7 +775,29 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=null}
+    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen"))"MB Preferences" else null}
+
+    if(section=="MB Preferences") {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal=16.dp,vertical=12.dp)
+            .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+            verticalArrangement=Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                IconButton(onClick={section=null}) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")}
+                Text("MB Preferences",style=MaterialTheme.typography.headlineSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Customization",style=MaterialTheme.typography.titleLarge)
+                Text("Appearance options change your own Liquid Chat display without affecting messages or your contacts.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+                GlassActionRow("General Settings",Icons.Outlined.Palette,onClick={section="MB General Settings"})
+                HorizontalDivider()
+                GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
+            }
+        }
+        return
+    }
 
     val profile by model.profile.collectAsStateWithLifecycle()
     val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
@@ -796,7 +818,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val avatar=profile?.optString("avatar_id").orEmpty()
@@ -840,6 +862,38 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("${display.blurIntensity}%",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.blurIntensity.toFloat(),onValueChange={value->model.setDisplay(display.copy(blurIntensity=value.toInt()))},valueRange=0f..100f,enabled=!display.reducedTransparency,modifier=Modifier.fillMaxWidth())
             Text("Lower values reduce blur; Reduced transparency overrides this setting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
+            Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Tail","Rounded","Compact").forEach {style ->
+                    FilterChip(selected=display.bubbleStyle==style,onClick={model.setDisplay(display.copy(bubbleStyle=style))},label={Text(style)})
+                }
+            }
+            Text("Message bubble color",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Original","Green","Lavender","Rose","Night").forEach {palette ->
+                    FilterChip(selected=display.bubbleColor==palette,onClick={model.setDisplay(display.copy(bubbleColor=palette))},label={Text(palette)})
+                }
+            }
+            Text("Message font size",style=MaterialTheme.typography.titleSmall)
+            Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
+                valueRange=14f..22f,steps=7,modifier=Modifier.fillMaxWidth())
+            HorizontalDivider()
+            Text("Preview",style=MaterialTheme.typography.titleSmall)
+            listOf(false,true).forEach {mine ->
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
+                    Surface(shape=conversationBubbleShape(display.bubbleStyle,mine),
+                        color=conversationBubbleColor(display.bubbleColor,mine,LocalGlassDark.current)
+                            ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                            else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)) {
+                        Text(if(mine)"Outgoing message" else "Incoming message",Modifier.padding(12.dp),
+                            style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp))
+                    }
+                }
+            }
         }
         if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {
             Text("Power Saving",style=MaterialTheme.typography.titleMedium)
