@@ -132,3 +132,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - A white/dark veil behind translucent message cards maintains foreground readability. Unlike video wallpaper, static photo wallpaper has no playback, camera or background battery drain.
 - Gallery photo wallpaper is **device-local**, not transferred to peers or synchronized through Supabase; uninstall/logout erases it. Image tests check private storage, UUID scoping and bounded JPEG creation.
 - Missing: animated/video wallpapers, MBWhatsApp pixel-perfect image crop/editor and reference-specific media controls.
+
+
+## Stage 6 — owner-only Home photo wallpaper
+
+- Chats overflow > **Choose home wallpaper** saves a bounded, app-private JPEG under the authenticated account's reserved home wallpaper key. **Remove home wallpaper** reverts to the original Liquid Glass background immediately.
+- Home photo occupies only the Chats screen backdrop, behind the existing glass list and controls, with a light/dark contrast overlay. No remote upload, billing, camera/mic permission, server schema or other account's file is involved.
+- Account identity is captured before opening Android's gallery picker, checked again before accepting the result and after background preparation. Logout's existing account private-wallpaper cleanup removes the home file.
+- Existing photo/notification/privacy/messaging and one-to-one calling behavior remains as before; actual video wallpaper, dynamic themes and exact MBWhatsApp media chrome remain outstanding.
