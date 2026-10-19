@@ -174,3 +174,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB32 | Choose an image for Chats home wallpaper, switch tabs and reopen app | New wallpaper renders only under Chats, remains legible in dark/light, never transmitted or uploaded |
 | MB33 | Remove Home wallpaper, then choose a second photo | Background immediately reverts to Liquid Glass, replacement shows latest photo without stale Coil image |
 | MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |
+
+
+| MB34 | Set chat-specific photo, custom notification channel and scheduled text, then delete that chat | No residual photo, sound/channel contact name, draft, schedule or stale appearance; other chats and Home wallpaper stay intact |
+| MB35 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
