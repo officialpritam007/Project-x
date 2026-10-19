@@ -160,3 +160,6 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB25 | Receive voice/video call with per-chat message sound enabled | Calling channel and incoming-call controls remain independent and functional |
 
 | MB26 | Switch System/Serif/Mono/Cursive font, restart and import/export a theme | All Material3 screen typography updates live; choice persists; no missing glyphs or unreadable chat/navigation labels |
+
+
+| MB27 | Hide outgoing typing while entering text, then toggle it back on | Peer stops seeing this device's typing signal (including immediately after toggle); incoming typing still works; preference survives restart and is not altered by theme import |
