@@ -78,6 +78,7 @@ import kotlinx.coroutines.withContext
                     }
                 } finally {clearing=false}
             }
-        },enabled=!busy&&!clearing){Text("Clear images")})
+        },enabled=!busy&&!clearing) {Text("Clear images")}
+        }
     )
 }
