@@ -12,6 +12,11 @@ import kotlinx.coroutines.flow.combine
 import com.pritam.liquidchat.calls.CallView
 import com.pritam.liquidchat.ui.LiquidApp
 
+/** Android prevents screenshots and recent-app task thumbnails for protected windows.
+ *  This does not prevent another device from photographing the screen. */
+internal fun screenCaptureWindowFlag(preventScreenshots:Boolean):Int =
+    if(preventScreenshots)android.view.WindowManager.LayoutParams.FLAG_SECURE else 0
+
 /** Only a server-validated, full call overlay may be displayed over the device lock. */
 internal fun callWindowMayShowWhenLocked(call:CallView?,policyAccepted:Boolean=true):Boolean=
     policyAccepted&&call?.id!=null&&!call.minimized
@@ -32,6 +37,14 @@ class MainActivity : ComponentActivity() {
                 val overLock=callWindowMayShowWhenLocked(call,accepted)
                 setShowWhenLocked(overLock)
                 setTurnScreenOn(overLock&&call?.unansweredIncoming==true)
+            }
+        }
+        lifecycleScope.launch {
+            model.display.collect {options->
+                val flag=android.view.WindowManager.LayoutParams.FLAG_SECURE
+                if(screenCaptureWindowFlag(options.preventScreenshots)!=0)
+                    window.addFlags(flag)
+                else window.clearFlags(flag)
             }
         }
         enableEdgeToEdge()
