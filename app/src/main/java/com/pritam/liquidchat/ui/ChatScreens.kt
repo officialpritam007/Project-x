@@ -235,6 +235,17 @@ internal fun canForwardTextMessage(message:Message,account:String?):Boolean =
     message.deletedAt.isEmpty() && message.mediaId.isEmpty() &&
     message.localImage.isEmpty() && message.mediaKind=="image" && message.body.isNotBlank()
 
+/** Unknown server state must never produce contradictory block/unblock actions. */
+internal fun blockActionLabel(ownedBlocked:Boolean?):String =
+    when(ownedBlocked) { true->"Unblock contact"; false->"Block contact"; null->"Checking block status…" }
+
+internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
+internal fun settingsPanelFor(section:String):SettingsPanel = when(section) {
+    "Chat Settings"->SettingsPanel.APPEARANCE
+    "Power Saving"->SettingsPanel.POWER_SAVING
+    else->SettingsPanel.OTHER
+}
+
 internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(id in ids) ids-id else ids+id
 
@@ -318,6 +329,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val display=LocalDisplayOptions.current
     val sendScale by androidx.compose.animation.core.animateFloatAsState(if(body.isNotBlank())1.04f else 1f,animationSpec=if(display.reducedMotion)androidx.compose.animation.core.tween(0) else androidx.compose.animation.core.spring(stiffness=when(display.animation){"Normal"->400f;"Extra"->250f;else->650f}),label="Send readiness")
     var menu by remember {mutableStateOf(false)}
+    var ownedBlock by remember(cid,session?.userId) {mutableStateOf<Boolean?>(null)}
+    LaunchedEffect(menu,cid,session?.userId,chat?.peer) {
+        val expected=session?.userId
+        val peer=chat?.peer
+        if(menu && expected!=null && peer!=null) {
+            ownedBlock=null
+            try {
+                val value=model.repository.ownBlockState(peer)
+                if(model.session.value?.userId==expected)ownedBlock=value
+            } catch(e:kotlinx.coroutines.CancellationException) {throw e}
+              catch(_:Exception) {ownedBlock=null}
+        }
+    }
     var confirmDelete by remember {mutableStateOf(false)}
     var report by remember {mutableStateOf(false)}
     var reportMessage by remember {mutableStateOf<Message?>(null)}
@@ -366,8 +390,14 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         DropdownMenuItem(text={Text(if(c.favorite)"Remove favorite" else "Favorite")},onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
                         DropdownMenuItem(text={Text(if(c.archived)"Unarchive" else "Archive")},onClick={menu=false;model.updateChat(c,archived=!c.archived)})
                         DropdownMenuItem(text={Text(if(c.muted)"Unmute" else "Mute")},onClick={menu=false;model.updateChat(c,muted=!c.muted)})
-                        DropdownMenuItem(text={Text("Block contact")},onClick={menu=false;model.block(c.peer,true)})
-                        DropdownMenuItem(text={Text("Unblock contact")},onClick={menu=false;model.block(c.peer,false)})
+                        DropdownMenuItem(
+                            text={Text(blockActionLabel(ownedBlock))},
+                            enabled=ownedBlock!=null && !busy,
+                            onClick={
+                                val blocked=ownedBlock
+                                if(blocked!=null) {menu=false;ownedBlock=null;model.block(c.peer,!blocked)}
+                            }
+                        )
                         DropdownMenuItem(text={Text("Report contact")},onClick={menu=false;reportMessage=null;report=true})
                         DropdownMenuItem(text={Text("Delete history for me")},onClick={menu=false;confirmDelete=true})
                     }
@@ -658,17 +688,45 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Spacer(Modifier.height(12.dp))
             Text(profile?.optString("display_name").orEmpty(),style=MaterialTheme.typography.titleLarge)
             Text("@${profile?.optString("username").orEmpty()}");Text(profile?.optString("bio").orEmpty())
-            Row {TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text("Edit photo")};TextButton(onClick={model.action {model.setAvatar()}},enabled=!busy) {Text("Remove photo")}}
+            Row {
+                TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text(if(avatar.isNullOrEmpty()||avatar=="null")"Add photo" else "Change photo")}
+                if(!avatar.isNullOrEmpty()&&avatar!="null")
+                    TextButton(onClick={model.action {model.setAvatar()}},enabled=!busy) {Text("Remove photo")}
+            }
             TextButton(onClick={edit=true}) {Text("Edit profile")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
-        if(section in listOf("Chat Settings","Power Saving")) GlassCard(Modifier.fillMaxWidth()) {
+        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
             Text("Appearance",style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
+        }
+        if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {
+            Text("Power Saving",style=MaterialTheme.typography.titleMedium)
+            Text("Reduce animations to lower visual activity and improve battery comfort.",
+                style=MaterialTheme.typography.bodyMedium,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Reduced motion",Modifier.weight(1f))
+                Switch(checked=display.reducedMotion,onCheckedChange={
+                    model.setDisplay(display.copy(reducedMotion=it))
+                })
+            }
+            HorizontalDivider()
+            Text("Media downloads",style=MaterialTheme.typography.titleSmall)
+            Text("Photos and voice messages load on demand. This app does not enable automatic background media downloads.",
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Background delivery",style=MaterialTheme.typography.titleSmall)
+            Text("Android battery restrictions may delay notifications and incoming calls. The operating system controls these settings.",
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick={
+                val intent=android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.parse("package:${context.packageName}"))
+                runCatching {context.startActivity(intent)}
+            }) {Text("Open Android app settings")}
         }
         if(section in listOf("Privacy & Security","Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
