@@ -35,7 +35,11 @@ data class Message(
  * Identical snapshots must not invalidate observing Room flows and recompose bubbles.
  */
 internal fun shouldPersistMessage(previous:Message?,incoming:Message):Boolean =
-    !(previous?.status=="SENT" && incoming.status!="SENT") && previous!=incoming
+    !(previous?.status=="SENT" && incoming.status!="SENT") &&
+    // Deletion is irreversible. A delayed history/worker snapshot must never
+    // bring back a body or attachment after its tombstone has been accepted.
+    !(previous?.deletedAt?.isNotEmpty()==true && incoming.deletedAt.isEmpty()) &&
+    previous!=incoming
 
 @Immutable
 @Entity(tableName="contacts",primaryKeys=["account","id"])
@@ -82,6 +86,7 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("select * from messages where account=:account and conversation=:cid order by case when seq=0 then 1 else 0 end desc,seq desc,localTime desc,id desc limit 1") suspend fun latestMessage(account:String,cid:String):Message?
     @Query("update chats set preview=:preview,pendingAt=:pending,lastAt=:lastAt where account=:account and id=:cid") suspend fun localPreview(account:String,cid:String,preview:String,pending:Long,lastAt:String)
     @Query("select * from messages where account=:account and id=:id") suspend fun message(account:String,id:String):Message?
+    @Query("select * from messages where account=:account and id=:id") fun observeMessage(account:String,id:String):Flow<Message?>
     @Query("delete from messages where account=:account and id=:id") suspend fun removeMessage(account:String,id:String)
     @Query("update chats set changeCursor=:cursor where account=:account and id=:cid and changeCursor<:cursor") suspend fun changeCursor(account:String,cid:String,cursor:Long)
     @Upsert suspend fun put(message:Message)

@@ -32,6 +32,7 @@ import com.pritam.liquidchat.data.VoiceRecorder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import org.json.JSONObject
 
 @Composable fun VoiceCapture(model:AppViewModel,cid:String,busy:Boolean) {
@@ -110,7 +111,8 @@ private object VoicePlayback {
     private var manager:AudioManager?=null
     private var focus:AudioFocusRequest?=null
     private var generation=0
-    fun begin(message:String):Int {stop();id=message;return generation}
+    var account:String?=null;private set
+    fun begin(message:Message):Int {stop();id=message.id;account=message.account;return generation}
     fun current(token:Int)=token==generation
     fun play(context:android.content.Context,message:String,source:String,token:Int,onError:()->Unit) {
         if(!current(token))return
@@ -148,17 +150,32 @@ private object VoicePlayback {
     }
     fun seek(ms:Int) {if(!ready)return;player?.seekTo(ms);position=ms}
     fun tick() {position=runCatching {player?.currentPosition ?: 0}.getOrDefault(0)}
-    fun stop() {generation++;runCatching {player?.release()};player=null;focus?.let {manager?.abandonAudioFocusRequest(it)};manager=null;focus=null;id=null;playing=false;ready=false;position=0;speed=1f}
+    fun stop() {generation++;runCatching {player?.release()};player=null;focus?.let {manager?.abandonAudioFocusRequest(it)};manager=null;focus=null;id=null;account=null;playing=false;ready=false;position=0;speed=1f}
 }
-@Composable fun VoicePlaybackLifecycle(key:Any?) {
+/** A scrolled-offscreen voice item still stops immediately on a Room tombstone/hide. */
+internal fun invalidatesVoicePlayback(message:Message?,wasCached:Boolean):Boolean =
+    if(message==null)wasCached else message.deletedAt.isNotEmpty() || message.mediaKind!="voice"
+
+@Composable fun VoicePlaybackLifecycle(model:AppViewModel,key:Any?) {
     val lifecycle=LocalLifecycleOwner.current
     DisposableEffect(key,lifecycle) {val observer=LifecycleEventObserver {_,e->if(e==Lifecycle.Event.ON_STOP)VoicePlayback.stop()};lifecycle.lifecycle.addObserver(observer);onDispose {lifecycle.lifecycle.removeObserver(observer);VoicePlayback.stop()}}
+    val id=VoicePlayback.id
+    val account=VoicePlayback.account
+    LaunchedEffect(id,account) {
+        if(id!=null&&account!=null) {
+            var wasCached=false
+            model.repository.dao.observeMessage(account,id).collect {message->
+                if(VoicePlayback.id==id&&VoicePlayback.account==account&&invalidatesVoicePlayback(message,wasCached))VoicePlayback.stop()
+                if(message!=null)wasCached=true
+            }
+        }
+    }
 }
 @Composable fun VoicePlayer(model:AppViewModel,message:Message) {
     val context=LocalContext.current;val scope=rememberCoroutineScope()
     var loading by remember(message.id) {mutableStateOf(false)}
     var error by remember(message.id) {mutableStateOf<String?>(null)}
-    val selected=VoicePlayback.id==message.id
+    val selected=VoicePlayback.id==message.id&&VoicePlayback.account==message.account
     val playing=selected&&VoicePlayback.playing
     LaunchedEffect(selected,playing) {while(selected&&playing){VoicePlayback.tick();delay(200)}}
     // This item may leave the LazyColumn solely because it was scrolled offscreen.
@@ -168,7 +185,7 @@ private object VoicePlayback {
         Row(verticalAlignment=Alignment.CenterVertically) {
             IconButton(enabled=!loading&&(!selected||VoicePlayback.ready),onClick={
                 if(selected)VoicePlayback.pauseResume() else {
-                    loading=true;error=null;val token=VoicePlayback.begin(message.id)
+                    loading=true;error=null;val token=VoicePlayback.begin(message)
                     scope.launch {
                         try {
                             val source=if(message.localImage.isNotBlank()&&java.io.File(message.localImage).exists())message.localImage else JSONObject(model.backend.request("/functions/v1/media","POST",JSONObject().put("action","download").put("id",message.mediaId))).getString("url")
