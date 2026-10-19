@@ -74,8 +74,13 @@ import kotlinx.coroutines.flow.drop
 }
 @OptIn(ExperimentalFoundationApi::class)
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
-    Surface(shape=Glass.card,color=Color.Transparent,modifier=Modifier.fillMaxWidth().glassSource().combinedClickable(onClick=onClick,onLongClick=onLongClick)) {
-        Row(Modifier.padding(vertical=8.dp,horizontal=1.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+    Surface(
+        shape=Glass.card,
+        color=if(LocalGlassDark.current)Color(0xFF20384D).copy(alpha=.62f) else Color.White.copy(alpha=.56f),
+        border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).17f else .72f)),
+        modifier=Modifier.fillMaxWidth().glassSource().combinedClickable(onClick=onClick,onLongClick=onLongClick)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(vertical=11.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
                 Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -695,7 +700,21 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val bubbleWidth=minOf(maxWidth*.86f,480.dp)
     Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset((if(rtl)-swipe else swipe).toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f;crossed=false}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
-        Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF204F65) else Color(0xFF263C4A)} else if(mine)Color(0xFFD6F1FD) else Color(0xFFF8FCFF),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).16f else .8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=bubbleWidth).glassSource().combinedClickable(onClick={if(selectionMode)onSelect()},onLongClick={if(selectionMode)onSelect() else onLongClick()})) {
+        Surface(
+            shape=androidx.compose.foundation.shape.RoundedCornerShape(
+                topStart=22.dp,topEnd=22.dp,
+                bottomStart=if(mine)22.dp else 8.dp,
+                bottomEnd=if(mine)8.dp else 22.dp
+            ),
+            color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
+                else if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
+            border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
+            shadowElevation=2.dp,
+            modifier=Modifier.widthIn(max=bubbleWidth).glassSource()
+                .combinedClickable(onClick={if(selectionMode)onSelect()},
+                    onLongClick={if(selectionMode)onSelect() else onLongClick()})
+        ) {
             Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
                 if(message.deletedAt.isNotEmpty()) {
                     Text("This message was deleted",
@@ -766,19 +785,34 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
-        if(section=="Account") GlassCard(Modifier.fillMaxWidth()) {
-            val avatar=profile?.optString("avatar_id")
-            if(!avatar.isNullOrEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.size(72.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
-            else Avatar(profile?.optString("display_name").orEmpty(),self=true)
-            Spacer(Modifier.height(12.dp))
-            Text(profile?.optString("display_name").orEmpty(),style=MaterialTheme.typography.titleLarge)
-            Text("@${profile?.optString("username").orEmpty()}");Text(profile?.optString("bio").orEmpty())
-            Row {
-                TextButton(onClick={photoPicker.launch("image/*")},enabled=!busy) {Text(if(avatar.isNullOrEmpty()||avatar=="null")"Add photo" else "Change photo")}
-                if(!avatar.isNullOrEmpty()&&avatar!="null")
-                    TextButton(onClick={model.action {model.setAvatar()}},enabled=!busy) {Text("Remove photo")}
+        if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            val avatar=profile?.optString("avatar_id").orEmpty()
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+                Avatar(profile?.optString("display_name").orEmpty(),
+                    avatar.takeUnless {it=="null"}.orEmpty(),model.backend,self=true,size=72.dp)
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                    Text(profile?.optString("display_name").orEmpty().ifBlank {"My profile"},
+                        style=MaterialTheme.typography.titleLarge,maxLines=2)
+                    Text("@${profile?.optString("username").orEmpty()}",
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    profile?.optString("bio")?.takeIf {it.isNotBlank()}?.let {
+                        Text(it,style=MaterialTheme.typography.bodySmall,maxLines=3)
+                    }
+                }
             }
-            TextButton(onClick={edit=true}) {Text("Edit profile")}
+            Spacer(Modifier.height(14.dp))
+            FilledTonalButton(onClick={edit=true},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                Text("Edit profile")
+            }
+            OutlinedButton(
+                onClick={photoPicker.launch("image/*")},enabled=!busy,
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)
+            ) {Text(if(avatar.isBlank()||avatar=="null")"Add profile photo" else "Change profile photo")}
+            if(avatar.isNotBlank()&&avatar!="null") TextButton(
+                onClick={model.action {model.setAvatar()}},enabled=!busy,
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)
+            ) {Text("Remove photo")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
