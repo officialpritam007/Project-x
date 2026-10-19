@@ -11,6 +11,21 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class DeletedMessageSearchTest {
+    @Test fun delayedHistoryCannotOverwriteAcceptedTombstone() = runBlocking {
+        val context=ApplicationProvider.getApplicationContext<android.content.Context>()
+        val db=Room.inMemoryDatabaseBuilder(context,LocalDatabase::class.java).build()
+        try {
+            val dao=db.dao()
+            val old=Message("account","voice","chat","peer","secret-value",status="SENT",seq=4,
+                mediaId="old-audio",mediaKind="voice")
+            val tombstone=scrubDeletedMessage(old.copy(deletedAt="2026-10-19T05:00:00Z"))
+            dao.putPreservingAcceptance(tombstone)
+            dao.putPreservingAcceptance(old)
+            assertEquals(tombstone,dao.message("account","voice"))
+            assertTrue(dao.search("account","secret-value").isEmpty())
+        } finally {db.close()}
+    }
+
     @Test fun localSearchExcludesDeletedMessageEvenIfOldRoomBodyIsStillPresent() = runBlocking {
         val context=ApplicationProvider.getApplicationContext<android.content.Context>()
         val db=Room.inMemoryDatabaseBuilder(context,LocalDatabase::class.java).build()

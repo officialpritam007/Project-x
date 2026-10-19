@@ -59,7 +59,7 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
-        VoicePlaybackLifecycle(session?.userId to active)
+        VoicePlaybackLifecycle(model,session?.userId to active)
         if(logoutPrompt) AlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
         Box(Modifier.fillMaxSize()) {
         Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))

@@ -40,4 +40,12 @@ class MessageSnapshotStabilityTest {
     @Test fun changedMessageFromAnotherAccountDoesNotReusePrivateSnapshot() {
         assertTrue(shouldPersistMessage(accepted,accepted.copy(account="another-account")))
     }
+
+    @Test fun staleAcceptedSnapshotsCannotResurrectDeletedTextOrMedia() {
+        val tombstone=scrubDeletedMessage(accepted.copy(deletedAt="2026-10-19T01:10:00Z"))
+        assertFalse(shouldPersistMessage(tombstone,accepted))
+        assertFalse(shouldPersistMessage(tombstone,accepted.copy(mediaId="old-audio",mediaKind="voice")))
+        // Existing legacy tombstones may still need content scrubbing.
+        assertTrue(shouldPersistMessage(accepted.copy(deletedAt=tombstone.deletedAt),tombstone))
+    }
 }
