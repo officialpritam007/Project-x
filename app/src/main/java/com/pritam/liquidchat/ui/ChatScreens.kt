@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.drop
 }
 @OptIn(ExperimentalFoundationApi::class)
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
+    val homeDisplay=LocalDisplayOptions.current
     Surface(
         shape=Glass.card,
         color=if(LocalGlassDark.current)Color(0xFF20384D).copy(alpha=.62f) else Color.White.copy(alpha=.56f),
@@ -83,8 +84,8 @@ import kotlinx.coroutines.flow.drop
         Row(Modifier.fillMaxWidth().padding(vertical=11.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=52.dp)
             Column(Modifier.weight(1f)) {
-                Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium,maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium.copy(fontSize=homeDisplay.homeChatNameSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis)
+                Text(chat.preview.ifEmpty {"Say hello to @${chat.username}"},style=MaterialTheme.typography.bodyMedium.copy(fontSize=homeDisplay.homeChatPreviewSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
                 if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
@@ -901,6 +902,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
                 valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
+            HorizontalDivider()
+            Text("Conversation name size · ${display.homeChatNameSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeChatNameSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatNameSize=it.toInt()))},
+                valueRange=13f..20f,steps=6,modifier=Modifier.fillMaxWidth())
+            Text("Conversation preview size · ${display.homeChatPreviewSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeChatPreviewSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatPreviewSize=it.toInt()))},
+                valueRange=12f..18f,steps=5,modifier=Modifier.fillMaxWidth())
         }
         if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
