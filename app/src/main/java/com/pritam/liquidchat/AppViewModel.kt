@@ -22,7 +22,7 @@ import kotlinx.coroutines.tasks.await
 internal fun searchRequestCurrent(
     requestedVersion:Long,currentVersion:Long,
     requestedAccount:String,currentAccount:String?,
-    requestedEpoch:Long,currentEpoch:Long
+    requestedEpoch:Long?,currentEpoch:Long?
 ):Boolean = requestedVersion==currentVersion &&
     requestedAccount==currentAccount && requestedEpoch==currentEpoch
 
