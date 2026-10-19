@@ -52,6 +52,17 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
         "${message.id}|${message.mediaId}|${message.editedAt}|${message.starred}"
     }.toList()
 
+/**
+ * Starred entries may be text, photos, or voice. Use the existing protected
+ * media renderers rather than exposing only the caption or a media identifier.
+ */
+internal fun starredMediaPresentation(message:Message):String = when {
+    message.deletedAt.isNotEmpty() -> "hidden"
+    message.mediaKind=="voice" && message.mediaId.isNotEmpty() -> "voice"
+    message.mediaKind=="image" && message.mediaId.isNotEmpty() -> "image"
+    else -> "text"
+}
+
 @Composable internal fun ContactMediaDialog(model:AppViewModel,chat:Chat,sourceVersion:List<Message>,initialKind:String="image",onDismiss:()->Unit) {
     val session by model.session.collectAsStateWithLifecycle()
     val account=session?.userId
@@ -112,7 +123,22 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->FilterChip(selected=kind==value,onClick={kind=value},label={Text(label)})}}
         Text("Shared in this conversation",style=MaterialTheme.typography.labelSmall)
         LazyColumn(Modifier.fillMaxWidth().heightIn(max=350.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            items(rows,key={it.id}) {m->if(kind=="star")Column {Text(m.body,maxLines=3);TextButton(onClick={model.open(chat.id,m.id);onDismiss()}) {Text("Go to message")}} else if(kind=="voice")VoicePlayer(model,m) else SharedImagePreview(model,m)}
+            items(rows,key={it.id}) {m->
+                if(kind=="star") {
+                    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                        when(starredMediaPresentation(m)) {
+                            "voice"->VoicePlayer(model,m)
+                            "image"->SharedImagePreview(model,m)
+                            "text"->Text(m.body,maxLines=3)
+                            else->Text("This message was deleted")
+                        }
+                        TextButton(onClick={model.open(chat.id,m.id);onDismiss()}) {
+                            Text("Go to message")
+                        }
+                    }
+                } else if(kind=="voice") VoicePlayer(model,m)
+                else SharedImagePreview(model,m)
+            }
             if(rows.isEmpty()&&!loading&&!failed)item {Text("No shared ${if(kind=="voice")"voice messages" else if(kind=="star")"starred messages" else "photos"}.")}
             item {
                 when {
