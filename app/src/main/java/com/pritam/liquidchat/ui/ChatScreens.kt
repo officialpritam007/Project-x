@@ -115,6 +115,28 @@ import kotlinx.coroutines.flow.drop
     val results by model.searchResults.collectAsStateWithLifecycle()
     val homePrivacy by model.repository.privateSettings.collectAsStateWithLifecycle()
     val signedInAccount by model.session.collectAsStateWithLifecycle()
+    val homeOwner=signedInAccount?.userId
+    val context=LocalContext.current
+    var homePhotoRevision by remember(homeOwner) {mutableIntStateOf(0)}
+    var homePickerAccount by remember {mutableStateOf<String?>(null)}
+    val homePhoto=remember(homeOwner,homePhotoRevision) {
+        homeOwner?.let {owner->
+            runCatching {
+                com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,
+                    com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
+            }.getOrNull()
+        }
+    }
+    val homePhotoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        val owner=homePickerAccount
+        homePickerAccount=null
+        if(uri!=null && owner!=null && model.session.value?.userId==owner) model.action {
+            val saved=com.pritam.liquidchat.data.PersonalWallpaper.save(context,owner,
+                com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID,uri)
+            if(model.session.value?.userId==owner)homePhotoRevision++
+            else saved.delete()
+        }
+    }
     val inboxDisplay=LocalDisplayOptions.current
     val activeFilter=if(inboxDisplay.hideArchiveAccess && filter==2)0 else filter
     LaunchedEffect(menu,signedInAccount?.userId) {
@@ -125,6 +147,19 @@ import kotlinx.coroutines.flow.drop
         }
     }
     Box(Modifier.fillMaxSize()) {
+    if(homePhoto?.isFile==true) {
+        val imageRequest=remember(homePhoto,homePhotoRevision) {
+            coil.request.ImageRequest.Builder(context).data(homePhoto)
+                .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                .diskCachePolicy(coil.request.CachePolicy.DISABLED).build()
+        }
+        coil.compose.AsyncImage(model=imageRequest,contentDescription=null,
+            contentScale=androidx.compose.ui.layout.ContentScale.Crop,
+            modifier=Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().background(
+            if(LocalGlassDark.current)Color.Black.copy(alpha=.56f)
+            else Color.White.copy(alpha=.45f)))
+    }
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader(if(inboxDisplay.showProfileAsTitle)profile?.optString("display_name").orEmpty().ifBlank {"Liquid Chat"} else "Liquid Chat",brand=true) {
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
@@ -132,6 +167,26 @@ import kotlinx.coroutines.flow.drop
                     // The four filters already have visible, accessible chips below.
                     // Keep overflow for an action rather than duplicating navigation.
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
+                    DropdownMenuItem(text={Text("Choose home wallpaper")},onClick={
+                        menu=false
+                        homePickerAccount=homeOwner
+                        homePhotoPicker.launch("image/*")
+                    },enabled=homeOwner!=null)
+                    if(homePhoto?.isFile==true && homeOwner!=null)
+                        DropdownMenuItem(text={Text("Remove home wallpaper")},onClick={
+                            menu=false
+                            val oldOwner=homeOwner
+                            model.action {
+                                if(model.session.value?.userId==oldOwner) {
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        val path=com.pritam.liquidchat.data.PersonalWallpaper.location(
+                                            context,oldOwner,com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
+                                        require(!path.exists() || path.delete()) {"Unable to remove wallpaper."}
+                                    }
+                                    homePhotoRevision++
+                                }
+                            }
+                        })
                     val privacyLoaded=homePrivacy.has("show_presence") && homePrivacy.has("read_receipts") && homePrivacy.has("notification_previews")
                     val ghost=ghostModeActive(homePrivacy.optBoolean("show_presence",true),homePrivacy.optBoolean("read_receipts",true))
                     DropdownMenuItem(text={Text(if(ghost)"Disable Ghost Mode" else "Enable Ghost Mode")},
