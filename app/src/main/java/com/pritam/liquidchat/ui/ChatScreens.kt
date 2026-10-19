@@ -428,12 +428,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
+    var wallpaperPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
     val wallpaperPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
-        if(uri!=null)model.action {
-            model.repository.setCustomWallpaper(cid,uri)
-            palette="Photo"
-            wallpaperRevision++
-            appearance=false
+        val expected=wallpaperPickerAccount
+        wallpaperPickerAccount=null
+        if(uri!=null && expected!=null && model.session.value?.userId==expected)model.action {
+            model.repository.setCustomWallpaper(cid,uri,expected)
+            if(model.session.value?.userId==expected) {
+                palette="Photo"
+                wallpaperRevision++
+                appearance=false
+            }
         }
     }
     var notificationsOpen by remember(cid) {mutableStateOf(false)}
@@ -826,7 +831,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }}) {Text(if(choice==palette)"✓ $choice" else choice)}
             }
             FilledTonalButton(
-                onClick={wallpaperPicker.launch("image/*")},
+                onClick={wallpaperPickerAccount=session?.userId;wallpaperPicker.launch("image/*")},
                 modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                 Icon(Icons.Outlined.AddPhotoAlternate,null)
                 Spacer(Modifier.width(8.dp))
