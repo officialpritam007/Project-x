@@ -59,7 +59,7 @@ import com.pritam.liquidchat.data.Images
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
             IconButton(onClick={archived=!archived}) {Icon(Icons.Outlined.GridView,"Toggle archived posts")}
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
-                DropdownMenu(menu,{menu=false}) {
+                LiquidDropdownMenu(menu,{menu=false}) {
                     DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
                     val avatarId=profile?.optString("avatar_id").orEmpty()
                     if(avatarId.isNotEmpty()&&avatarId!="null")

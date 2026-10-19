@@ -171,7 +171,7 @@ internal fun recentEmojiChoices(previous:List<String>,selected:String):List<Stri
     var recent by remember {mutableStateOf<List<String>>(emptyList())}
     fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
     val displayed=findEmojis(category,query)
-    AlertDialog(
+    LiquidAlertDialog(
         onDismissRequest=onDismiss,
         title={Text("Emoji")},
         text={

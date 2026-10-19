@@ -1,8 +1,14 @@
 package com.pritam.liquidchat.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -63,6 +69,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
     else -> "text"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun ContactMediaDialog(model:AppViewModel,chat:Chat,sourceVersion:List<Message>,initialKind:String="image",onDismiss:()->Unit) {
     val session by model.session.collectAsStateWithLifecycle()
     val account=session?.userId
@@ -118,35 +125,98 @@ internal fun starredMediaPresentation(message:Message):String = when {
     LaunchedEffect(chat.id,account,epoch,kind,refreshKeys) {
         rows=emptyList();cursor=null;more=true;page(true)
     }
-    LiquidAlertDialog(onDismissRequest=onDismiss,title={Text(chat.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {Avatar(chat.name,chat.avatarId,model.backend);Column {Text("@${chat.username}");TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}}) {Text("Save contact")}}}
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->FilterChip(selected=kind==value,onClick={kind=value},label={Text(label)})}}
-        Text("Shared in this conversation",style=MaterialTheme.typography.labelSmall)
-        LazyColumn(Modifier.fillMaxWidth().heightIn(max=350.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            items(rows,key={it.id}) {m->
-                if(kind=="star") {
-                    Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+    ModalBottomSheet(onDismissRequest=onDismiss,
+        sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
+        containerColor=glassPopupColor(),tonalElevation=0.dp,
+        shape=androidx.compose.foundation.shape.RoundedCornerShape(topStart=30.dp,topEnd=30.dp)) {
+        ContactMediaContent(chat,kind,rows,loading,failed,more,
+            onKind={kind=it},onDismiss=onDismiss,
+            onSave={model.action {model.repository.saveContact(chat.peer,true)}},
+            onPage={scope.launch {page(rows.isEmpty())}},
+            avatar={Avatar(chat.name,chat.avatarId,model.backend,size=76.dp)},
+            media={m->
+                if(kind=="image")SharedImagePreview(model,m,thumbnail=true)
+                else GlassCard(Modifier.fillMaxWidth()) {
+                    if(kind=="voice")VoicePlayer(model,m)
+                    else {
                         when(starredMediaPresentation(m)) {
                             "voice"->VoicePlayer(model,m)
                             "image"->SharedImagePreview(model,m)
-                            "text"->Text(m.body,maxLines=3)
-                            else->Text("This message was deleted")
+                            "text"->Text(m.body,maxLines=6,overflow=TextOverflow.Ellipsis)
                         }
-                        TextButton(onClick={model.open(chat.id,m.id);onDismiss()}) {
-                            Text("Go to message")
+                        TextButton(onClick={model.open(chat.id,m.id);onDismiss()}) {Text("Go to message")}
+                    }
+                }
+            })
+    }
+}
+
+/** One lazy scroll surface keeps the hero, tabs and results reachable in landscape/large text. */
+@Composable internal fun ContactMediaContent(
+    chat:Chat,kind:String,rows:List<Message>,loading:Boolean,failed:Boolean,more:Boolean,
+    onKind:(String)->Unit,onDismiss:()->Unit,onSave:()->Unit,onPage:()->Unit,
+    avatar:@Composable ()->Unit,media:@Composable (Message)->Unit
+) {
+    Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal=20.dp)) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Text("Contact details",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
+            IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close contact details")}
+        }
+        // Each tab owns its viewport; media request/deletion guards stay unchanged.
+        key(chat.id,kind) {
+            LazyVerticalGrid(columns=GridCells.Adaptive(minSize=100.dp),
+                modifier=Modifier.fillMaxWidth().weight(1f).testTag("contact-media-grid"),
+                contentPadding=PaddingValues(top=12.dp,bottom=28.dp),
+                horizontalArrangement=Arrangement.spacedBy(8.dp),
+                verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                item(key="contact",span={GridItemSpan(maxLineSpan)}) {
+                    GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                        Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,
+                            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                            avatar()
+                            Text(chat.name,style=MaterialTheme.typography.headlineSmall)
+                            Text("@${chat.username}",color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedButton(onClick=onSave,modifier=Modifier.heightIn(min=48.dp)) {
+                                Icon(Icons.Outlined.PersonAdd,null,Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp));Text("Save contact")
+                            }
                         }
                     }
-                } else if(kind=="voice") VoicePlayer(model,m)
-                else SharedImagePreview(model,m)
-            }
-            if(rows.isEmpty()&&!loading&&!failed)item {Text("No shared ${if(kind=="voice")"voice messages" else if(kind=="star")"starred messages" else "photos"}.")}
-            item {
-                when {
-                    loading->CircularProgressIndicator(Modifier.size(24.dp))
-                    failed->TextButton(onClick={scope.launch {page(rows.isEmpty())}}) {Text("Retry shared media")}
-                    more->TextButton(onClick={scope.launch {page(false)}}) {Text("Load more")}
+                }
+                item(key="tabs",span={GridItemSpan(maxLineSpan)}) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->
+                            FilterChip(selected=kind==value,onClick={onKind(value)},
+                                label={Text(label)},shape=Glass.capsule)
+                        }
+                    }
+                }
+                item(key="scope",span={GridItemSpan(maxLineSpan)}) {
+                    Text("Shared in this conversation",style=MaterialTheme.typography.labelMedium,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                items(rows,key={it.id},span={GridItemSpan(if(kind=="image")1 else maxLineSpan)}) {media(it)}
+                if(rows.isEmpty()&&!loading&&!failed) item(key="empty",span={GridItemSpan(maxLineSpan)}) {
+                    GlassCard(Modifier.fillMaxWidth()) {
+                        Icon(when(kind){"voice"->Icons.Outlined.MicNone;"star"->Icons.Outlined.StarOutline;else->Icons.Outlined.PhotoLibrary},
+                            null,Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
+                        Text("No shared ${when(kind){"voice"->"voice messages";"star"->"starred messages";else->"photos"}} yet",
+                            style=MaterialTheme.typography.titleMedium)
+                        Text(when(kind){"star"->"Star a message to find it here.";"voice"->"Voice messages you exchange appear here.";else->"Photos you exchange appear here."},
+                            style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                item(key="page",span={GridItemSpan(maxLineSpan)}) {
+                    Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center) {
+                        when {
+                            loading->CircularProgressIndicator(Modifier.size(28.dp))
+                            failed->OutlinedButton(onClick=onPage) {Text("Retry shared media")}
+                            more->OutlinedButton(onClick=onPage) {Text("Load more")}
+                        }
+                    }
                 }
             }
         }
-    }},confirmButton={TextButton(onClick=onDismiss) {Text("Done")}})
+    }
 }
