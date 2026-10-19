@@ -952,7 +952,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     collected.toString(Charsets.UTF_8.name())
                 }
             }
-            val next=MbThemeTransfer.import(json,model.display.value)
+            val next=MbThemeTransfer.decode(json,model.display.value)
             model.setDisplay(next)
             themeFeedback="Theme imported and applied."
         }
