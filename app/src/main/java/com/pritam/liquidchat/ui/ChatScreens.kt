@@ -115,6 +115,8 @@ import kotlinx.coroutines.flow.drop
     val results by model.searchResults.collectAsStateWithLifecycle()
     val homePrivacy by model.repository.privateSettings.collectAsStateWithLifecycle()
     val signedInAccount by model.session.collectAsStateWithLifecycle()
+    val inboxDisplay=LocalDisplayOptions.current
+    val activeFilter=if(inboxDisplay.hideArchiveAccess && filter==2)0 else filter
     LaunchedEffect(menu,signedInAccount?.userId) {
         if(menu && signedInAccount!=null) {
             try {model.repository.loadSettings()}
@@ -124,7 +126,7 @@ import kotlinx.coroutines.flow.drop
     }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        GlassHeader("Liquid Chat",brand=true) {
+        GlassHeader(if(inboxDisplay.showProfileAsTitle)profile?.optString("display_name").orEmpty().ifBlank {"Liquid Chat"} else "Liquid Chat",brand=true) {
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
                 LiquidDropdownMenu(menu,{menu=false}) {
                     // The four filters already have visible, accessible chips below.
@@ -153,10 +155,12 @@ import kotlinx.coroutines.flow.drop
         )
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
+            listOf(0 to "All",1 to "Favorite",2 to "Archive",3 to "Unread")
+                .filter {it.first!=2 || !inboxDisplay.hideArchiveAccess}
+                .forEach { (index,label)->FilterChip(selected=activeFilter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
         }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
+        val visible=chats.filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
@@ -905,6 +909,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
                 valueRange=9f..15f,steps=5,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
             HorizontalDivider()
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Show my profile name as title",Modifier.weight(1f))
+                Switch(display.showProfileAsTitle,{model.setDisplay(display.copy(showProfileAsTitle=it))})
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Hide Archive filter")
+                    Text("Archived conversations remain saved.",style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(display.hideArchiveAccess,{model.setDisplay(display.copy(hideArchiveAccess=it))})
+            }
             Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
                 valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
