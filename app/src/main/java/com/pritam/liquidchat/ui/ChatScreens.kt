@@ -875,6 +875,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
             Text("Appearance",style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
+            Text("Main theme color",style=MaterialTheme.typography.labelLarge)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Cyan","Blue","Green","Purple","Rose","Amber").forEach {value->
+                    FilterChip(selected=display.accentColor==value,onClick={model.setDisplay(display.copy(accentColor=value))},label={Text(value)})
+                }
+            }
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
