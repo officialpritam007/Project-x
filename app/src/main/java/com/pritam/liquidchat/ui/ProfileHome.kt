@@ -61,7 +61,9 @@ import com.pritam.liquidchat.data.Images
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
                 DropdownMenu(menu,{menu=false}) {
                     DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
-                    DropdownMenuItem(text={Text("Remove photo")},onClick={menu=false;model.action {model.setAvatar()}},enabled=!busy)
+                    val avatarId=profile?.optString("avatar_id").orEmpty()
+                    if(avatarId.isNotEmpty()&&avatarId!="null")
+                        DropdownMenuItem(text={Text("Remove photo")},onClick={menu=false;model.action {model.setAvatar()}},enabled=!busy)
                 }
             }
         }
@@ -106,13 +108,13 @@ import com.pritam.liquidchat.data.Images
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val rows=listOf(
                 Triple("Account","Username, Bio, Sign-in",0xFF00A8D8),
-                Triple("Chat Settings","Wallpaper, Night Mode, Animations",0xFFF9A600),
-                Triple("Privacy & Security","Last Seen, Blocked Contacts",0xFF11C748),
-                Triple("Notifications","Sounds, Messages, Badges",0xFFFF3565),
-                Triple("Data and Storage","Media download settings",0xFF357EEB),
+                Triple("Chat Settings","Appearance, Animations, Accessibility",0xFFF9A600),
+                Triple("Privacy & Security","Last Seen, Read Receipts",0xFF11C748),
+                Triple("Notifications","Message Previews",0xFFFF3565),
+                Triple("Data and Storage","Cache, Media Limits",0xFF357EEB),
                 Triple("Chat Folders","Coming soon",0xFF07ACD7),
                 Triple("Devices","Coming soon",0xFF00B6C9),
-                Triple("Power Saving","Battery saving controls",0xFFF99020),
+                Triple("Power Saving","Reduced Motion, Android Battery Settings",0xFFF99020),
                 Triple("Language","Coming soon · English",0xFFB851E0))
             val icons=listOf(
                 Icons.Outlined.Person,Icons.Outlined.ChatBubbleOutline,Icons.Outlined.Lock,
