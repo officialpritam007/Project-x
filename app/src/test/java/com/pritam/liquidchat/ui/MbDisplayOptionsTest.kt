@@ -13,6 +13,10 @@ class MbDisplayOptionsTest {
         assertEquals("Tail",DisplayOptions().bubbleStyle)
         assertEquals("Original",DisplayOptions().bubbleColor)
         assertEquals(16,DisplayOptions().messageFontSize)
+        assertEquals(false,DisplayOptions().showNavLabels)
+        assertEquals(24,DisplayOptions().navIconSize)
+        assertEquals(11,DisplayOptions().navLabelSize)
+        assertEquals(25,DisplayOptions().headerTitleSize)
     }
     @Test fun bubblePalettesAreAppliedWithoutChangingLegacyDefault() {
         assertEquals(null,conversationBubbleColor("Original",true,false))
