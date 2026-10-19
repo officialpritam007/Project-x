@@ -52,3 +52,10 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - The live message composable consumes these settings; unit regressions check legacy defaults and mapping. **Reference pixel parity is not yet proven.** These are working counterpart controls, not an assertion that the list exhausts the MBWhatsApp binary.
 - Remaining high-priority gaps: reference screen screenshots/raster/layout matching, per-chat themes & wallpaper assets, theme import/export, home toolbar and bottom-tab customization, scheduled outbox, edited history, notification policies, and backend-enforced privacy semantics. All need distinct verification; an APK changelog alone is not a working implementation.
 
+
+## Branch 1 continuation — functional Home Screen customization
+
+- The MB Preferences hierarchy now includes **General Settings**, **Home Screen**, and **Conversation Screen**. Settings Home links directly to it.
+- Home Screen options: tab labels show/hide; navigation icon size 18–30dp; label size 9–15sp; branded/home title size 20–30sp. Live GlassNavigation and GlassHeader read the same persisted display state.
+- Defaults retain the previous icon-only 24dp bar, 25sp title, and current route order; five tabs and calling destination remain accessible. No navigation or Supabase behavior was removed.
+- All settings are presentation controls only and cannot be treated as the full home-screen parity target. MBWhatsApp's screenshot-level toolbar/tab assets, ordering, and animated states are still unverified.
