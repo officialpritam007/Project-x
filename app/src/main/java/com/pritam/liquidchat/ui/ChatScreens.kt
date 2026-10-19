@@ -775,7 +775,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen"))"MB Preferences" else null}
+    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}
 
     if(section=="MB Preferences") {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -792,6 +792,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider()
                 GlassActionRow("General Settings",Icons.Outlined.Palette,onClick={section="MB General Settings"})
+                HorizontalDivider()
+                GlassActionRow("Home Screen",Icons.Outlined.Home,onClick={section="MB Home Screen"})
                 HorizontalDivider()
                 GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
             }
@@ -818,7 +820,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val avatar=profile?.optString("avatar_id").orEmpty()
@@ -862,6 +864,24 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("${display.blurIntensity}%",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.blurIntensity.toFloat(),onValueChange={value->model.setDisplay(display.copy(blurIntensity=value.toInt()))},valueRange=0f..100f,enabled=!display.reducedTransparency,modifier=Modifier.fillMaxWidth())
             Text("Lower values reduce blur; Reduced transparency overrides this setting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if(section=="MB Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Home Screen",style=MaterialTheme.typography.titleLarge)
+            Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Show navigation labels",Modifier.weight(1f))
+                Switch(display.showNavLabels,{model.setDisplay(display.copy(showNavLabels=it))})
+            }
+            Text("Navigation icon size · ${display.navIconSize} dp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.navIconSize.toFloat(),onValueChange={model.setDisplay(display.copy(navIconSize=it.toInt()))},
+                valueRange=18f..30f,steps=11,modifier=Modifier.fillMaxWidth())
+            Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
+                valueRange=9f..15f,steps=5,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
+            HorizontalDivider()
+            Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
+                valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
         }
         if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
