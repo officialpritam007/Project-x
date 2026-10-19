@@ -55,6 +55,25 @@ class InstrumentationResultTest(unittest.TestCase):
         self.assertEqual(suite.attrib["skipped"], "1")
 
 
+class ShardCoverageTest(unittest.TestCase):
+    def test_exact_once_coverage_passes(self):
+        cases=[{"class":"fixture.One","name":"first","code":0},
+               {"class":"fixture.Two","name":"second","code":0}]
+        self.assertFalse(runner.verify_sharded_cases(cases, [], minimum=2))
+
+    def test_missing_duplicate_or_skipped_tests_are_never_green(self):
+        a={"class":"fixture.One","name":"first","code":0}
+        for cases, minimum in (([a],2),([a,a],1),
+                               ([{"class":"fixture.Two","name":"skipped","code":-3}],1)):
+            with self.subTest(cases=cases,minimum=minimum):
+                self.assertTrue(runner.verify_sharded_cases(cases, [],minimum=minimum))
+
+    def test_known_failure_is_not_reclassified_as_success(self):
+        self.assertTrue(runner.verify_sharded_cases(
+            [{"class":"fixture.Test","name":"one","code":-2}],
+            ["Shard 1: One or more instrumentation tests failed."],minimum=1))
+
+
 class EmulatorSafetyTest(unittest.TestCase):
     @patch.dict(os.environ, {}, clear=True)
     @patch.object(subprocess, "check_output")
