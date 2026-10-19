@@ -163,3 +163,14 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 
 | MB27 | Hide outgoing typing while entering text, then toggle it back on | Peer stops seeing this device's typing signal (including immediately after toggle); incoming typing still works; preference survives restart and is not altered by theme import |
+
+
+| MB28 | Pick a photo under 10 MB in conversation > Wallpaper, close/reopen, restart | Wallpaper renders below glass messages, persists for same account/conversation, not transmitted to recipient |
+| MB29 | Switch photo → built-in palette → My saved photo | Selection is reversible without unexpected message/data loss |
+| MB30 | Sign out of one account and log in to a different user | Previous user's wallpaper is securely removed from app files and cannot be shown to the other account |
+| MB31 | Reject oversized, invalid, or non-image gallery selection | Visible error; current chat wallpaper and outbox remain unchanged |
+
+
+| MB32 | Choose an image for Chats home wallpaper, switch tabs and reopen app | New wallpaper renders only under Chats, remains legible in dark/light, never transmitted or uploaded |
+| MB33 | Remove Home wallpaper, then choose a second photo | Background immediately reverts to Liquid Glass, replacement shows latest photo without stale Coil image |
+| MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |

@@ -122,3 +122,21 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - PR-head Build #339 compiled with matching APK SHA and passed Edge checks and API29 instrumentation. API35 instrumentation failed: Compose SlotWriter/Activity disposal crash during `ProtectedImageCacheTest.repeatedTransferRejectionStopsAndManualRetryIsBounded` after 73 of 82 attempted tests. **This is a failed gate, not a green test.** The earlier corrupt SDK image in main run #323 was a separate infrastructure fault.
 - Follow-up CI fix partitions Android instrumentation into four independent runner processes using AndroidJUnitRunner's `numShards`/`shardIndex`. All shards must complete, every test must execute once, no skipped tests accepted, and a minimum 80 distinct tests are required for this candidate. Shard JUnit reports and a combined report remain published.
 - Sharding reduces a known cross-test Compose disposal/race surface but must not be treated as a bug fix until the exact new CI run passes. Physical rendering/network/device testing remains pending.
+
+
+## Stage 5 — local custom photo wallpaper (pending verification)
+
+- Conversation > Wallpaper now offers **Choose photo wallpaper** through the Android system gallery, in addition to Ice/Lilac/Mint/Sand palettes.
+- Source photo is passed through the app's existing bounded JPEG preparation (10MB source cap, 25 megapixel decode limit, 2048px downscale), then atomically saved to private `filesDir/wallpapers/<account UUID>/<conversation UUID>.jpg`. Only `Photo` vs a palette name enters the existing Room chat-appearance row; the source gallery URI is never persisted or shared.
+- Reopen the same conversation to restore the selected photo; return to palettes without deleting the photo; use **My saved photo** to restore it. On account sign-out, clear the local wallpaper directory and preserve the current Supabase data unchanged.
+- A white/dark veil behind translucent message cards maintains foreground readability. Unlike video wallpaper, static photo wallpaper has no playback, camera or background battery drain.
+- Gallery photo wallpaper is **device-local**, not transferred to peers or synchronized through Supabase; uninstall/logout erases it. Image tests check private storage, UUID scoping and bounded JPEG creation.
+- Missing: animated/video wallpapers, MBWhatsApp pixel-perfect image crop/editor and reference-specific media controls.
+
+
+## Stage 6 — owner-only Home photo wallpaper
+
+- Chats overflow > **Choose home wallpaper** saves a bounded, app-private JPEG under the authenticated account's reserved home wallpaper key. **Remove home wallpaper** reverts to the original Liquid Glass background immediately.
+- Home photo occupies only the Chats screen backdrop, behind the existing glass list and controls, with a light/dark contrast overlay. No remote upload, billing, camera/mic permission, server schema or other account's file is involved.
+- Account identity is captured before opening Android's gallery picker, checked again before accepting the result and after background preparation. Logout's existing account private-wallpaper cleanup removes the home file.
+- Existing photo/notification/privacy/messaging and one-to-one calling behavior remains as before; actual video wallpaper, dynamic themes and exact MBWhatsApp media chrome remain outstanding.

@@ -258,8 +258,29 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     suspend fun palette(cid:String):String {val id=backend.session.value?.userId ?: return "Ice";return dao.appearance(id,cid)?.palette ?: "Ice"}
     suspend fun setPalette(cid:String,palette:String) {
-        require(palette in listOf("Ice","Lilac","Mint","Sand"));val id=account()
+        require(palette in listOf("Ice","Lilac","Mint","Sand","Photo"))
+        val id=account()
+        if(palette=="Photo")require(PersonalWallpaper.has(context,id,cid)) {"Choose a photo first."}
         dao.putAppearance(ChatAppearance(id,cid,palette));checkAccount(id)
+    }
+
+    suspend fun setCustomWallpaper(cid:String,uri:android.net.Uri,expectedAccount:String) {
+        val id=account()
+        require(id==expectedAccount) {"The active account changed while choosing the wallpaper."}
+        require(dao.chat(id,cid)!=null) {"Open a valid conversation."}
+        val saved=PersonalWallpaper.save(context,id,cid,uri)
+        try {
+            checkAccount(id)
+            dao.putAppearance(ChatAppearance(id,cid,"Photo"))
+            checkAccount(id)
+        } catch(e:Throwable) {
+            // An account switch can race Android's gallery/bitmap work.
+            // Never leave a newly imported private photo after old-account erasure.
+            if(backend.session.value?.userId!=id) {
+                withContext(Dispatchers.IO) {runCatching {saved.delete()}}
+            }
+            throw e
+        }
     }
     /** Local, account-scoped scheduling; queued only when WorkManager reaches sendAt. */
     suspend fun scheduleText(cid:String,body:String,replyTo:String="",sendAt:Long,draftVersion:Long?=null):ScheduledText {
@@ -562,7 +583,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         runCatching {ConversationNotificationChannels.clearAccount(context,account)}
         syncMutex.withLock {drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.clearMessages(account);dao.clearChats(account);dao.clearContacts(account);dao.clearProfile(account);dao.clearDrafts(account);dao.clearAppearance(account);dao.clearHidden(account);dao.clearScheduledTexts(account)}}}}
         withContext(Dispatchers.IO) {
-            for(directory in listOf(java.io.File(context.filesDir,"media/$account"),java.io.File(context.cacheDir,"camera"))) {
+            for(directory in listOf(java.io.File(context.filesDir,"media/$account"),java.io.File(context.filesDir,"wallpapers/$account"),java.io.File(context.cacheDir,"camera"))) {
                 check(!directory.exists() || directory.deleteRecursively()) {"Local media cleanup could not finish. Clear this app's stored data in Android Settings to complete removal."}
             }
             coil.Coil.imageLoader(context).diskCache?.clear()
