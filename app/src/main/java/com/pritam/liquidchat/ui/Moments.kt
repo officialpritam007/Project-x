@@ -343,7 +343,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
         }
     }
     reporting?.let {moment->ReportContentDialog("Report ${if(kind=="story")"story" else "post"}","Your explanation and this content's reference will be sent privately for review.",onSubmit={model.reportMoment(moment.id,it);reporting=null},onDismiss={reporting=null})}
-    deleting?.let {moment->AlertDialog(onDismissRequest={deleting=null},title={Text("Delete this ${if(kind=="story")"story" else "post"}?")},text={Text("It will disappear for you and your contacts.")},confirmButton={TextButton(enabled=!busy,onClick={deleting=null;scope.launch {changeMoment(moment,"delete")}}){Text("Delete")}},dismissButton={TextButton(onClick={deleting=null}){Text("Cancel")}})}
+    deleting?.let {moment->LiquidAlertDialog(onDismissRequest={deleting=null},title={Text("Delete this ${if(kind=="story")"story" else "post"}?")},text={Text("It will disappear for you and your contacts.")},confirmButton={TextButton(enabled=!busy,onClick={deleting=null;scope.launch {changeMoment(moment,"delete")}}){Text("Delete")}},dismissButton={TextButton(onClick={deleting=null}){Text("Cancel")}})}
 }
 
 /**
@@ -527,7 +527,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
         }
     }
     DisposableEffect(Unit) {onDispose {photo?.file?.delete()}}
-    AlertDialog(
+    LiquidAlertDialog(
         onDismissRequest={if(!busy)onDismiss()},
         title={Text(if(kind=="story")"New story" else "New post")},
         text={

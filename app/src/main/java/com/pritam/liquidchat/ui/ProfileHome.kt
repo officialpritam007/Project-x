@@ -101,41 +101,104 @@ import com.pritam.liquidchat.data.Images
     })
 }
 
+@Composable private fun PremiumSettingsTile(
+    title:String,subtitle:String,
+    icon:androidx.compose.ui.graphics.vector.ImageVector,
+    onClick:()->Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min=61.dp)
+            .clip(Glass.compact).clickable(onClick=onClick)
+            .padding(horizontal=8.dp,vertical=7.dp),
+        verticalAlignment=Alignment.CenterVertically,
+        horizontalArrangement=Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier.size(38.dp).background(
+                MaterialTheme.colorScheme.primary.copy(alpha=.11f),Glass.compact
+            ),contentAlignment=Alignment.Center
+        ) {
+            Icon(icon,null,Modifier.size(21.dp),tint=MaterialTheme.colorScheme.primary)
+        }
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+            Text(title,style=MaterialTheme.typography.titleSmall,maxLines=1)
+            Text(subtitle,style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2)
+        }
+        Icon(Icons.Outlined.ChevronRight,null,Modifier.size(19.dp),
+            tint=MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=.7f))
+    }
+}
+
 @Composable fun SettingsHome(model:AppViewModel,onSection:(String)->Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=12.dp,end=12.dp,bottom=90.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    val profile by model.profile.collectAsStateWithLifecycle()
+    val name=profile?.optString("display_name").orEmpty().ifBlank {"My account"}
+    val avatar=profile?.optString("avatar_id").orEmpty().takeIf {it!="null"}.orEmpty()
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal=16.dp)
+            .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        verticalArrangement=Arrangement.spacedBy(14.dp)
+    ) {
         GlassHeader("Liquid Chat Settings")
-        Box(Modifier.clickable {onSection("Account")}) {ProfileHero(model)}
-        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-            val rows=listOf(
-                Triple("Account","Username, Bio, Sign-in",0xFF00A8D8),
-                Triple("Chat Settings","Appearance, Animations, Accessibility",0xFFF9A600),
-                Triple("Privacy & Security","Last Seen, Read Receipts",0xFF11C748),
-                Triple("Notifications","Message Previews",0xFFFF3565),
-                Triple("Data and Storage","Cache, Media Limits",0xFF357EEB),
-                Triple("Chat Folders","Coming soon",0xFF07ACD7),
-                Triple("Devices","Coming soon",0xFF00B6C9),
-                Triple("Power Saving","Reduced Motion, Android Battery Settings",0xFFF99020),
-                Triple("Language","Coming soon · English",0xFFB851E0))
-            val icons=listOf(
-                Icons.Outlined.Person,Icons.Outlined.ChatBubbleOutline,Icons.Outlined.Lock,
-                Icons.Outlined.Notifications,Icons.Outlined.Storage,Icons.Outlined.Dashboard,
-                Icons.Outlined.Devices,Icons.Outlined.BatteryFull,Icons.Outlined.Language
-            )
-            rows.forEachIndexed {i,(title,subtitle,color)->
-                Row(Modifier.fillMaxWidth().heightIn(min=49.dp).clickable {onSection(title)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Box(
-                        Modifier.size(36.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer,Glass.compact),
-                        contentAlignment=Alignment.Center
-                    ) {
-                        Icon(icons[i],null,Modifier.size(20.dp),
-                            tint=MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                    Column(Modifier.weight(1f)) {Text(title,fontSize=16.sp,fontWeight=FontWeight.Bold);Text(subtitle,fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+        Text("YOUR ACCOUNT",style=MaterialTheme.typography.labelMedium,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier=Modifier.padding(start=10.dp,top=3.dp))
+        GlassSurface(Modifier.fillMaxWidth().clickable {onSection("Account")},Glass.hero) {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min=95.dp).padding(16.dp),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(14.dp)
+            ) {
+                Avatar(name,avatar,model.backend,self=true,size=66.dp)
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text(name,style=MaterialTheme.typography.titleLarge,maxLines=1)
+                    Text("@"+profile?.optString("username").orEmpty(),
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+                    Text("Account",style=MaterialTheme.typography.labelMedium,
+                        color=MaterialTheme.colorScheme.primary)
                 }
-                if(i<rows.lastIndex)HorizontalDivider(color=Color.White.copy(alpha=.6f))
+                Icon(Icons.Outlined.ChevronRight,"Open account",tint=MaterialTheme.colorScheme.primary)
             }
         }
-        Text("Developed by Pritam Pal · © 2026 Liquid Chat",fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(bottom=12.dp))
+        Text("PREFERENCES",style=MaterialTheme.typography.labelMedium,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier=Modifier.padding(start=10.dp,top=4.dp))
+        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            val rows=listOf(
+                Triple("Chat Settings","Appearance, motion and accessibility",Icons.Outlined.ChatBubbleOutline),
+                Triple("Privacy & Security","Last seen, read receipts and privacy",Icons.Outlined.Lock),
+                Triple("Notifications","Previews and Android notification controls",Icons.Outlined.Notifications),
+                Triple("Data and Storage","Storage, cache and media limits",Icons.Outlined.Storage)
+            )
+            rows.forEachIndexed {i,(title,subtitle,icon)->
+                PremiumSettingsTile(title,subtitle,icon) {onSection(title)}
+                if(i<rows.lastIndex)HorizontalDivider(
+                    modifier=Modifier.padding(start=58.dp),
+                    color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.5f))
+            }
+        }
+        Text("MORE",style=MaterialTheme.typography.labelMedium,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier=Modifier.padding(start=10.dp,top=4.dp))
+        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            val rows=listOf(
+                Triple("Power Saving","Reduced motion and battery settings",Icons.Outlined.BatteryFull),
+                Triple("Chat Folders","Additional folders not yet available",Icons.Outlined.Dashboard),
+                Triple("Devices","Device management not yet available",Icons.Outlined.Devices),
+                Triple("Language","English · more languages planned",Icons.Outlined.Language)
+            )
+            rows.forEachIndexed {i,(title,subtitle,icon)->
+                PremiumSettingsTile(title,subtitle,icon) {onSection(title)}
+                if(i<rows.lastIndex)HorizontalDivider(
+                    modifier=Modifier.padding(start=58.dp),
+                    color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.5f))
+            }
+        }
+        Text("Liquid Chat · © 2026",style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier=Modifier.fillMaxWidth().padding(vertical=13.dp),
+            textAlign=androidx.compose.ui.text.style.TextAlign.Center)
     }
 }

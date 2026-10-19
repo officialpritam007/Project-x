@@ -118,7 +118,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
     LaunchedEffect(chat.id,account,epoch,kind,refreshKeys) {
         rows=emptyList();cursor=null;more=true;page(true)
     }
-    AlertDialog(onDismissRequest=onDismiss,title={Text(chat.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    LiquidAlertDialog(onDismissRequest=onDismiss,title={Text(chat.name)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {Avatar(chat.name,chat.avatarId,model.backend);Column {Text("@${chat.username}");TextButton(onClick={model.action {model.repository.saveContact(chat.peer,true)}}) {Text("Save contact")}}}
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->FilterChip(selected=kind==value,onClick={kind=value},label={Text(label)})}}
         Text("Shared in this conversation",style=MaterialTheme.typography.labelSmall)
