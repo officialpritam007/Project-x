@@ -139,14 +139,15 @@ import kotlinx.coroutines.flow.drop
                 }
             }
             if(query.isNotBlank()) {
+                val visibleResults=results.filter {it.deletedAt.isEmpty()}
                 item {Text("Downloaded message history",style=MaterialTheme.typography.labelLarge)}
-                items(results.filter {it.deletedAt.isEmpty()},key={"result-${it.id}"}) {m->
+                items(visibleResults,key={"result-${it.id}"}) {m->
                     val chat=chats.firstOrNull {it.id==m.conversation}
                     if(chat!=null) Surface(onClick={model.open(chat.id,m.id)},shape=Glass.compact,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {Text("${chat.name} · ${if(m.sender==m.account)"You" else chat.name}",style=MaterialTheme.typography.labelLarge);Text(m.body,maxLines=2,overflow=TextOverflow.Ellipsis)}
                     }
                 }
-                if(results.isEmpty()) item {Text("No downloaded messages match.",style=MaterialTheme.typography.bodyMedium)}
+                if(visibleResults.isEmpty()) item {Text("No downloaded messages match.",style=MaterialTheme.typography.bodyMedium)}
             }
         }
     }
