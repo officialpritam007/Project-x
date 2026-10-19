@@ -34,6 +34,7 @@ internal object MbThemeTransfer {
         put("bubbleColor",options.bubbleColor)
         put("messageFontSize",options.messageFontSize)
         put("showNavLabels",options.showNavLabels)
+        put("navigationOrder",MbNavigationOrder.normalize(options.navigationOrder))
         put("navIconSize",options.navIconSize)
         put("navLabelSize",options.navLabelSize)
         put("headerTitleSize",options.headerTitleSize)
@@ -76,6 +77,8 @@ internal object MbThemeTransfer {
             bubbleColor=choice("bubbleColor",setOf("Original","Green","Lavender","Rose","Night"),current.bubbleColor),
             messageFontSize=number("messageFontSize",current.messageFontSize,14,22),
             showNavLabels=bool("showNavLabels",current.showNavLabels),
+            navigationOrder=if(j.has("navigationOrder") && j.opt("navigationOrder") is String)
+                MbNavigationOrder.normalize(j.optString("navigationOrder")) else current.navigationOrder,
             navIconSize=number("navIconSize",current.navIconSize,18,30),
             navLabelSize=number("navLabelSize",current.navLabelSize,9,15),
             headerTitleSize=number("headerTitleSize",current.headerTitleSize,20,30),
