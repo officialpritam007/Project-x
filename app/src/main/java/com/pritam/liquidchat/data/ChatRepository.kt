@@ -32,6 +32,14 @@ internal fun changedChatRows(incoming:List<Chat>,existing:List<Chat>):List<Chat>
     return incoming.filter {previous[it.account to it.id]!=it}
 }
 
+/** Never keep deleted text, attachments or reply metadata in newly cached tombstones. */
+internal fun scrubDeletedMessage(message:Message):Message =
+    if(message.deletedAt.isEmpty())message else message.copy(
+        body="This message was deleted",mediaId="",localImage="",
+        imageWidth=0,imageHeight=0,mediaKind="image",durationMs=0,
+        replyTo="",reactions="{}",starred=false
+    )
+
 internal fun changedContactRows(incoming:List<Contact>,existing:List<Contact>):List<Contact> {
     val previous=existing.associateBy {it.account to it.id}
     return incoming.filter {previous[it.account to it.id]!=it}
@@ -364,7 +372,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     private suspend fun putVisible(message:Message)=db.withTransaction {
         if(!dao.hidden(message.account,message.id)&&
-            (message.seq==0L||message.seq>(dao.chat(message.account,message.conversation)?.deletedSeq ?: 0)))dao.putPreservingAcceptance(message)
+            (message.seq==0L||message.seq>(dao.chat(message.account,message.conversation)?.deletedSeq ?: 0)))
+            dao.putPreservingAcceptance(scrubDeletedMessage(message))
     }
     private suspend fun applySnapshot(j:JSONObject,account:String,existingOnly:Boolean=false) {
         val id=j.getString("id");val old=dao.message(account,id)
@@ -377,8 +386,11 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         } else if(old!=null||!existingOnly) {
             val parsed=parseMessage(j,account)
             val message=parsed.copy(localTime=old?.localTime ?: parsed.localTime)
+            if(message.deletedAt.isNotEmpty()) {
+                old?.localImage?.takeIf {it.isNotEmpty()}?.let {java.io.File(it).delete()}
+                context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
+            }
             putVisible(message)
-            if(message.deletedAt.isNotEmpty())context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
         }
     }
     suspend fun messageAction(id:String,action:String,value:String="") {
