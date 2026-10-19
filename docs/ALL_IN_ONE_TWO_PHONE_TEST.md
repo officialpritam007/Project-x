@@ -174,3 +174,10 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB32 | Choose an image for Chats home wallpaper, switch tabs and reopen app | New wallpaper renders only under Chats, remains legible in dark/light, never transmitted or uploaded |
 | MB33 | Remove Home wallpaper, then choose a second photo | Background immediately reverts to Liquid Glass, replacement shows latest photo without stale Coil image |
 | MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |
+
+
+| MB32 | MB Conversation Screen: remove a default quick-reaction emoji, enable 👏, long-press a sent message | Reaction bar updates live; all selected choices send the real Supabase reaction action, toggling current reaction removes it |
+| MB33 | Attempt six-plus selection, reset quick reactions, and restart | UI never offers unsupported emojis or exceeds six; selected preset survives restart; reset restores original six |
+| MB34 | Export/import a theme with modified reactions; open the same message | Reaction preset round-trips; no personal messages, account secrets or preview-privacy option exported |
+| MB35 | Enable Hide chat-list message previews, receive a new text/photo, reopen Chats | Inbox shows generic preview even for incoming content; chat history is unchanged and unopened push previews follow separate notification settings |
+| MB36 | Disable hide previews after restart | Actual preview text returns; no re-sending or data mutation occurs |
