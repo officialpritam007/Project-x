@@ -364,7 +364,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var starsOpen by remember(cid) {mutableStateOf(false)}
     val body=input.text
     fun updateInput(value:TextFieldValue) {val changed=input.text!=value.text;input=value;if(changed)draftVersion=model.repository.saveDraft(cid,value.text,replyTo)}
-    LaunchedEffect(cid) {
+    LaunchedEffect(cid,session?.userId) {
+        if(session?.userId==null) {
+            input=TextFieldValue("")
+            replyTo=""
+            palette="Ice"
+            return@LaunchedEffect
+        }
         val draft=model.repository.draft(cid)
         input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0));replyTo=draft?.replyTo.orEmpty();draftVersion=draft?.updatedAt ?: 0;draftReady=true
         palette=model.repository.palette(cid)
