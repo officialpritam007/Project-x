@@ -78,3 +78,16 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Database instrumentation covers non-dispatch-before-due, user isolation and safe deletion. Room v1→v8 migration fixture preserves older pending messages and drafts.
 - **Limitations:** schedules are stored *locally on this device*, not synchronized to other devices or the Supabase server. Android power/battery policies can delay exact dispatch. Clearing app data, uninstalling or signing out removes local schedules. No scheduled media, recurring/group messages, or server-time SLA. Real reboot/Doze/device acceptance remains required; this is not yet a production scheduling guarantee.
 - Calling remains enabled by existing workflow configuration. Candidate version 1.0.0-rc6-mb-preview (13); exact-head CI plus exact merged-main checks are required before release.
+
+## Stage 3 — locally exportable and importable theme JSON
+
+- MB Preferences > Themes now uses Android's document picker to create a `LiquidChat-Theme.json` file and import one. Roundtrip carries all supported Liquid Chat display settings; no account, session, message, file/media link or secret data is exported.
+- Imported files are limited to 32 KiB, versioned, type-checked and clamped. Malformed or foreign formats are rejected without partially persisting state. A successful import uses the existing synchronized `setDisplay` persistence path and applies live.
+- This **does not support MBWhatsApp's proprietary theme files**, arbitrary fonts, launcher icon packs, or screenshot-perfect themes. The menu explicitly explains the distinction. The change does not touch Supabase/FCM/WebRTC or add a paid dependency.
+- UI import/export implementation and instrumentation codec tests require CI and emulator checks before merge.
+
+## Stage 3 continuation — MB navigation parity and conversation preview
+
+- MB Preferences now links to actual existing server-backed **Privacy** and Android-backed **Notifications** screens, in addition to General/Home/Conversation/Themes. Returning from nested sections leads back to MB Preferences.
+- Long-pressing a home conversation opens a read-only preview of up to three cached, authorized, non-deleted messages with a working **Open conversation** action. Media is represented by descriptive labels, not unauthorized image reads. The existing pin/archive/favorite/mute/delete actions remain.
+- The reference-specific visual modal geometry and unsupported notification or theme controls still require further work; never claim full screenshot matching based on these stateful counterparts.

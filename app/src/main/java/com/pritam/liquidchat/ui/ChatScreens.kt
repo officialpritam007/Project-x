@@ -188,7 +188,26 @@ import kotlinx.coroutines.flow.drop
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
-    selectedChat?.let {c->LiquidActionSheet(title=c.name,onDismiss={selectedChat=null}) {
+    selectedChat?.let {c->
+        val previewFlow=remember(model,c.id) {model.repository.messages(c.id)}
+        val previewMessages by previewFlow.collectAsStateWithLifecycle(initialValue=emptyList())
+        LiquidActionSheet(title=c.name,onDismiss={selectedChat=null}) {
+        Text("Conversation preview",style=MaterialTheme.typography.titleSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(horizontal=12.dp))
+        GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
+            val preview=previewMessages.filter {it.deletedAt.isEmpty()}.takeLast(3)
+            if(preview.isEmpty()) Text("No downloaded messages to preview.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            else preview.forEach {m->
+                Text(if(m.sender==m.account)"You" else c.name,
+                    style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
+                Text(if(m.mediaKind=="voice")"Voice message" else if(m.mediaId.isNotEmpty() || m.localImage.isNotEmpty())"Photo message" else m.body,
+                    maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
+            }
+        }
+        GlassActionRow("Open conversation",Icons.Outlined.ChatBubbleOutline,
+            onClick={selectedChat=null;model.open(c.id)})
+        HorizontalDivider(Modifier.padding(vertical=8.dp))
         GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
             onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
         GlassActionRow("Mark unread",Icons.Outlined.MarkChatUnread,
@@ -889,7 +908,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}
+    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}
 
     if(section=="MB Preferences") {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -910,6 +929,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 GlassActionRow("Home Screen",Icons.Outlined.Home,onClick={section="MB Home Screen"})
                 HorizontalDivider()
                 GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
+                HorizontalDivider()
+                GlassActionRow("Themes",Icons.Outlined.ColorLens,onClick={section="MB Themes"})
+                HorizontalDivider()
+                GlassActionRow("Privacy",Icons.Outlined.Lock,onClick={section="MB Privacy"})
+                HorizontalDivider()
+                GlassActionRow("Notifications",Icons.Outlined.Notifications,onClick={section="MB Notifications"})
             }
         }
         return
@@ -921,6 +946,40 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val unsent by model.unsent.collectAsStateWithLifecycle()
     val display by model.display.collectAsStateWithLifecycle()
     val context=LocalContext.current
+    var themeFeedback by remember {mutableStateOf<String?>(null)}
+    val exportTheme=rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(MbThemeTransfer.MIME_TYPE)) {uri->
+        if(uri!=null)model.action {
+            val json=MbThemeTransfer.export(model.display.value)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val stream=context.contentResolver.openOutputStream(uri) ?: error("Cannot open theme file for writing.")
+                stream.use {it.write(json.toByteArray(Charsets.UTF_8));it.flush()}
+            }
+            themeFeedback="Theme exported successfully."
+        }
+    }
+    val importTheme=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
+        if(uri!=null)model.action {
+            val json=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val stream=context.contentResolver.openInputStream(uri) ?: error("Cannot open selected file.")
+                stream.use {input ->
+                    val buffer=ByteArray(4096)
+                    val collected=java.io.ByteArrayOutputStream()
+                    while(true) {
+                        val n=input.read(buffer)
+                        if(n<0)break
+                        if(n==0)continue
+                        require(collected.size()+n<=MbThemeTransfer.MAX_IMPORT_BYTES) {"Theme file is too large."}
+                        collected.write(buffer,0,n)
+                    }
+                    collected.toString(Charsets.UTF_8.name())
+                }
+            }
+            val next=MbThemeTransfer.decode(json,model.display.value)
+            model.setDisplay(next)
+            themeFeedback="Theme imported and applied."
+        }
+    }
     val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,id)
@@ -934,8 +993,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
+        if(section=="MB Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Themes",style=MaterialTheme.typography.titleLarge)
+            Text("Save your current Liquid Chat appearance to a JSON theme, or import a saved theme.",style=MaterialTheme.typography.bodyMedium)
+            Text("Imported themes change only this device's colors, navigation and chat appearance. No messages, accounts or contacts are exported.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider()
+            FilledTonalButton(onClick={exportTheme.launch("LiquidChat-Theme.json")},modifier=Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.FileUpload,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Export current theme")
+            }
+            OutlinedButton(onClick={importTheme.launch(arrayOf("application/json","text/plain"))},modifier=Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.FileDownload,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Import Liquid Chat theme")
+            }
+            Text("MBWhatsApp theme packages are not directly compatible. This imports Liquid Chat .json files only.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            themeFeedback?.let {Text(it,color=MaterialTheme.colorScheme.primary)}
+        }
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val avatar=profile?.optString("avatar_id").orEmpty()
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
@@ -1078,9 +1155,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 runCatching {context.startActivity(intent)}
             }) {Text("Open Android app settings")}
         }
-        if(section in listOf("Privacy & Security","Notifications")) GlassCard(Modifier.fillMaxWidth()) {
+        if(section in listOf("Privacy & Security","Notifications","MB Privacy","MB Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
-            if(section=="Privacy & Security") {
+            if(section=="Privacy & Security" || section=="MB Privacy") {
                 val loaded=settings.has("show_presence") && settings.has("read_receipts") && settings.has("notification_previews")
                 val enabled=ghostModeActive(settings.optBoolean("show_presence",true),settings.optBoolean("read_receipts",true))
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
@@ -1102,7 +1179,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 HorizontalDivider()
             }
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
-            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
+            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications" || section=="MB Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Text(label,Modifier.weight(1f))
                     Switch(checked=settings.optBoolean(key,true),enabled=!busy&&settings.has(key),onCheckedChange={checked->model.action {
@@ -1111,7 +1188,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
             }
         }
-        if(section=="Notifications") NotificationSystemSettings()
+        if(section=="Notifications" || section=="MB Notifications") NotificationSystemSettings()
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
         TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
