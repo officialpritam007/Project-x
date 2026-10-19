@@ -161,3 +161,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - After a successful authenticated Supabase `set_conversation(p_delete=true)`, local chat history, draft, scheduled texts and appearance row are removed together; the private wallpaper JPEG and dedicated Android per-contact notification channel/preferences are also removed. Home wallpaper and all other conversations remain intact.
 - Failed server deletion no longer erases locally scheduled messages first. No remote customer data, Supabase schema or paid provider is changed. User-visible failures from local cleanup are not silently presented as successful erasure.
 - Tests verify that per-chat file/channel erasure does not delete another conversation or account's settings. Physical delete/account-switch acceptance remains open.
+
+
+## Stage 10 — restore only the appearance safely
+
+- MB Preferences > Themes adds an explicit, confirmed **Restore default appearance** action using a single copy of the current immutable DisplayOptions values.
+- Original Liquid Chat visual defaults are restored, including accent, font family, conversation bubble style/colors, header/navigation dimensions, wallpaper dimming and quick reactions.
+- Security and accessibility state is **preserved**: hide outgoing typing, hide inbox previews, prevent screenshots, reduced motion and reduced transparency. No on-disk wallpaper files, messages, user accounts or Supabase records are removed. All values use existing local display persistence.
+- Android regression test verifies that resetting all modified visuals does not silently turn off privacy/accessibility controls. Proprietary MBWhatsApp theme import remains unsupported.
