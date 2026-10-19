@@ -53,11 +53,26 @@ private val PremiumTypography=Typography(
     bodyLarge=Typography().bodyLarge.copy(letterSpacing=0.05f.sp),
     labelLarge=Typography().labelLarge.copy(fontWeight=FontWeight.Medium)
 )
+/** User-selected primary theme; Cyan deliberately retains the original palette exactly. */
+internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
+    val base=if(dark)Dark else Light
+    val colors=when(accent) {
+        "Blue" -> if(dark)Color(0xFFA5C9FF) to Color(0xFF183A65) else Color(0xFF0056B5) to Color(0xFFE5F0FF)
+        "Green" -> if(dark)Color(0xFF8FE2B0) to Color(0xFF1D4533) else Color(0xFF176C45) to Color(0xFFE5F5E8)
+        "Purple" -> if(dark)Color(0xFFD7B9FF) to Color(0xFF493263) else Color(0xFF6E49B6) to Color(0xFFF0E7FF)
+        "Rose" -> if(dark)Color(0xFFFFB1D4) to Color(0xFF563046) else Color(0xFFA33C6F) to Color(0xFFFFE9F2)
+        "Amber" -> if(dark)Color(0xFFFFCE80) to Color(0xFF524021) else Color(0xFF825400) to Color(0xFFFFF0D0)
+        else -> return base
+    }
+    return base.copy(primary=colors.first,primaryContainer=colors.second,
+        onPrimary=if(dark)Color(0xFF102033) else Color.White,
+        onPrimaryContainer=if(dark)colors.first else colors.first)
+}
 @Composable fun LiquidTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val haze=remember {HazeState()}
     CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze) {
         MaterialTheme(
-            colorScheme=if(dark) Dark else Light,
+            colorScheme=liquidAccentScheme(dark,LocalDisplayOptions.current.accentColor),
             shapes=Shapes(small=Glass.compact,medium=Glass.card,large=Glass.hero),
             typography=PremiumTypography,
             content=content
