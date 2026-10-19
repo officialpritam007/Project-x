@@ -112,3 +112,7 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 
 - MB Privacy / Privacy & Security exposes **Hide outgoing typing**. On this device, the conversation effect stops sending typing=true and sends a typing=false on cancellation when hiding is activated. Incoming typing indicators remain unaffected.
 - This is deliberately device-local (unlike Ghost Mode's Supabase-backed presence/read receipts) and is not exported in a theme file. Other devices signed into the same account may still send their own typing signals. No server-wide or WhatsApp-protocol anti-typing guarantee is claimed.
+
+## Stage 4 continuation — cache management entry
+
+- MB General Settings now includes the existing functional **Data & Storage** panel with image-cache size and a confirmed **Clear cached images** action. The action clears Coil disk/memory thumbnails only, preserving Room message history, drafts, outbox, Cloudinary/Supabase media, and protected previews. This is not an unsafe global delete or an auto-cleaner guarantee.
