@@ -369,6 +369,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
+    var notificationsOpen by remember(cid) {mutableStateOf(false)}
+    var customNotificationEnabled by remember(cid,session?.userId) {
+        mutableStateOf(session?.userId?.let {
+            com.pritam.liquidchat.data.ConversationNotificationChannels.enabled(context,it,cid)
+        } ?: false)
+    }
+    var notificationError by remember(cid) {mutableStateOf<String?>(null)}
     var requestedCallKind by remember(cid) {mutableStateOf("audio")}
     val callPermissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {granted->
         val needed=if(requestedCallKind=="video")listOf(android.Manifest.permission.RECORD_AUDIO,android.Manifest.permission.CAMERA) else listOf(android.Manifest.permission.RECORD_AUDIO)
@@ -475,6 +482,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             onClick={menu=false;schedulesOpen=true})
                         GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
                             onClick={menu=false;starsOpen=true})
+                        GlassActionRow("Custom notifications",Icons.Outlined.Notifications,
+                            onClick={menu=false;notificationsOpen=true})
                         HorizontalDivider(Modifier.padding(vertical=8.dp))
                         GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
                             onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
@@ -665,6 +674,54 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
             HorizontalDivider()
         }
+    }
+    if(notificationsOpen && chat!=null && session?.userId!=null) {
+        val notificationAccount=session!!.userId
+        LiquidAlertDialog(
+            onDismissRequest={notificationsOpen=false;notificationError=null},
+            title={Text("Custom notifications")},
+            text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Separate notification channel",style=MaterialTheme.typography.titleSmall)
+                        Text("Use a dedicated Android channel for ${chat.name}.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked=customNotificationEnabled,
+                        onCheckedChange={on->
+                            try {
+                                com.pritam.liquidchat.data.ConversationNotificationChannels
+                                    .setEnabled(context,notificationAccount,cid,chat.name,on)
+                                customNotificationEnabled=on
+                                notificationError=null
+                            } catch(e:Exception) {
+                                notificationError=e.message ?: "Unable to change notification channel."
+                            }
+                        })
+                }
+                if(customNotificationEnabled) FilledTonalButton(onClick={
+                    try {
+                        com.pritam.liquidchat.data.ConversationNotificationChannels
+                            .createChannel(context,notificationAccount,cid,chat.name)
+                        context.startActivity(
+                            com.pritam.liquidchat.data.ConversationNotificationChannels
+                                .settingsIntent(context,notificationAccount,cid))
+                        notificationError=null
+                    } catch(e:Exception) {
+                        notificationError=e.message ?: "Android channel settings unavailable."
+                    }
+                },modifier=Modifier.fillMaxWidth()) {Text("Choose sound and vibration in Android")}
+                Text("Android controls sounds, vibration, importance and permission. This is separate from this chat's Mute switch and your server notification-preview privacy setting.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                notificationError?.let {Text(it,color=MaterialTheme.colorScheme.error,
+                    style=MaterialTheme.typography.bodySmall)}
+            }},
+            confirmButton={TextButton(onClick={notificationsOpen=false;notificationError=null}) {
+                Text("Done")
+            }}
+        )
     }
     if(appearance)LiquidAlertDialog(onDismissRequest={appearance=false},title={Text("Chat wallpaper")},text={Column {listOf("Ice","Lilac","Mint","Sand").forEach {choice->TextButton(onClick={model.action {model.repository.setPalette(cid,choice);palette=choice;appearance=false}}) {Text(if(choice==palette)"✓ $choice" else choice)}}}},confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}})
     actionMessage?.let {m->
