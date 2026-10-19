@@ -941,6 +941,27 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
         if(section in listOf("Privacy & Security","Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
+            if(section=="Privacy & Security") {
+                val loaded=settings.has("show_presence") && settings.has("read_receipts") && settings.has("notification_previews")
+                val enabled=ghostModeActive(settings.optBoolean("show_presence",true),settings.optBoolean("read_receipts",true))
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Ghost Mode",style=MaterialTheme.typography.titleSmall)
+                        Text("Hide online/last seen and new read receipts for your account.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=enabled,enabled=loaded&&!busy,onCheckedChange={checked ->
+                        model.action {
+                            val next=ghostModeSettings(checked)
+                            model.repository.settings(next.first,next.second,settings.optBoolean("notification_previews",true))
+                        }
+                    })
+                }
+                Text("Ghost Mode uses server-enforced account privacy. Switching it off restores both privacy controls; it cannot retract receipts already sent.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+            }
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
             listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
