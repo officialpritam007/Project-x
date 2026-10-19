@@ -15,10 +15,10 @@ class MbQuickReactionsTest {
         var setting=MbQuickReactions.defaultSetting
         setting=MbQuickReactions.toggle(setting,"🙏")
         assertEquals(5,MbQuickReactions.selected(setting).size)
-        setting=MbQuickReactions.toggle(setting,"🔥")
-        assertEquals("🔥",MbQuickReactions.selected(setting).last())
+        setting=MbQuickReactions.toggle(setting,"👏")
+        assertEquals("👏",MbQuickReactions.selected(setting).last())
         assertEquals(6,MbQuickReactions.selected(setting).size)
-        assertEquals(setting,MbQuickReactions.toggle(setting,"💯"))
+        assertEquals(setting,MbQuickReactions.toggle(setting,"🎉"))
         for(emoji in MbQuickReactions.selected(setting).take(5)) {
             setting=MbQuickReactions.toggle(setting,emoji)
         }
@@ -34,6 +34,8 @@ class MbQuickReactionsTest {
         assertEquals(MbQuickReactions.defaultSetting,
             MbQuickReactions.normalize("👍,".repeat(128)))
         assertEquals("👍",MbQuickReactions.toggle("👍","unknown"))
+        assertEquals(MbQuickReactions.defaults,MbQuickReactions.available.take(6))
+        assertFalse("🔥" in MbQuickReactions.available)
     }
 
     @Test fun homePreviewPrivacyDefaultsOff() {
