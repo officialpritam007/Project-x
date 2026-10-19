@@ -575,6 +575,77 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val text=body.replaceRange(start,end,emoji)
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
     },onDismiss={emojiPicker=false})
+    if(scheduleOpen) LiquidAlertDialog(
+        onDismissRequest={scheduleOpen=false},
+        title={Text("Schedule a message")},
+        text={Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(scheduleBody,{if(it.length<=4000)scheduleBody=it},
+                label={Text("Message")},modifier=Modifier.fillMaxWidth(),maxLines=6,
+                keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences))
+            Text("Scheduled for " + java.time.Instant.ofEpochMilli(scheduleAt)
+                .atZone(java.time.ZoneId.systemDefault())
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")))
+            OutlinedButton(onClick={
+                val selected=java.util.Calendar.getInstance().apply {timeInMillis=scheduleAt}
+                android.app.DatePickerDialog(context,{_,year,month,day->
+                    android.app.TimePickerDialog(context,{_,hour,minute->
+                        scheduleAt=java.util.Calendar.getInstance().apply {
+                            set(year,month,day,hour,minute)
+                            set(java.util.Calendar.SECOND,0)
+                            set(java.util.Calendar.MILLISECOND,0)
+                        }.timeInMillis
+                    },selected.get(java.util.Calendar.HOUR_OF_DAY),selected.get(java.util.Calendar.MINUTE),
+                        android.text.format.DateFormat.is24HourFormat(context)).show()
+                },selected.get(java.util.Calendar.YEAR),selected.get(java.util.Calendar.MONTH),
+                    selected.get(java.util.Calendar.DAY_OF_MONTH)).apply {
+                    datePicker.minDate=System.currentTimeMillis()-86_400_000L
+                    datePicker.maxDate=System.currentTimeMillis()+180L*86_400_000L
+                }.show()
+            }) {Text("Choose date and time")}
+            Text("Stored on this device until due. Android may delay delivery; signing out or deleting the chat cancels local schedules.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }},
+        confirmButton={TextButton(onClick={
+            val text=scheduleBody
+            val expectedReply=scheduleReplyTo
+            val version=scheduleDraftVersion
+            val sendAt=scheduleAt
+            val consumeVersion=version.takeIf {it>0L&&body==text&&replyTo==expectedReply&&draftVersion==it}
+            model.action {
+                model.repository.scheduleText(cid,text,expectedReply,sendAt,consumeVersion)
+                scheduleOpen=false
+                if(consumeVersion!=null && body==text && replyTo==expectedReply && draftVersion==version) {
+                    input=TextFieldValue("")
+                    replyTo=""
+                }
+            }
+        },enabled=!busy&&scheduleBody.isNotBlank()&&scheduleAt>=System.currentTimeMillis()+60_000L) {
+            Text("Schedule")
+        }},
+        dismissButton={TextButton(onClick={scheduleOpen=false}) {Text("Cancel")}}
+    )
+    if(schedulesOpen) LiquidActionSheet(title="Scheduled messages",onDismiss={schedulesOpen=false}) {
+        if(scheduledTexts.isEmpty()) Text("No scheduled messages for this conversation.",
+            style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        scheduledTexts.forEach {item ->
+            Row(Modifier.fillMaxWidth().padding(vertical=8.dp),
+                verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(item.body,maxLines=3,overflow=TextOverflow.Ellipsis)
+                    Text(java.time.Instant.ofEpochMilli(item.sendAt)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")),
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick={model.action {model.repository.cancelScheduledText(item.id)}},
+                    enabled=!busy) {Icon(Icons.Outlined.Close,"Cancel scheduled message")}
+            }
+            HorizontalDivider()
+        }
+    }
     if(appearance)LiquidAlertDialog(onDismissRequest={appearance=false},title={Text("Chat wallpaper")},text={Column {listOf("Ice","Lilac","Mint","Sand").forEach {choice->TextButton(onClick={model.action {model.repository.setPalette(cid,choice);palette=choice;appearance=false}}) {Text(if(choice==palette)"✓ $choice" else choice)}}}},confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}})
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
