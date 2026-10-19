@@ -14,6 +14,8 @@ import java.util.UUID
  * UUID validation makes it impossible for account/chat parameters to form paths.
  */
 internal object PersonalWallpaper {
+    /** Reserved key for the owner-visible Chats home wallpaper, not a conversation. */
+    const val HOME_CID="00000000-0000-0000-0000-000000000000"
     private fun checkedId(id:String):String =
         UUID.fromString(id).toString().also {
             require(it==id.lowercase()) {"Wallpaper identity must be a UUID."}
