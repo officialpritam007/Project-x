@@ -140,3 +140,10 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Home photo occupies only the Chats screen backdrop, behind the existing glass list and controls, with a light/dark contrast overlay. No remote upload, billing, camera/mic permission, server schema or other account's file is involved.
 - Account identity is captured before opening Android's gallery picker, checked again before accepting the result and after background preparation. Logout's existing account private-wallpaper cleanup removes the home file.
 - Existing photo/notification/privacy/messaging and one-to-one calling behavior remains as before; actual video wallpaper, dynamic themes and exact MBWhatsApp media chrome remain outstanding.
+
+
+## Stage 6 — secure screen captures (opt-in)
+
+- Both Privacy & Security and MB Privacy provide a saved local switch for Android `FLAG_SECURE`. It blocks standard screenshots and recent-app thumbnails on protected app windows, and reversibly clears the flag.
+- Default is **off** for accessibility and support screenshots. It does not stop external cameras or substitute for end-to-end encryption.
+- The option is not in theme export and does not alter Supabase account settings, calling, or media authorization.

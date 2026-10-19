@@ -24,6 +24,7 @@ class MbDisplayOptionsTest {
         assertEquals(false,DisplayOptions().hideArchiveAccess)
         assertEquals("System",DisplayOptions().fontPreset)
         assertEquals(false,DisplayOptions().hideOutgoingTyping)
+        assertEquals(false,DisplayOptions().preventScreenshots)
         assertEquals(liquidTypography("System"),liquidTypography("unknown"))
         org.junit.Assert.assertNotEquals(liquidTypography("System").bodyLarge.fontFamily,liquidTypography("Serif").bodyLarge.fontFamily)
         assertEquals(liquidAccentScheme(false,"Cyan"),liquidAccentScheme(false,"unknown"))
