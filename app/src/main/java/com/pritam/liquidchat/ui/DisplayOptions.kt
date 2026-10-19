@@ -22,6 +22,8 @@ data class DisplayOptions(
     val hideArchiveAccess:Boolean=false,
     val fontPreset:String="System",
     val hideOutgoingTyping:Boolean=false,
-    val preventScreenshots:Boolean=false
+    val preventScreenshots:Boolean=false,
+    val homeWallpaperDim:Int=50,
+    val chatWallpaperDim:Int=50
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
