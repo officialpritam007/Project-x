@@ -73,7 +73,10 @@ private val PremiumTypography=Typography(
 /** Source-backed live blur with foreground text outside the captured effect. */
 @Composable fun GlassSurface(modifier: Modifier=Modifier, shape: Shape=Glass.card, content: @Composable () -> Unit) {
     val dark=LocalGlassDark.current
-    val opaque=LocalDisplayOptions.current.reducedTransparency
+    val options=LocalDisplayOptions.current
+    val opaque=options.reducedTransparency
+    // Keep 22dp as the original blur at 55%; update the surface dynamically.
+    val blurRadius=(options.blurIntensity.coerceIn(0,100)*0.4f).dp
     val tint=if(dark) Color(0xFF263A50) else Color.White
     Surface(
         modifier.shadow(10.dp,shape,
@@ -89,7 +92,7 @@ private val PremiumTypography=Typography(
             style=HazeStyle(
                 backgroundColor=MaterialTheme.colorScheme.background,
                 tint=HazeTint(tint.copy(alpha=if(dark).56f else .57f)),
-                blurRadius=22.dp,
+                blurRadius=blurRadius,
                 noiseFactor=.018f,
                 fallbackTint=HazeTint(tint.copy(alpha=.94f))
             )
