@@ -202,8 +202,9 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         // Local per-conversation privacy is deliberately stricter than the
         // server's global previews flag. Neither the collapsed notification nor
         // BigTextStyle may contain a suppressed message body.
-        val showBody=previews && !ConversationNotificationChannels.hiddenPreview(context,account,cid)
-        val visibleBody=if(showBody)body else "New message"
+        val privateChat=ConversationNotificationChannels.hiddenPreview(context,account,cid)
+        val showBody=notificationBodyAllowed(previews,privateChat)
+        val visibleBody=notificationBodyForDisplay(body,previews,privateChat)
         val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).putExtra("accountId",account).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,id.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification=NotificationCompat.Builder(context,channel)
