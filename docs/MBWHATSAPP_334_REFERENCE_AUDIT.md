@@ -116,3 +116,9 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 ## Stage 4 continuation — cache management entry
 
 - MB General Settings now includes the existing functional **Data & Storage** panel with image-cache size and a confirmed **Clear cached images** action. The action clears Coil disk/memory thumbnails only, preserving Room message history, drafts, outbox, Cloudinary/Supabase media, and protected previews. This is not an unsafe global delete or an auto-cleaner guarantee.
+
+## CI blocker evidence and correction (run #339)
+
+- PR-head Build #339 compiled with matching APK SHA and passed Edge checks and API29 instrumentation. API35 instrumentation failed: Compose SlotWriter/Activity disposal crash during `ProtectedImageCacheTest.repeatedTransferRejectionStopsAndManualRetryIsBounded` after 73 of 82 attempted tests. **This is a failed gate, not a green test.** The earlier corrupt SDK image in main run #323 was a separate infrastructure fault.
+- Follow-up CI fix partitions Android instrumentation into four independent runner processes using AndroidJUnitRunner's `numShards`/`shardIndex`. All shards must complete, every test must execute once, no skipped tests accepted, and a minimum 80 distinct tests are required for this candidate. Shard JUnit reports and a combined report remain published.
+- Sharding reduces a known cross-test Compose disposal/race surface but must not be treated as a bug fix until the exact new CI run passes. Physical rendering/network/device testing remains pending.
