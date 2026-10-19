@@ -28,8 +28,8 @@ internal fun stableContactSnapshot(previous:JSONObject,incoming:JSONObject):JSON
  * unread count, pinned/favourite/archive and synchronized cursors.
  */
 internal fun changedChatRows(incoming:List<Chat>,existing:List<Chat>):List<Chat> {
-    val previous=existing.associateBy {it.id}
-    return incoming.filter {previous[it.id]!=it}
+    val previous=existing.associateBy {it.account to it.id}
+    return incoming.filter {previous[it.account to it.id]!=it}
 }
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
