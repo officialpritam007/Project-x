@@ -12,7 +12,8 @@ class MbThemeTransferTest {
             appearance="Dark",blurIntensity=81,bubbleStyle="Compact",
             bubbleColor="Rose",messageFontSize=20,navIconSize=27,
             showNavLabels=true,accentColor="Purple",showProfileAsTitle=true,fontPreset="Mono",
-            homeWallpaperDim=15,chatWallpaperDim=87,quickReactions="👏,👍,❤️"
+            homeWallpaperDim=15,chatWallpaperDim=87,quickReactions="👏,👍,❤️",
+            navigationOrder="0,2,1,4,3"
         )
         val encoded=MbThemeTransfer.export(expected)
         assertFalse(encoded.contains("user_id"))
