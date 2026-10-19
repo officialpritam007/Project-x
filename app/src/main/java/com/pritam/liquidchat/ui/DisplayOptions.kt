@@ -20,6 +20,7 @@ data class DisplayOptions(
     val accentColor:String="Cyan",
     val showProfileAsTitle:Boolean=false,
     val hideArchiveAccess:Boolean=false,
-    val fontPreset:String="System"
+    val fontPreset:String="System",
+    val hideOutgoingTyping:Boolean=false
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
