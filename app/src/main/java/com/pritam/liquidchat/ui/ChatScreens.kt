@@ -221,7 +221,7 @@ import kotlinx.coroutines.flow.drop
         HorizontalDivider(Modifier.padding(vertical=8.dp),color=MaterialTheme.colorScheme.outlineVariant)
         GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
             onClick={selectedChat=null;deleteChat=c},destructive=true)
-    }}}
+    }}
     deleteChat?.let {c->LiquidAlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
     if(stories) MomentsDialog(model,mine=false,
         onDismiss={stories=false;selectedStoryId=null;storyRefreshKey++},
