@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -127,15 +128,108 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
     val icon=when(label) {"Read","Delivered"->Icons.Outlined.DoneAll;"Sent"->Icons.Outlined.Done;"Failed"->Icons.Outlined.ErrorOutline;else->Icons.Outlined.Schedule}
     Icon(icon,contentDescription=label,modifier=Modifier.size(16.dp),tint=if(label=="Read")MaterialTheme.colorScheme.primary else if(label=="Failed")MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
 }
-@Composable internal fun EmojiPicker(onEmoji:(String)->Unit,onDismiss:()->Unit) {
-    val categories=remember { linkedMapOf(
-        "Faces" to listOf("😀","😃","😄","😁","😊","🥰","😍","😘","😎","🥹","😂","🤣","😭","😅","😉","🤔","😴","😢","😡","🤗"),
-        "Hearts" to listOf("❤️","🩷","🧡","💛","💚","🩵","💙","💜","🤍","🖤","💖","💕","💗","💞","💘"),
-        "Gestures" to listOf("👍","👎","👏","🙌","🙏","🤝","👋","👌","✌️","🤞","🫶","💪","🤙","👀","✨"),
-        "More" to listOf("🎉","🎂","🎁","🌹","🌸","🌻","☀️","🌙","⭐","🔥","💯","✅","⚽","🏆","🎵","☕","🍰","🐱","🐶","🦋")) }
-    var category by remember {mutableStateOf("Faces")}
-    AlertDialog(onDismissRequest=onDismiss,title={Text("Emoji")},text={Column {
-        Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)) {categories.keys.forEach {name->FilterChip(category==name,{category=name},label={Text(name)})}}
-        categories.getValue(category).chunked(5).forEach {row->Row {row.forEach {emoji->TextButton(onClick={onEmoji(emoji)},modifier=Modifier.weight(1f).heightIn(min=48.dp),contentPadding=PaddingValues(0.dp)) {Text(emoji,style=MaterialTheme.typography.titleLarge)}}}}
-    }},confirmButton={TextButton(onClick=onDismiss) {Text("Done")}})
+/** Keyword aliases are intentionally local: emoji lookup never sends text to a server. */
+internal val emojiCategories:Map<String,List<String>> = linkedMapOf(
+    "Faces" to listOf("😀","😃","😄","😁","😊","🥰","😍","😘","😎","🥹","😂","🤣","😭","😅","😉","🤔","😴","😢","😡","🤗"),
+    "Hearts" to listOf("❤️","🩷","🧡","💛","💚","🩵","💙","💜","🤍","🖤","💖","💕","💗","💞","💘"),
+    "Gestures" to listOf("👍","👎","👏","🙌","🙏","🤝","👋","👌","✌️","🤞","🫶","💪","🤙","👀","✨"),
+    "More" to listOf("🎉","🎂","🎁","🌹","🌸","🌻","☀️","🌙","⭐","🔥","💯","✅","⚽","🏆","🎵","☕","🍰","🐱","🐶","🦋")
+)
+
+private val emojiSearchTerms=mapOf(
+    "😀" to "smile happy face","😄" to "grin smile happy","😂" to "laugh tears joy",
+    "🤣" to "rolling laughing","🥰" to "love hearts","😍" to "heart eyes love",
+    "😭" to "cry tears sad","🤔" to "thinking question","😴" to "sleep tired",
+    "❤️" to "heart red love","🩷" to "heart pink love","💙" to "heart blue",
+    "👍" to "thumbs up yes like","👎" to "thumbs down dislike",
+    "👏" to "clap applause","🙏" to "thanks pray hands",
+    "👋" to "wave hello","🫶" to "heart hands love",
+    "🎉" to "party celebration confetti","🎂" to "birthday cake",
+    "🌹" to "rose flower","☀️" to "sun sunny","🌙" to "moon night",
+    "🔥" to "fire hot","⚽" to "football soccer ball","🏆" to "trophy win",
+    "🎵" to "music song","☕" to "coffee tea",
+    "🐱" to "cat kitten","🐶" to "dog puppy","🦋" to "butterfly"
+)
+
+internal fun findEmojis(category:String,query:String):List<String> {
+    val term=query.trim().lowercase()
+    if(term.isEmpty())return emojiCategories[category].orEmpty()
+    return emojiCategories.entries.flatMap {(group,emojis)->
+        emojis.filter {emoji->
+            emoji.contains(term) || group.lowercase().contains(term) ||
+                emojiSearchTerms[emoji]?.contains(term)==true
+        }
+    }.distinct()
 }
+internal fun recentEmojiChoices(previous:List<String>,selected:String):List<String> =
+    (listOf(selected)+previous.filterNot {it==selected}).take(5)
+
+@Composable internal fun EmojiPicker(onEmoji:(String)->Unit,onDismiss:()->Unit) {
+    var category by remember {mutableStateOf("Faces")}
+    var query by remember {mutableStateOf("")}
+    // Session-only recents: do not persist message-writing habits across logouts.
+    var recent by remember {mutableStateOf<List<String>>(emptyList())}
+    fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
+    val displayed=findEmojis(category,query)
+    AlertDialog(
+        onDismissRequest=onDismiss,
+        title={Text("Emoji")},
+        text={
+            Column(
+                Modifier.fillMaxWidth().heightIn(max=410.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement=Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value=query,onValueChange={query=it.take(32)},singleLine=true,
+                    label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
+                    leadingIcon={Icon(Icons.Outlined.Search,null)},
+                    trailingIcon={
+                        if(query.isNotBlank())
+                            IconButton(onClick={query=""}) {Icon(Icons.Outlined.Close,"Clear emoji search")}
+                    }
+                )
+                if(query.isBlank()) {
+                    // Two full-width rows avoid the clipped/offscreen fourth category.
+                    emojiCategories.keys.toList().chunked(2).forEach {names->
+                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                            names.forEach {name->
+                                FilterChip(
+                                    selected=category==name,onClick={category=name},
+                                    label={Text(name)},modifier=Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                    if(recent.isNotEmpty()) {
+                        Text("Recently picked",style=MaterialTheme.typography.labelMedium)
+                        Row(Modifier.fillMaxWidth()) {
+                            recent.forEach {emoji->
+                                TextButton(onClick={choose(emoji)},
+                                    modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                    contentPadding=PaddingValues(0.dp)) {
+                                    Text(emoji,style=MaterialTheme.typography.titleLarge)
+                                }
+                            }
+                        }
+                    }
+                }
+                if(displayed.isEmpty())Text("No matching emoji",style=MaterialTheme.typography.bodyMedium)
+                displayed.chunked(5).forEach {row->
+                    Row(Modifier.fillMaxWidth()) {
+                        repeat(5) {index->
+                            if(index<row.size)
+                                TextButton(
+                                    onClick={choose(row[index])},
+                                    modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                    contentPadding=PaddingValues(0.dp)
+                                ) {Text(row[index],style=MaterialTheme.typography.titleLarge)}
+                            else Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton={TextButton(onClick=onDismiss) {Text("Done")}}
+    )
+}
+
