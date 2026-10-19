@@ -1135,6 +1135,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val display by model.display.collectAsStateWithLifecycle()
     val context=LocalContext.current
     var themeFeedback by remember {mutableStateOf<String?>(null)}
+    var resetThemeDialog by remember {mutableStateOf(false)}
     val exportTheme=rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument(MbThemeTransfer.MIME_TYPE)) {uri->
         if(uri!=null)model.action {
@@ -1168,6 +1169,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             themeFeedback="Theme imported and applied."
         }
     }
+    if(resetThemeDialog) LiquidAlertDialog(
+        onDismissRequest={resetThemeDialog=false},
+        title={Text("Restore default appearance?")},
+        text={Text("Your custom colors, type sizes, wallpaper dimming and quick reactions will reset. Screenshots, outgoing typing, hidden inbox previews, accessibility options, messages and saved photos are unchanged.")},
+        confirmButton={TextButton(onClick={
+            model.setDisplay(MbThemeTransfer.resetAppearance(model.display.value))
+            themeFeedback="Default appearance restored."
+            resetThemeDialog=false
+        }) {Text("Restore defaults")}},
+        dismissButton={TextButton(onClick={resetThemeDialog=false}) {Text("Cancel")}}
+    )
     val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,id)
@@ -1198,6 +1210,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 Spacer(Modifier.width(8.dp))
                 Text("Import Liquid Chat theme")
             }
+            HorizontalDivider()
+            OutlinedButton(onClick={resetThemeDialog=true},modifier=Modifier.fillMaxWidth()) {
+                Text("Restore default appearance")
+            }
+            Text("This resets colors, fonts, bubble and navigation appearance. It preserves privacy settings, reduced-motion/transparency preferences, local photo files and messages.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Text("MBWhatsApp theme packages are not directly compatible. This imports Liquid Chat .json files only.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             themeFeedback?.let {Text(it,color=MaterialTheme.colorScheme.primary)}
         }
