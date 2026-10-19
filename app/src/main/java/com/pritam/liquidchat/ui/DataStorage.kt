@@ -59,7 +59,7 @@ import kotlinx.coroutines.withContext
         Text("If an upload is over quota, it remains unsuccessful rather than appearing as sent.",
             style=MaterialTheme.typography.bodySmall)
     }
-    if(confirmClear) AlertDialog(
+    if(confirmClear) LiquidAlertDialog(
         onDismissRequest={confirmClear=false},
         title={Text("Clear cached images?")},
         text={Text("This removes only locally cached pictures. Shared media, chats, drafts and pending messages remain unchanged. Pictures may download again when you open them.")},
