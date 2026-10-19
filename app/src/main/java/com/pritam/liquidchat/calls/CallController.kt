@@ -43,6 +43,13 @@ private data class CallRecord(
 }
 private data class CallPoll(val call:CallRecord?,val candidates:JSONArray)
 
+/** Network completion must not replace a newer outgoing call or another login's UI. */
+internal fun canPresentIncomingCall(
+    current:CallView?,expectedAccount:String,actualAccount:String?,visible:Boolean,
+    expectedEpoch:Long?,actualEpoch:Long?
+):Boolean=current==null && visible && expectedAccount==actualAccount &&
+    expectedEpoch!=null && expectedEpoch==actualEpoch
+
 private class CallApi(private val backend:Backend) {
     private suspend fun poll(id:String?,after:Long=0):CallPoll {
         val request=JSONObject().put("p_call",id ?: JSONObject.NULL).put("p_after",after)
@@ -118,8 +125,11 @@ class CallController(
                     while(currentCoroutineContext().isActive) {
                         if(_view.value==null) {
                             try {
+                                val epoch=backend.uiReads.epoch(id)
                                 val incoming=api.incoming()
                                 if(incoming!=null && incoming.callee==id &&
+                                    canPresentIncomingCall(_view.value,id,backend.session.value?.userId,
+                                        foreground.value,epoch,backend.uiReads.epoch(id)) &&
                                     incoming.expiresAt.isAfter(Instant.now()) && incoming.state=="ringing") {
                                     owner=id
                                     _view.value=CallView(incoming.id,incoming.conversation,incoming.caller,
@@ -176,7 +186,10 @@ class CallController(
                     _view.value=_view.value?.copy(minimized=false,answerRequested=answerRequested);return@launch
                 }
                 if(_view.value!=null)return@launch
+                val epoch=backend.uiReads.epoch(expectedAccount)
                 val call=api.active(callId,0).call ?: return@launch
+                if(!canPresentIncomingCall(_view.value,expectedAccount,backend.session.value?.userId,
+                    foreground.value,epoch,backend.uiReads.epoch(expectedAccount)))return@launch
                 if(call.callee!=expectedAccount||call.state!="ringing"
                     ||call.expiresAt.isBefore(Instant.now()))return@launch
                 owner=expectedAccount
