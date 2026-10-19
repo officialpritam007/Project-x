@@ -299,6 +299,28 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         return scheduled
     }
 
+    /** Edit an undelivered local schedule without changing its idempotent send UUID. */
+    suspend fun editScheduledText(cid:String,id:String,body:String,sendAt:Long) {
+        val now=System.currentTimeMillis()
+        require(body.isNotBlank() && body.length<=4000) {"Enter up to 4000 characters."}
+        require(sendAt>=now+60_000L && sendAt<=now+180L*24L*3600_000L) {
+            "Choose between 1 minute and 180 days from now."
+        }
+        val user=account()
+        val edited=db.withTransaction {
+            checkAccount(user)
+            val old=dao.scheduledText(user,id)
+                ?: throw IOException("The scheduled message has already been sent or removed.")
+            require(old.conversation==cid) {"Wrong scheduled conversation."}
+            check(dao.message(user,id)==null) {"This message is already being sent."}
+            old.copy(body=body,sendAt=sendAt).also {dao.putScheduledText(it)}
+        }
+        checkAccount(user)
+        // ExistingWorkPolicy.REPLACE cancels the old timer. Workers racing the
+        // transaction cannot deliver an obsolete body after a successful edit.
+        enqueueScheduledText(edited)
+    }
+
     /** Moving schedule -> queued message is atomic and uses the same UUID for retry/idempotence. */
     suspend fun dispatchScheduledText(expected:String,id:String) {
         checkAccount(expected)
