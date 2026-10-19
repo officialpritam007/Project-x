@@ -10,6 +10,28 @@ class ChatSyncDiffTest {
         avatarId="avatar-1",peerRead=2,pinnedAt=0
     )
 
+    @Test fun unchangedContactsDoNotRefetchEveryAvatar() {
+        val contact=Contact("account-a","peer","Name","name",avatarId="avatar-1")
+        assertEquals(emptyList<Contact>(),
+            changedContactRows(listOf(contact.copy()),listOf(contact)))
+    }
+
+    @Test fun contactAvatarUpdatesAndRemovalAreNotLost() {
+        val old=Contact("account-a","peer","Name","name",avatarId="avatar-1")
+        val updated=old.copy(avatarId="avatar-2")
+        val newContact=old.copy(id="new-peer",username="newname")
+        assertEquals(listOf(updated,newContact),
+            changedContactRows(listOf(updated,newContact),listOf(old)))
+        assertEquals(emptyList<Contact>(),changedContactRows(emptyList(),listOf(old)))
+    }
+
+    @Test fun sameContactIdFromAnotherAccountNeverReusesPrivateData() {
+        val old=Contact("account-a","peer","Name","name")
+        val otherAccount=old.copy(account="account-b")
+        assertEquals(listOf(otherAccount),
+            changedContactRows(listOf(otherAccount),listOf(old)))
+    }
+
     @Test fun unchangedServerSnapshotDoesNotRewriteRoomRows() {
         assertEquals(emptyList<Chat>(),
             changedChatRows(listOf(original.copy()),listOf(original)))
