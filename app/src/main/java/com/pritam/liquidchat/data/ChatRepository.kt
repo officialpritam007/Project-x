@@ -267,10 +267,19 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun setCustomWallpaper(cid:String,uri:android.net.Uri) {
         val id=account()
         require(dao.chat(id,cid)!=null) {"Open a valid conversation."}
-        PersonalWallpaper.save(context,id,cid,uri)
-        checkAccount(id)
-        dao.putAppearance(ChatAppearance(id,cid,"Photo"))
-        checkAccount(id)
+        val saved=PersonalWallpaper.save(context,id,cid,uri)
+        try {
+            checkAccount(id)
+            dao.putAppearance(ChatAppearance(id,cid,"Photo"))
+            checkAccount(id)
+        } catch(e:Throwable) {
+            // An account switch can race Android's gallery/bitmap work.
+            // Never leave a newly imported private photo after old-account erasure.
+            if(backend.session.value?.userId!=id) {
+                withContext(Dispatchers.IO) {runCatching {saved.delete()}}
+            }
+            throw e
+        }
     }
     /** Local, account-scoped scheduling; queued only when WorkManager reaches sendAt. */
     suspend fun scheduleText(cid:String,body:String,replyTo:String="",sendAt:Long,draftVersion:Long?=null):ScheduledText {
