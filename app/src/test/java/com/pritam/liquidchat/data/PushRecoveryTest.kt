@@ -50,6 +50,15 @@ class PushRecoveryTest {
         assertEquals(listOf("sync","authorize","post:server-preview"),events)
     }
 
+    @Test fun receiptIsOnlyClaimedForMatchingActiveForegroundAccount() {
+        assertTrue(handledInForegroundChat("alice","alice",true,"chat","chat"))
+        assertFalse(handledInForegroundChat("bob","alice",true,"chat","chat"))
+        assertFalse(handledInForegroundChat(null,"alice",true,"chat","chat"))
+        assertFalse(handledInForegroundChat("alice","alice",false,"chat","chat"))
+        assertFalse(handledInForegroundChat("alice","alice",true,"other","chat"))
+        assertFalse(handledInForegroundChat("alice","alice",true,null,"chat"))
+    }
+
     @Test fun authorizedForegroundChatSuppressionMarksMessageAsHandled()=runBlocking {
         var handled=0
         val trace=mutableListOf<String>()
