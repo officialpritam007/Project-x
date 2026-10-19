@@ -1,8 +1,6 @@
 package com.pritam.liquidchat.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
@@ -152,6 +150,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
 }
 
 /** One lazy scroll surface keeps the hero, tabs and results reachable in landscape/large text. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun ContactMediaContent(
     chat:Chat,kind:String,rows:List<Message>,loading:Boolean,failed:Boolean,more:Boolean,
     onKind:(String)->Unit,onDismiss:()->Unit,onSave:()->Unit,onPage:()->Unit,
@@ -184,8 +183,9 @@ internal fun starredMediaPresentation(message:Message):String = when {
                     }
                 }
                 item(key="tabs",span={GridItemSpan(maxLineSpan)}) {
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    FlowRow(Modifier.fillMaxWidth(),
+                        horizontalArrangement=Arrangement.spacedBy(8.dp),
+                        verticalArrangement=Arrangement.spacedBy(4.dp)) {
                         listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->
                             FilterChip(selected=kind==value,onClick={onKind(value)},
                                 label={Text(label)},shape=Glass.capsule)

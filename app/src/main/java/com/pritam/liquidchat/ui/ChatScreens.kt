@@ -99,7 +99,7 @@ import kotlinx.coroutines.flow.drop
         }
     }
 }
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class,ExperimentalLayoutApi::class)
 @Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>,onContacts:()->Unit={},onProfile:()->Unit={}) {
     var selectedChat by remember {mutableStateOf<Chat?>(null)}
     var deleteChat by remember {mutableStateOf<Chat?>(null)}
@@ -132,7 +132,7 @@ import kotlinx.coroutines.flow.drop
             }
         )
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
         }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)

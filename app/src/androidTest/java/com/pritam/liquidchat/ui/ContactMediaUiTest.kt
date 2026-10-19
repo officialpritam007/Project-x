@@ -69,6 +69,10 @@ class ContactMediaUiTest {
         compose.onNodeWithTag("contact-media-grid").performScrollToNode(hasText("No shared voice messages yet"))
         compose.onNodeWithText("No shared voice messages yet").assertIsDisplayed()
         capture("21-contact-large-text")
+        compose.onNodeWithTag("contact-media-grid").performScrollToNode(hasText("Starred"))
+        compose.onNodeWithText("Starred").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("contact-media-grid").performScrollToNode(hasText("No shared starred messages yet"))
+        compose.onNodeWithText("No shared starred messages yet").assertIsDisplayed()
         compose.onNodeWithContentDescription("Close contact details").performClick()
         compose.runOnIdle {assertTrue(closed)}
     }
