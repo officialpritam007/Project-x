@@ -1,6 +1,6 @@
 # Liquid Chat — one comprehensive two-phone acceptance round
 
-Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 73 cases are physical/provider acceptance checks for the Option 3 calling-enabled rc4 candidate, not assertions that emulator CI proves real device behaviour.
+Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 76 cases are physical/provider acceptance checks for the Option 3 calling-enabled rc5 candidate, not assertions that emulator CI proves real device behaviour.
 
 ## Prepare both phones
 
@@ -26,6 +26,10 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | A09 | Toggle Favorite/Archive/Pin/Mark unread and use all inbox filters | Correct rows and indicators; manual unread appears even with zero unread count |
 | A10 | Lose network while a previously loaded profile/feed is visible | Cache stays usable with honest retry/error state; no empty full-screen reload loop |
 | A11 | In Data & Storage, cancel/confirm local image-cache clearing with an offline draft/outbox item | Cancel preserves cache; confirmation clears only local image cache while drafts, queued sends and remote media remain safe |
+
+| A12 | Open contact details in light/dark and 200% text; scroll hero/tabs and close | Save/close/Media/Voice/Starred remain reachable; readable empty state and retry; no controls clipped by system bars |
+| A13 | Populate Shared Media with more than one page; switch Media/Voice/Starred, open image and play voice | Adaptive photo grid, full-width cards, correct protected content; pagination, deletion and authorization remain intact |
+| A14 | Open conversation/inbox action sheets and Attach; scroll to the final action at 200% text | Labels/icons wrap; exactly one current block action; delete remains distinct and asks for confirmation; Gallery/Camera launch the existing flows |
 
 ## Messaging, keyboard, privacy and offline state
 

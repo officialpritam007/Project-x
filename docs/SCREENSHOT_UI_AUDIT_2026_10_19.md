@@ -30,7 +30,7 @@ Source: owner-uploaded `PDF Gallery_20261019_142023.pdf`, twenty pages. Each emb
 - Local: 33 host regression tests passed; `git diff --check` passed.
 - Local Android execution unavailable: no Android SDK or cached Gradle distribution; wrapper bootstrap returned `Network is unreachable`. GitHub candidate CI is the Android build/lint/JVM/emulator authority for this patch.
 - Added Compose coverage for contact save/close/tab/empty states at 200% font, dark photo grid with 36 fixtures and retry, and a long action sheet with a reachable destructive callback. Tests export actual composable screenshots to the existing CI screenshot directory.
-- Publication blocked: automatic approval review rejected both branch-push attempts, requesting explicit permission to publish to the public repository. Connected repository metadata confirms admin/push permission and the remote matches the requested Project-x, but that did not satisfy the review. No remote branch/PR or new CI run was created. Local commits are preserved for review and a later authorized push.
+- Owner explicitly authorized publication after the earlier approval-review block. The connected GitHub integration published PR64 after confirming the expected repository and reviewing the UI-only diff; the CLI had no push credentials. The current candidate is rc5 (12).
 - Require all existing five candidate jobs (build, Edge, API29, API35, API36), with no disabled tests, before merge. Require another exact merged-main run before distributing a new APK.
 - Calling-enabled candidate configuration remains unchanged. No Supabase schema, production data, RLS, paid service, dependency or credential changes.
 

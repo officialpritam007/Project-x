@@ -4,6 +4,12 @@ This report accompanies the calling-enabled test APK requested in [Master Tracke
 
 The original `INPUT_MASTER_WORK_PLAN.md` and historical phase reports are preserved. Their earlier no-calling/default-off instructions were superseded by the owner's current voice/video-enabled candidate scope. This register and the latest tracker evidence supersede old milestone snapshots, including old FCM absence and older CI counts.
 
+## Current screenshot-audit candidate
+
+The next candidate is **1.0.0-rc5 (12)** with voice/video actions enabled by the existing candidate workflow. PR64 finishes the twenty-page screenshot presentation pass: adaptive contact/media sheet and photo grid, scrollable grouped conversation/inbox/attachment actions, consistent emoji/popup styling, appearance chip spacing and Settings navigation insets. Existing authorization, revocation, recorder, playback and confirmed deletion paths are preserved. See [the page-by-page audit](SCREENSHOT_UI_AUDIT_2026_10_19.md).
+
+The consolidated checklist now has **76 unique physical acceptance cases**. Added Compose checks cover 200% contact controls, dark-gallery retry and long-sheet destructive-action reachability. Exact-head and final merged-main Android build/lint/JVM/API29/35/36 results must be recorded in #24 before distributing this candidate. Earlier verified milestone evidence below remains historical and is not relabelled as rc5 evidence.
+
 ## Implementation in this continuation
 
 | PR | Change | Evidence boundary |
@@ -22,7 +28,7 @@ The original `INPUT_MASTER_WORK_PLAN.md` and historical phase reports are preser
 | #51 | Restrict lock-screen window access to validated full call UI; reset on end/error/minimize/logout | Exact-head CI required; untrusted intent extras cannot grant over-lock visibility |
 | #53 | Propagate deletion/hide of uncached older Shared Media to playback/gallery; prevent an in-flight page restoring it | Exact-head CI required; account-scoped revocation stream, no old body cached, real Room/flow instrumentation and page reducer regression |
 
-The integration package versions the final candidate as **1.0.0-rc3 (10)**, prevents the compact chat-header status/username from wrapping beneath call controls, and updates stale README/calling/free-tier instructions. It preserves both visible call actions and the Liquid Glass palette. The companion physical checklist contains **69 unique acceptance cases**.
+The earlier integration package versioned its candidate as **1.0.0-rc3 (10)**, prevents the compact chat-header status/username from wrapping beneath call controls, and updates stale README/calling/free-tier instructions. It preserves both visible call actions and the Liquid Glass palette. That historical companion checklist contained **69 unique acceptance cases**; the current checklist has 76.
 
 Only verified PRs may be merged. If a listed change's new exact-head CI fails, it remains pending and is corrected before final candidate integration. The Story test initially exposed a JUnit signature error; its return type was corrected rather than suppressing or skipping the test. Final tracker evidence supersedes the pending wording above.
 
