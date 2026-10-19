@@ -336,6 +336,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var emojiPicker by remember(cid) {mutableStateOf(false)}
     var palette by remember(cid) {mutableStateOf("Ice")}
     var appearance by remember(cid) {mutableStateOf(false)}
+    var wallpaperRevision by remember(cid,session?.userId) {mutableIntStateOf(0)}
     var scheduleOpen by remember(cid) {mutableStateOf(false)}
     var schedulesOpen by remember(cid) {mutableStateOf(false)}
     var scheduleBody by remember(cid) {mutableStateOf("")}
@@ -363,12 +364,31 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var starsOpen by remember(cid) {mutableStateOf(false)}
     val body=input.text
     fun updateInput(value:TextFieldValue) {val changed=input.text!=value.text;input=value;if(changed)draftVersion=model.repository.saveDraft(cid,value.text,replyTo)}
-    LaunchedEffect(cid) {
+    LaunchedEffect(cid,session?.userId) {
+        // Reset synchronously within this effect before restoring the new
+        // account's own draft. Unauthenticated offline-preview composers
+        // must still be editable so a failed send never traps the keyboard.
+        draftReady=false
+        input=TextFieldValue("")
+        replyTo=""
+        draftVersion=0L
+        palette="Ice"
         val draft=model.repository.draft(cid)
-        input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0));replyTo=draft?.replyTo.orEmpty();draftVersion=draft?.updatedAt ?: 0;draftReady=true
+        input=TextFieldValue(draft?.body.orEmpty(),TextRange(draft?.body?.length ?: 0))
+        replyTo=draft?.replyTo.orEmpty()
+        draftVersion=draft?.updatedAt ?: 0L
         palette=model.repository.palette(cid)
+        draftReady=true
     }
     val context=LocalContext.current
+    val wallpaperPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        if(uri!=null)model.action {
+            model.repository.setCustomWallpaper(cid,uri)
+            palette="Photo"
+            wallpaperRevision++
+            appearance=false
+        }
+    }
     var notificationsOpen by remember(cid) {mutableStateOf(false)}
     var customNotificationEnabled by remember(cid,session?.userId) {
         mutableStateOf(session?.userId?.let {
@@ -451,7 +471,28 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         } finally {kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {runCatching {model.repository.typing(cid,false)}}}
     }
     Box(Modifier.fillMaxSize()) {
-    Box(Modifier.matchParentSize().glassSource(.5f).background(wallpaper(palette,LocalGlassDark.current)))
+    Box(Modifier.matchParentSize().glassSource(.5f).background(
+        wallpaper(if(palette=="Photo")"Ice" else palette,LocalGlassDark.current))) {
+        val owner=session?.userId
+        if(palette=="Photo" && owner!=null) {
+            val photoFile=remember(owner,cid,wallpaperRevision) {
+                runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}.getOrNull()
+            }
+            if(photoFile?.isFile==true) {
+                val request=remember(photoFile,wallpaperRevision) {
+                    coil.request.ImageRequest.Builder(context).data(photoFile)
+                        .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                        .diskCachePolicy(coil.request.CachePolicy.DISABLED).build()
+                }
+                coil.compose.AsyncImage(model=request,contentDescription=null,
+                    contentScale=androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier=Modifier.matchParentSize())
+                Box(Modifier.matchParentSize().background(
+                    if(LocalGlassDark.current)Color.Black.copy(alpha=.46f)
+                    else Color.White.copy(alpha=.30f)))
+            }
+        }
+    }
     Column(Modifier.fillMaxSize().imePadding()) {
         GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
         Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -723,7 +764,44 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }}
         )
     }
-    if(appearance)LiquidAlertDialog(onDismissRequest={appearance=false},title={Text("Chat wallpaper")},text={Column {listOf("Ice","Lilac","Mint","Sand").forEach {choice->TextButton(onClick={model.action {model.repository.setPalette(cid,choice);palette=choice;appearance=false}}) {Text(if(choice==palette)"✓ $choice" else choice)}}}},confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}})
+    if(appearance)LiquidAlertDialog(
+        onDismissRequest={appearance=false},
+        title={Text("Chat wallpaper")},
+        text={Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text("Choose a built-in palette or a private photo from this phone.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            listOf("Ice","Lilac","Mint","Sand").forEach {choice->
+                TextButton(onClick={model.action {
+                    model.repository.setPalette(cid,choice)
+                    palette=choice
+                    appearance=false
+                }}) {Text(if(choice==palette)"✓ $choice" else choice)}
+            }
+            FilledTonalButton(
+                onClick={wallpaperPicker.launch("image/*")},
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                Icon(Icons.Outlined.AddPhotoAlternate,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Choose photo wallpaper")
+            }
+            val owner=session?.userId
+            if(owner!=null && remember(owner,cid,wallpaperRevision) {
+                runCatching {com.pritam.liquidchat.data.PersonalWallpaper.has(context,owner,cid)}
+                    .getOrDefault(false)
+            }) {
+                TextButton(onClick={model.action {
+                    model.repository.setPalette(cid,"Photo")
+                    palette="Photo"
+                    appearance=false
+                }}) {Text(if(palette=="Photo")"✓ My photo" else "My saved photo")}
+            }
+            Text("Your photo stays private on this device. It is removed on logout and never sent to your contact.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }},
+        confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}}
+    )
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
         LiquidAlertDialog(
