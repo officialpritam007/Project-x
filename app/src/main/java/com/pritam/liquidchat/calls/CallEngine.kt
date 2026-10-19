@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal fun matchingCommunicationDeviceId(devices:List<Pair<Int,Int>>,wantedType:Int):Int? =
     devices.firstOrNull {it.second==wantedType}?.first
 
+internal fun interruptsCallAudio(change:Int):Boolean = change==AudioManager.AUDIOFOCUS_LOSS ||
+    change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT || change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
+
 /** Foreground-only WebRTC peer: DTLS/SRTP transports media directly; Supabase carries SDP/ICE only. */
 class CallEngine(private val context: Context, private val video: Boolean,
                  private val sendCandidate: (JSONObject) -> Unit,
@@ -66,7 +69,9 @@ class CallEngine(private val context: Context, private val video: Boolean,
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build())
             .setOnAudioFocusChangeListener {change->
-                if(change==AudioManager.AUDIOFOCUS_LOSS)
+                // A cellular/other audio interruption must not leave live call
+                // capture running silently behind a lost or ducked audio session.
+                if(!closed&&interruptsCallAudio(change))
                     connectionChanged("Audio focus lost")
             }
             .build()
@@ -197,8 +202,12 @@ class CallEngine(private val context: Context, private val video: Boolean,
         else {audioManager.isSpeakerphoneOn=id== -2;if(id== -3){audioManager.startBluetoothSco();audioManager.isBluetoothScoOn=true}else {audioManager.stopBluetoothSco();audioManager.isBluetoothScoOn=false};true}
     }.getOrDefault(false)
 
-    private suspend fun createDescription(offer:Boolean): SessionDescription =
-        suspendCancellableCoroutine { cont ->
+    private fun activePeer():PeerConnection=peer?.takeIf {!closed}
+        ?: throw java.io.IOException("Call already ended")
+
+    private suspend fun createDescription(offer:Boolean): SessionDescription {
+        val connection=activePeer()
+        return suspendCancellableCoroutine { cont ->
             val observer = object: SdpObserver {
                 override fun onCreateSuccess(sdp: SessionDescription?) {
                     if(sdp!=null && cont.isActive)cont.resume(sdp)
@@ -210,12 +219,14 @@ class CallEngine(private val context: Context, private val video: Boolean,
                 }
                 override fun onSetFailure(error:String?) {}
             }
-            if(offer)peer?.createOffer(observer,MediaConstraints())
-            else peer?.createAnswer(observer,MediaConstraints())
+            if(offer)connection.createOffer(observer,MediaConstraints())
+            else connection.createAnswer(observer,MediaConstraints())
         }
+    }
 
-    private suspend fun setDescription(sdp:SessionDescription, local:Boolean) =
-        suspendCancellableCoroutine<Unit> {cont ->
+    private suspend fun setDescription(sdp:SessionDescription, local:Boolean) {
+        val connection=activePeer()
+        return suspendCancellableCoroutine<Unit> {cont ->
             val observer=object:SdpObserver {
                 override fun onCreateSuccess(sdp:SessionDescription?) {}
                 override fun onSetSuccess() {if(cont.isActive)cont.resume(Unit)}
@@ -224,9 +235,10 @@ class CallEngine(private val context: Context, private val video: Boolean,
                     if(cont.isActive)cont.resumeWithException(IllegalStateException(error ?: "SDP rejected"))
                 }
             }
-            if(local)peer?.setLocalDescription(observer,sdp)
-            else peer?.setRemoteDescription(observer,sdp)
+            if(local)connection.setLocalDescription(observer,sdp)
+            else connection.setRemoteDescription(observer,sdp)
         }
+    }
 
     suspend fun createOffer():String {
         val offer=createDescription(true)
