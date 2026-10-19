@@ -75,6 +75,8 @@ data class ScheduledText(
     suspend fun deleteScheduledText(account:String,id:String):Int
     @Query("delete from scheduled_texts where account=:account")
     suspend fun clearScheduledTexts(account:String)
+    @Query("delete from scheduled_texts where account=:account and conversation=:cid")
+    suspend fun clearScheduledConversation(account:String,cid:String)
     @Query("select exists(select 1 from hidden_messages where account=:account and id=:id)") suspend fun hidden(account:String,id:String):Boolean
     @Upsert suspend fun hide(message:HiddenMessage)
     @Query("delete from hidden_messages where account=:account") suspend fun clearHidden(account:String)
