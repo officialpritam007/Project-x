@@ -350,6 +350,9 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
  * Real photo-story playback state. Progress advances only while the touch surface is released.
  * No viewer counts or viewed receipts are faked; those require a separate authorized backend.
  */
+internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,ready:Boolean):Float =
+    if(paused||!ready)progress else (progress+elapsedMs.coerceIn(0L,250L)/5000f).coerceAtMost(1f)
+
 @Composable private fun StoryViewer(
     model:AppViewModel,stories:List<Moment>,initialId:String,onDismiss:()->Unit
 ) {
@@ -360,15 +363,20 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     var paused by remember(current.id) {mutableStateOf(false)}
     var muted by remember {mutableStateOf(true)}
     var progress by remember(current.id) {mutableFloatStateOf(0f)}
+    var imageReady by remember(current.id) {mutableStateOf(false)}
+    var replay by remember(current.id) {mutableIntStateOf(0)}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
     val effectivePause=paused||!foreground||currentCall!=null
     // Photos advance after five seconds; MP4 progress is driven by the actual player.
-    LaunchedEffect(current.id,effectivePause,stories.size,current.mediaKind) {
+    LaunchedEffect(current.id,effectivePause,imageReady,stories.size,current.mediaKind) {
         if(current.mediaKind!="story_video") {
+            var lastTick=android.os.SystemClock.elapsedRealtime()
             while(progress<1f) {
                 delay(50)
-                if(!effectivePause)progress=(progress+.01f).coerceAtMost(1f)
+                val now=android.os.SystemClock.elapsedRealtime()
+                progress=advancePhotoStory(progress,now-lastTick,effectivePause,imageReady)
+                lastTick=now
             }
             if(!effectivePause) {
                 if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
@@ -381,7 +389,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     ) {
         Surface(Modifier.fillMaxSize(),color=Color.Black) {
             Box(Modifier.fillMaxSize()) {
-                if(current.mediaKind=="story_video") {
+                if(current.mediaKind=="story_video") key(current.id,replay) {
                     StoryVideoPlayer(
                         backend=model.backend,media=current.media,
                         paused=effectivePause,muted=muted,
@@ -391,7 +399,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                     )
                 } else ProtectedImage(model.backend,current.media,
                     description="${current.name}'s story",modifier=Modifier.fillMaxSize(),
-                    scale=ContentScale.Fit)
+                    scale=ContentScale.Fit,onLoadState={imageReady=it})
                 Box(Modifier.fillMaxSize().pointerInput(current.id,stories.size) {
                     detectTapGestures(
                         onPress={
@@ -400,7 +408,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         },
                         onTap={offset->
                             if(offset.x<size.width/2f) {
-                                if(index>0)currentId=stories[index-1].id else progress=0f
+                                if(index>0)currentId=stories[index-1].id else {progress=0f;replay++}
                             } else if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
                         }
                     )

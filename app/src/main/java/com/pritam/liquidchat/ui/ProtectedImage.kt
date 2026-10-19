@@ -25,8 +25,10 @@ import kotlinx.coroutines.isActive
 
 @Composable fun ProtectedImage(
     backend:Backend,id:String,local:String="",description:String,
-    modifier:Modifier=Modifier,scale:ContentScale=ContentScale.Fit
+    modifier:Modifier=Modifier,scale:ContentScale=ContentScale.Fit,
+    onLoadState:(Boolean)->Unit={}
 ) {
+    val currentLoadState by rememberUpdatedState(onLoadState)
     val session by backend.session.collectAsStateWithLifecycle()
     val revision by backend.uiReads.revision.collectAsStateWithLifecycle()
     val sessionEpoch by backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
@@ -44,6 +46,7 @@ import kotlinx.coroutines.isActive
     var retry by remember(memoryKey) {mutableIntStateOf(0)}
     var autoRetried by remember(memoryKey) {mutableStateOf(false)}
     LaunchedEffect(memoryKey,retry,lifecycle) {
+        currentLoadState(false)
         val expectedEpoch=sessionEpoch
         if(local.isNotEmpty()) {url=local;return@LaunchedEffect}
         if(account.isNullOrBlank()||version==null||id.isBlank()||id=="null")return@LaunchedEffect
@@ -55,7 +58,7 @@ import kotlinx.coroutines.isActive
                     val signed=backend.imageUrl(account,id,force=retry>0)
                     if(backend.uiReads.epoch(account)==expectedEpoch) {url=signed;failed=false}
                 } catch(e:CancellationException) {throw e}
-                catch(_:Exception) {url=null;failed=true;return@repeatOnLifecycle}
+                catch(_:Exception) {url=null;failed=true;currentLoadState(false);return@repeatOnLifecycle}
                 delay(backend.imageUrlRefreshDelay(account,id))
             }
         }
@@ -69,8 +72,9 @@ import kotlinx.coroutines.isActive
         if(url!=null) AsyncImage(
             model=request,imageLoader=imageLoader,contentDescription=description,
             modifier=Modifier.fillMaxSize(),contentScale=scale,
-            onSuccess={failed=false},
+            onSuccess={failed=false;currentLoadState(true)},
             onError={
+                currentLoadState(false)
                 // An evicted bitmap or expired link gets one automatic URL renewal.
                 if(local.isEmpty()&&!autoRetried) {autoRetried=true;url=null;retry++}
                 else failed=true
