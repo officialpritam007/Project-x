@@ -24,6 +24,8 @@ data class DisplayOptions(
     val hideOutgoingTyping:Boolean=false,
     val preventScreenshots:Boolean=false,
     val homeWallpaperDim:Int=50,
-    val chatWallpaperDim:Int=50
+    val chatWallpaperDim:Int=50,
+    val hideHomePreviews:Boolean=false,
+    val quickReactions:String=MbQuickReactions.defaultSetting
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
