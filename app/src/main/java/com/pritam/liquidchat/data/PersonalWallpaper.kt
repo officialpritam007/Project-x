@@ -45,6 +45,15 @@ internal object PersonalWallpaper {
         } finally {prepared.file.delete()}
     }
 
+    /** Erase this conversation's wallpaper while preserving the account's Home/other chats. */
+    fun clearConversation(context:Context,account:String,cid:String) {
+        require(cid!=HOME_CID) {"Home wallpaper is not a conversation."}
+        val file=location(context,account,cid)
+        check(!file.exists() || file.delete()) {
+            "Could not erase the deleted conversation's wallpaper."
+        }
+    }
+
     fun clearAccount(context:Context,account:String) {
         val directory=File(File(context.filesDir,"wallpapers"),checkedId(account))
         check(!directory.exists() || directory.deleteRecursively()) {
