@@ -66,6 +66,12 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     val revocations=_revocations.asSharedFlow()
     private val signals=MutableSharedFlow<Unit>(extraBufferCapacity=1)
     init {
+        // Account-private flags must never appear in another signed-in account's menus.
+        scope.launch {
+            backend.session.map {it?.userId}.distinctUntilChanged().collect {
+                privateSettings.value=JSONObject()
+            }
+        }
         scope.launch {
             combine(backend.session.map {it?.userId}.distinctUntilChanged(),foreground) {id,fg->if(fg) id else null}.collectLatest { account ->
                 if(account==null) return@collectLatest
