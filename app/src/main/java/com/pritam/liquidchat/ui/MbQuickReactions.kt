@@ -1,13 +1,14 @@
 package com.pritam.liquidchat.ui
 
 /**
+ * Only emojis accepted by public.message_action/react in migration
+ * 20261017075102_modern_message_actions.sql are selectable.
  * Local presentation shortcut only; reactions still use the existing
  * authenticated server action and are never faked in the message model.
  */
 internal object MbQuickReactions {
     val available:List<String> = listOf(
-        "👍", "❤️", "😂", "😮", "😢", "🙏",
-        "😍", "🥰", "🔥", "🎉", "👏", "💯"
+        "👍", "❤️", "😂", "😮", "😢", "🙏", "👏"
     )
     val defaults:List<String> = available.take(6)
     val defaultSetting:String = defaults.joinToString(",")
