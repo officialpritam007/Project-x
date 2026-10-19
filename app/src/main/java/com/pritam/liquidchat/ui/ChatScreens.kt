@@ -434,9 +434,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     LaunchedEffect(cid,messages.lastOrNull()?.id,foreground) {
         if(foreground) {withFrameNanos { };runCatching {model.repository.acknowledge(cid,true)}}
     }
-    LaunchedEffect(cid,foreground) {
+    LaunchedEffect(cid,foreground,display.hideOutgoingTyping) {
         var lastSent=0L
-        if(foreground) try {
+        if(foreground && !display.hideOutgoingTyping) try {
             snapshotFlow {if(inputFocused&&draftReady)input.text else ""}.drop(1).collectLatest { text ->
                 val keyTime=android.os.SystemClock.elapsedRealtime()
                 if(text.isBlank()) runCatching {model.repository.typing(cid,false)}
@@ -1224,6 +1224,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(section in listOf("Privacy & Security","Notifications","MB Privacy","MB Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
             if(section=="Privacy & Security" || section=="MB Privacy") {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide outgoing typing",style=MaterialTheme.typography.titleSmall)
+                        Text("This device will not advertise typing to contacts. Other signed-in devices have separate settings.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.hideOutgoingTyping,
+                        onCheckedChange={model.setDisplay(display.copy(hideOutgoingTyping=it))})
+                }
+                HorizontalDivider()
                 val loaded=settings.has("show_presence") && settings.has("read_receipts") && settings.has("notification_previews")
                 val enabled=ghostModeActive(settings.optBoolean("show_presence",true),settings.optBoolean("read_receipts",true))
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
