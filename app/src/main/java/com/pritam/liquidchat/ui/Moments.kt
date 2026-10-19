@@ -470,6 +470,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     var videoDuration by remember {mutableLongStateOf(0L)}
     var trimStart by remember {mutableLongStateOf(0L)}
     var progress by remember {mutableIntStateOf(0)}
+    var stage by remember {mutableStateOf("")}
     var caption by rememberSaveable {mutableStateOf("")}
     var media by remember {mutableStateOf<String?>(null)}
     var busy by remember {mutableStateOf(false)}
@@ -570,8 +571,10 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                 OutlinedTextField(caption,{caption=it.take(1000)},label={Text("Caption (optional)")},
                     enabled=!busy&&media==null,modifier=Modifier.fillMaxWidth(),maxLines=3)
                 if(busy) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text(if(video!=null)"Preparing/uploading video · $progress%" else "Publishing…",
+                    if(stage=="Preparing video"||stage=="Uploading")
+                        LinearProgressIndicator(progress={progress/100f},modifier=Modifier.fillMaxWidth())
+                    else LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(if(stage=="Preparing video"||stage=="Uploading")"$stage · $progress%" else "Publishing…",
                         style=MaterialTheme.typography.labelSmall)
                 }
                 error?.let {Text(it,color=MaterialTheme.colorScheme.error)}
@@ -582,7 +585,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                 val selectedPhoto=photo
                 val selectedVideo=video
                 if(selectedPhoto==null&&selectedVideo==null)return@TextButton
-                busy=true;error=null;progress=0
+                busy=true;error=null;progress=0;stage="Publishing"
                 scope.launch {
                     try {
                         if(model.session.value?.userId!=owner)throw CancellationException("Account changed")
@@ -595,12 +598,18 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         }
                         if(media==null) {
                             media=if(selectedVideo!=null) {
+                                stage="Preparing video"
                                 val encoded=com.pritam.liquidchat.data.StoryVideo.export(
                                     context,selectedVideo,trimStart,onProgress={progress=it})
-                                try {model.backend.uploadStoryVideo(encoded).getString("id")}
+                                stage="Uploading";progress=0
+                                try {model.backend.uploadStoryVideo(encoded) {value->scope.launch {progress=value}}.getString("id")}
                                 finally {encoded.delete()}
-                            } else model.backend.uploadImage(selectedPhoto!!.file,null).getString("id")
+                            } else {
+                                stage="Uploading";progress=0
+                                model.backend.uploadImage(selectedPhoto!!.file,null,onProgress={value->scope.launch {progress=value}}).getString("id")
+                            }
                         }
+                        stage="Publishing"
                         model.backend.rpc("publish_moment",JSONObject()
                             .put("p_id",publishId).put("p_media",media)
                             .put("p_kind",kind).put("p_caption",caption.trim()))

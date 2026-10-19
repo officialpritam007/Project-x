@@ -562,6 +562,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
 }
 @OptIn(ExperimentalFoundationApi::class)
 @Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={},selectionMode:Boolean=false,onSelect:()->Unit={}) {
+    val uploadFlow=remember(model,message.account,message.id) {model.repository.uploadProgress(message.account,message.id)}
+    val uploadPercent by uploadFlow.collectAsStateWithLifecycle(initialValue=null)
     val mine=message.sender==message.account
     var swipe by remember(message.id) {mutableFloatStateOf(0f)}
     val threshold=with(LocalDensity.current) {72.dp.toPx()}
@@ -593,6 +595,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     Spacer(Modifier.height(8.dp))
                 }
                 if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(message.status=="SENDING")uploadPercent?.let {percent->
+                    LinearProgressIndicator(progress={percent/100f},modifier=Modifier.width(160.dp))
+                    Text(if(percent<100)"Uploading · $percent%" else "Processing attachment…",style=MaterialTheme.typography.labelSmall)
+                }
                 if(truncated||expanded) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
                 }
                 val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
