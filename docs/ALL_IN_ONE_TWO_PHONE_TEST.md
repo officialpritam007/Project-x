@@ -174,3 +174,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB32 | Choose an image for Chats home wallpaper, switch tabs and reopen app | New wallpaper renders only under Chats, remains legible in dark/light, never transmitted or uploaded |
 | MB33 | Remove Home wallpaper, then choose a second photo | Background immediately reverts to Liquid Glass, replacement shows latest photo without stale Coil image |
 | MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |
+
+
+| MB32 | Home photo selected: change dimming 0/50/100, restart and switch dark mode | Veil updates without reloading full inbox; 50 preserves previous defaults; text remains selectable |
+| MB33 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
