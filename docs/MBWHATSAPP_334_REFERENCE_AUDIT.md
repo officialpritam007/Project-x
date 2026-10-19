@@ -147,3 +147,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Both Privacy & Security and MB Privacy provide a saved local switch for Android `FLAG_SECURE`. It blocks standard screenshots and recent-app thumbnails on protected app windows, and reversibly clears the flag.
 - Default is **off** for accessibility and support screenshots. It does not stop external cameras or substitute for end-to-end encryption.
 - The option is not in theme export and does not alter Supabase account settings, calling, or media authorization.
+
+
+## Stage 7 — live photo wallpaper dimming (PR gate)
+
+- Home and Conversation settings expose separate **Photo wallpaper dimming** sliders. The state is clamped 0–100 and persisted in existing local device display preferences.
+- 50% is the backward-compatible default and retains the previous exact dark/light overlay transparency; 0% removes the contrast veil and 100% reaches a bounded 90%-opacity overlay. No media bytes, Supabase data, unread state or call flow changes.
+- Only user-selected private photo wallpapers use the slider; built-in gradient/color palettes continue unchanged. Theme JSON import/export round-trips both values with the existing 32-KiB typed validation.
+- JVM tests check scale/clamping and old defaults, instrumentation checks JSON round-trip. Visual QA still required at the owner's final two-phone round.

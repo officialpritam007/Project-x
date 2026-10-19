@@ -157,8 +157,8 @@ import kotlinx.coroutines.flow.drop
             contentScale=androidx.compose.ui.layout.ContentScale.Crop,
             modifier=Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(
-            if(LocalGlassDark.current)Color.Black.copy(alpha=.56f)
-            else Color.White.copy(alpha=.45f)))
+            if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.56f,inboxDisplay.homeWallpaperDim))
+            else Color.White.copy(alpha=wallpaperDimAlpha(.45f,inboxDisplay.homeWallpaperDim))))
     }
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader(if(inboxDisplay.showProfileAsTitle)profile?.optString("display_name").orEmpty().ifBlank {"Liquid Chat"} else "Liquid Chat",brand=true) {
@@ -540,8 +540,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     contentScale=androidx.compose.ui.layout.ContentScale.Crop,
                     modifier=Modifier.matchParentSize())
                 Box(Modifier.matchParentSize().background(
-                    if(LocalGlassDark.current)Color.Black.copy(alpha=.46f)
-                    else Color.White.copy(alpha=.30f)))
+                    if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
+                    else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))))
             }
         }
     }
@@ -1291,6 +1291,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
                 valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
             HorizontalDivider()
+            Text("Photo wallpaper dimming · ${display.homeWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(homeWallpaperDim=it.toInt()))},
+                valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
+            Text("50% keeps the previous Home wallpaper appearance. Changes apply to locally selected photos.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider()
             Text("Conversation name size · ${display.homeChatNameSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeChatNameSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatNameSize=it.toInt()))},
                 valueRange=13f..20f,steps=6,modifier=Modifier.fillMaxWidth())
@@ -1300,6 +1306,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
         if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
+            Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.chatWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(chatWallpaperDim=it.toInt()))},
+                valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
+            Text("50% preserves the original conversation wallpaper contrast. Only locally selected photos use this control.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider()
             Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("Tail","Rounded","Compact").forEach {style ->
