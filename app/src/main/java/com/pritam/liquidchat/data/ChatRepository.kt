@@ -404,8 +404,10 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         } else if(old==null&&existingOnly) {
             // An older Shared Media item need not exist in Room. Publish only its
             // revocation identity; never cache the old body just to notify viewers.
-            if(!j.isNull("deleted_at")&&j.optString("deleted_at").isNotBlank())
+            if(!j.isNull("deleted_at")&&j.optString("deleted_at").isNotBlank()) {
                 _revocations.emit(MessageRevocation(account,id))
+                context.getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
+            }
         } else {
             val parsed=parseMessage(j,account)
             val message=parsed.copy(localTime=old?.localTime ?: parsed.localTime)
