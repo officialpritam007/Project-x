@@ -66,7 +66,7 @@ class StoryVideoExportTest {
         }
     }
 
-    @Test fun exportCreatesPlayableBoundedMp4FromActualLocalVideo() = runBlocking {
+    @Test fun exportCreatesPlayableBoundedMp4FromActualLocalVideo():Unit = runBlocking {
         val context=ApplicationProvider.getApplicationContext<Context>()
         val input=File.createTempFile("story-fixture-",".mp4",context.cacheDir)
         var output:File?=null
