@@ -188,7 +188,26 @@ import kotlinx.coroutines.flow.drop
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
-    selectedChat?.let {c->LiquidActionSheet(title=c.name,onDismiss={selectedChat=null}) {
+    selectedChat?.let {c->
+        val previewFlow=remember(model,c.id) {model.repository.messages(c.id)}
+        val previewMessages by previewFlow.collectAsStateWithLifecycle(initialValue=emptyList())
+        LiquidActionSheet(title=c.name,onDismiss={selectedChat=null}) {
+        Text("Conversation preview",style=MaterialTheme.typography.titleSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(horizontal=12.dp))
+        GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
+            val preview=previewMessages.filter {it.deletedAt.isEmpty()}.takeLast(3)
+            if(preview.isEmpty()) Text("No downloaded messages to preview.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            else preview.forEach {m->
+                Text(if(m.sender==m.account)"You" else c.name,
+                    style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
+                Text(if(m.mediaKind=="voice")"Voice message" else if(m.mediaId.isNotEmpty() || m.localImage.isNotEmpty())"Photo message" else m.body,
+                    maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
+            }
+        }
+        GlassActionRow("Open conversation",Icons.Outlined.ChatBubbleOutline,
+            onClick={selectedChat=null;model.open(c.id)})
+        HorizontalDivider(Modifier.padding(vertical=8.dp))
         GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
             onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
         GlassActionRow("Mark unread",Icons.Outlined.MarkChatUnread,
@@ -202,7 +221,7 @@ import kotlinx.coroutines.flow.drop
         HorizontalDivider(Modifier.padding(vertical=8.dp),color=MaterialTheme.colorScheme.outlineVariant)
         GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
             onClick={selectedChat=null;deleteChat=c},destructive=true)
-    }}
+    }}}
     deleteChat?.let {c->LiquidAlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
     if(stories) MomentsDialog(model,mine=false,
         onDismiss={stories=false;selectedStoryId=null;storyRefreshKey++},
