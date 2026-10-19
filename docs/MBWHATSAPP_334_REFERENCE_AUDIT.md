@@ -122,3 +122,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - PR-head Build #339 compiled with matching APK SHA and passed Edge checks and API29 instrumentation. API35 instrumentation failed: Compose SlotWriter/Activity disposal crash during `ProtectedImageCacheTest.repeatedTransferRejectionStopsAndManualRetryIsBounded` after 73 of 82 attempted tests. **This is a failed gate, not a green test.** The earlier corrupt SDK image in main run #323 was a separate infrastructure fault.
 - Follow-up CI fix partitions Android instrumentation into four independent runner processes using AndroidJUnitRunner's `numShards`/`shardIndex`. All shards must complete, every test must execute once, no skipped tests accepted, and a minimum 80 distinct tests are required for this candidate. Shard JUnit reports and a combined report remain published.
 - Sharding reduces a known cross-test Compose disposal/race surface but must not be treated as a bug fix until the exact new CI run passes. Physical rendering/network/device testing remains pending.
+
+
+## Stage 6 — optional screenshot / recent-app thumbnail protection
+
+- Settings > Privacy & Security and MB Preferences > Privacy include a working **Block screenshots and app previews** toggle.
+- The authenticated app Activity live-sets `WindowManager.LayoutParams.FLAG_SECURE` and clears it when disabled; it is persisted locally between app launches. The opt-in default is **off** to preserve normal screenshot-based support and accessibility.
+- When enabled, Android restricts screen capture and recent-app task snapshots. This is a platform feature, **not** DRM or encryption, and cannot prevent another physical camera or every manufacturer-specific capture mechanism.
+- Local-only setting; never exported in themes or uploaded to Supabase. Existing voice/video call window-lock gating and media authorization are unchanged.
