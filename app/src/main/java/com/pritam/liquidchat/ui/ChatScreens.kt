@@ -530,7 +530,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if("Quick reactions" in categories) {
                         Text("Quick reactions",style=MaterialTheme.typography.labelMedium,
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.SpaceEvenly) {
                             listOf("👍","❤️","😂","😮","😢","🙏").forEach {emoji->
                                 TextButton(
                                     modifier=Modifier.size(48.dp),
