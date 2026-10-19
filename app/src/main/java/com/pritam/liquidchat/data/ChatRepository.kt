@@ -22,6 +22,21 @@ import java.util.concurrent.TimeUnit
 internal fun stableContactSnapshot(previous:JSONObject,incoming:JSONObject):JSONObject =
     if(previous.toString()==incoming.toString())previous else incoming
 
+/**
+ * Do not invalidate the entire inbox on every periodic or Realtime sync.
+ * A changed chat is still upserted, including updated previews, receipts,
+ * unread count, pinned/favourite/archive and synchronized cursors.
+ */
+internal fun changedChatRows(incoming:List<Chat>,existing:List<Chat>):List<Chat> {
+    val previous=existing.associateBy {it.account to it.id}
+    return incoming.filter {previous[it.account to it.id]!=it}
+}
+
+internal fun changedContactRows(incoming:List<Contact>,existing:List<Contact>):List<Contact> {
+    val previous=existing.associateBy {it.account to it.id}
+    return incoming.filter {previous[it.account to it.id]!=it}
+}
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ChatRepository(private val context:Context,val backend:Backend,val db:LocalDatabase) {
     val dao=db.dao()
@@ -80,7 +95,14 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun loadContacts() {
         val id=account();val a=JSONArray(backend.rpc("list_contacts"))
         val contacts=(0 until a.length()).map {i->val j=a.getJSONObject(i);Contact(id,j.getString("id"),j.getString("display_name"),j.getString("username"),if(j.isNull("avatar_id"))"" else j.optString("avatar_id"),j.optString("bio"))}
-        checkAccount(id);db.withTransaction {dao.clearContacts(id);dao.putContacts(contacts)}
+        checkAccount(id)
+        db.withTransaction {
+            val previous=dao.allContacts(id)
+            val changed=changedContactRows(contacts,previous)
+            if(changed.isNotEmpty())dao.putContacts(changed)
+            val visibleIds=contacts.mapTo(HashSet(contacts.size)) {it.id}
+            for(contact in previous) if(contact.id !in visibleIds)dao.removeContact(id,contact.id)
+        }
     }
     suspend fun saveContact(peer:String,saved:Boolean) {backend.rpc("save_contact",JSONObject().put("p_peer",peer).put("p_saved",saved));loadContacts()}
     fun chats()=backend.session.map {it?.userId}.distinctUntilChanged().flatMapLatest {id-> if(id==null) flowOf(emptyList()) else dao.chats(id).distinctUntilChanged()}
@@ -109,9 +131,16 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         } while(true)
         checkAccount(account)
         db.withTransaction {
-            dao.putChats(chats)
             val existing=dao.allChats(account)
-            for(c in existing) if(chats.none {it.id==c.id}) {dao.removeHistory(account,c.id);dao.deleteChat(account,c.id)}
+            val changed=changedChatRows(chats,existing)
+            // Room invalidations force inbox and avatar recomposition even if
+            // the server snapshot has not changed. Avoid redundant upserts.
+            if(changed.isNotEmpty())dao.putChats(changed)
+            val incomingIds=chats.mapTo(HashSet(chats.size)) {it.id}
+            for(c in existing) if(c.id !in incomingIds) {
+                dao.removeHistory(account,c.id)
+                dao.deleteChat(account,c.id)
+            }
         }
         for(c in chats) {
             checkAccount(account)
