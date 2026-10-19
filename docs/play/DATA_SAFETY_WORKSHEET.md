@@ -8,6 +8,9 @@ Use the final signed artifact and deployed provider configuration. Pritam Pal mu
 | Profile name, username, bio, avatar | User profile/discovery | Collected; avatar/bio optional; distinguish mandatory fields |
 | Text and message metadata/actions | Conversations, sync, receipts, replies/reactions/stars | Collected; sent to intended recipient and backend; no E2EE |
 | Photos and voice/audio | User-triggered sharing, Stories/Posts/avatar | Collected when submitted; optional media actions |
+| Video Stories | Selected video, local ≤30-second compression, protected contact-only media | Collected when published; optional; 24-hour story expiry plus scheduled storage cleanup |
+| Call audio/video | User-initiated WebRTC voice/video in calling-enabled test candidate | Real-time participant transfer; not stored/recorded by the app; assess Play ephemeral processing and user-initiated transfer definitions against the final signed flag |
+| Call history, SDP/ICE/IP identifiers | Supabase call signaling/history, public STUN network traversal | Signaling and history processed/stored under their retention rules; disclose actual network providers; no configured TURN in this candidate |
 | Saved contacts/social relationships | In-app UUID relationships, not device address book | Collected; review Contacts/User IDs/App interactions definitions |
 | Device/installation IDs and FCM tokens | Firebase/notification registration | Collected in FCM-enabled builds; denying notification permission does not by itself guarantee no token/installation ID is created |
 | Reports/blocks/privacy preferences | Abuse prevention, safety, account controls | Collected; explanation and selected evidence references; owner-only review |
