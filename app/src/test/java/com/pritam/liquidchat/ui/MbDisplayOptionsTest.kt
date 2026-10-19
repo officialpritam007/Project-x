@@ -17,6 +17,11 @@ class MbDisplayOptionsTest {
         assertEquals(24,DisplayOptions().navIconSize)
         assertEquals(11,DisplayOptions().navLabelSize)
         assertEquals(25,DisplayOptions().headerTitleSize)
+        assertEquals(16,DisplayOptions().homeChatNameSize)
+        assertEquals(14,DisplayOptions().homeChatPreviewSize)
+        assertEquals("Cyan",DisplayOptions().accentColor)
+        assertEquals(liquidAccentScheme(false,"Cyan"),liquidAccentScheme(false,"unknown"))
+        org.junit.Assert.assertNotEquals(liquidAccentScheme(false,"Cyan").primary,liquidAccentScheme(false,"Rose").primary)
     }
     @Test fun bubblePalettesAreAppliedWithoutChangingLegacyDefault() {
         assertEquals(null,conversationBubbleColor("Original",true,false))
