@@ -25,6 +25,7 @@ class MbDisplayOptionsTest {
         assertEquals("System",DisplayOptions().fontPreset)
         assertEquals(false,DisplayOptions().hideOutgoingTyping)
         assertEquals(false,DisplayOptions().preventScreenshots)
+        assertEquals(MbNavigationOrder.DEFAULT,DisplayOptions().navigationOrder)
         assertEquals(50,DisplayOptions().homeWallpaperDim)
         assertEquals(50,DisplayOptions().chatWallpaperDim)
         assertEquals(0f,wallpaperDimAlpha(.46f,0),0.0001f)
