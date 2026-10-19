@@ -112,6 +112,15 @@ import kotlinx.coroutines.flow.drop
     val profile by model.profile.collectAsStateWithLifecycle()
     val connection by model.connection.collectAsStateWithLifecycle()
     val results by model.searchResults.collectAsStateWithLifecycle()
+    val homePrivacy by model.repository.privateSettings.collectAsStateWithLifecycle()
+    val signedInAccount by model.session.collectAsStateWithLifecycle()
+    LaunchedEffect(menu,signedInAccount?.userId) {
+        if(menu && signedInAccount!=null) {
+            try {model.repository.loadSettings()}
+            catch(e:kotlinx.coroutines.CancellationException) {throw e}
+            catch(_:Exception) { /* Privacy controls remain disabled while unavailable. */ }
+        }
+    }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader("Liquid Chat",brand=true) {
@@ -120,6 +129,16 @@ import kotlinx.coroutines.flow.drop
                     // The four filters already have visible, accessible chips below.
                     // Keep overflow for an action rather than duplicating navigation.
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
+                    val privacyLoaded=homePrivacy.has("show_presence") && homePrivacy.has("read_receipts") && homePrivacy.has("notification_previews")
+                    val ghost=ghostModeActive(homePrivacy.optBoolean("show_presence",true),homePrivacy.optBoolean("read_receipts",true))
+                    DropdownMenuItem(text={Text(if(ghost)"Disable Ghost Mode" else "Enable Ghost Mode")},
+                        enabled=privacyLoaded,onClick={
+                            menu=false
+                            model.action {
+                                val next=ghostModeSettings(!ghost)
+                                model.repository.settings(next.first,next.second,homePrivacy.optBoolean("notification_previews",true))
+                            }
+                        })
                 }
             }
         }
