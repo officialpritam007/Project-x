@@ -183,3 +183,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 
 | MB36 | Customize colors, fonts, bubbles, reactions and wallpapers; turn on screenshot/typing/snippet privacy, then MB Themes > Restore defaults | Visual defaults restored and persisted, private wallpapers/files and messages untouched; screenshot protection, typing privacy, hidden previews and accessibility flags remain enabled |
+
+| MB38 | Enable Hide notification message text for one chat, send text while app is backgrounded, expand alert | Notification title remains the chat, but collapsed/expanded body is only 'New message'; chat content unchanged |
+| MB39 | Disable global server notification previews while per-chat toggle is off | Global server restriction wins and no message text appears in notification |
+| MB40 | Delete a chat or change accounts after enabling per-chat preview privacy | Local redaction is erased only for the deleted or signed-out account and never transferred to the other account |
