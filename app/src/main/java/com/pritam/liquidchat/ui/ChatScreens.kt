@@ -1085,6 +1085,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     }
 }
+@OptIn(ExperimentalLayoutApi::class)
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
     var section by rememberSaveable {mutableStateOf<String?>(null)}
     var unavailable by remember {mutableStateOf<String?>(null)}
