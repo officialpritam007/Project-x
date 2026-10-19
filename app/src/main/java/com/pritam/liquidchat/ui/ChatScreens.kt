@@ -112,8 +112,9 @@ import kotlinx.coroutines.flow.drop
         GlassHeader("Liquid Chat",brand=true) {
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
                 DropdownMenu(menu,{menu=false}) {
-                    listOf("All","Favorite","Archive","Unread").forEachIndexed {i,title->DropdownMenuItem(text={Text(title)},onClick={filter=i;menu=false})}
-                    DropdownMenuItem(text={Text("Refresh")},onClick={model.repository.refresh();menu=false})
+                    // The four filters already have visible, accessible chips below.
+                    // Keep overflow for an action rather than duplicating navigation.
+                    DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
                 }
             }
         }
