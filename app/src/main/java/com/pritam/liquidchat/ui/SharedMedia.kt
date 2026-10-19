@@ -31,7 +31,9 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
 @Composable internal fun ContactMediaDialog(model:AppViewModel,chat:Chat,sourceVersion:List<Message>,initialKind:String="image",onDismiss:()->Unit) {
     val session by model.session.collectAsStateWithLifecycle()
     val account=session?.userId
-    val epoch=model.backend.uiReads.epoch(account)
+    // Observe auth-scope changes even if the user ID stays the same.
+    val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
+    val epoch=model.backend.uiReads.epoch(account).takeIf {it==sessionEpoch}
     var kind by remember(chat.id,account) {mutableStateOf(initialKind)}
     var rows by remember(chat.id,account,epoch) {mutableStateOf(emptyList<Message>())}
     var more by remember(chat.id,account,epoch) {mutableStateOf(true)}
