@@ -169,3 +169,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Original Liquid Chat visual defaults are restored, including accent, font family, conversation bubble style/colors, header/navigation dimensions, wallpaper dimming and quick reactions.
 - Security and accessibility state is **preserved**: hide outgoing typing, hide inbox previews, prevent screenshots, reduced motion and reduced transparency. No on-disk wallpaper files, messages, user accounts or Supabase records are removed. All values use existing local display persistence.
 - Android regression test verifies that resetting all modified visuals does not silently turn off privacy/accessibility controls. Proprietary MBWhatsApp theme import remains unsupported.
+
+## Stage 10 — local per-chat FCM text preview privacy (pending CI)
+
+- Conversation > Custom notifications now includes **Hide notification message text**, persisted on the signed-in device separately for each account and conversation. It does not require a separate custom sound channel or a Supabase migration.
+- `ReceiveWorker.show` consumes only authorized server-generated preview metadata; if either global preview privacy is off or this conversation's local redaction is on, both collapsed and expanded Android notification text become **New message** and lockscreen visibility uses SECRET. Per-chat local privacy can never override stricter server privacy.
+- Account logout and chat deletion remove redaction keys, preserving all other contacts. FCM message dedupe, mute/block enforcement, call notifications and background retry remain unchanged.
+- Unit tests verify the complete global/local privacy matrix; Android instrumentation verifies separate account/conversation storage and cleanup. Incoming text hidden in notifications is still visible to authorized participants inside the conversation.
+- Other devices on the same account require separate local settings; exact Android manufacturer lockscreen behavior still needs the user's final two-phone acceptance.
