@@ -118,6 +118,7 @@ import kotlinx.coroutines.flow.drop
     val homeOwner=signedInAccount?.userId
     val context=LocalContext.current
     var homePhotoRevision by remember(homeOwner) {mutableIntStateOf(0)}
+    var homePickerAccount by remember {mutableStateOf<String?>(null)}
     val homePhoto=remember(homeOwner,homePhotoRevision) {
         homeOwner?.let {owner->
             runCatching {
@@ -127,11 +128,13 @@ import kotlinx.coroutines.flow.drop
         }
     }
     val homePhotoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
-        val owner=homeOwner
-        if(uri!=null && owner!=null) model.action {
-            com.pritam.liquidchat.data.PersonalWallpaper.save(context,owner,
+        val owner=homePickerAccount
+        homePickerAccount=null
+        if(uri!=null && owner!=null && model.session.value?.userId==owner) model.action {
+            val saved=com.pritam.liquidchat.data.PersonalWallpaper.save(context,owner,
                 com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID,uri)
             if(model.session.value?.userId==owner)homePhotoRevision++
+            else saved.delete()
         }
     }
     val inboxDisplay=LocalDisplayOptions.current
@@ -166,6 +169,7 @@ import kotlinx.coroutines.flow.drop
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
                     DropdownMenuItem(text={Text("Choose home wallpaper")},onClick={
                         menu=false
+                        homePickerAccount=homeOwner
                         homePhotoPicker.launch("image/*")
                     },enabled=homeOwner!=null)
                     if(homePhoto?.isFile==true && homeOwner!=null)
