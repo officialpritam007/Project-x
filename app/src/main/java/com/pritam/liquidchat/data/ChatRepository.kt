@@ -264,8 +264,9 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         dao.putAppearance(ChatAppearance(id,cid,palette));checkAccount(id)
     }
 
-    suspend fun setCustomWallpaper(cid:String,uri:android.net.Uri) {
+    suspend fun setCustomWallpaper(cid:String,uri:android.net.Uri,expectedAccount:String) {
         val id=account()
+        require(id==expectedAccount) {"The active account changed while choosing the wallpaper."}
         require(dao.chat(id,cid)!=null) {"Open a valid conversation."}
         val saved=PersonalWallpaper.save(context,id,cid,uri)
         try {
