@@ -161,3 +161,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - After a successful authenticated Supabase `set_conversation(p_delete=true)`, local chat history, draft, scheduled texts and appearance row are removed together; the private wallpaper JPEG and dedicated Android per-contact notification channel/preferences are also removed. Home wallpaper and all other conversations remain intact.
 - Failed server deletion no longer erases locally scheduled messages first. No remote customer data, Supabase schema or paid provider is changed. User-visible failures from local cleanup are not silently presented as successful erasure.
 - Tests verify that per-chat file/channel erasure does not delete another conversation or account's settings. Physical delete/account-switch acceptance remains open.
+
+
+## Stage 9 — actual bottom navigation reordering (pending CI)
+
+- MB Home Screen now exposes five reorderable destinations, **Chats / Calls / Contacts / Settings / Profile**. Adjacent up/down buttons move each destination without changing its original integer navigation route ID, content, title or icon. Voice/video Calling stays reachable regardless of visual order.
+- Persist a validated five-ID permutation in existing local SharedPreferences. Original `0,1,2,3,4` is the backward-compatible default; corrupted, duplicate or omitted IDs reset to the safe original layout. No hidden/removed tabs.
+- Liquid Chat theme JSON import/export carries the validated order, while private account data remains excluded.
+- Unit tests cover all five IDs, swaps, corrupt restore and boundary movements; Android theme instrumentation includes a nondefault order. Final device TalkBack/large text acceptance remains required.
