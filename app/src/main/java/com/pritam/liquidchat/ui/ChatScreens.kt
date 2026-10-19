@@ -889,7 +889,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes"))"MB Preferences" else null}
+    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}
 
     if(section=="MB Preferences") {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -912,6 +912,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
                 HorizontalDivider()
                 GlassActionRow("Themes",Icons.Outlined.ColorLens,onClick={section="MB Themes"})
+                HorizontalDivider()
+                GlassActionRow("Privacy",Icons.Outlined.Lock,onClick={section="MB Privacy"})
+                HorizontalDivider()
+                GlassActionRow("Notifications",Icons.Outlined.Notifications,onClick={section="MB Notifications"})
             }
         }
         return
@@ -970,7 +974,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="MB Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Themes",style=MaterialTheme.typography.titleLarge)
@@ -1132,9 +1136,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 runCatching {context.startActivity(intent)}
             }) {Text("Open Android app settings")}
         }
-        if(section in listOf("Privacy & Security","Notifications")) GlassCard(Modifier.fillMaxWidth()) {
+        if(section in listOf("Privacy & Security","Notifications","MB Privacy","MB Notifications")) GlassCard(Modifier.fillMaxWidth()) {
             Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
-            if(section=="Privacy & Security") {
+            if(section=="Privacy & Security" || section=="MB Privacy") {
                 val loaded=settings.has("show_presence") && settings.has("read_receipts") && settings.has("notification_previews")
                 val enabled=ghostModeActive(settings.optBoolean("show_presence",true),settings.optBoolean("read_receipts",true))
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
@@ -1156,7 +1160,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 HorizontalDivider()
             }
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
-            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
+            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications" || section=="MB Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Text(label,Modifier.weight(1f))
                     Switch(checked=settings.optBoolean(key,true),enabled=!busy&&settings.has(key),onCheckedChange={checked->model.action {
@@ -1165,7 +1169,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
             }
         }
-        if(section=="Notifications") NotificationSystemSettings()
+        if(section=="Notifications" || section=="MB Notifications") NotificationSystemSettings()
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
         TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
