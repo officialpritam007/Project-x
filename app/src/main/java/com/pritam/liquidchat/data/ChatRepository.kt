@@ -537,15 +537,23 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     suspend fun setChat(c:Chat,favorite:Boolean=c.favorite,archived:Boolean=c.archived,muted:Boolean=c.muted,delete:Boolean=false) {
         val id=account()
-        if(delete) {
-            // A deleted chat must not unexpectedly send a text that was scheduled earlier.
-            val scheduled=dao.scheduledTexts(id,c.id).first()
-            db.withTransaction {checkAccount(id);dao.clearScheduledConversation(id,c.id)}
-            scheduled.forEach { WorkManager.getInstance(context).cancelUniqueWork("scheduled-$id-${it.id}") }
-        }
+        // Do not erase local drafts, future scheduled texts, or private appearance
+        // before Supabase acknowledges the delete. A failed RPC must be reversible.
         backend.rpc("set_conversation",JSONObject().put("p_conversation",c.id).put("p_favorite",favorite).put("p_archived",archived).put("p_muted",muted).put("p_delete",delete))
         checkAccount(id)
-        if(delete)drainMutex.withLock {draftMutex.withLock {db.withTransaction {dao.removeHistory(id,c.id);dao.removeDraft(id,c.id)}}}
+        if(delete) {
+            val scheduled=dao.scheduledTexts(id,c.id).first()
+            drainMutex.withLock {draftMutex.withLock {db.withTransaction {
+                checkAccount(id)
+                dao.clearScheduledConversation(id,c.id)
+                dao.removeHistory(id,c.id)
+                dao.removeDraft(id,c.id)
+                dao.removeAppearance(id,c.id)
+            }}}
+            scheduled.forEach {WorkManager.getInstance(context).cancelUniqueWork("scheduled-$id-${it.id}")}
+            withContext(Dispatchers.IO) {PersonalWallpaper.clearConversation(context,id,c.id)}
+            ConversationNotificationChannels.clearConversation(context,id,c.id)
+        }
         sync()
     }
     /**
