@@ -161,6 +161,27 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Download emulator image with bounded retry
+        env:
+          API_LEVEL: ${{ matrix.api }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="system-images;android-${API_LEVEL};google_apis;x86_64"
+          system_dir="${ANDROID_HOME}/system-images/android-${API_LEVEL}/google_apis/x86_64"
+          for attempt in 1 2 3; do
+            if timeout 240s sdkmanager --install "${image}" --channel=0; then
+              if [ -s "${system_dir}/system.img" ]; then
+                echo "Validated Android API ${API_LEVEL} system image."
+                exit 0
+              fi
+            fi
+            echo "System image download failed (attempt ${attempt}/3); clean partial image and retry."
+            rm -rf "${system_dir}"
+            sleep "$((attempt * 4))"
+          done
+          echo "::error::Android API ${API_LEVEL} system image could not be installed after 3 attempts"
+          exit 1
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
