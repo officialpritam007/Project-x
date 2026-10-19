@@ -35,6 +35,7 @@ class MbQuickReactionsTest {
             MbQuickReactions.normalize("👍,".repeat(128)))
         assertEquals("👍",MbQuickReactions.toggle("👍","unknown"))
         assertEquals(MbQuickReactions.defaults,MbQuickReactions.available.take(6))
+        assertEquals(listOf("👍","❤️","😂","😮","😢","🙏","👏"),MbQuickReactions.available)
         assertFalse("🔥" in MbQuickReactions.available)
     }
 
