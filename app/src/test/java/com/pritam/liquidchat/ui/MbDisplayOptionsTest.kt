@@ -20,6 +20,8 @@ class MbDisplayOptionsTest {
         assertEquals(16,DisplayOptions().homeChatNameSize)
         assertEquals(14,DisplayOptions().homeChatPreviewSize)
         assertEquals("Cyan",DisplayOptions().accentColor)
+        assertEquals(false,DisplayOptions().showProfileAsTitle)
+        assertEquals(false,DisplayOptions().hideArchiveAccess)
         assertEquals(liquidAccentScheme(false,"Cyan"),liquidAccentScheme(false,"unknown"))
         org.junit.Assert.assertNotEquals(liquidAccentScheme(false,"Cyan").primary,liquidAccentScheme(false,"Rose").primary)
     }
