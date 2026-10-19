@@ -9,6 +9,16 @@ import org.webrtc.MediaStreamTrack
 
 /** Runs against native WebRTC on each emulator; no camera, mic or user account needed. */
 class VideoCodecTest {
+    @org.junit.Test fun signalingAfterTeardownFailsPromptlyRatherThanSuspendingForever()=kotlinx.coroutines.runBlocking {
+        val context=androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val engine=CallEngine(context,false,{},{})
+        engine.close()
+        engine.close()
+        var rejected=false
+        try {kotlinx.coroutines.withTimeout(1_000L) {engine.createOffer()}}
+        catch(_:java.io.IOException) {rejected=true}
+        org.junit.Assert.assertTrue("Closed peer must fail without waiting for a callback",rejected)
+    }
     @Test fun productionFactoryAdvertisesBidirectionalVideoAndAudio() {
         val context=ApplicationProvider.getApplicationContext<Context>()
         val egl=EglBase.create()
