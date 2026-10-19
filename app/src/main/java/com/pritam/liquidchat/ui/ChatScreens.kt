@@ -1109,6 +1109,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     FilterChip(selected=display.accentColor==value,onClick={model.setDisplay(display.copy(accentColor=value))},label={Text(value)})
                 }
             }
+            Text("App font family",style=MaterialTheme.typography.labelLarge)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("System","Serif","Mono","Cursive").forEach {value ->
+                    FilterChip(selected=display.fontPreset==value,
+                        onClick={model.setDisplay(display.copy(fontPreset=value))},label={Text(value)})
+                }
+            }
+            Text("Uses Android's built-in fonts; imports no private font files.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
