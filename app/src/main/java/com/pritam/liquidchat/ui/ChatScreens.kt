@@ -247,6 +247,18 @@ internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
     else->SettingsPanel.OTHER
 }
 
+/** Display category order for the one-to-one message action sheet. */
+internal fun messageActionCategories(message:Message):List<String> {
+    val result=mutableListOf<String>()
+    if(message.deletedAt.isEmpty()) {
+        if(message.status=="SENT")result+="Quick reactions"
+        result+="Message actions"
+    }
+    if((message.status=="SENT" && message.sender!=message.account && message.deletedAt.isEmpty()) ||
+        message.status in listOf("SENT","QUEUED","FAILED"))result+="Safety"
+    return result
+}
+
 internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(id in ids) ids-id else ids+id
 
@@ -503,34 +515,106 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
     },onDismiss={emojiPicker=false})
     if(appearance)AlertDialog(onDismissRequest={appearance=false},title={Text("Chat wallpaper")},text={Column {listOf("Ice","Lilac","Mint","Sand").forEach {choice->TextButton(onClick={model.action {model.repository.setPalette(cid,choice);palette=choice;appearance=false}}) {Text(if(choice==palette)"✓ $choice" else choice)}}}},confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}})
-    actionMessage?.let {m->AlertDialog(onDismissRequest={actionMessage=null},title={Text("Message")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
-        if(m.deletedAt.isEmpty()) {
-            if(m.status=="SENT") {
-                Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("👍","❤️","😂","😮","😢","🙏").forEach {emoji->TextButton(onClick={actionMessage=null;model.action {val old=org.json.JSONObject(m.reactions).optString(m.account);model.repository.messageAction(m.id,"react",if(old==emoji)"" else emoji)}}) {Text(emoji)}}}
-                TextButton(onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null}) {Text("Reply")}
-                TextButton(onClick={actionMessage=null;model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}}) {Text(if(m.starred)"Unstar" else "Star")}
-            }
-            if(m.status=="SENT"&&m.sender!=m.account)TextButton(onClick={reportMessage=m;actionMessage=null;report=true}) {Text("Report message")}
-            if(canForwardTextMessage(m,session?.userId)) {
-                TextButton(onClick={actionMessage=null;forwardMessages=listOf(m);forwardSearch=""}) {
-                    Icon(Icons.Outlined.Forward,null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Forward to chat")
+    actionMessage?.let {m->
+        val categories=messageActionCategories(m)
+        AlertDialog(
+            onDismissRequest={actionMessage=null},
+            title={Text("Message actions")},
+            text={
+                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                    verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                    if(m.deletedAt.isNotEmpty()) {
+                        Text("This message was deleted",
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if("Quick reactions" in categories) {
+                        Text("Quick reactions",style=MaterialTheme.typography.labelMedium,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.SpaceEvenly) {
+                            listOf("👍","❤️","😂","😮","😢","🙏").forEach {emoji->
+                                TextButton(
+                                    modifier=Modifier.size(48.dp),
+                                    onClick={
+                                        actionMessage=null
+                                        model.action {
+                                            val old=org.json.JSONObject(m.reactions).optString(m.account)
+                                            model.repository.messageAction(m.id,"react",if(old==emoji)"" else emoji)
+                                        }
+                                    },
+                                    contentPadding=PaddingValues(0.dp)
+                                ) {Text(emoji)}
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                    if("Message actions" in categories) {
+                        Text("Message actions",style=MaterialTheme.typography.labelMedium,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        if(m.status=="SENT") {
+                            TextButton(onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null},
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Reply")}
+                            TextButton(onClick={
+                                actionMessage=null
+                                model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}
+                            },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text(if(m.starred)"Unstar" else "Star")}
+                        }
+                        if(canForwardTextMessage(m,session?.userId)) {
+                            TextButton(onClick={actionMessage=null;forwardMessages=listOf(m);forwardSearch=""},
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                                Icon(Icons.Outlined.Forward,null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Forward to chat")
+                            }
+                            TextButton(onClick={actionMessage=null;selectedIds=setOf(m.id)},
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                                Icon(Icons.Outlined.CheckBox,null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Select multiple")
+                            }
+                        }
+                        if(m.mediaKind!="voice")TextButton(onClick={
+                            clipboard.setText(AnnotatedString(m.body));actionMessage=null
+                        },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Copy text")}
+                        TextButton(onClick={
+                            actionMessage=null
+                            context.startActivity(android.content.Intent.createChooser(
+                                android.content.Intent(android.content.Intent.ACTION_SEND)
+                                    .setType("text/plain")
+                                    .putExtra(android.content.Intent.EXTRA_TEXT,m.body),
+                                "Share message"
+                            ))
+                        },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Share text")}
+                        val age=runCatching {
+                            java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds
+                        }.getOrDefault(Long.MAX_VALUE)
+                        if(m.sender==m.account&&m.status=="SENT"&&m.mediaId.isEmpty()&&age<=900)
+                            TextButton(onClick={editMessage=m;editBody=m.body;actionMessage=null},
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Edit")}
+                    }
+                    if("Safety" in categories) {
+                        HorizontalDivider()
+                        Text("Safety",style=MaterialTheme.typography.labelMedium,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        if(m.deletedAt.isEmpty()&&m.status=="SENT"&&m.sender!=m.account)
+                            TextButton(onClick={reportMessage=m;actionMessage=null;report=true},
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Report message")}
+                        if(m.status in listOf("SENT","QUEUED","FAILED"))
+                            TextButton(onClick={deleteMessage=m;actionMessage=null},
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                                Text("Delete",color=MaterialTheme.colorScheme.error)
+                            }
+                    }
+                    Text("${if(m.sender==m.account)"You" else chat?.name.orEmpty()} · ${
+                        java.time.Instant.ofEpochMilli(m.localTime)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))
+                    }",style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TextButton(onClick={actionMessage=null;selectedIds=setOf(m.id)}) {
-                    Icon(Icons.Outlined.CheckBox,null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Select multiple")
-                }
-            }
-            if(m.mediaKind!="voice") TextButton(onClick={clipboard.setText(AnnotatedString(m.body));actionMessage=null}) {Text("Copy text")}
-            TextButton(onClick={actionMessage=null;context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT,m.body),"Share message"))}) {Text("Share text")}
-            val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
-            if(m.sender==m.account&&m.status=="SENT"&&m.mediaId.isEmpty()&&age<=900)TextButton(onClick={editMessage=m;editBody=m.body;actionMessage=null}) {Text("Edit")}
-        }
-        if(m.status in listOf("SENT","QUEUED","FAILED"))TextButton(onClick={deleteMessage=m;actionMessage=null}) {Text("Delete")}
-        Text("${if(m.sender==m.account)"You" else chat?.name.orEmpty()} · ${java.time.Instant.ofEpochMilli(m.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))}",style=MaterialTheme.typography.bodySmall)
-    }},confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}})}
+            },
+            confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}}
+        )
+    }
     forwardMessages.takeIf {it.isNotEmpty()}?.let {batch->
         val source=batch.first()
         val account=session?.userId
