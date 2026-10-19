@@ -35,6 +35,10 @@ class PersonalWallpaperTest {
             assertEquals("jpg",stored.extension)
             assertFalse(PersonalWallpaper.has(context,accountB,cid))
             assertEquals(stored,PersonalWallpaper.location(context,accountA,cid))
+            val home=PersonalWallpaper.save(context,accountA,PersonalWallpaper.HOME_CID,Uri.fromFile(image))
+            assertNotEquals(home,stored)
+            assertTrue(PersonalWallpaper.has(context,accountA,PersonalWallpaper.HOME_CID))
+            assertFalse(PersonalWallpaper.has(context,accountB,PersonalWallpaper.HOME_CID))
         } finally {
             PersonalWallpaper.clearAccount(context,accountA)
             PersonalWallpaper.clearAccount(context,accountB)
