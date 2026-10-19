@@ -169,3 +169,8 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB29 | Switch photo → built-in palette → My saved photo | Selection is reversible without unexpected message/data loss |
 | MB30 | Sign out of one account and log in to a different user | Previous user's wallpaper is securely removed from app files and cannot be shown to the other account |
 | MB31 | Reject oversized, invalid, or non-image gallery selection | Visible error; current chat wallpaper and outbox remain unchanged |
+
+
+| MB32 | Choose an image for Chats home wallpaper, switch tabs and reopen app | New wallpaper renders only under Chats, remains legible in dark/light, never transmitted or uploaded |
+| MB33 | Remove Home wallpaper, then choose a second photo | Background immediately reverts to Liquid Glass, replacement shows latest photo without stale Coil image |
+| MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |
