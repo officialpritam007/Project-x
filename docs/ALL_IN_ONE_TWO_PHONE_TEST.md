@@ -119,3 +119,30 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | R05 | Record any failure with the exact case ID, device/network, time and minimal sanitized evidence | One consolidated report; no repeated development-phase installations |
 
 Release remains a test candidate until applicable rows pass. A failed provider/network case is recorded as failed/blocked, never converted to production acceptance by emulator CI. Seen/unseen Story receipts, full Telecom, TURN, arbitrary documents, automatic link previews and conditional P2 features listed in the implementation report are not present and must not be tested as implemented.
+
+## Additional MBWhatsApp parity acceptance (rc6 candidate; do not skip prior cases)
+
+**One owner round only, after automated integration is green.** The reference APK's actual visible UI must be used for side-by-side comparison. Visual differences or reference features that are not present remain **incomplete** and cannot be signed off merely because the app launches.
+
+| ID | Exercise | Expected result |
+|---|---|---|
+| MB01 | Navigate Settings > MB Preferences > General/Home/Conversation and Back | No blank/inert screen, focus trap, or overlapping modal/navigation |
+| MB02 | Change Haze blur 0/55/100, background light/dark, restart | Blur changes live; 55 matches prior baseline; reduced-transparency override works |
+| MB03 | Select Cyan/Blue/Green/Purple/Rose/Amber global colors, restart | Correct visible Material3 accent and persisted selection; no washed-out content |
+| MB04 | Change bubble shape Tail/Rounded/Compact, five colors and body 14–22sp | Both incoming and outgoing bubbles change, original message/ticks/actions remain |
+| MB05 | Toggle bottom-tab labels, icon/label/title sizes at 200% system font | All five destinations remain reachable, no clipping, no calling buttons hidden |
+| MB06 | Set profile name as home title; separately scale chat names/previews | Correct authenticated identity, bounded text, no cross-account leakage |
+| MB07 | Hide/re-enable Archive filter while a chat is archived | Archived data persists; filter disappears/reappears; no lost conversation |
+| MB08 | Enable Ghost Mode from home, compare Privacy screen and second phone | Server hides online/last seen and future read receipts; no false retroactive changes |
+| MB09 | Disable Ghost Mode; turn one privacy switch back off manually | Both controls restored then manual half-state is not mislabeled Ghost Mode |
+| MB10 | Schedule text 2+ minutes ahead in an existing chat | Listed as scheduled, not in active outbox and not received early |
+| MB11 | Cancel a scheduled message | Removed from list and not sent after due |
+| MB12 | Reboot sender before due, leave receiver active | Scheduled message persists locally; delivered no earlier than due, possible system delay noted |
+| MB13 | Go offline before due, reconnect afterward | Normal queued outbox retries; no duplicate message UUID / no phantom delivery |
+| MB14 | Sign out or delete conversation with a pending schedule | Pending local schedules are removed and cannot be sent later from old account |
+| MB15 | Switch between two accounts while a schedule exists | No cross-account schedule/body disclosure or send under wrong session |
+| MB16 | Send normal text while future schedule exists | Immediate send unaffected; scheduled text stays pending until due |
+| MB17 | Verify voice/video call buttons, outgoing/ringing/active audio-video after styling changes | Calling-enabled config unchanged; no UI overlay or audio-route regression |
+| MB18 | Compare actual MBWhatsApp reference screens at matched device widths | Record all missing controls, icons, layout/animation mismatches; never claim pixel parity without evidence |
+
+**Known limitations:** schedules are device-local and WorkManager is subject to Android's timing restrictions; logout/uninstall/data clearance removes them. Real carrier TURN reliability, precise theme/font import/export, WhatsApp-specific status/once-view retrieval, document scanning, custom stickers and more reference menu items are still unimplemented. Do not mistake the rc6 candidate for the full MBWhatsApp clone.
