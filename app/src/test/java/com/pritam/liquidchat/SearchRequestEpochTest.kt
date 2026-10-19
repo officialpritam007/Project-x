@@ -16,6 +16,11 @@ class SearchRequestEpochTest {
         assertFalse(searchRequestCurrent(7,7,"alice",null,2,2))
     }
 
+    @Test fun unownedOrInactiveBackendReadScopeDoesNotExposeSearch() {
+        assertFalse(searchRequestCurrent(7,7,"account","account",null,null))
+        assertFalse(searchRequestCurrent(7,7,"account","account",null,2))
+    }
+
     @Test fun sameAccountDifferentAuthScopeMustNotRestoreOldResults() {
         assertFalse(searchRequestCurrent(7,7,"account","account",2,3))
     }
