@@ -89,6 +89,7 @@ import kotlinx.coroutines.flow.drop
                     if(chat.muted)Icon(Icons.Outlined.NotificationsOff,"Muted",Modifier.size(14.dp))
                 }
                 if(chat.unread>0) Badge {Text(if(chat.unread>99)"99+" else chat.unread.toString())}
+                else if(chat.manualUnread)Badge(Modifier.semantics {contentDescription="Marked unread"})
             }
         }
     }
@@ -129,7 +130,7 @@ import kotlinx.coroutines.flow.drop
             listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
         }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->it.unread>0&&!it.archived;else->!it.archived}}
+        val visible=chats.filter {when(filter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
@@ -257,10 +258,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var searchOpen by remember(cid) {mutableStateOf(false)}
     var chatQuery by remember(cid) {mutableStateOf("")}
     var searchIndex by remember(cid) {mutableIntStateOf(0)}
-    val chatResults=remember(messages,chatQuery) {
-        if(chatQuery.isBlank())emptyList() else messages.filter {
-            it.deletedAt.isEmpty() && it.body.contains(chatQuery,true)
-        }
+    var searchSender by remember(cid) {mutableStateOf(SearchSender.ANY)}
+    var searchMedia by remember(cid) {mutableStateOf(SearchMedia.ANY)}
+    var searchPeriod by remember(cid) {mutableStateOf(SearchPeriod.ANY)}
+    val chatResults=remember(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod) {
+        filterMessageHistory(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod)
     }
     var actionMessage by remember(cid) {mutableStateOf<Message?>(null)}
     var forwardMessages by remember(cid,session?.userId) {mutableStateOf<List<Message>>(emptyList())}
@@ -376,6 +378,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(searchOpen) GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp)) {
             Column(Modifier.padding(8.dp)) {
                 OutlinedTextField(chatQuery,{chatQuery=it;searchIndex=0},placeholder={Text("Search this chat")},singleLine=true,modifier=Modifier.fillMaxWidth(),trailingIcon={IconButton(onClick={searchOpen=false;chatQuery=""}) {Icon(Icons.Outlined.Close,"Close search")}})
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    SearchFilterMenu("Sender",searchSender.label,SearchSender.entries.map {it.label}) {
+                        searchSender=SearchSender.entries[it];searchIndex=0
+                    }
+                    SearchFilterMenu("Type",searchMedia.label,SearchMedia.entries.map {it.label}) {
+                        searchMedia=SearchMedia.entries[it];searchIndex=0
+                    }
+                    SearchFilterMenu("Date",searchPeriod.label,SearchPeriod.entries.map {it.label}) {
+                        searchPeriod=SearchPeriod.entries[it];searchIndex=0
+                    }
+                }
                 Row(verticalAlignment=Alignment.CenterVertically) {
                     Text("Downloaded messages only · ${chatResults.size} matches",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall)
                     IconButton(onClick={if(chatResults.isNotEmpty()){searchIndex=(searchIndex-1+chatResults.size)%chatResults.size;model.focusMessage.value=chatResults[searchIndex].id}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowUp,"Previous match")}
@@ -536,6 +549,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         OutlinedTextField(input,{if(it.text.length<=4000)updateInput(it)},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
     }},confirmButton={TextButton(onClick={val caption=body;val version=draftVersion;model.action {model.repository.sendImage(cid,image,caption,version);prepared=null;if(draftVersion==version){input=TextFieldValue("");replyTo=""}}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
     if(confirmDelete&&chat!=null) AlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
+}
+
+@Composable private fun SearchFilterMenu(title:String,selected:String,options:List<String>,onSelect:(Int)->Unit) {
+    var expanded by remember {mutableStateOf(false)}
+    Box {
+        TextButton(onClick={expanded=true}) {Text("$title: $selected")}
+        DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
+            options.forEachIndexed {index,label->DropdownMenuItem(text={Text(label)},onClick={onSelect(index);expanded=false})}
+        }
+    }
 }
 @OptIn(ExperimentalFoundationApi::class)
 @Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={},selectionMode:Boolean=false,onSelect:()->Unit={}) {
