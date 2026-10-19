@@ -36,3 +36,10 @@ internal object MbQuickReactions {
         return next.joinToString(",")
     }
 }
+
+/**
+ * Inbox-only privacy presentation. This must not change the server's message,
+ * per-conversation authorization or OS notification-preview setting.
+ */
+internal fun inboxSnippet(preview:String,fallback:String,hidePreview:Boolean):String =
+    if(hidePreview)"Message preview hidden" else preview.ifEmpty {fallback}
