@@ -139,14 +139,15 @@ import kotlinx.coroutines.flow.drop
                 }
             }
             if(query.isNotBlank()) {
+                val visibleResults=results.filter {it.deletedAt.isEmpty()}
                 item {Text("Downloaded message history",style=MaterialTheme.typography.labelLarge)}
-                items(results,key={"result-${it.id}"}) {m->
+                items(visibleResults,key={"result-${it.id}"}) {m->
                     val chat=chats.firstOrNull {it.id==m.conversation}
                     if(chat!=null) Surface(onClick={model.open(chat.id,m.id)},shape=Glass.compact,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {Text("${chat.name} · ${if(m.sender==m.account)"You" else chat.name}",style=MaterialTheme.typography.labelLarge);Text(m.body,maxLines=2,overflow=TextOverflow.Ellipsis)}
                     }
                 }
-                if(results.isEmpty()) item {Text("No downloaded messages match.",style=MaterialTheme.typography.bodyMedium)}
+                if(visibleResults.isEmpty()) item {Text("No downloaded messages match.",style=MaterialTheme.typography.bodyMedium)}
             }
         }
     }
@@ -255,7 +256,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var searchOpen by remember(cid) {mutableStateOf(false)}
     var chatQuery by remember(cid) {mutableStateOf("")}
     var searchIndex by remember(cid) {mutableIntStateOf(0)}
-    val chatResults=remember(messages,chatQuery) {if(chatQuery.isBlank())emptyList() else messages.filter {it.body.contains(chatQuery,true)}}
+    val chatResults=remember(messages,chatQuery) {
+        if(chatQuery.isBlank())emptyList() else messages.filter {
+            it.deletedAt.isEmpty() && it.body.contains(chatQuery,true)
+        }
+    }
     var actionMessage by remember(cid) {mutableStateOf<Message?>(null)}
     var forwardMessages by remember(cid,session?.userId) {mutableStateOf<List<Message>>(emptyList())}
     var selectedIds by remember(cid,session?.userId) {mutableStateOf<Set<String>>(emptySet())}
@@ -551,7 +556,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset((if(rtl)-swipe else swipe).toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f;crossed=false}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(21.dp),color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer else if(LocalGlassDark.current) {if(mine)Color(0xFF204F65) else Color(0xFF263C4A)} else if(mine)Color(0xFFD6F1FD) else Color(0xFFF8FCFF),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).16f else .8f)),shadowElevation=2.dp,modifier=Modifier.widthIn(max=bubbleWidth).glassSource().combinedClickable(onClick={if(selectionMode)onSelect()},onLongClick={if(selectionMode)onSelect() else onLongClick()})) {
             Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
-                if(message.replyTo.isNotEmpty()&&message.deletedAt.isEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
+                if(message.deletedAt.isNotEmpty()) {
+                    Text("This message was deleted",
+                        style=MaterialTheme.typography.bodyMedium,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                if(message.replyTo.isNotEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
                     Column(Modifier.padding(8.dp)) {Text("Reply",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(quoted?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodySmall)}
                 }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
@@ -560,9 +570,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
                 if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge,maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
                 if(truncated||expanded) TextButton(onClick={expanded=!expanded}) {Text(if(expanded)"Show less" else "Read more")}
+                }
                 val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
                 Row(Modifier.align(Alignment.End),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    if(message.starred)Icon(Icons.Outlined.Star,"Starred",Modifier.size(12.dp))
+                    if(message.starred&&message.deletedAt.isEmpty())Icon(Icons.Outlined.Star,"Starred",Modifier.size(12.dp))
                     if(message.editedAt.isNotEmpty()&&message.deletedAt.isEmpty())Text("edited",style=MaterialTheme.typography.labelSmall)
                     Text(time,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     if(mine)Receipt(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)

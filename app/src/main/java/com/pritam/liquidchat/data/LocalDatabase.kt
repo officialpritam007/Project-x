@@ -98,7 +98,7 @@ data class ChatAppearance(val account:String,val conversation:String,val palette
     @Query("select exists(select 1 from messages where account=:account and conversation=:cid and seq>0 and seq<=:watermark)") suspend fun hasPrunableMessages(account:String,cid:String,watermark:Long):Boolean
     @Query("delete from messages where account=:account and conversation=:cid and seq>0 and seq<=:watermark") suspend fun prune(account:String,cid:String,watermark:Long)
     @Query("delete from messages where account=:account and conversation=:cid") suspend fun removeHistory(account:String,cid:String)
-    @Query("select * from messages where account=:account and body like '%' || :query || '%' escape '\\' order by localTime desc limit 100") suspend fun search(account:String,query:String):List<Message>
+    @Query("select * from messages where account=:account and deletedAt='' and body like '%' || :query || '%' escape '\\' order by localTime desc limit 100") suspend fun search(account:String,query:String):List<Message>
     @Upsert suspend fun cacheProfile(profile:CachedProfile)
     @Query("select * from cached_profile where account=:account") suspend fun profile(account:String):CachedProfile?
     @Query("delete from messages where account=:account") suspend fun clearMessages(account:String)
