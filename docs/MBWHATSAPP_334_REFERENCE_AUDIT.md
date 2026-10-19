@@ -85,3 +85,9 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Imported files are limited to 32 KiB, versioned, type-checked and clamped. Malformed or foreign formats are rejected without partially persisting state. A successful import uses the existing synchronized `setDisplay` persistence path and applies live.
 - This **does not support MBWhatsApp's proprietary theme files**, arbitrary fonts, launcher icon packs, or screenshot-perfect themes. The menu explicitly explains the distinction. The change does not touch Supabase/FCM/WebRTC or add a paid dependency.
 - UI import/export implementation and instrumentation codec tests require CI and emulator checks before merge.
+
+## Stage 3 continuation — MB navigation parity and conversation preview
+
+- MB Preferences now links to actual existing server-backed **Privacy** and Android-backed **Notifications** screens, in addition to General/Home/Conversation/Themes. Returning from nested sections leads back to MB Preferences.
+- Long-pressing a home conversation opens a read-only preview of up to three cached, authorized, non-deleted messages with a working **Open conversation** action. Media is represented by descriptive labels, not unauthorized image reads. The existing pin/archive/favorite/mute/delete actions remain.
+- The reference-specific visual modal geometry and unsupported notification or theme controls still require further work; never claim full screenshot matching based on these stateful counterparts.
