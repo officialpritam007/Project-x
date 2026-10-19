@@ -33,6 +33,7 @@ internal object MbThemeTransfer {
         put("showProfileAsTitle",options.showProfileAsTitle)
         put("hideArchiveAccess",options.hideArchiveAccess)
         put("fontPreset",options.fontPreset)
+        put("quickReactions",MbQuickReactions.normalize(options.quickReactions))
     }.toString(2)
 
     /**
@@ -71,7 +72,9 @@ internal object MbThemeTransfer {
             accentColor=choice("accentColor",setOf("Cyan","Blue","Green","Purple","Rose","Amber"),current.accentColor),
             showProfileAsTitle=bool("showProfileAsTitle",current.showProfileAsTitle),
             hideArchiveAccess=bool("hideArchiveAccess",current.hideArchiveAccess),
-            fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset)
+            fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset),
+            quickReactions=if(j.has("quickReactions") && j.opt("quickReactions") is String)
+                MbQuickReactions.normalize(j.optString("quickReactions")) else current.quickReactions
         )
     }
 }
