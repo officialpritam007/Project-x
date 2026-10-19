@@ -43,3 +43,12 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - `GlassSurface`: uses preference directly for Haze blur strength across live glass surfaces.
 - `SettingsScreen`: working slider under Chat Settings; disabled when reduced transparency is active.
 - This **does not** finish exact MB Preferences visuals, full option parity or a pixel-perfect port.
+
+## Branch 1 continuation — functional Conversation Screen customization
+
+- Settings home exposes **MB Preferences** with **General Settings** and **Conversation Screen** subpages. Both navigate to real settings, not placeholder menus.
+- Conversation Screen changes message bubble geometry (Tail/Rounded/Compact), own/contact message color palette (Original/Green/Lavender/Rose/Night), and message text size (14–22sp), with an in-settings live preview.
+- Selected values persist through Android SharedPreferences and are validated/clamped on read and write. Existing installs default to their previous Tail/Original/16sp appearance; no Supabase data, call buttons or message delivery code changes.
+- The live message composable consumes these settings; unit regressions check legacy defaults and mapping. **Reference pixel parity is not yet proven.** These are working counterpart controls, not an assertion that the list exhausts the MBWhatsApp binary.
+- Remaining high-priority gaps: reference screen screenshots/raster/layout matching, per-chat themes & wallpaper assets, theme import/export, home toolbar and bottom-tab customization, scheduled outbox, edited history, notification policies, and backend-enforced privacy semantics. All need distinct verification; an APK changelog alone is not a working implementation.
+
