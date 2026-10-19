@@ -38,6 +38,16 @@ class MbQuickReactionsTest {
         assertFalse("🔥" in MbQuickReactions.available)
     }
 
+    @Test fun hidingInboxSnippetsNeverEchoesMessageText() {
+        assertEquals("Message preview hidden",
+            inboxSnippet("Personal secret message","fallback",true))
+        assertEquals("Message preview hidden",
+            inboxSnippet("","Say hello",true))
+        assertEquals("Personal secret message",
+            inboxSnippet("Personal secret message","fallback",false))
+        assertEquals("Say hello",inboxSnippet("","Say hello",false))
+    }
+
     @Test fun homePreviewPrivacyDefaultsOff() {
         assertFalse(DisplayOptions().hideHomePreviews)
         assertTrue(DisplayOptions(hideHomePreviews=true).hideHomePreviews)
