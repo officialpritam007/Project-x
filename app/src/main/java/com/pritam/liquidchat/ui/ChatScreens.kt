@@ -304,6 +304,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val session by model.session.collectAsStateWithLifecycle()
     val messagesReady by model.messagesReady.collectAsStateWithLifecycle()
     val messages=remember(allMessages,cid,session?.userId) {allMessages.filter {it.conversation==cid&&it.account==session?.userId}}
+    val scheduledTexts by model.repository.scheduledTexts(cid).collectAsStateWithLifecycle(initialValue=emptyList())
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val focus by model.focusMessage.collectAsStateWithLifecycle()
     val contact by model.repository.contactState.collectAsStateWithLifecycle()
@@ -315,6 +316,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var emojiPicker by remember(cid) {mutableStateOf(false)}
     var palette by remember(cid) {mutableStateOf("Ice")}
     var appearance by remember(cid) {mutableStateOf(false)}
+    var scheduleOpen by remember(cid) {mutableStateOf(false)}
+    var schedulesOpen by remember(cid) {mutableStateOf(false)}
+    var scheduleBody by remember(cid) {mutableStateOf("")}
+    var scheduleReplyTo by remember(cid) {mutableStateOf("")}
+    var scheduleDraftVersion by remember(cid) {mutableLongStateOf(0L)}
+    var scheduleAt by remember(cid) {mutableLongStateOf(System.currentTimeMillis()+3_600_000L)}
     var searchOpen by remember(cid) {mutableStateOf(false)}
     var chatQuery by remember(cid) {mutableStateOf("")}
     var searchIndex by remember(cid) {mutableIntStateOf(0)}
@@ -435,6 +442,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             onClick={menu=false;details=true})
                         GlassActionRow("Search conversation",Icons.Outlined.Search,
                             onClick={menu=false;searchOpen=true})
+                        GlassActionRow("Schedule message",Icons.Outlined.Schedule,
+                            onClick={
+                                menu=false
+                                scheduleBody=body
+                                scheduleReplyTo=replyTo
+                                scheduleDraftVersion=draftVersion
+                                scheduleAt=System.currentTimeMillis()+3_600_000L
+                                scheduleOpen=true
+                            })
+                        GlassActionRow("Scheduled messages (${scheduledTexts.size})",Icons.Outlined.Event,
+                            onClick={menu=false;schedulesOpen=true})
                         GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
                             onClick={menu=false;starsOpen=true})
                         HorizontalDivider(Modifier.padding(vertical=8.dp))
