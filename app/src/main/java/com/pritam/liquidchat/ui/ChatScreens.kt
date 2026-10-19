@@ -889,7 +889,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}
+    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes"))"MB Preferences" else null}
 
     if(section=="MB Preferences") {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -910,6 +910,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 GlassActionRow("Home Screen",Icons.Outlined.Home,onClick={section="MB Home Screen"})
                 HorizontalDivider()
                 GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
+                HorizontalDivider()
+                GlassActionRow("Themes",Icons.Outlined.ColorLens,onClick={section="MB Themes"})
             }
         }
         return
@@ -921,6 +923,40 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val unsent by model.unsent.collectAsStateWithLifecycle()
     val display by model.display.collectAsStateWithLifecycle()
     val context=LocalContext.current
+    var themeFeedback by remember {mutableStateOf<String?>(null)}
+    val exportTheme=rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(MbThemeTransfer.MIME_TYPE)) {uri->
+        if(uri!=null)model.action {
+            val json=MbThemeTransfer.export(model.display.value)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val stream=context.contentResolver.openOutputStream(uri) ?: error("Cannot open theme file for writing.")
+                stream.use {it.write(json.toByteArray(Charsets.UTF_8));it.flush()}
+            }
+            themeFeedback="Theme exported successfully."
+        }
+    }
+    val importTheme=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
+        if(uri!=null)model.action {
+            val json=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val stream=context.contentResolver.openInputStream(uri) ?: error("Cannot open selected file.")
+                stream.use {input ->
+                    val buffer=ByteArray(4096)
+                    val collected=java.io.ByteArrayOutputStream()
+                    while(true) {
+                        val n=input.read(buffer)
+                        if(n<0)break
+                        if(n==0)continue
+                        require(collected.size()+n<=MbThemeTransfer.MAX_IMPORT_BYTES) {"Theme file is too large."}
+                        collected.write(buffer,0,n)
+                    }
+                    collected.toString(Charsets.UTF_8.name())
+                }
+            }
+            val next=MbThemeTransfer.import(json,model.display.value)
+            model.setDisplay(next)
+            themeFeedback="Theme imported and applied."
+        }
+    }
     val photoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,id)
@@ -934,8 +970,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
+        if(section=="MB Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Themes",style=MaterialTheme.typography.titleLarge)
+            Text("Save your current Liquid Chat appearance to a JSON theme, or import a saved theme.",style=MaterialTheme.typography.bodyMedium)
+            Text("Imported themes change only this device's colors, navigation and chat appearance. No messages, accounts or contacts are exported.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider()
+            FilledTonalButton(onClick={exportTheme.launch("LiquidChat-Theme.json")},modifier=Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.FileUpload,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Export current theme")
+            }
+            OutlinedButton(onClick={importTheme.launch(arrayOf("application/json","text/plain"))},modifier=Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.FileDownload,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Import Liquid Chat theme")
+            }
+            Text("MBWhatsApp theme packages are not directly compatible. This imports Liquid Chat .json files only.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            themeFeedback?.let {Text(it,color=MaterialTheme.colorScheme.primary)}
+        }
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val avatar=profile?.optString("avatar_id").orEmpty()
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
