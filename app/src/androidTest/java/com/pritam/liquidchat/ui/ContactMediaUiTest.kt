@@ -29,7 +29,7 @@ class ContactMediaUiTest {
     @get:Rule val compose=createComposeRule()
     private val chat=Chat("fixture","conversation","peer","Shila","shila")
 
-    private fun capture(name:String) {
+    private fun capture(name:String,node:SemanticsNodeInteraction=compose.onRoot()) {
         val resolver=ApplicationProvider.getApplicationContext<Application>().contentResolver
         val values=ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME,"$name.png")
@@ -38,7 +38,7 @@ class ContactMediaUiTest {
             put(MediaStore.Images.Media.IS_PENDING,1)
         }
         val uri=checkNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values))
-        val bitmap=compose.onRoot().captureToImage().asAndroidBitmap()
+        val bitmap=node.captureToImage().asAndroidBitmap()
         resolver.openOutputStream(uri)!!.use {check(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
         values.clear();values.put(MediaStore.Images.Media.IS_PENDING,0)
         resolver.update(uri,values,null,null)
@@ -102,6 +102,8 @@ class ContactMediaUiTest {
         compose.onNodeWithText("Delete history for me").performScrollTo().performClick()
         compose.runOnIdle {assertTrue(deleted)}
         compose.onNodeWithText("Done").performScrollTo().assertIsDisplayed()
-        capture("23-conversation-actions")
+        // ModalBottomSheet has a separate Android window; target its scroll surface,
+        // rather than assuming the Activity and sheet share one semantics root.
+        capture("23-conversation-actions",compose.onNodeWithText("Done").onParent())
     }
 }
