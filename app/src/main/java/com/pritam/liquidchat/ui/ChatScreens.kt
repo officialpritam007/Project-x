@@ -99,7 +99,7 @@ import kotlinx.coroutines.flow.drop
         }
     }
 }
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class,ExperimentalLayoutApi::class)
 @Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>,onContacts:()->Unit={},onProfile:()->Unit={}) {
     var selectedChat by remember {mutableStateOf<Chat?>(null)}
     var deleteChat by remember {mutableStateOf<Chat?>(null)}
@@ -116,7 +116,7 @@ import kotlinx.coroutines.flow.drop
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader("Liquid Chat",brand=true) {
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
-                DropdownMenu(menu,{menu=false}) {
+                LiquidDropdownMenu(menu,{menu=false}) {
                     // The four filters already have visible, accessible chips below.
                     // Keep overflow for an action rather than duplicating navigation.
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
@@ -132,7 +132,7 @@ import kotlinx.coroutines.flow.drop
             }
         )
         GlassSearch(query,{query=it;model.search(it)},"Search Chats")
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             listOf("All","Favorite","Archive","Unread").forEachIndexed {index,label->FilterChip(selected=filter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
         }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -164,14 +164,21 @@ import kotlinx.coroutines.flow.drop
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
-    selectedChat?.let {c->LiquidAlertDialog(onDismissRequest={selectedChat=null},title={Text(c.name)},text={Column {
-        TextButton(onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}}) {Text(if(c.pinnedAt>0)"Unpin" else "Pin")}
-        TextButton(onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"unread",true)}}) {Text("Mark unread")}
-        TextButton(onClick={selectedChat=null;model.updateChat(c,favorite=!c.favorite)}) {Text(if(c.favorite)"Remove favorite" else "Favorite")}
-        TextButton(onClick={selectedChat=null;model.updateChat(c,archived=!c.archived)}) {Text(if(c.archived)"Unarchive" else "Archive")}
-        TextButton(onClick={selectedChat=null;model.updateChat(c,muted=!c.muted)}) {Text(if(c.muted)"Unmute" else "Mute")}
-        TextButton(onClick={selectedChat=null;deleteChat=c}) {Text("Delete history for me")}
-    }},confirmButton={TextButton(onClick={selectedChat=null}) {Text("Done")}})}
+    selectedChat?.let {c->LiquidActionSheet(title=c.name,onDismiss={selectedChat=null}) {
+        GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
+            onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
+        GlassActionRow("Mark unread",Icons.Outlined.MarkChatUnread,
+            onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"unread",true)}})
+        GlassActionRow(if(c.favorite)"Remove favorite" else "Favorite",Icons.Outlined.StarOutline,
+            onClick={selectedChat=null;model.updateChat(c,favorite=!c.favorite)})
+        GlassActionRow(if(c.archived)"Unarchive" else "Archive",Icons.Outlined.Archive,
+            onClick={selectedChat=null;model.updateChat(c,archived=!c.archived)})
+        GlassActionRow(if(c.muted)"Unmute" else "Mute",Icons.Outlined.NotificationsOff,
+            onClick={selectedChat=null;model.updateChat(c,muted=!c.muted)})
+        HorizontalDivider(Modifier.padding(vertical=8.dp),color=MaterialTheme.colorScheme.outlineVariant)
+        GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
+            onClick={selectedChat=null;deleteChat=c},destructive=true)
+    }}
     deleteChat?.let {c->LiquidAlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
     if(stories) MomentsDialog(model,mine=false,
         onDismiss={stories=false;selectedStoryId=null;storyRefreshKey++},
@@ -398,26 +405,34 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 IconButton(onClick={requestCall("video")}) {Icon(Icons.Outlined.Videocam,"Start video call")}
             }
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
-                DropdownMenu(expanded=menu,onDismissRequest={menu=false}) {
+                if(menu)LiquidActionSheet(title=chat?.name ?: "Conversation",onDismiss={menu=false}) {
                     chat?.let { c->
-                        DropdownMenuItem(text={Text("Contact details & shared media")},onClick={menu=false;details=true})
-                        DropdownMenuItem(text={Text("Search conversation")},onClick={menu=false;searchOpen=true})
-                        DropdownMenuItem(text={Text("Starred messages")},onClick={menu=false;starsOpen=true})
-                        DropdownMenuItem(text={Text(if(c.pinnedAt>0)"Unpin" else "Pin")},onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
-                        DropdownMenuItem(text={Text("Wallpaper")},onClick={menu=false;appearance=true})
-                        DropdownMenuItem(text={Text(if(c.favorite)"Remove favorite" else "Favorite")},onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
-                        DropdownMenuItem(text={Text(if(c.archived)"Unarchive" else "Archive")},onClick={menu=false;model.updateChat(c,archived=!c.archived)})
-                        DropdownMenuItem(text={Text(if(c.muted)"Unmute" else "Mute")},onClick={menu=false;model.updateChat(c,muted=!c.muted)})
-                        DropdownMenuItem(
-                            text={Text(blockActionLabel(ownedBlock))},
-                            enabled=ownedBlock!=null && !busy,
-                            onClick={
+                        GlassActionRow("Contact details & shared media",Icons.Outlined.Person,
+                            onClick={menu=false;details=true})
+                        GlassActionRow("Search conversation",Icons.Outlined.Search,
+                            onClick={menu=false;searchOpen=true})
+                        GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
+                            onClick={menu=false;starsOpen=true})
+                        HorizontalDivider(Modifier.padding(vertical=8.dp))
+                        GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
+                            onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
+                        GlassActionRow("Wallpaper",Icons.Outlined.Wallpaper,onClick={menu=false;appearance=true})
+                        GlassActionRow(if(c.favorite)"Remove favorite" else "Favorite",Icons.Outlined.StarOutline,
+                            onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
+                        GlassActionRow(if(c.archived)"Unarchive" else "Archive",Icons.Outlined.Archive,
+                            onClick={menu=false;model.updateChat(c,archived=!c.archived)})
+                        GlassActionRow(if(c.muted)"Unmute" else "Mute",Icons.Outlined.NotificationsOff,
+                            onClick={menu=false;model.updateChat(c,muted=!c.muted)})
+                        HorizontalDivider(Modifier.padding(vertical=8.dp))
+                        GlassActionRow(blockActionLabel(ownedBlock),Icons.Outlined.Block,
+                            enabled=ownedBlock!=null && !busy,onClick={
                                 val blocked=ownedBlock
                                 if(blocked!=null) {menu=false;ownedBlock=null;model.block(c.peer,!blocked)}
-                            }
-                        )
-                        DropdownMenuItem(text={Text("Report contact")},onClick={menu=false;reportMessage=null;report=true})
-                        DropdownMenuItem(text={Text("Delete history for me")},onClick={menu=false;confirmDelete=true})
+                            })
+                        GlassActionRow("Report contact",Icons.Outlined.Flag,
+                            onClick={menu=false;reportMessage=null;report=true})
+                        GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
+                            destructive=true,onClick={menu=false;confirmDelete=true})
                     }
                 }
             }
@@ -503,17 +518,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
 
     }
-    if(attachments)LiquidAlertDialog(onDismissRequest={attachments=false},title={Text("Attach")},text={Column {
-        TextButton(onClick={attachments=false;picker.launch("image/*")}) {Icon(Icons.Outlined.PhotoLibrary,null);Spacer(Modifier.width(12.dp));Text("Gallery")}
-        TextButton(onClick={attachments=false
+    if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
+        GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
+        GlassActionRow("Camera",Icons.Outlined.PhotoCamera,onClick={attachments=false
             val account=model.backend.session.value?.userId
             if(account!=null) {
                 cameraAccount=account
                 val file=java.io.File(context.cacheDir,"camera/${java.util.UUID.randomUUID()}.jpg");file.parentFile?.mkdirs();cameraPath=file.absolutePath
                 runCatching {camera.launch(androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file))}.onFailure {file.delete();cameraPath="";model.action {throw java.io.IOException("No camera app is available. Choose Gallery.")}}
-            }
-        }) {Icon(Icons.Outlined.PhotoCamera,null);Spacer(Modifier.width(12.dp));Text("Camera")}
-    }},confirmButton={TextButton(onClick={attachments=false}) {Text("Cancel")}})
+            }})
+    }
     if(emojiPicker)EmojiPicker(onEmoji={emoji->
         val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
         val text=body.replaceRange(start,end,emoji)
@@ -675,7 +689,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var expanded by remember {mutableStateOf(false)}
     Box {
         TextButton(onClick={expanded=true}) {Text("$title: $selected")}
-        DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
+        LiquidDropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
             options.forEachIndexed {index,label->DropdownMenuItem(text={Text(label)},onClick={onSelect(index);expanded=false})}
         }
     }
@@ -782,7 +796,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var showPolicy by remember {mutableStateOf(false)}
     var password by remember {mutableStateOf("")}
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
+        .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
@@ -817,9 +832,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
             Text("Appearance",style=MaterialTheme.typography.titleMedium)
-            Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
-            Row(Modifier.horizontalScroll(rememberScrollState())) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
         }
@@ -875,9 +890,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(confirm) LiquidAlertDialog(onDismissRequest={confirm=false},title={Text("Sign out?")},text={Text(if(unsent>0)"$unsent unsent messages will be discarded. Saved local history, drafts and jobs will be removed from this device." else "Saved local history and account data will be removed from this device.")},confirmButton={TextButton(onClick={confirm=false;model.finishLogout()}) {Text("Sign out")}},dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
 }
 
-@Composable internal fun SharedImagePreview(model:AppViewModel,message:Message) {
+@Composable internal fun SharedImagePreview(model:AppViewModel,message:Message,thumbnail:Boolean=false) {
     var open by remember(message.id) {mutableStateOf(false)}
-    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.widthIn(max=280.dp).fillMaxWidth().aspectRatio((if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clickable {open=true})
+    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.fillMaxWidth().aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {

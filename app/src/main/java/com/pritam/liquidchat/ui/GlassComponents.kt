@@ -8,6 +8,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,6 +29,56 @@ import coil.request.ImageRequest
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
+
+/** Opaque fallback keeps separate popup windows readable without backdrop capture. */
+@Composable internal fun glassPopupColor():Color =
+    if(LocalGlassDark.current) Color(0xFF22364B) else Color(0xFFF8FCFF)
+
+@Composable internal fun LiquidDropdownMenu(
+    expanded:Boolean,onDismissRequest:()->Unit,content:@Composable ColumnScope.()->Unit
+) {
+    MaterialTheme(shapes=MaterialTheme.shapes.copy(extraSmall=Glass.card)) {
+        DropdownMenu(expanded=expanded,onDismissRequest=onDismissRequest,
+            containerColor=glassPopupColor(),tonalElevation=0.dp,
+            modifier=Modifier.widthIn(max=320.dp),content=content)
+    }
+}
+
+/** Full-width targets wrap at large font scales; destructive actions stay distinct. */
+@Composable internal fun GlassActionRow(
+    label:String,icon:ImageVector,onClick:()->Unit,
+    destructive:Boolean=false,enabled:Boolean=true
+) {
+    val tint=if(destructive)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().heightIn(min=52.dp).clip(Glass.compact)
+        .clickable(enabled=enabled,role=Role.Button,onClick=onClick)
+        .padding(horizontal=12.dp,vertical=12.dp),
+        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+        Icon(icon,null,Modifier.size(23.dp),tint=tint.copy(alpha=if(enabled)1f else .38f))
+        Text(label,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge,
+            color=tint.copy(alpha=if(enabled)1f else .38f))
+    }
+}
+
+/** Action lists scroll as a whole on short screens instead of clipping their final action. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable internal fun LiquidActionSheet(
+    title:String,onDismiss:()->Unit,content:@Composable ColumnScope.()->Unit
+) {
+    ModalBottomSheet(onDismissRequest=onDismiss,
+        sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
+        shape=androidx.compose.foundation.shape.RoundedCornerShape(topStart=30.dp,topEnd=30.dp),
+        containerColor=glassPopupColor(),tonalElevation=0.dp) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            .padding(horizontal=20.dp).padding(bottom=16.dp),
+            verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text(title,style=MaterialTheme.typography.titleLarge,
+                modifier=Modifier.padding(horizontal=12.dp,vertical=8.dp))
+            content()
+            TextButton(onClick=onDismiss,modifier=Modifier.align(Alignment.End)) {Text("Done")}
+        }
+    }
+}
 
 @Composable fun DesignIcon(asset:String,description:String?,size:Int=24) {
     val context=LocalContext.current
