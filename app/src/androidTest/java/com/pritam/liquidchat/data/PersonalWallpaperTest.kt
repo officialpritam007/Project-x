@@ -47,6 +47,32 @@ class PersonalWallpaperTest {
         assertFalse(PersonalWallpaper.has(context,accountA,cid))
     }
 
+    @Test fun deletedChatWallpaperLeavesOtherChatsAndHomeUnchanged()=runBlocking {
+        val one=UUID.randomUUID().toString()
+        val two=UUID.randomUUID().toString()
+        val fixture=File(context.cacheDir,"photo-deletion-fixture-${UUID.randomUUID()}.png")
+        Bitmap.createBitmap(24,24,Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.RED)
+            fixture.outputStream().use {compress(Bitmap.CompressFormat.PNG,100,it)}
+            recycle()
+        }
+        try {
+            PersonalWallpaper.save(context,accountA,one,Uri.fromFile(fixture))
+            PersonalWallpaper.save(context,accountA,two,Uri.fromFile(fixture))
+            PersonalWallpaper.save(context,accountA,PersonalWallpaper.HOME_CID,Uri.fromFile(fixture))
+            PersonalWallpaper.clearConversation(context,accountA,one)
+            assertFalse(PersonalWallpaper.has(context,accountA,one))
+            assertTrue(PersonalWallpaper.has(context,accountA,two))
+            assertTrue(PersonalWallpaper.has(context,accountA,PersonalWallpaper.HOME_CID))
+            assertTrue(runCatching {
+                PersonalWallpaper.clearConversation(context,accountA,PersonalWallpaper.HOME_CID)
+            }.isFailure)
+        } finally {
+            PersonalWallpaper.clearAccount(context,accountA)
+            fixture.delete()
+        }
+    }
+
     @Test fun pathsCannotEscapeAccountDirectory() {
         assertTrue(runCatching {
             PersonalWallpaper.location(context,"../../escape",cid)
