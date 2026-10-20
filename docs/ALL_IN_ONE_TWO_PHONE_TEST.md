@@ -198,3 +198,8 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB46 | Enable Hide contact name in Custom notifications and trigger messages from that chat, then expand notification and revisit Android channel settings; disable again | Generic Liquid Chat title and New message body on future alerts, channel label generic when hidden, other conversations and call invitations untouched, settings persist after restart and are cleared on chat deletion/logout |
 
 | MB47 | Home and a single conversation: choose 15–30s MP4 video, switch to built-in palette then restore saved video, rotate/background/reopen, enable Reduced motion and finally replace video with photo | Local video stays muted, loops without covering glass bubbles, pauses in background/reduced-motion, persists per account/chat, other chats unchanged; invalid/oversize/overlong/4K video rejected; logout/chat deletion clear only intended private files |
+
+
+## Automated crash follow-up (not an owner test)
+
+The candidate CI runs the complete sharded suite followed by five fresh-process protected-image class repetitions per API29/35/36. Evidence is in each `device-db-reports-api-*` artifact as `image-repeat-*.txt`, `.xml` and `image-repeat-summary.json`. A failed, skipped or incomplete round is a failed gate. These checks use intercepted synthetic media; actual avatar/tab/background/call interactions remain in the one physical checklist above. #91 remains open unless durable root-cause/device evidence supports closure.
