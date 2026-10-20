@@ -182,7 +182,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB37 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
 
 
-| MB36 | Customize colors, fonts, bubbles, reactions and wallpapers; turn on screenshot/typing/snippet privacy, then MB Themes > Restore defaults | Visual defaults restored and persisted, private wallpapers/files and messages untouched; screenshot protection, typing privacy, hidden previews and accessibility flags remain enabled |
+| MB44 | Customize colors, fonts, bubbles, reactions and wallpapers; turn on screenshot/typing/snippet privacy, then MB Themes > Restore defaults | Visual defaults restored and persisted, private wallpapers/files and messages untouched; screenshot protection, typing privacy, hidden previews and accessibility flags remain enabled |
 
 
 | MB40 | Reorder all five bottom tabs in MB Home Settings, restart and open each destination | Destination routes and icons still correspond to Chats, Calls, Contacts, Settings, Profile; voice/video call UI remains reachable |
@@ -193,4 +193,4 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB43 | Try Edit after schedule cancellation or due-time dispatch | App refuses to recreate a removed or already-sent schedule; other accounts/chats remain isolated |
 
 
-| MB36 | Change chat avatar diameter 40/52/68dp and row padding 6/11/20dp in MB Home Settings | Inbox updates live without deleting messages or concealing Calls/Archive; 52/11 is baseline; persists across restart and theme export/import |
+| MB45 | Change chat avatar diameter 40/52/68dp and row padding 6/11/20dp in MB Home Settings | Inbox updates live without deleting messages or concealing Calls/Archive; 52/11 is baseline; persists across restart and theme export/import |
