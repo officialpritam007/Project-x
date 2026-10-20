@@ -191,3 +191,6 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 | MB42 | Schedule a message, edit body and time, then let it send with receiver online | Same scheduled UUID, no early/duplicate delivery, composer unchanged, edit survives app restart |
 | MB43 | Try Edit after schedule cancellation or due-time dispatch | App refuses to recreate a removed or already-sent schedule; other accounts/chats remain isolated |
+
+
+| MB36 | Change chat avatar diameter 40/52/68dp and row padding 6/11/20dp in MB Home Settings | Inbox updates live without deleting messages or concealing Calls/Archive; 52/11 is baseline; persists across restart and theme export/import |
