@@ -87,13 +87,14 @@ import androidx.compose.ui.platform.LocalContext
 }
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
     val display=LocalDisplayOptions.current
-    val titles=listOf("Chats","Calls","Contacts","Settings","Profile")
+    val titles=MbNavigationOrder.titles
     // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
     GlassSurface(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=9.dp).navigationBarsPadding(),Glass.capsule) {
         Row(Modifier.padding(6.dp).selectableGroup()) {
-            titles.forEachIndexed {i,title->
+            MbNavigationOrder.parse(display.navigationOrder).forEach {i->
+                val title=titles[i]
                 val selected=tab==i
                 val reducedMotion=display.reducedMotion
                 val selection by animateColorAsState(
