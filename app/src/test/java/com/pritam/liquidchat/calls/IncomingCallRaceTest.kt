@@ -16,4 +16,14 @@ class IncomingCallRaceTest {
         assertFalse(canPresentIncomingCall(null,"owner","owner",true,7,8))
         assertFalse(canPresentIncomingCall(null,"owner","owner",true,null,null))
     }
+    @Test fun delayedPollAndIceRetryCannotMutateReplacementCallOrAccount() {
+        assertTrue(canApplyCallResult(4,4,"call-a","call-a","alice","alice","alice"))
+        assertFalse(canApplyCallResult(4,5,"call-a","call-a","alice","alice","alice"))
+        assertFalse(canApplyCallResult(4,4,"call-a","call-b","alice","alice","alice"))
+        assertFalse(canApplyCallResult(4,4,"call-a",null,"alice","alice","alice"))
+        assertFalse(canApplyCallResult(4,4,"call-a","call-a","alice",null,"alice"))
+        assertFalse(canApplyCallResult(4,4,"call-a","call-a","alice","bob","bob"))
+        assertFalse(canApplyCallResult(4,4,"call-a","call-a","alice","alice",null))
+        assertFalse(canApplyCallResult(4,4,"call-a","call-a","alice","alice","bob"))
+    }
 }

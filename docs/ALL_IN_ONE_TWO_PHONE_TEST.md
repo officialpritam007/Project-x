@@ -27,6 +27,8 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | A10 | Lose network while a previously loaded profile/feed is visible | Cache stays usable with honest retry/error state; no empty full-screen reload loop |
 | A11 | In Data & Storage, cancel/confirm local image-cache clearing with an offline draft/outbox item | Cancel preserves cache; confirmation clears only local image cache while drafts, queued sends and remote media remain safe |
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | A12 | Open contact details in light/dark and 200% text; scroll hero/tabs and close | Save/close/Media/Voice/Starred remain reachable; readable empty state and retry; no controls clipped by system bars |
 | A13 | Populate Shared Media with more than one page; switch Media/Voice/Starred, open image and play voice | Adaptive photo grid, full-width cards, correct protected content; pagination, deletion and authorization remain intact |
 | A14 | Open conversation/inbox action sheets and Attach; scroll to the final action at 200% text | Labels/icons wrap; exactly one current block action; delete remains distinct and asks for confirmation; Gallery/Camera launch the existing flows |
@@ -88,6 +90,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 | C15 | Repeat voice/video on same Wi-Fi, different Wi-Fi and separate mobile carriers | Record actual success/failure. **STUN-only NAT failure is a known limitation, not a passing test.** |
 | C16 | Review missed/answered/incoming/outgoing history, filters, paging, redial | Correct peer/kind/result, stable cache and no continuous loading |
 | C17 | Return after every ended call; inspect Android mic/camera indicators | Capture indicators stop; later calls still acquire audio/video resources |
+| C18 | On both phones, repeatedly hang up while Connecting/reconnecting, then immediately redial voice and video; also leave a delayed incoming answer while the peer ends | No crash, phantom resumed call, stuck Connecting, stale camera/audio or previous-call ICE in a new call; current call identity and controls remain correct. Native lifetime gate has automated concurrency coverage; this physical race remains unverified. |
 
 ## Media, Stories and Posts
 
@@ -159,42 +162,69 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB24 | Block notifications at OS level, send a message | Android block is respected; no app bypass of global/channel permission |
 | MB25 | Receive voice/video call with per-chat message sound enabled | Calling channel and incoming-call controls remain independent and functional |
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB26 | Switch System/Serif/Mono/Cursive font, restart and import/export a theme | All Material3 screen typography updates live; choice persists; no missing glyphs or unreadable chat/navigation labels |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB27 | Hide outgoing typing while entering text, then toggle it back on | Peer stops seeing this device's typing signal (including immediately after toggle); incoming typing still works; preference survives restart and is not altered by theme import |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB28 | Pick a photo under 10 MB in conversation > Wallpaper, close/reopen, restart | Wallpaper renders below glass messages, persists for same account/conversation, not transmitted to recipient |
 | MB29 | Switch photo → built-in palette → My saved photo | Selection is reversible without unexpected message/data loss |
 | MB30 | Sign out of one account and log in to a different user | Previous user's wallpaper is securely removed from app files and cannot be shown to the other account |
 | MB31 | Reject oversized, invalid, or non-image gallery selection | Visible error; current chat wallpaper and outbox remain unchanged |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB32 | Choose an image for Chats home wallpaper, switch tabs and reopen app | New wallpaper renders only under Chats, remains legible in dark/light, never transmitted or uploaded |
 | MB33 | Remove Home wallpaper, then choose a second photo | Background immediately reverts to Liquid Glass, replacement shows latest photo without stale Coil image |
 | MB34 | Open home gallery and switch account before returning | Gallery result cannot overwrite the second account's home image or resurrect logged-out account data |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB38 | Home photo selected: change dimming 0/50/100, restart and switch dark mode | Veil updates without reloading full inbox; 50 preserves previous defaults; text remains selectable |
 | MB39 | Conversation photo selected: adjust separate dimming slider, export/import theme | Only chat photo changes, Home remains independent, values persist and roundtrip |
 | MB36 | Set chat-specific photo, custom notification channel and scheduled text, then delete that chat | No residual photo, sound/channel contact name, draft, schedule or stale appearance; other chats and Home wallpaper stay intact |
 | MB37 | Simulate failed server chat-deletion request | Existing local schedules, wallpaper and notification preferences remain intact and retryable |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB44 | Customize colors, fonts, bubbles, reactions and wallpapers; turn on screenshot/typing/snippet privacy, then MB Themes > Restore defaults | Visual defaults restored and persisted, private wallpapers/files and messages untouched; screenshot protection, typing privacy, hidden previews and accessibility flags remain enabled |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB40 | Reorder all five bottom tabs in MB Home Settings, restart and open each destination | Destination routes and icons still correspond to Chats, Calls, Contacts, Settings, Profile; voice/video call UI remains reachable |
 | MB41 | Export/import a theme with reordered tabs, then Restore default appearance | Custom order round-trips as valid permutation; reset returns to original order without removing any destination or changing privacy toggles |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB42 | Schedule a message, edit body and time, then let it send with receiver online | Same scheduled UUID, no early/duplicate delivery, composer unchanged, edit survives app restart |
 | MB43 | Try Edit after schedule cancellation or due-time dispatch | App refuses to recreate a removed or already-sent schedule; other accounts/chats remain isolated |
 
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB45 | Change chat avatar diameter 40/52/68dp and row padding 6/11/20dp in MB Home Settings | Inbox updates live without deleting messages or concealing Calls/Archive; 52/11 is baseline; persists across restart and theme export/import |
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB46 | Enable Hide contact name in Custom notifications and trigger messages from that chat, then expand notification and revisit Android channel settings; disable again | Generic Liquid Chat title and New message body on future alerts, channel label generic when hidden, other conversations and call invitations untouched, settings persist after restart and are cleared on chat deletion/logout |
 
+| ID | Exercise | Expected result |
+|---|---|---|
 | MB47 | Home and a single conversation: choose 15–30s MP4 video, switch to built-in palette then restore saved video, rotate/background/reopen, enable Reduced motion and finally replace video with photo | Local video stays muted, loops without covering glass bubbles, pauses in background/reduced-motion, persists per account/chat, other chats unchanged; invalid/oversize/overlong/4K video rejected; logout/chat deletion clear only intended private files |
+
+
+## Automated crash follow-up (not an owner test)
+
+The candidate CI runs the complete sharded suite followed by five fresh-process protected-image class repetitions per API29/35/36. Evidence is in each `device-db-reports-api-*` artifact as `image-repeat-*.txt`, `.xml` and `image-repeat-summary.json`. A failed, skipped or incomplete round is a failed gate. These checks use intercepted synthetic media; actual avatar/tab/background/call interactions remain in the one physical checklist above. #91 remains open unless durable root-cause/device evidence supports closure.

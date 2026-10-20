@@ -4,11 +4,17 @@ This report accompanies the calling-enabled test APK requested in [Master Tracke
 
 The original `INPUT_MASTER_WORK_PLAN.md` and historical phase reports are preserved. Their earlier no-calling/default-off instructions were superseded by the owner's current voice/video-enabled candidate scope. This register and the latest tracker evidence supersede old milestone snapshots, including old FCM absence and older CI counts.
 
-## Current screenshot-audit candidate
+## Current integrated baseline and verification continuation
 
-The next candidate is **1.0.0-rc5 (12)** with voice/video actions enabled by the existing candidate workflow. PR64 finishes the twenty-page screenshot presentation pass: adaptive contact/media sheet and photo grid, scrollable grouped conversation/inbox/attachment actions, consistent emoji/popup styling, appearance chip spacing and Settings navigation insets. Existing authorization, revocation, recorder, playback and confirmed deletion paths are preserved. See [the page-by-page audit](SCREENSHOT_UI_AUDIT_2026_10_19.md).
+The verified resume baseline is **1.0.0-rc8-mb-preview (15)**, main `9d03c70ef18cd3843849af2546b2f99e274ab642`, [Actions #405](https://github.com/officialpritam007/Project-x/actions/runs/39452470810), all five mandatory checks successful. Its calling-enabled APK includes private Home/conversation photo and MP4 wallpapers, theme JSON, tab reordering, row/avatar sizing, scheduled-text editing, quick-reaction presets, per-chat notification channels and text/sender privacy, secure-screen preference, stable Compose BOM 2025.11.01 and cached-avatar loading fixes. See [MB reference/implementation register](MBWHATSAPP_334_REFERENCE_AUDIT.md) and tracker #66 for the incremental evidence. Earlier rc3/rc5 entries below are historical.
 
-The consolidated checklist now has **76 unique physical acceptance cases**. Added Compose checks cover 200% contact controls, dark-gallery retry and long-sheet destructive-action reachability. Exact-head and final merged-main Android build/lint/JVM/API29/35/36 results must be recorded in #24 before distributing this candidate. Earlier verified milestone evidence below remains historical and is not relabelled as rc5 evidence.
+The new candidate is **1.0.0-rc9-mb-preview (16)**; its exact final source/run/hash will be recorded after integration. The one-round acceptance checklist has **123 unique cases**, including C18 for hangup/redial races. Historical standalone MB rows now have table headers so all cases render as readable tables.
+
+This continuation adds five fresh AndroidJUnitRunner invocations of the entire protected-image test class after the mandatory full sharded suite, on **each API29/35/36**. Every round must execute exactly the protected-image methods discovered in the successful full suite, without skips, duplicates, failures or partial completion. The first failed repetition fails the job and is retained in text/JUnit/JSON output; there is no retry-to-green. These repeats exercise intercepted HTTP/Coil, image revocation, tab re-entry and Activity/composition teardown without live accounts. They add evidence for [#91](https://github.com/officialpritam007/Project-x/issues/91); even green repeats do not establish an upstream root cause or certify permanent crash freedom.
+
+A separate runtime fix serializes short WebRTC native peer calls and disposal with a resource gate. Previously polling/signaling could pass an ended-call check on its IO thread immediately before the main thread disposed the same native peer. ICE and control callbacks after closure now return before touching/parsing native state, and SDP is rejected promptly. The gate is never held across coroutine suspension. JVM interleaving tests prove close waits for an in-flight operation and late work is rejected; the native emulator regression covers every late SDP entry point and ICE/control callbacks. Signaling polling now retains its original engine and per-poll ICE cursor; a generation/call/account guard prevents delayed results or exhausted retries from stopping or feeding a replacement call. This addresses source-confirmed races; actual two-phone hangup/redial/audio/video reliability still needs physical acceptance.
+
+No Supabase schema/data, FCM config, signaling protocol, paid provider or calling flag changes are made. The final exact merged-main run and artifact must be recorded in the trackers before it supersedes #405. The [consolidated two-phone checklist](ALL_IN_ONE_TWO_PHONE_TEST.md) retains all existing physical cases; no owner test is requested between development stages.
 
 ## Implementation in this continuation
 
@@ -28,7 +34,7 @@ The consolidated checklist now has **76 unique physical acceptance cases**. Adde
 | #51 | Restrict lock-screen window access to validated full call UI; reset on end/error/minimize/logout | Exact-head CI required; untrusted intent extras cannot grant over-lock visibility |
 | #53 | Propagate deletion/hide of uncached older Shared Media to playback/gallery; prevent an in-flight page restoring it | Exact-head CI required; account-scoped revocation stream, no old body cached, real Room/flow instrumentation and page reducer regression |
 
-The earlier integration package versioned its candidate as **1.0.0-rc3 (10)**, prevents the compact chat-header status/username from wrapping beneath call controls, and updates stale README/calling/free-tier instructions. It preserves both visible call actions and the Liquid Glass palette. That historical companion checklist contained **69 unique acceptance cases**; the current checklist has 76.
+The earlier integration package versioned its candidate as **1.0.0-rc3 (10)**, prevents the compact chat-header status/username from wrapping beneath call controls, and updates stale README/calling/free-tier instructions. It preserves both visible call actions and the Liquid Glass palette. That historical companion checklist contained **69 unique acceptance cases**; the current checklist includes the subsequent MB acceptance extension.
 
 Only verified PRs may be merged. If a listed change's new exact-head CI fails, it remains pending and is corrected before final candidate integration. The Story test initially exposed a JUnit signature error; its return type was corrected rather than suppressing or skipping the test. Final tracker evidence supersedes the pending wording above.
 
@@ -74,15 +80,15 @@ These items were conditional P2 work after P0 acceptance in the master plan. The
 
 | Item | Disposition/reason |
 |---|---|
-| Custom conversation appearance | Curated Ice/Lilac/Mint/Sand palettes implemented; arbitrary photo wallpapers deferred until their private image lifecycle is designed/tested |
-| Biometric chat lock/recents shielding | Deferred P2 until core account/device acceptance; no biometric protection claim |
+| Custom conversation appearance | Curated palettes plus bounded private Home/per-chat photo and MP4 wallpapers, dimming and account cleanup implemented in subsequent MB stages; device playback/performance remains unverified |
+| Biometric chat lock/recents shielding | Opt-in Android FLAG_SECURE screenshot/recents shielding implemented; biometric per-chat authentication remains absent/deferred |
 | Disappearing messages | Deferred P2; requires server retention/synchronization and explicit recipient-copy limits |
 | PDF/documents/more file formats and safe preview | Deferred P2; current Edge allow-list is JPEG/AAC/story MP4. No generic upload bypass, unsafe MIME-only validation or unprotected external viewer was added |
 | Multi-select batch share/delete/protected media forwarding | Text select/copy/forward implemented; batch delete and forwarding private media deferred because destination authorization/idempotency need their own end-to-end pipeline |
 | Voice waveform | Deferred P2; speeds/seek/actual playback implemented, but no invented/random waveform is shown |
 | Automatic link previews | Deferred P2; arbitrary URL fetching requires SSRF/redirect/IP defenses, user consent and bounded network budget |
 | Stickers | Existing emoji/reaction picker implemented; personalized sticker upload/store deferred with additional media types |
-| Per-chat notifications | Mute and unread controls implemented; custom per-chat sounds/system notification-channel management deferred P2 |
+| Per-chat notifications | Mute/unread plus account-scoped custom Android channels, OS sound settings and local message/sender redaction implemented in subsequent MB stages; OEM/FCM acceptance unverified |
 | Export/restore/device migration | Deferred P2; private offline Room and pending outbox should not be exported through an unreviewed backup format; OS backup/transfer exclusions retained |
 | Low-data automatic media download | On-demand bounded images/caching implemented; background auto-download policy/settings deferred |
 | Smart contact/folder customization | Contact discovery/saved contacts and All/Favorite/Archive/Unread implemented; custom folders remain deferred |

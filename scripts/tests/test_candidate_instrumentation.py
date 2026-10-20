@@ -4,6 +4,7 @@ import io
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 from xml.etree import ElementTree
@@ -72,6 +73,68 @@ class ShardCoverageTest(unittest.TestCase):
         self.assertTrue(runner.verify_sharded_cases(
             [{"class":"fixture.Test","name":"one","code":-2}],
             ["Shard 1: One or more instrumentation tests failed."],minimum=1))
+
+
+class ImageRepeatTest(unittest.TestCase):
+    def setUp(self):
+        self.output = result().replace("fixture.Test", runner.IMAGE_TEST_CLASS)
+        self.expected = {(runner.IMAGE_TEST_CLASS, "first")}
+
+    def test_every_repeat_requires_the_same_full_class_without_skips(self):
+        cases, errors = runner.evaluate_output(self.output)
+        self.assertFalse(runner.verify_image_repeat(cases, errors, self.expected))
+        for candidate, expected in (([], self.expected), (cases, set()),
+                                    (cases + cases, self.expected),
+                                    ([dict(cases[0], code=-3)], self.expected),
+                                    (cases, self.expected | {(runner.IMAGE_TEST_CLASS, "missing")})):
+            with self.subTest(candidate=candidate, expected=expected):
+                self.assertTrue(runner.verify_image_repeat(candidate, [], expected))
+
+    @patch.object(subprocess, "run")
+    def test_all_rounds_run_in_fresh_invocations_with_exact_class_and_records(self, invoke):
+        invoke.return_value = subprocess.CompletedProcess([], 0, self.output)
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            self.assertFalse(runner.run_image_repeats(["adb", "-s", "emulator-5554"], folder,
+                                                     self.expected, 5))
+            self.assertEqual(invoke.call_count, 5)
+            for call in invoke.call_args_list:
+                command = call.args[0]
+                self.assertEqual(command[:3], ["adb", "-s", "emulator-5554"])
+                self.assertIn(runner.IMAGE_TEST_CLASS, command)
+                self.assertNotIn("shardIndex", command)
+            self.assertEqual(len(list(folder.glob("image-repeat-*.xml"))), 5)
+            self.assertTrue((folder / "image-repeat-summary.json").is_file())
+
+    @patch.object(subprocess, "run")
+    def test_first_crash_cannot_be_retried_to_green(self, invoke):
+        invoke.side_effect = [subprocess.CompletedProcess([], 0, "INSTRUMENTATION_FAILED: crash"),
+                              subprocess.CompletedProcess([], 0, self.output)]
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            self.assertTrue(runner.run_image_repeats(["adb"], folder, self.expected, 5))
+            self.assertEqual(invoke.call_count, 1)
+            suite = ElementTree.parse(folder / "image-repeat-1.xml").getroot()
+            self.assertGreater(int(suite.attrib["failures"]), 0)
+
+    @patch.object(subprocess, "run")
+    def test_skip_and_missing_class_members_are_junit_failures(self, invoke):
+        for output in (self.output.replace("STATUS_CODE: 0", "STATUS_CODE: -3"),
+                       self.output.replace("test=first", "test=unexpected")):
+            invoke.return_value = subprocess.CompletedProcess([], 0, output)
+            with tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                self.assertTrue(runner.run_image_repeats(["adb"], folder, self.expected, 1))
+                self.assertGreater(int(ElementTree.parse(folder / "image-repeat-1.xml")
+                                       .getroot().attrib["failures"]), 0)
+
+    @patch.object(subprocess, "run")
+    def test_timeout_bytes_are_preserved_as_failure(self, invoke):
+        invoke.side_effect = subprocess.TimeoutExpired(["adb"], 360, output=b"partial runner output")
+        completed = runner.run_instrumentation(["adb"])
+        self.assertEqual(completed.returncode, 124)
+        self.assertIn("partial runner output", completed.stdout)
+        self.assertTrue(runner.evaluate_output(completed.stdout, completed.returncode)[1])
 
 
 class EmulatorSafetyTest(unittest.TestCase):

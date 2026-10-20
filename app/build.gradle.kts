@@ -20,8 +20,8 @@ android {
         buildConfigField("String","FCM_API_KEY", "\"" + (System.getenv("FCM_API_KEY") ?: "") + "\"")
         buildConfigField("String","FCM_SENDER_ID", "\"" + (System.getenv("FCM_SENDER_ID") ?: "") + "\"")
         buildConfigField("boolean","ENABLE_EXPERIMENTAL_CALLS",if(System.getenv("ENABLE_EXPERIMENTAL_CALLS")=="true") "true" else "false")
-        versionCode = 15
-        versionName = "1.0.0-rc8-mb-preview"
+        versionCode = 16
+        versionName = "1.0.0-rc9-mb-preview"
     }
     signingConfigs {
         // CI prepares/caches this exact development key. AGP defaults may use a

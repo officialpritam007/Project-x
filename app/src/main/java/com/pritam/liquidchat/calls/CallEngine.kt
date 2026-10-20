@@ -60,9 +60,10 @@ class CallEngine(private val context: Context, private val video: Boolean,
     private val originalMode = audioManager.mode
     private val originalSpeaker = audioManager.isSpeakerphoneOn
     private var audioFocusRequest: AudioFocusRequest? = null
-    @Volatile private var closed = false
+    private val resourceGate = CallResourceGate()
+    private val closed get()=resourceGate.closed
 
-    fun start() {
+    fun start():Unit = resourceGate.withOpen {
         val focusRequest=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -173,9 +174,9 @@ class CallEngine(private val context: Context, private val video: Boolean,
         renderer.release()
     }
 
-    fun mute(mute:Boolean) {audioTrack?.setEnabled(!mute)}
-    fun setCameraEnabled(enabled:Boolean) {videoTrack?.setEnabled(enabled)}
-    fun switchCamera() {(capturer as? CameraVideoCapturer)?.switchCamera(null)}
+    fun mute(mute:Boolean) = resourceGate.ifOpen {audioTrack?.setEnabled(!mute);Unit}
+    fun setCameraEnabled(enabled:Boolean) = resourceGate.ifOpen {videoTrack?.setEnabled(enabled);Unit}
+    fun switchCamera() = resourceGate.ifOpen {(capturer as? CameraVideoCapturer)?.switchCamera(null)}
     fun speaker(enabled:Boolean):Boolean {
         if(android.os.Build.VERSION.SDK_INT>=31) {
             val type=if(enabled)android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
@@ -206,7 +207,6 @@ class CallEngine(private val context: Context, private val video: Boolean,
         ?: throw java.io.IOException("Call already ended")
 
     private suspend fun createDescription(offer:Boolean): SessionDescription {
-        val connection=activePeer()
         return suspendCancellableCoroutine { cont ->
             val observer = object: SdpObserver {
                 override fun onCreateSuccess(sdp: SessionDescription?) {
@@ -219,13 +219,15 @@ class CallEngine(private val context: Context, private val video: Boolean,
                 }
                 override fun onSetFailure(error:String?) {}
             }
-            if(offer)connection.createOffer(observer,MediaConstraints())
-            else connection.createAnswer(observer,MediaConstraints())
+            resourceGate.withOpen {
+                val connection=activePeer()
+                if(offer)connection.createOffer(observer,MediaConstraints())
+                else connection.createAnswer(observer,MediaConstraints())
+            }
         }
     }
 
     private suspend fun setDescription(sdp:SessionDescription, local:Boolean) {
-        val connection=activePeer()
         return suspendCancellableCoroutine<Unit> {cont ->
             val observer=object:SdpObserver {
                 override fun onCreateSuccess(sdp:SessionDescription?) {}
@@ -235,8 +237,11 @@ class CallEngine(private val context: Context, private val video: Boolean,
                     if(cont.isActive)cont.resumeWithException(IllegalStateException(error ?: "SDP rejected"))
                 }
             }
-            if(local)connection.setLocalDescription(observer,sdp)
-            else connection.setRemoteDescription(observer,sdp)
+            resourceGate.withOpen {
+                val connection=activePeer()
+                if(local)connection.setLocalDescription(observer,sdp)
+                else connection.setRemoteDescription(observer,sdp)
+            }
         }
     }
 
@@ -254,13 +259,15 @@ class CallEngine(private val context: Context, private val video: Boolean,
     suspend fun acceptAnswer(answer:String) {setRemote("answer",answer)}
     private suspend fun setRemote(type:String,description:String) {
         setDescription(SessionDescription(SessionDescription.Type.fromCanonicalForm(type),description),false)
-        synchronized(queuedIce) {
-            remoteReady=true
-            queuedIce.forEach {peer?.addIceCandidate(it)}
-            queuedIce.clear()
+        resourceGate.withOpen {
+            synchronized(queuedIce) {
+                remoteReady=true
+                queuedIce.forEach {activePeer().addIceCandidate(it)}
+                queuedIce.clear()
+            }
         }
     }
-    fun remoteCandidate(json:JSONObject) {
+    fun remoteCandidate(json:JSONObject) = resourceGate.ifOpen {
         val ice=IceCandidate(json.optString("sdpMid","0"),json.optInt("sdpMLineIndex"),json.getString("candidate"))
         synchronized(queuedIce) {
             if(remoteReady) peer?.addIceCandidate(ice)
@@ -269,10 +276,8 @@ class CallEngine(private val context: Context, private val video: Boolean,
         }
     }
 
-    override fun close() {
+    override fun close() = resourceGate.close {
         synchronized(rendererLock) {
-            if(closed)return
-            closed=true
             localRenderer?.let {videoTrack?.removeSink(it)}
             remoteRenderer?.let {remoteVideo?.removeSink(it)}
             localRenderer=null
