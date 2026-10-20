@@ -194,3 +194,5 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 
 | MB45 | Change chat avatar diameter 40/52/68dp and row padding 6/11/20dp in MB Home Settings | Inbox updates live without deleting messages or concealing Calls/Archive; 52/11 is baseline; persists across restart and theme export/import |
+
+| MB46 | Enable Hide contact name in Custom notifications and trigger messages from that chat, then expand notification and revisit Android channel settings; disable again | Generic Liquid Chat title and New message body on future alerts, channel label generic when hidden, other conversations and call invitations untouched, settings persist after restart and are cleared on chat deletion/logout |
