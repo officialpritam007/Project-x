@@ -943,7 +943,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(appearance)LiquidAlertDialog(
         onDismissRequest={appearance=false},
         title={Text("Chat wallpaper")},
-        text={Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Text("Choose a built-in palette, private photo or muted MP4 video from this phone.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
