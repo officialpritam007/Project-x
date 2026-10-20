@@ -81,8 +81,8 @@ import kotlinx.coroutines.flow.drop
         border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).17f else .72f)),
         modifier=Modifier.fillMaxWidth().glassSource().combinedClickable(onClick=onClick,onLongClick=onLongClick)
     ) {
-        Row(Modifier.fillMaxWidth().padding(vertical=11.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Avatar(chat.name,chat.avatarId,backend,size=52.dp)
+        Row(Modifier.fillMaxWidth().padding(vertical=homeDisplay.homeRowPadding.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+            Avatar(chat.name,chat.avatarId,backend,size=homeDisplay.homeAvatarSize.dp)
             Column(Modifier.weight(1f)) {
                 Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium.copy(fontSize=homeDisplay.homeChatNameSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis)
                 Text(inboxSnippet(chat.preview,"Say hello to @${chat.username}",homeDisplay.hideHomePreviews),style=MaterialTheme.typography.bodyMedium.copy(fontSize=homeDisplay.homeChatPreviewSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1396,6 +1396,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Slider(value=display.homeWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(homeWallpaperDim=it.toInt()))},
                 valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
             Text("50% keeps the previous Home wallpaper appearance. Changes apply to locally selected photos.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider()
+            Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeAvatarSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeAvatarSize=it.toInt()))},
+                valueRange=40f..68f,steps=27,modifier=Modifier.fillMaxWidth())
+            Text("Conversation row spacing · ${display.homeRowPadding} dp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.homeRowPadding.toFloat(),onValueChange={model.setDisplay(display.copy(homeRowPadding=it.toInt()))},
+                valueRange=6f..20f,steps=13,modifier=Modifier.fillMaxWidth())
+            Text("Adjusts avatar diameter and vertical padding without removing unread badges, previews or chat actions.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider()
             Text("Conversation name size · ${display.homeChatNameSize} sp",style=MaterialTheme.typography.titleSmall)
