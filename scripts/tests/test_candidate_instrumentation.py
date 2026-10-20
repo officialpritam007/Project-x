@@ -4,6 +4,9 @@ import io
 import os
 from pathlib import Path
 import subprocess
+import tempfile
+import json
+import re
 import unittest
 from unittest.mock import patch
 from xml.etree import ElementTree
@@ -72,6 +75,69 @@ class ShardCoverageTest(unittest.TestCase):
         self.assertTrue(runner.verify_sharded_cases(
             [{"class":"fixture.Test","name":"one","code":-2}],
             ["Shard 1: One or more instrumentation tests failed."],minimum=1))
+
+
+class ImageTeardownStressTest(unittest.TestCase):
+    def output(self, missing=False, skipped=False):
+        names = sorted(runner.IMAGE_TEARDOWN_TESTS)
+        cases = []
+        for index, name in enumerate(names[:-1] if missing else names):
+            cases.append(f"INSTRUMENTATION_STATUS: class={runner.IMAGE_TEARDOWN_CLASS}\n"
+                         f"INSTRUMENTATION_STATUS: test={name}\n"
+                         f"INSTRUMENTATION_STATUS: numtests={len(names)}\n"
+                         f"INSTRUMENTATION_STATUS_CODE: {-3 if skipped and index == 0 else 0}\n")
+        return "".join(cases) + "INSTRUMENTATION_CODE: -1\n"
+
+    def run_stress(self, directory, outputs, diagnostics_code=0):
+        responses = []
+        for output in outputs:
+            if isinstance(output, Exception):
+                responses.append(output)
+            else:
+                responses.append(subprocess.CompletedProcess([], 0, output))
+            responses.append(subprocess.CompletedProcess([], diagnostics_code, "fixture diagnostics"))
+        with patch.object(subprocess, "run", side_effect=responses) as invoke:
+            failures = runner.run_image_teardown_stress(["adb", "-s", "emulator-5554"],
+                                                        len(outputs), Path(directory))
+        self.assertEqual(invoke.call_count, len(outputs) * 2)
+        for call in invoke.call_args_list[::2]:
+            command = call.args[0]
+            self.assertIn(runner.IMAGE_TEARDOWN_CLASS, command)
+            self.assertNotIn("shardIndex", command)
+        return failures
+
+    def test_repeats_the_complete_fixture_in_fresh_processes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertFalse(self.run_stress(directory, [self.output()] * 3))
+            summary = json.loads((Path(directory) / "summary.json").read_text())
+            self.assertEqual(summary["repetitions"], 3)
+            self.assertEqual(len(list(Path(directory).glob("*.logcat.txt"))), 3)
+
+    def test_partial_or_skipped_repetition_never_becomes_green_after_success(self):
+        for first in (self.output(missing=True), self.output(skipped=True),
+                      subprocess.TimeoutExpired("adb", 180, output=b"fixture timeout")):
+            with self.subTest(first=first), tempfile.TemporaryDirectory() as directory:
+                failures = self.run_stress(directory, [first, self.output()])
+                self.assertTrue(failures)
+                self.assertTrue(any("Repetition 1" in item for item in failures))
+                suite = ElementTree.parse(Path(directory) / "junit.xml").getroot()
+                self.assertGreater(int(suite.attrib["failures"]), 0)
+
+    def test_missing_crash_diagnostics_are_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertTrue(self.run_stress(directory, [self.output()], diagnostics_code=1))
+
+    def test_inventory_tracks_every_image_fixture_test(self):
+        source = SCRIPT.parents[1] / "app/src/androidTest/java/com/pritam/liquidchat/ui/ProtectedImageCacheTest.kt"
+        self.assertEqual(set(re.findall(r"@Test\s+fun\s+(\w+)\(", source.read_text())),
+                         runner.IMAGE_TEARDOWN_TESTS)
+
+    def test_unbounded_or_empty_stress_is_rejected_before_adb(self):
+        with patch.object(subprocess, "run") as invoke:
+            for repetitions in (0, -1, 11):
+                with self.assertRaises(ValueError):
+                    runner.run_image_teardown_stress([], repetitions, Path("unused"))
+            invoke.assert_not_called()
 
 
 class EmulatorSafetyTest(unittest.TestCase):

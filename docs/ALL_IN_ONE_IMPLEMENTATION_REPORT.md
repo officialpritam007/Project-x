@@ -1,3 +1,14 @@
+## 21 October 2026 continuation — voice/call ownership and repeat teardown gate
+
+Baseline: verified main `9d03c70ef18cd3843849af2546b2f99e274ab642` / Actions #405. The following changes require their own PR and exact merged-main verification before distribution:
+
+- Voice player preparation, completion, errors and audio-focus callbacks are bound to the owning playback generation. A late callback from an older clip cannot stop a newly selected clip. Cancelling an unfinished signed-source request clears only its own pending selection, so returning to that bubble does not leave an indefinite loading indicator.
+- Pending/active calls take priority over voice-message recording and playback. Capture is discarded when a call appears; recording/play/seek/speed controls are unavailable until the call ends. Source requests that finish after a call starts cannot take audio focus away from WebRTC. Existing playback still survives ordinary bubble scrolling after preparation.
+- API35 and API36 CI now run the complete five-test protected-image fixture in **five additional fresh runner processes per API**, after the normal four-shard suite. Each repetition must discover every fixture test, complete without failures/skips and preserve diagnostics. A later passing repetition cannot erase an earlier failure. This adds 25 fixture executions per API and retains the full existing suite; API29 keeps its normal full suite.
+- Additional host regressions verify partial/crashed/timed-out/skipped runs remain failed, diagnostics are retained and the explicit stress inventory matches the Android source. Playback-generation JVM regressions cover old-clip completion/cancellation across another clip/account.
+
+Issue #91 remains **OPEN**: repeat stability is evidence for the current runtime, not proof of the original Compose SlotWriter root cause. Physical voice/call audio, Bluetooth/carrier/TURN acceptance and exhaustive MBWhatsApp reference-screen parity remain unverified. No Supabase schema/data, provider/billing setting, FCM payload/configuration or calling-enabled build flag changes are included.
+
 # Liquid Chat — All-in-One test candidate implementation register
 
 This report accompanies the calling-enabled test APK requested in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). The tracker records the immutable final source SHA, Actions run/artifact, checksums and exact verification results after integration. A final test candidate is not a signed Play production release or physical acceptance certificate.

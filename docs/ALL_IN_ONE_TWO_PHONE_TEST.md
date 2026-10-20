@@ -198,3 +198,11 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB46 | Enable Hide contact name in Custom notifications and trigger messages from that chat, then expand notification and revisit Android channel settings; disable again | Generic Liquid Chat title and New message body on future alerts, channel label generic when hidden, other conversations and call invitations untouched, settings persist after restart and are cleared on chat deletion/logout |
 
 | MB47 | Home and a single conversation: choose 15–30s MP4 video, switch to built-in palette then restore saved video, rotate/background/reopen, enable Reduced motion and finally replace video with photo | Local video stays muted, loops without covering glass bubbles, pauses in background/reduced-motion, persists per account/chat, other chats unchanged; invalid/oversize/overlong/4K video rejected; logout/chat deletion clear only intended private files |
+
+
+## Voice/call ownership continuation — same final two-phone round
+
+| ID | Action | Expected result |
+|---|---|---|
+| S13 | Start a remotely stored voice clip on a slow network, leave the chat before loading finishes, return and play again; rapidly switch between two clips | No permanently spinning selection, duplicate playback or older completion/focus callback stopping the newer clip; downloaded playback still continues when only the bubble scrolls out of view |
+| C18 | Play or record a voice message, then receive/start a voice/video call; minimize the call and try record/play/seek/speed in a chat and Shared Media | Voice capture is discarded and playback stops; message-audio controls cannot steal the call microphone/audio focus; controls work again after hanging up, with no background voice restart |
