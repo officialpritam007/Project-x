@@ -27,6 +27,8 @@ data class DisplayOptions(
     val chatWallpaperDim:Int=50,
     val hideHomePreviews:Boolean=false,
     val quickReactions:String=MbQuickReactions.defaultSetting,
-    val navigationOrder:String=MbNavigationOrder.DEFAULT
+    val navigationOrder:String=MbNavigationOrder.DEFAULT,
+    val homeAvatarSize:Int=52,
+    val homeRowPadding:Int=11
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
