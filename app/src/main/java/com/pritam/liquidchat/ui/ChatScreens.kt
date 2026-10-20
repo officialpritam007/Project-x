@@ -585,7 +585,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     .getOrNull()
             }
             if(videoFile?.isFile==true) {
-                LocalVideoWallpaper(videoFile,foreground,Modifier.matchParentSize())
+                LocalVideoWallpaper(videoFile,foreground,wallpaperRevision,Modifier.matchParentSize())
                 Box(Modifier.matchParentSize().background(
                     if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
                     else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))))
