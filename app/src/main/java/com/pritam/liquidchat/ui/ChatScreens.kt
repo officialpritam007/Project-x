@@ -118,7 +118,15 @@ import kotlinx.coroutines.flow.drop
     val homeOwner=signedInAccount?.userId
     val context=LocalContext.current
     var homePhotoRevision by remember(homeOwner) {mutableIntStateOf(0)}
+    val homeForeground by model.repository.foreground.collectAsStateWithLifecycle()
     var homePickerAccount by remember {mutableStateOf<String?>(null)}
+    var homeVideoPickerAccount by remember {mutableStateOf<String?>(null)}
+    val homeVideo=remember(homeOwner,homePhotoRevision) {
+        homeOwner?.let {owner->runCatching {
+            com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,
+                com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
+        }.getOrNull()}
+    }
     val homePhoto=remember(homeOwner,homePhotoRevision) {
         homeOwner?.let {owner->
             runCatching {
@@ -146,8 +154,22 @@ import kotlinx.coroutines.flow.drop
             catch(_:Exception) { /* Privacy controls remain disabled while unavailable. */ }
         }
     }
+    val homeVideoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        val owner=homeVideoPickerAccount
+        homeVideoPickerAccount=null
+        if(uri!=null && owner!=null && model.session.value?.userId==owner)model.action {
+            val saved=com.pritam.liquidchat.data.PrivateVideoWallpaper.save(context,owner,
+                com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID,uri)
+            if(model.session.value?.userId==owner)homePhotoRevision++ else saved.delete()
+        }
+    }
     Box(Modifier.fillMaxSize()) {
-    if(homePhoto?.isFile==true) {
+    if(homeVideo?.isFile==true) {
+        LocalVideoWallpaper(homeVideo,homeForeground,Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().background(
+            if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.56f,inboxDisplay.homeWallpaperDim))
+            else Color.White.copy(alpha=wallpaperDimAlpha(.45f,inboxDisplay.homeWallpaperDim))))
+    } else if(homePhoto?.isFile==true) {
         val imageRequest=remember(homePhoto,homePhotoRevision) {
             coil.request.ImageRequest.Builder(context).data(homePhoto)
                 .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
@@ -172,13 +194,20 @@ import kotlinx.coroutines.flow.drop
                         homePickerAccount=homeOwner
                         homePhotoPicker.launch("image/*")
                     },enabled=homeOwner!=null)
-                    if(homePhoto?.isFile==true && homeOwner!=null)
+                    DropdownMenuItem(text={Text("Choose home video wallpaper")},onClick={
+                        menu=false
+                        homeVideoPickerAccount=homeOwner
+                        homeVideoPicker.launch("video/mp4")
+                    },enabled=homeOwner!=null)
+                    if((homePhoto?.isFile==true || homeVideo?.isFile==true) && homeOwner!=null)
                         DropdownMenuItem(text={Text("Remove home wallpaper")},onClick={
                             menu=false
                             val oldOwner=homeOwner
                             model.action {
                                 if(model.session.value?.userId==oldOwner) {
                                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        com.pritam.liquidchat.data.PrivateVideoWallpaper.clear(
+                                            context,oldOwner,com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
                                         val path=com.pritam.liquidchat.data.PersonalWallpaper.location(
                                             context,oldOwner,com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
                                         require(!path.exists() || path.delete()) {"Unable to remove wallpaper."}
