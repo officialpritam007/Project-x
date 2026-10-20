@@ -165,7 +165,7 @@ import kotlinx.coroutines.flow.drop
     }
     Box(Modifier.fillMaxSize()) {
     if(homeVideo?.isFile==true) {
-        LocalVideoWallpaper(homeVideo,homeForeground,Modifier.matchParentSize())
+        LocalVideoWallpaper(homeVideo,homeForeground,homePhotoRevision,Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(
             if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.56f,inboxDisplay.homeWallpaperDim))
             else Color.White.copy(alpha=wallpaperDimAlpha(.45f,inboxDisplay.homeWallpaperDim))))
