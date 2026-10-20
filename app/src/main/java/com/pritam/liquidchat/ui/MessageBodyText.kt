@@ -21,10 +21,12 @@ import androidx.compose.ui.unit.sp
         buildAnnotatedString {
             append(body)
             if(linksEnabled)messageWebLinks(body).forEach {link->
+                // Android intent-filter scheme matching is case-sensitive.
+                val target=link.url.replaceBefore(":",link.url.substringBefore(":").lowercase())
                 addLink(LinkAnnotation.Url(link.url,
                     styles=TextLinkStyles(style=SpanStyle(color=color,textDecoration=TextDecoration.Underline)),
                     linkInteractionListener={
-                        try {uriHandler.openUri(link.url)}catch(_:Exception) {failed=true}
+                        try {uriHandler.openUri(target)}catch(_:Exception) {failed=true}
                     }),link.start,link.end)
             }
         }
