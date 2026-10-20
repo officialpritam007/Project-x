@@ -198,3 +198,9 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Real MB Home Settings controls for **chat avatar diameter** (40–68dp, default 52dp) and **vertical row padding** (6–20dp, default 11dp); rendered in the live Chats inbox and saved in existing device display preferences.
 - Presets/export: Liquid Chat JSON themes include both settings, clamp imported values, and preserve existing install defaults; no change to contact permissions, Supabase, messaging, calling or status badges.
 - Remaining: exact MBWhatsApp screen matching, proprietary assets and two-phone acceptance.
+
+## Stage 16 — opt-in sender-name privacy (pending CI)
+
+- Custom notifications adds a locally saved per-account/conversation **Hide contact name in notifications** switch. When enabled, future message notifications use a generic `Liquid Chat` title and `New message` body in both collapsed/expanded alert content, with SECRET lockscreen visibility. Message content in the authorized chat is unchanged.
+- An enabled per-conversation Android channel also uses a generic `Conversation` name and restores its original chat label when disabled, without intentionally resetting system sound preferences. Switching does not retroactively redact already posted alerts, and **does not mask incoming call invitations**. Other conversations and accounts retain their own settings.
+- Account logout/chat deletion erase the new local privacy key. Tests cover privacy truth table, account/chat isolation and channel-name behavior. Existing Supabase, FCM server preview policy, WebRTC, call buttons and user data are not modified. **Physical two-phone and OEM notification acceptance remains pending; MBWhatsApp parity is incomplete.**
