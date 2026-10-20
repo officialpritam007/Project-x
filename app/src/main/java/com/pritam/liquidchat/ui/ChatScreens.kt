@@ -453,6 +453,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             com.pritam.liquidchat.data.ConversationNotificationChannels.hiddenPreview(context,it,cid)
         } ?: false)
     }
+    var hideNotificationSender by remember(cid,session?.userId) {
+        mutableStateOf(session?.userId?.let {
+            com.pritam.liquidchat.data.ConversationNotificationChannels.hiddenSender(context,it,cid)
+        } ?: false)
+    }
     var notificationError by remember(cid) {mutableStateOf<String?>(null)}
     var requestedCallKind by remember(cid) {mutableStateOf("audio")}
     val callPermissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {granted->
@@ -795,7 +800,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         LiquidAlertDialog(
             onDismissRequest={notificationsOpen=false;notificationError=null},
             title={Text("Custom notifications")},
-            text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            text={Column(Modifier.heightIn(max=430.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
                     horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f)) {
@@ -836,10 +842,32 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         }
                     })
                 }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide contact name in notifications",
+                            style=MaterialTheme.typography.titleSmall)
+                        Text("Future message alerts show Liquid Chat instead of the sender and hide the message text too. Does not affect call invitations.",
+                            style=MaterialTheme.typography.bodySmall,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=hideNotificationSender,onCheckedChange={hide->
+                        try {
+                            com.pritam.liquidchat.data.ConversationNotificationChannels
+                                .setHiddenSender(context,notificationAccount,cid,chat.name,hide)
+                            hideNotificationSender=hide
+                            notificationError=null
+                        } catch(e:Exception) {
+                            notificationError=e.message ?: "Could not save sender privacy."
+                        }
+                    })
+                }
                 if(customNotificationEnabled) FilledTonalButton(onClick={
                     try {
                         com.pritam.liquidchat.data.ConversationNotificationChannels
-                            .createChannel(context,notificationAccount,cid,chat.name)
+                            .createChannel(context,notificationAccount,cid,
+                                if(hideNotificationSender)"Conversation" else chat.name)
                         context.startActivity(
                             com.pritam.liquidchat.data.ConversationNotificationChannels
                                 .settingsIntent(context,notificationAccount,cid))

@@ -10,3 +10,7 @@ internal fun notificationBodyForDisplay(body:String,serverPreviews:Boolean,hideF
 
 internal fun notificationBodyAllowed(serverPreviews:Boolean,hideForChat:Boolean):Boolean =
     serverPreviews && !hideForChat
+
+/** Hiding sender also forces body redaction in the caller. */
+internal fun notificationTitleForDisplay(title:String,hideSender:Boolean):String =
+    if(hideSender)"Liquid Chat" else title
