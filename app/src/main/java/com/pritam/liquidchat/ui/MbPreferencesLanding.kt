@@ -1,13 +1,16 @@
 package com.pritam.liquidchat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lock
@@ -19,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +56,23 @@ internal object MbReferencePreferenceSections {
     val all=visual+themes+controls
 }
 
+@Composable private fun MbReferenceActionRow(
+    route:MbReferencePreference,
+    onNavigate:(String)->Unit
+) {
+    Row(Modifier.fillMaxWidth().heightIn(min=56.dp).clip(Glass.compact)
+        .clickable(role=Role.Button,onClick={onNavigate(route.target)})
+        .padding(horizontal=12.dp,vertical=12.dp),
+        verticalAlignment=Alignment.CenterVertically,
+        horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+        Icon(route.icon,contentDescription=null,
+            modifier=Modifier.size(23.dp),tint=MaterialTheme.colorScheme.onSurface)
+        Text(route.label,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
+        Icon(Icons.Outlined.ChevronRight,contentDescription=null,
+            tint=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.size(22.dp))
+    }
+}
+
 @Composable private fun MbReferenceSection(
     heading:String,
     hint:String,
@@ -69,7 +90,7 @@ internal object MbReferencePreferenceSections {
             Spacer(Modifier.height(2.dp))
             routes.forEachIndexed {i,route->
                 if(i>0) HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
-                GlassActionRow(route.label,route.icon,onClick={onNavigate(route.target)})
+                MbReferenceActionRow(route,onNavigate)
             }
         }
     }
