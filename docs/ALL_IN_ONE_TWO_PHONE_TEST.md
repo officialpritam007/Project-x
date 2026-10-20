@@ -1,6 +1,6 @@
 # Liquid Chat — one comprehensive two-phone acceptance round
 
-Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 76 cases are physical/provider acceptance checks for the Option 3 calling-enabled rc5 candidate, not assertions that emulator CI proves real device behaviour.
+Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 126 cases cover the calling-enabled rc10 (17) candidate and all preceding MB stages. They are physical/provider acceptance checks, not assertions that emulator CI proves real device behaviour.
 
 ## Prepare both phones
 
@@ -123,7 +123,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 
 Release remains a test candidate until applicable rows pass. A failed provider/network case is recorded as failed/blocked, never converted to production acceptance by emulator CI. Seen/unseen Story receipts, full Telecom, TURN, arbitrary documents, automatic link previews and conditional P2 features listed in the implementation report are not present and must not be tested as implemented.
 
-## Additional MBWhatsApp parity acceptance (rc6 candidate; do not skip prior cases)
+## Additional MBWhatsApp parity acceptance (includes prior stages; do not skip earlier cases)
 
 **One owner round only, after automated integration is green.** The reference APK's actual visible UI must be used for side-by-side comparison. Visual differences or reference features that are not present remain **incomplete** and cannot be signed off merely because the app launches.
 
@@ -148,7 +148,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB17 | Verify voice/video call buttons, outgoing/ringing/active audio-video after styling changes | Calling-enabled config unchanged; no UI overlay or audio-route regression |
 | MB18 | Compare actual MBWhatsApp reference screens at matched device widths | Record all missing controls, icons, layout/animation mismatches; never claim pixel parity without evidence |
 
-**Known limitations:** schedules are device-local and WorkManager is subject to Android's timing restrictions; logout/uninstall/data clearance removes them. Real carrier TURN reliability, precise theme/font import/export, WhatsApp-specific status/once-view retrieval, document scanning, custom stickers and more reference menu items are still unimplemented. Do not mistake the rc6 candidate for the full MBWhatsApp clone.
+**Known limitations:** schedules are device-local and WorkManager is subject to Android's timing restrictions; logout/uninstall/data clearance removes them. Real carrier TURN reliability, proprietary theme/font import/export, WhatsApp-specific status/once-view retrieval, document scanning, custom stickers and more reference menu items are still unimplemented. Do not mistake this candidate for complete MBWhatsApp equivalence.
 
 ## MB per-contact notifications (include in the owner's one final two-phone round)
 
