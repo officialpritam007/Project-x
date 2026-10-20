@@ -191,3 +191,10 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Account logout and chat deletion remove redaction keys, preserving all other contacts. FCM message dedupe, mute/block enforcement, call notifications and background retry remain unchanged.
 - Unit tests verify the complete global/local privacy matrix; Android instrumentation verifies separate account/conversation storage and cleanup. Incoming text hidden in notifications is still visible to authorized participants inside the conversation.
 - Other devices on the same account require separate local settings; exact Android manufacturer lockscreen behavior still needs the user's final two-phone acceptance.
+
+
+## Stage 15 — Home conversation row density
+
+- Real MB Home Settings controls for **chat avatar diameter** (40–68dp, default 52dp) and **vertical row padding** (6–20dp, default 11dp); rendered in the live Chats inbox and saved in existing device display preferences.
+- Presets/export: Liquid Chat JSON themes include both settings, clamp imported values, and preserve existing install defaults; no change to contact permissions, Supabase, messaging, calling or status badges.
+- Remaining: exact MBWhatsApp screen matching, proprietary assets and two-phone acceptance.
