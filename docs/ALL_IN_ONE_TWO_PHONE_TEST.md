@@ -1,6 +1,6 @@
 # Liquid Chat — one comprehensive two-phone acceptance round
 
-Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 76 cases are physical/provider acceptance checks for the Option 3 calling-enabled rc5 candidate, not assertions that emulator CI proves real device behaviour.
+Run this once with the final **calling-enabled All-in-One Test APK** identified in [Master Tracker #24](https://github.com/officialpritam007/Project-x/issues/24). Development CI and emulator tests are performed before this round. These 126 cases cover the calling-enabled rc10 (17) candidate and all preceding MB stages. They are physical/provider acceptance checks, not assertions that emulator CI proves real device behaviour.
 
 ## Prepare both phones
 
@@ -123,7 +123,7 @@ Run this once with the final **calling-enabled All-in-One Test APK** identified 
 
 Release remains a test candidate until applicable rows pass. A failed provider/network case is recorded as failed/blocked, never converted to production acceptance by emulator CI. Seen/unseen Story receipts, full Telecom, TURN, arbitrary documents, automatic link previews and conditional P2 features listed in the implementation report are not present and must not be tested as implemented.
 
-## Additional MBWhatsApp parity acceptance (rc6 candidate; do not skip prior cases)
+## Additional MBWhatsApp parity acceptance (includes prior stages; do not skip earlier cases)
 
 **One owner round only, after automated integration is green.** The reference APK's actual visible UI must be used for side-by-side comparison. Visual differences or reference features that are not present remain **incomplete** and cannot be signed off merely because the app launches.
 
@@ -148,7 +148,7 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 | MB17 | Verify voice/video call buttons, outgoing/ringing/active audio-video after styling changes | Calling-enabled config unchanged; no UI overlay or audio-route regression |
 | MB18 | Compare actual MBWhatsApp reference screens at matched device widths | Record all missing controls, icons, layout/animation mismatches; never claim pixel parity without evidence |
 
-**Known limitations:** schedules are device-local and WorkManager is subject to Android's timing restrictions; logout/uninstall/data clearance removes them. Real carrier TURN reliability, precise theme/font import/export, WhatsApp-specific status/once-view retrieval, document scanning, custom stickers and more reference menu items are still unimplemented. Do not mistake the rc6 candidate for the full MBWhatsApp clone.
+**Known limitations:** schedules are device-local and WorkManager is subject to Android's timing restrictions; logout/uninstall/data clearance removes them. Real carrier TURN reliability, proprietary theme/font import/export, WhatsApp-specific status/once-view retrieval, document scanning, custom stickers and more reference menu items are still unimplemented. Do not mistake this candidate for complete MBWhatsApp equivalence.
 
 ## MB per-contact notifications (include in the owner's one final two-phone round)
 
@@ -228,3 +228,17 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 ## Automated crash follow-up (not an owner test)
 
 The candidate CI runs the complete sharded suite followed by five fresh-process protected-image class repetitions per API29/35/36. Evidence is in each `device-db-reports-api-*` artifact as `image-repeat-*.txt`, `.xml` and `image-repeat-summary.json`. A failed, skipped or incomplete round is a failed gate. These checks use intercepted synthetic media; actual avatar/tab/background/call interactions remain in the one physical checklist above. #91 remains open unless durable root-cause/device evidence supports closure.
+
+
+## Voice/call ownership continuation — same final two-phone round
+
+| ID | Action | Expected result |
+|---|---|---|
+| S15 | Start a remotely stored voice clip on a slow network, leave the chat before loading finishes, return and play again; rapidly switch between two clips | No permanently spinning selection, duplicate playback or older completion/focus callback stopping the newer clip; downloaded playback still continues when only the bubble scrolls out of view |
+| C19 | Play or record a voice message, then receive/start a voice/video call; minimize the call and try record/play/seek/speed in a chat and Shared Media | Voice capture is discarded and playback stops; message-audio controls cannot steal the call microphone/audio focus; controls work again after hanging up, with no background voice restart |
+
+## Linked message text
+
+| ID | Action | Expected result |
+|---|---|---|
+| MB48 | Send a Bengali/emoji message containing multiple http/https web links, tap a link, long-press/select the message and retry with no browser handler | Only tapped explicit web links open externally; selection mode retains selection without opening links; malformed/custom-scheme/credential-bearing URLs stay plain; a missing handler shows a recoverable message. No link-preview download occurs |

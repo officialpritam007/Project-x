@@ -1,0 +1,31 @@
+package com.pritam.liquidchat.ui
+
+import org.junit.Assert.*
+import org.junit.Test
+
+class MessageWebLinksTest {
+    @Test fun unicodeOffsetsMultipleLinksAndSentencePunctuationKeepExactText() {
+        val text="দেখো 🙂 (https://example.org/a_(b)). More HTTP://example.net?q=1!"
+        val links=messageWebLinks(text)
+        assertEquals(listOf("https://example.org/a_(b)","HTTP://example.net?q=1"),links.map {it.url})
+        links.forEach {assertEquals(it.url,text.substring(it.start,it.end))}
+    }
+
+    @Test fun customSchemesCredentialsMalformedAuthoritiesAndPortsStayPlain() {
+        listOf("javascript:alert(1)","intent://example.org/#Intent;end", "file:///secret",
+            "https://user:password@example.org/a", "https:///missing-host", "https://example.org:99999/a",
+            "https://example.org/%xx").forEach {text->
+            assertTrue(text,messageWebLinks(text).isEmpty())
+        }
+    }
+
+    @Test fun ipv6QueryFragmentBalancedPathAndPercentEncodingArePreserved() {
+        val url="https://[::1]:8080/a_(b)?q=hello%20world#part"
+        assertEquals(url,messageWebLinks("[$url]").single().url)
+    }
+
+    @Test fun oversizedAndExcessiveLinksAreBounded() {
+        assertTrue(messageWebLinks("https://example.org/"+"a".repeat(2048)).isEmpty())
+        assertEquals(32,messageWebLinks(List(100){"https://example.org/$it"}.joinToString(" ")).size)
+    }
+}

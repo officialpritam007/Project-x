@@ -211,3 +211,10 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Playback uses a muted looping Media3 player rendered with a TextureView beneath the existing glass cards and contrast veil. Player is paused when app is backgrounded, the UI lifecycle stops, or Reduced motion is enabled, and is disposed when navigating away.
 - Each conversation persists a Video palette in existing account-scoped Room appearance; users can reopen **My saved video** after switching palettes. Selecting a photo removes that conversation's old video; selecting a video removes its old photo. Chat deletion clears either format, logout clears the entire account folder; no Supabase data/storage, cloud storage, RTC/call signaling, FCM, or paid infrastructure is modified.
 - Instrumentation checks UUID isolation, targeted cleanup and rejected non-video input. Playback quality, low-end battery impact and user-owned file compatibility remain physical acceptance gates. This is local video wallpaper, not an exact MB proprietary editor or full reference feature parity.
+
+
+## Stage 18 — working message web links
+
+- Explicit HTTP/HTTPS links in message bodies/captions are styled and tappable using Compose link annotations. Bengali/emoji offsets are preserved; sentence punctuation is separated and balanced path parentheses retained. Detection is bounded to 32 candidates/2048 characters per URL. Unsupported schemes, user-info/credentials, malformed URI/host/port values stay plain text.
+- A link opens only on an explicit tap; no server/client preview crawl or DNS lookup is performed by parsing. Multi-select renders plain text so tapping links does not unexpectedly leave selection. Missing browser handlers show a recoverable dialog. Deleted-message bodies never reach the linked-text renderer.
+- JVM parser cases and intercepted-browser Android tap/selection/error tests accompany the implementation. This closes a functional text interaction gap; custom link-color pickers, automatic previews and exact MB reference layouts remain incomplete.

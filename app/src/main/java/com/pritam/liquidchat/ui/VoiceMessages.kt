@@ -58,11 +58,13 @@ internal fun startVoiceWithFocusHandoff(
     val keyboard=LocalSoftwareKeyboardController.current
     val session by model.session.collectAsStateWithLifecycle()
     val account=session?.userId.orEmpty()
+    val call by model.calls.view.collectAsStateWithLifecycle()
+    val unavailable=busy||call!=null
     val capture=remember(cid,account) {VoiceRecorder(context,account)}
     var error by remember {mutableStateOf<String?>(null)}
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {granted->error=if(granted)"Hold the microphone to record." else "Microphone permission is needed to record."}
     fun start(locked:Boolean=false) {
-        if(busy||account.isBlank())return
+        if(busy||model.calls.view.value!=null||account.isBlank())return
         if(ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {permission.launch(Manifest.permission.RECORD_AUDIO);return}
         runCatching {
             startVoiceWithFocusHandoff(
@@ -88,14 +90,16 @@ internal fun startVoiceWithFocusHandoff(
         lifecycle.lifecycle.addObserver(observer)
         onDispose {lifecycle.lifecycle.removeObserver(observer);capture.cancel()}
     }
+    LaunchedEffect(capture,call!=null) {if(call!=null)capture.cancel()}
     LaunchedEffect(capture.recording) {while(capture.recording){capture.tick();if(capture.elapsed>=119500){send();break};delay(100)}}
     Box {
         Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary,CircleShape).semantics {
             contentDescription="Hold to record voice message";role=Role.Button
+            if(unavailable)disabled()
             onClick {start(true);true}
-        }.pointerInput(capture,busy) {
+        }.pointerInput(capture,unavailable) {
             awaitEachGesture {
-                val down=awaitFirstDown();if(busy)return@awaitEachGesture
+                val down=awaitFirstDown();if(unavailable)return@awaitEachGesture
                 start()
                 if(!capture.recording){waitForUpOrCancellation();return@awaitEachGesture}
                 try {
@@ -133,7 +137,7 @@ internal fun nextVoicePlaybackSpeed(current:Float):Float = when(current) {
     else->1f
 }
 
-private object VoicePlayback {
+internal object VoicePlayback {
     var id by mutableStateOf<String?>(null);private set
     var playing by mutableStateOf(false);private set
     var position by mutableIntStateOf(0);private set
@@ -147,20 +151,28 @@ private object VoicePlayback {
     var account:String?=null;private set
     fun begin(message:Message):Int {stop();id=message.id;account=message.account;return generation}
     fun current(token:Int)=token==generation
+    // A callback/request owns only the player generation that created it.
+    fun stopIfCurrent(token:Int) {if(current(token))stop()}
     fun play(context:android.content.Context,message:String,source:String,token:Int,onError:()->Unit) {
         if(!current(token))return
         val audio=context.getSystemService(AudioManager::class.java)
         val attrs=AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
-        val request=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attrs).setOnAudioFocusChangeListener {change->if(change<=0)stop()}.build()
+        val request=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attrs).setOnAudioFocusChangeListener {change->if(change<=0)stopIfCurrent(token)}.build()
         manager=audio;focus=request
         val media=MediaPlayer();player=media
         try {
             media.setAudioAttributes(attrs);media.setDataSource(source)
-            media.setOnPreparedListener {p->if(current(token)&&id==message&&audio.requestAudioFocus(request)==AudioManager.AUDIOFOCUS_REQUEST_GRANTED){ready=true;duration=p.duration.coerceAtLeast(1);p.start();playing=true}else stop()}
-            media.setOnCompletionListener {stop()}
+            media.setOnPreparedListener {p->
+                if(current(token)&&player===p) {
+                    if(id==message&&audio.requestAudioFocus(request)==AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                        ready=true;duration=p.duration.coerceAtLeast(1);p.start();playing=true
+                    } else stopIfCurrent(token)
+                }
+            }
+            media.setOnCompletionListener {stopIfCurrent(token)}
             media.setOnErrorListener {_,_,_->if(current(token)){stop();onError()};true}
             media.prepareAsync()
-        } catch(_:Exception) {stop();onError()}
+        } catch(_:Exception) {if(current(token)){stop();onError()}}
     }
     fun pauseResume() {if(!ready)return;val p=player ?: return;if(playing){p.pause();playing=false}else {p.start();playing=true}}
     fun cycleSpeed() {
@@ -194,6 +206,9 @@ internal fun invalidatesVoicePlayback(message:Message?,wasCached:Boolean):Boolea
     DisposableEffect(key,lifecycle) {val observer=LifecycleEventObserver {_,e->if(e==Lifecycle.Event.ON_STOP)VoicePlayback.stop()};lifecycle.lifecycle.addObserver(observer);onDispose {lifecycle.lifecycle.removeObserver(observer);VoicePlayback.stop()}}
     val id=VoicePlayback.id
     val account=VoicePlayback.account
+    LaunchedEffect(model) {
+        model.calls.view.collect {if(it!=null)VoicePlayback.stop()}
+    }
     LaunchedEffect(model,key) {
         model.repository.revocations.collect {event->
             if(VoicePlayback.account==event.account&&VoicePlayback.id==event.id)VoicePlayback.stop()
@@ -211,6 +226,7 @@ internal fun invalidatesVoicePlayback(message:Message?,wasCached:Boolean):Boolea
 }
 @Composable fun VoicePlayer(model:AppViewModel,message:Message) {
     val context=LocalContext.current;val scope=rememberCoroutineScope()
+    val call by model.calls.view.collectAsStateWithLifecycle()
     var loading by remember(message.id) {mutableStateOf(false)}
     var error by remember(message.id) {mutableStateOf<String?>(null)}
     val selected=VoicePlayback.id==message.id&&VoicePlayback.account==message.account
@@ -221,26 +237,28 @@ internal fun invalidatesVoicePlayback(message:Message?,wasCached:Boolean):Boolea
     // VoicePlaybackLifecycle stops audio when the chat/account or activity changes.
     Column(Modifier.widthIn(max=285.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
-            IconButton(enabled=!loading&&(!selected||VoicePlayback.ready),onClick={
+            IconButton(enabled=call==null&&!loading&&(!selected||VoicePlayback.ready),onClick={
+                if(model.calls.view.value!=null)return@IconButton
                 if(selected)VoicePlayback.pauseResume() else {
                     loading=true;error=null;val token=VoicePlayback.begin(message)
                     scope.launch {
                         try {
                             val source=if(message.localImage.isNotBlank()&&java.io.File(message.localImage).exists())message.localImage else JSONObject(model.backend.request("/functions/v1/media","POST",JSONObject().put("action","download").put("id",message.mediaId))).getString("url")
-                            if(VoicePlayback.current(token))VoicePlayback.play(context,message.id,source,token){error="Playback failed. Tap to retry."}
-                        } catch(e:CancellationException){throw e}catch(_:Exception){if(VoicePlayback.current(token)){VoicePlayback.stop();error="Voice unavailable. Tap to retry."}}finally {loading=false}
+                            if(model.calls.view.value!=null)VoicePlayback.stopIfCurrent(token)
+                            else if(VoicePlayback.current(token))VoicePlayback.play(context,message.id,source,token){error="Playback failed. Tap to retry."}
+                        } catch(e:CancellationException){VoicePlayback.stopIfCurrent(token);throw e}catch(_:Exception){if(VoicePlayback.current(token)){VoicePlayback.stop();error="Voice unavailable. Tap to retry."}}finally {loading=false}
                     }
                 }
             }) {if(loading||(selected&&!VoicePlayback.ready))CircularProgressIndicator(Modifier.size(20.dp)) else Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(playing)"Pause voice message" else "Play voice message")}
             Text("Voice message · ${message.durationMs/1000}s",modifier=Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
             TextButton(
                 onClick={VoicePlayback.cycleSpeed()},
-                enabled=selected&&VoicePlayback.ready&&!loading,
+                enabled=call==null&&selected&&VoicePlayback.ready&&!loading,
                 contentPadding=PaddingValues(horizontal=6.dp)
             ) {Text("${if(selected)VoicePlayback.speed else 1f}×",
                 style=MaterialTheme.typography.labelLarge)}
         }
-        Slider(value=if(selected)VoicePlayback.position.toFloat() else 0f,onValueChange={VoicePlayback.seek(it.toInt())},valueRange=0f..(if(selected)VoicePlayback.duration else message.durationMs).coerceAtLeast(1).toFloat(),enabled=selected&&VoicePlayback.ready&&!loading)
+        Slider(value=if(selected)VoicePlayback.position.toFloat() else 0f,onValueChange={VoicePlayback.seek(it.toInt())},valueRange=0f..(if(selected)VoicePlayback.duration else message.durationMs).coerceAtLeast(1).toFloat(),enabled=call==null&&selected&&VoicePlayback.ready&&!loading)
         error?.let {Text(it,style=MaterialTheme.typography.labelSmall)}
     }
 }
