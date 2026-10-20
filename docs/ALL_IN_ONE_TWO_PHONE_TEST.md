@@ -203,3 +203,6 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 ## Automated crash follow-up (not an owner test)
 
 The candidate CI runs the complete sharded suite followed by five fresh-process protected-image class repetitions per API29/35/36. Evidence is in each `device-db-reports-api-*` artifact as `image-repeat-*.txt`, `.xml` and `image-repeat-summary.json`. A failed, skipped or incomplete round is a failed gate. These checks use intercepted synthetic media; actual avatar/tab/background/call interactions remain in the one physical checklist above. #91 remains open unless durable root-cause/device evidence supports closure.
+
+
+| C18 | On both phones, repeatedly hang up while Connecting/reconnecting, then immediately redial voice and video; also leave a delayed incoming answer while the peer ends | No crash, phantom resumed call, stuck Connecting, stale camera/audio or previous-call ICE in a new call; current call identity and controls remain correct. Native lifetime gate has automated concurrency coverage; this physical race remains unverified. |
