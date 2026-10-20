@@ -110,11 +110,23 @@ class ProtectedImageCacheTest {
     }
     @Test fun tabReturnReusesBitmapAndAvatarMutationFetchesNewImage()=fixture {backend->
         val shown=mutableStateOf(true)
-        compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {if(shown.value)ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+        val visualLoadingEvents=mutableListOf<Boolean>()
+        compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {
+            if(shown.value)ProtectedImage(backend,"avatar-fixture",
+                description="Fixture image",modifier=Modifier.size(64.dp),
+                onLoadState={visualLoadingEvents.add(it)})
+        }}
         awaitImage();assertEquals(1,signs.get());assertEquals(1,downloads.get())
         compose.runOnIdle {shown.value=false};compose.waitForIdle()
-        compose.runOnIdle {shown.value=true};awaitImage()
+        // Cached-avatar tab switches must retain already-decoded pixels and not
+        // emit a false "loading" state that flickers the profile placeholder.
+        compose.runOnIdle {visualLoadingEvents.clear();shown.value=true}
+        awaitImage()
         assertTransferCountsStay(1)
+        compose.runOnIdle {
+            assertTrue("A cached bitmap must remain available",visualLoadingEvents.contains(true))
+            assertFalse("A cached avatar must not re-enter loading",visualLoadingEvents.contains(false))
+        }
         runBlocking {backend.rpc("set_avatar")}
         compose.waitUntil(10_000) {downloads.get()==2};awaitImage(Color.BLUE)
         assertEquals(2,signs.get())
