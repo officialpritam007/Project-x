@@ -16,6 +16,7 @@ internal object ConversationNotificationChannels {
     private const val FILE="conversation_notification_channels"
     private const val PREFIX="enabled:"
     private const val HIDE_PREVIEW_PREFIX="hide-preview:"
+    private const val HIDE_SENDER_PREFIX="hide-sender:"
     private const val CHANNEL_PREFIX="liquid-contact-"
     const val DEFAULT_CHANNEL="messages"
 
@@ -27,6 +28,23 @@ internal object ConversationNotificationChannels {
 
     private fun enabledKey(account:String,cid:String)="$PREFIX$account:$cid"
     private fun hidePreviewKey(account:String,cid:String)="$HIDE_PREVIEW_PREFIX$account:$cid"
+    private fun hideSenderKey(account:String,cid:String)="$HIDE_SENDER_PREFIX$account:$cid"
+
+    /** Hiding the contact also hides the body; never leak through expanded alerts. */
+    fun hiddenSender(context:Context,account:String,cid:String):Boolean =
+        context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
+            .getBoolean(hideSenderKey(account,cid),false)
+
+    fun setHiddenSender(context:Context,account:String,cid:String,name:String,hidden:Boolean) {
+        // Rename an existing private channel immediately, not merely on next FCM.
+        // Re-registering its name does not change the user-owned Android sound choice.
+        if(enabled(context,account,cid))createChannel(context,account,cid,
+            if(hidden)"Conversation" else name)
+        check(context.getSharedPreferences(FILE,Context.MODE_PRIVATE).edit()
+            .putBoolean(hideSenderKey(account,cid),hidden).commit()) {
+            "Unable to save sender-name notification privacy."
+        }
+    }
     fun hiddenPreview(context:Context,account:String,cid:String):Boolean =
         context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
             .getBoolean(hidePreviewKey(account,cid),false)
@@ -41,7 +59,8 @@ internal object ConversationNotificationChannels {
         context.getSharedPreferences(FILE,Context.MODE_PRIVATE).getBoolean(enabledKey(account,cid),false)
 
     fun setEnabled(context:Context,account:String,cid:String,name:String,enabled:Boolean) {
-        if(enabled)createChannel(context,account,cid,name)
+        if(enabled)createChannel(context,account,cid,
+            if(hiddenSender(context,account,cid))"Conversation" else name)
         val ok=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
             .edit().putBoolean(enabledKey(account,cid),enabled).commit()
         check(ok) {"Unable to save notification preferences."}
@@ -50,7 +69,8 @@ internal object ConversationNotificationChannels {
     /** For notifications received while the app is not running, use the same persisted choice. */
     fun channelForMessage(context:Context,account:String,cid:String,name:String):String {
         if(!enabled(context,account,cid))return DEFAULT_CHANNEL
-        return createChannel(context,account,cid,name)
+        return createChannel(context,account,cid,
+            if(hiddenSender(context,account,cid))"Conversation" else name)
     }
 
     fun createChannel(context:Context,account:String,cid:String,name:String):String {
@@ -78,7 +98,8 @@ internal object ConversationNotificationChannels {
     fun clearConversation(context:Context,account:String,cid:String) {
         val ok=context.getSharedPreferences(FILE,Context.MODE_PRIVATE)
             .edit().remove(enabledKey(account,cid))
-            .remove(hidePreviewKey(account,cid)).commit()
+            .remove(hidePreviewKey(account,cid))
+            .remove(hideSenderKey(account,cid)).commit()
         check(ok) {"Unable to remove the deleted conversation's notification preference."}
         context.getSystemService(NotificationManager::class.java)
             .deleteNotificationChannel(channelId(account,cid))
@@ -90,6 +111,7 @@ internal object ConversationNotificationChannels {
         val prefix="$PREFIX$account:"
         val channels=prefs.all.keys.filter {it.startsWith(prefix)}
         val privatePreviews=prefs.all.keys.filter {it.startsWith("$HIDE_PREVIEW_PREFIX$account:")}
+        val privateSenderNames=prefs.all.keys.filter {it.startsWith("$HIDE_SENDER_PREFIX$account:")}
         val manager=context.getSystemService(NotificationManager::class.java)
         channels.forEach {key->
             val cid=key.removePrefix(prefix)
@@ -98,6 +120,7 @@ internal object ConversationNotificationChannels {
         val edit=prefs.edit()
         channels.forEach {edit.remove(it)}
         privatePreviews.forEach {edit.remove(it)}
+        privateSenderNames.forEach {edit.remove(it)}
         check(edit.commit()) {"Unable to remove previous account notification settings."}
     }
 }
