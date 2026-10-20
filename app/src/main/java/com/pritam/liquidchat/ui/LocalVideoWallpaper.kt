@@ -18,7 +18,7 @@ import java.io.File
 
 /** Muted local wallpaper; foreground/lifecycle/reduced-motion guards avoid background playback. */
 @Composable
-internal fun LocalVideoWallpaper(file:File,foreground:Boolean,modifier:Modifier=Modifier) {
+internal fun LocalVideoWallpaper(file:File,foreground:Boolean,revision:Int,modifier:Modifier=Modifier) {
     val context=LocalContext.current
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     val currentState by lifecycle.currentStateFlow.collectAsState()
