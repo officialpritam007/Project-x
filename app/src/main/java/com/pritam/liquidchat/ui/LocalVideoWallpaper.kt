@@ -23,7 +23,7 @@ internal fun LocalVideoWallpaper(file:File,foreground:Boolean,revision:Int,modif
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     val currentState by lifecycle.currentStateFlow.collectAsState()
     val reducedMotion=LocalDisplayOptions.current.reducedMotion
-    val player=remember(context,file.absolutePath) {
+    val player=remember(context,file.absolutePath,revision) {
         ExoPlayer.Builder(context).build().apply {
             volume=0f
             repeatMode=Player.REPEAT_MODE_ONE
