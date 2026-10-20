@@ -81,4 +81,50 @@ class PersonalWallpaperTest {
             PersonalWallpaper.location(context,accountA,"../outside")
         }.isFailure)
     }
+
+    @Test fun privateVideoPathsStayScopedAndDeleteOnlyOwnedChat() {
+        val one=UUID.randomUUID().toString()
+        val two=UUID.randomUUID().toString()
+        val video=PrivateVideoWallpaper.location(context,accountA,one)
+        val other=PrivateVideoWallpaper.location(context,accountA,two)
+        val home=PrivateVideoWallpaper.location(context,accountA,PersonalWallpaper.HOME_CID)
+        val foreign=PrivateVideoWallpaper.location(context,accountB,one)
+        try {
+            listOf(video,other,home,foreign).forEach {
+                assertTrue(it.parentFile?.mkdirs()==true || it.parentFile?.isDirectory==true)
+                it.writeText("fixture")
+            }
+            assertTrue(PrivateVideoWallpaper.has(context,accountA,one))
+            assertNotEquals(video,foreign)
+            PersonalWallpaper.clearConversation(context,accountA,one)
+            assertFalse(video.exists())
+            assertTrue(other.isFile)
+            assertTrue(home.isFile)
+            assertTrue(foreign.isFile)
+            assertTrue(runCatching {
+                PersonalWallpaper.clearConversation(context,accountA,PersonalWallpaper.HOME_CID)
+            }.isFailure)
+        } finally {
+            PersonalWallpaper.clearAccount(context,accountA)
+            PersonalWallpaper.clearAccount(context,accountB)
+        }
+    }
+
+    @Test fun videoImportRejectsNonVideoWithoutReplacingExistingWallpaper()=runBlocking {
+        val home=PrivateVideoWallpaper.location(context,accountA,PersonalWallpaper.HOME_CID)
+        val invalid=File(context.cacheDir,"bad-video-${UUID.randomUUID()}.txt")
+        try {
+            assertTrue(home.parentFile?.mkdirs()==true || home.parentFile?.isDirectory==true)
+            home.writeText("old private video")
+            invalid.writeText("not an MP4")
+            assertTrue(runCatching {
+                PrivateVideoWallpaper.save(context,accountA,PersonalWallpaper.HOME_CID,Uri.fromFile(invalid))
+            }.isFailure)
+            assertEquals("old private video",home.readText())
+        } finally {
+            PersonalWallpaper.clearAccount(context,accountA)
+            invalid.delete()
+        }
+    }
+
 }
