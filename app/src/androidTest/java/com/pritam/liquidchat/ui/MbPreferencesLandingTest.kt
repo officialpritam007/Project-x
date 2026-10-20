@@ -29,7 +29,7 @@ class MbPreferencesLandingTest {
         for(route in MbReferencePreferenceSections.all) {
             compose.onNodeWithText(route.label).performScrollTo().performClick()
         }
-        compose.onNodeWithContentDescription("Back to Settings").performClick()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(MbReferencePreferenceSections.all.map {it.target},opened)
             assertEquals(1,backs)
