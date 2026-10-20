@@ -341,11 +341,14 @@ class CallController(
                         withContext(Dispatchers.Main) {if(current())stopLocal()}
                         return@launch
                     }
-                    if(call.state=="accepted" && !mediaConnected && connectWatch==null) {
-                        connectWatch=scope.launch {
-                            delay(30_000L)
-                            if(generation==connectionGeneration && !mediaConnected && _view.value?.id==id)
-                                failure(java.io.IOException("Call connection timed out; this network may need TURN."))
+                    if(call.state=="accepted")withContext(Dispatchers.Main) {
+                        // Teardown/new-call setup also owns this watchdog on Main.
+                        if(current() && !mediaConnected && connectWatch==null) {
+                            connectWatch=scope.launch {
+                                delay(30_000L)
+                                if(current() && !mediaConnected)
+                                    failure(java.io.IOException("Call connection timed out; this network may need TURN."))
+                            }
                         }
                     }
                     if(call.state=="accepted" && call.answer.isNotBlank() && call.caller==account && !remoteAnswer) {
