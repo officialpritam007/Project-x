@@ -118,7 +118,15 @@ import kotlinx.coroutines.flow.drop
     val homeOwner=signedInAccount?.userId
     val context=LocalContext.current
     var homePhotoRevision by remember(homeOwner) {mutableIntStateOf(0)}
+    val homeForeground by model.repository.foreground.collectAsStateWithLifecycle()
     var homePickerAccount by remember {mutableStateOf<String?>(null)}
+    var homeVideoPickerAccount by remember {mutableStateOf<String?>(null)}
+    val homeVideo=remember(homeOwner,homePhotoRevision) {
+        homeOwner?.let {owner->runCatching {
+            com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,
+                com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
+        }.getOrNull()}
+    }
     val homePhoto=remember(homeOwner,homePhotoRevision) {
         homeOwner?.let {owner->
             runCatching {
@@ -146,8 +154,22 @@ import kotlinx.coroutines.flow.drop
             catch(_:Exception) { /* Privacy controls remain disabled while unavailable. */ }
         }
     }
+    val homeVideoPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        val owner=homeVideoPickerAccount
+        homeVideoPickerAccount=null
+        if(uri!=null && owner!=null && model.session.value?.userId==owner)model.action {
+            val saved=com.pritam.liquidchat.data.PrivateVideoWallpaper.save(context,owner,
+                com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID,uri)
+            if(model.session.value?.userId==owner)homePhotoRevision++ else saved.delete()
+        }
+    }
     Box(Modifier.fillMaxSize()) {
-    if(homePhoto?.isFile==true) {
+    if(homeVideo?.isFile==true) {
+        LocalVideoWallpaper(homeVideo,homeForeground,homePhotoRevision,Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().background(
+            if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.56f,inboxDisplay.homeWallpaperDim))
+            else Color.White.copy(alpha=wallpaperDimAlpha(.45f,inboxDisplay.homeWallpaperDim))))
+    } else if(homePhoto?.isFile==true) {
         val imageRequest=remember(homePhoto,homePhotoRevision) {
             coil.request.ImageRequest.Builder(context).data(homePhoto)
                 .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
@@ -172,13 +194,20 @@ import kotlinx.coroutines.flow.drop
                         homePickerAccount=homeOwner
                         homePhotoPicker.launch("image/*")
                     },enabled=homeOwner!=null)
-                    if(homePhoto?.isFile==true && homeOwner!=null)
+                    DropdownMenuItem(text={Text("Choose home video wallpaper")},onClick={
+                        menu=false
+                        homeVideoPickerAccount=homeOwner
+                        homeVideoPicker.launch("video/mp4")
+                    },enabled=homeOwner!=null)
+                    if((homePhoto?.isFile==true || homeVideo?.isFile==true) && homeOwner!=null)
                         DropdownMenuItem(text={Text("Remove home wallpaper")},onClick={
                             menu=false
                             val oldOwner=homeOwner
                             model.action {
                                 if(model.session.value?.userId==oldOwner) {
                                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                        com.pritam.liquidchat.data.PrivateVideoWallpaper.clear(
+                                            context,oldOwner,com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
                                         val path=com.pritam.liquidchat.data.PersonalWallpaper.location(
                                             context,oldOwner,com.pritam.liquidchat.data.PersonalWallpaper.HOME_CID)
                                         require(!path.exists() || path.delete()) {"Unable to remove wallpaper."}
@@ -430,6 +459,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     val context=LocalContext.current
     var wallpaperPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
+    var videoWallpaperPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
     val wallpaperPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
         val expected=wallpaperPickerAccount
         wallpaperPickerAccount=null
@@ -437,6 +467,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             model.repository.setCustomWallpaper(cid,uri,expected)
             if(model.session.value?.userId==expected) {
                 palette="Photo"
+                wallpaperRevision++
+                appearance=false
+            }
+        }
+    }
+    val videoWallpaperPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        val expected=videoWallpaperPickerAccount
+        videoWallpaperPickerAccount=null
+        if(uri!=null && expected!=null && model.session.value?.userId==expected)model.action {
+            model.repository.setCustomVideoWallpaper(cid,uri,expected)
+            if(model.session.value?.userId==expected) {
+                palette="Video"
                 wallpaperRevision++
                 appearance=false
             }
@@ -535,8 +577,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     Box(Modifier.fillMaxSize()) {
     Box(Modifier.matchParentSize().glassSource(.5f).background(
-        wallpaper(if(palette=="Photo")"Ice" else palette,LocalGlassDark.current))) {
+        wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current))) {
         val owner=session?.userId
+        if(palette=="Video" && owner!=null) {
+            val videoFile=remember(owner,cid,wallpaperRevision) {
+                runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,cid)}
+                    .getOrNull()
+            }
+            if(videoFile?.isFile==true) {
+                LocalVideoWallpaper(videoFile,foreground,wallpaperRevision,Modifier.matchParentSize())
+                Box(Modifier.matchParentSize().background(
+                    if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
+                    else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))))
+            }
+        }
         if(palette=="Photo" && owner!=null) {
             val photoFile=remember(owner,cid,wallpaperRevision) {
                 runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}.getOrNull()
@@ -889,8 +943,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(appearance)LiquidAlertDialog(
         onDismissRequest={appearance=false},
         title={Text("Chat wallpaper")},
-        text={Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("Choose a built-in palette or a private photo from this phone.",
+        text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text("Choose a built-in palette, private photo or muted MP4 video from this phone.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             listOf("Ice","Lilac","Mint","Sand").forEach {choice->
@@ -907,6 +962,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 Spacer(Modifier.width(8.dp))
                 Text("Choose photo wallpaper")
             }
+            FilledTonalButton(
+                onClick={videoWallpaperPickerAccount=session?.userId;videoWallpaperPicker.launch("video/mp4")},
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                Icon(Icons.Outlined.Videocam,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Choose MP4 video wallpaper")
+            }
             val owner=session?.userId
             if(owner!=null && remember(owner,cid,wallpaperRevision) {
                 runCatching {com.pritam.liquidchat.data.PersonalWallpaper.has(context,owner,cid)}
@@ -918,7 +980,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     appearance=false
                 }}) {Text(if(palette=="Photo")"✓ My photo" else "My saved photo")}
             }
-            Text("Your photo stays private on this device. It is removed on logout and never sent to your contact.",
+            if(owner!=null && remember(owner,cid,wallpaperRevision) {
+                runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.has(context,owner,cid)}
+                    .getOrDefault(false)
+            }) {
+                TextButton(onClick={model.action {
+                    model.repository.setPalette(cid,"Video")
+                    palette="Video"
+                    appearance=false
+                }}) {Text(if(palette=="Video")"✓ My video" else "My saved video")}
+            }
+            Text("Photos and videos stay private on this phone. MP4 is limited to 30s / 24 MB, up to 1080p; playback loops silently and pauses in background or reduced motion. Files are erased on logout and chat deletion.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
         }},

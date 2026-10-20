@@ -258,9 +258,10 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     }
     suspend fun palette(cid:String):String {val id=backend.session.value?.userId ?: return "Ice";return dao.appearance(id,cid)?.palette ?: "Ice"}
     suspend fun setPalette(cid:String,palette:String) {
-        require(palette in listOf("Ice","Lilac","Mint","Sand","Photo"))
+        require(palette in listOf("Ice","Lilac","Mint","Sand","Photo","Video"))
         val id=account()
         if(palette=="Photo")require(PersonalWallpaper.has(context,id,cid)) {"Choose a photo first."}
+        if(palette=="Video")require(PrivateVideoWallpaper.has(context,id,cid)) {"Choose a video first."}
         dao.putAppearance(ChatAppearance(id,cid,palette));checkAccount(id)
     }
 
@@ -276,6 +277,22 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         } catch(e:Throwable) {
             // An account switch can race Android's gallery/bitmap work.
             // Never leave a newly imported private photo after old-account erasure.
+            if(backend.session.value?.userId!=id) {
+                withContext(Dispatchers.IO) {runCatching {saved.delete()}}
+            }
+            throw e
+        }
+    }
+    suspend fun setCustomVideoWallpaper(cid:String,uri:android.net.Uri,expectedAccount:String) {
+        val id=account()
+        require(id==expectedAccount) {"The active account changed while choosing the wallpaper."}
+        require(dao.chat(id,cid)!=null) {"Open a valid conversation."}
+        val saved=PrivateVideoWallpaper.save(context,id,cid,uri)
+        try {
+            checkAccount(id)
+            dao.putAppearance(ChatAppearance(id,cid,"Video"))
+            checkAccount(id)
+        } catch(e:Throwable) {
             if(backend.session.value?.userId!=id) {
                 withContext(Dispatchers.IO) {runCatching {saved.delete()}}
             }

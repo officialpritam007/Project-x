@@ -39,6 +39,7 @@ internal object PersonalWallpaper {
                 try {
                     prepared.file.copyTo(staging,overwrite=false)
                     if(!staging.renameTo(target))throw IOException("Unable to save the local wallpaper.")
+                    PrivateVideoWallpaper.clear(context,account,cid)
                 } finally {staging.delete()}
                 target
             }
@@ -52,6 +53,7 @@ internal object PersonalWallpaper {
         check(!file.exists() || file.delete()) {
             "Could not erase the deleted conversation's wallpaper."
         }
+        PrivateVideoWallpaper.clear(context,account,cid)
     }
 
     fun clearAccount(context:Context,account:String) {
