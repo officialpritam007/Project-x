@@ -14,10 +14,22 @@ class VideoCodecTest {
         val engine=CallEngine(context,false,{},{})
         engine.close()
         engine.close()
-        var rejected=false
-        try {kotlinx.coroutines.withTimeout(1_000L) {engine.createOffer()}}
-        catch(_:java.io.IOException) {rejected=true}
-        org.junit.Assert.assertTrue("Closed peer must fail without waiting for a callback",rejected)
+        // Late ICE/control callbacks must be ignored before parsing or touching JNI.
+        engine.remoteCandidate(org.json.JSONObject())
+        engine.mute(true)
+        engine.setCameraEnabled(false)
+        engine.switchCamera()
+        val actions:List<suspend ()->Unit> = listOf(
+            {engine.createOffer();Unit},
+            {engine.answerOffer("late-offer");Unit},
+            {engine.acceptAnswer("late-answer")}
+        )
+        for(action in actions) {
+            var rejected=false
+            try {kotlinx.coroutines.withTimeout(1_000L) {action()}}
+            catch(_:java.io.IOException) {rejected=true}
+            org.junit.Assert.assertTrue("Closed peer must fail without waiting for a callback",rejected)
+        }
     }
     @Test fun productionFactoryAdvertisesBidirectionalVideoAndAudio() {
         val context=ApplicationProvider.getApplicationContext<Context>()

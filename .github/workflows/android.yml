@@ -139,7 +139,7 @@ jobs:
         api: [29, 35, 36]
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: android-actions/setup-android@v3
@@ -189,7 +189,7 @@ jobs:
           target: google_apis
           disable-animations: true
           script: |
-            bash -c 'LIQUID_DISPOSABLE_EMULATOR=1 python3 scripts/run_candidate_instrumentation.py candidate-apk/app-debug.apk candidate-tests/app-debug-androidTest.apk app/build/outputs/androidTest-results --image-teardown-repetitions ${{ matrix.api == 29 && '0' || '5' }}; test_status=$?; pull_status=1; for attempt in 1 2 3; do if adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; then pull_status=0; break; fi; echo "Screenshot transfer failed (attempt $attempt/3); retrying without ignoring failures"; sleep 2; done; if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi; if [ "$pull_status" -ne 0 ]; then exit "$pull_status"; fi; LIQUID_DISPOSABLE_EMULATOR=1 bash scripts/smoke_candidate.sh candidate-apk/app-debug.apk app/build/outputs/candidate-smoke'
+            bash -c 'LIQUID_DISPOSABLE_EMULATOR=1 python3 scripts/run_candidate_instrumentation.py candidate-apk/app-debug.apk candidate-tests/app-debug-androidTest.apk app/build/outputs/androidTest-results --image-stress-rounds 5; test_status=$?; pull_status=1; for attempt in 1 2 3; do if adb pull /sdcard/Pictures/LiquidChatUiChecks app/build/outputs/ui-screenshots; then pull_status=0; break; fi; echo "Screenshot transfer failed (attempt $attempt/3); retrying without ignoring failures"; sleep 2; done; if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi; if [ "$pull_status" -ne 0 ]; then exit "$pull_status"; fi; LIQUID_DISPOSABLE_EMULATOR=1 bash scripts/smoke_candidate.sh candidate-apk/app-debug.apk app/build/outputs/candidate-smoke'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

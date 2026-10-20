@@ -69,6 +69,7 @@ def write_junit(output, returncode, path):
 SHARD_COUNT = 4
 # Explicit suite floor: never turn an incomplete discovery/test fixture into green CI.
 MINIMUM_INSTRUMENTATION_TESTS = 80
+IMAGE_TEST_CLASS = "com.pritam.liquidchat.ui.ProtectedImageCacheTest"
 
 
 def verify_sharded_cases(cases, errors, minimum=MINIMUM_INSTRUMENTATION_TESTS):
@@ -101,6 +102,62 @@ def combine_junit(shard_paths, target, validation_errors):
     ElementTree.ElementTree(suite).write(target, encoding="utf-8", xml_declaration=True)
 
 
+def verify_image_repeat(cases, errors, expected):
+    """Require the full class discovered in the mandatory suite on every repeat."""
+    problems = list(errors)
+    actual = {(case["class"], case["name"]) for case in cases}
+    if not expected:
+        problems.append("Mandatory suite did not discover protected-image tests.")
+    if actual != expected:
+        problems.append(f"Protected-image repeat coverage differs: missing {sorted(expected - actual)}, "
+                        f"unexpected {sorted(actual - expected)}.")
+    return verify_sharded_cases(cases, problems, minimum=len(expected))
+
+
+def run_instrumentation(command):
+    try:
+        return subprocess.run(command, text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, timeout=6 * 60)
+    except subprocess.TimeoutExpired as error:
+        output = error.stdout or ""
+        if isinstance(output, bytes):
+            output = output.decode("utf-8", errors="replace")
+        return subprocess.CompletedProcess(command, 124,
+                                           output + "\nInstrumentation process timed out.\n")
+
+
+def run_image_repeats(adb, report_dir, expected, rounds):
+    """Fresh runner invocations expose Activity teardown races; no retry-to-green."""
+    failures = []
+    summary = []
+    for index in range(rounds):
+        command = adb + ["shell", "am", "instrument", "-w", "-r",
+                         "-e", "expectedExperimentalCalls", "true",
+                         "-e", "class", IMAGE_TEST_CLASS, RUNNER]
+        result = run_instrumentation(command)
+        prefix = report_dir / f"image-repeat-{index + 1}"
+        prefix.with_suffix(".txt").write_text(result.stdout, encoding="utf-8")
+        problems = write_junit(result.stdout, result.returncode, prefix.with_suffix(".xml"))
+        cases, _ = evaluate_output(result.stdout, result.returncode)
+        problems = verify_image_repeat(cases, problems, expected)
+        # Keep class coverage/skip failures in the machine-readable report too.
+        combine_junit([prefix.with_suffix(".xml")], prefix.with_suffix(".xml"), problems)
+        failures.extend(f"Image repeat {index + 1}: {item}" for item in problems)
+        summary.append({"round": index + 1, "completed": len(cases), "errors": problems})
+        print(f"Protected-image repeat {index + 1}/{rounds}: {len(cases)} tests, "
+              f"{'FAIL' if problems else 'PASS'}", flush=True)
+        if problems:
+            # Preserve the first failure rather than passing after a later attempt.
+            break
+    (report_dir / "image-repeat-summary.json").write_text(json.dumps({
+        "requested_rounds": rounds, "completed_rounds": len(summary),
+        "expected_tests": sorted(expected), "rounds": summary,
+        "physical_device_acceptance": "NOT VERIFIED",
+        "root_cause": "NOT ESTABLISHED by successful repeats",
+    }, indent=2) + "\n", encoding="utf-8")
+    return failures
+
+
 def disposable_emulator():
     if os.environ.get("LIQUID_DISPOSABLE_EMULATOR") != "1":
         raise RuntimeError("A disposable emulator must be explicitly selected.")
@@ -113,79 +170,14 @@ def disposable_emulator():
     return adb
 
 
-IMAGE_TEARDOWN_CLASS = "com.pritam.liquidchat.ui.ProtectedImageCacheTest"
-IMAGE_TEARDOWN_TESTS = {
-    "tabReturnReusesBitmapAndAvatarMutationFetchesNewImage",
-    "expiredImageTransferRenewsLinkOnceAutomatically",
-    "expiredPermissionIsRecheckedAndRevokedImageDisappears",
-    "repeatedTransferRejectionStopsAndManualRetryIsBounded",
-    "serverLifetimeOverridesLongerLocalCacheAndForceBypassesIt",
-}
-
-
-def run_image_teardown_stress(adb, repetitions, report_dir):
-    """Additional fresh runner processes; no retry can erase a failing repetition."""
-    if not 1 <= repetitions <= 10:
-        raise ValueError("Image teardown repetitions must be between 1 and 10.")
-    report_dir.mkdir(parents=True, exist_ok=True)
-    failures = []
-    paths = []
-    for index in range(repetitions):
-        command = adb + ["shell", "am", "instrument", "-w", "-r",
-                         "-e", "expectedExperimentalCalls", "true",
-                         "-e", "class", IMAGE_TEARDOWN_CLASS, RUNNER]
-        try:
-            result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, timeout=180)
-        except subprocess.TimeoutExpired as error:
-            output = error.stdout or ""
-            if isinstance(output, bytes):
-                output = output.decode("utf-8", errors="replace")
-            result = subprocess.CompletedProcess(command, 124,
-                                                 output + "\nImage teardown process timed out.\n")
-        stem = report_dir / f"image-teardown-{index + 1}"
-        stem.with_suffix(".txt").write_text(result.stdout, encoding="utf-8")
-        report = stem.with_suffix(".xml")
-        paths.append(report)
-        problems = write_junit(result.stdout, result.returncode, report)
-        cases, _ = evaluate_output(result.stdout, result.returncode)
-        problems = verify_sharded_cases(cases, problems, minimum=len(IMAGE_TEARDOWN_TESTS))
-        actual = {(case["class"], case["name"]) for case in cases}
-        expected = {(IMAGE_TEARDOWN_CLASS, name) for name in IMAGE_TEARDOWN_TESTS}
-        if actual != expected:
-            problems.append("Image teardown fixture discovery differs from the mandatory test inventory.")
-        failures.extend(f"Repetition {index + 1}: {problem}" for problem in problems)
-        print(f"Image teardown repetition {index + 1}/{repetitions}: "
-              f"{len(cases)} tests, {'FAIL' if problems else 'PASS'}", flush=True)
-        # Preserve crash evidence even when AndroidJUnitRunner dies before a result.
-        diagnostic = subprocess.run(adb + ["logcat", "-d", "-v", "threadtime",
-                                          "AndroidRuntime:E", "libc:F", "ActivityManager:W", "*:S"],
-                                    text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                    timeout=30)
-        stem.with_suffix(".logcat.txt").write_text(diagnostic.stdout, encoding="utf-8")
-        if diagnostic.returncode:
-            failures.append(f"Repetition {index + 1}: crash diagnostics could not be collected.")
-    combine_junit(paths, report_dir / "junit.xml", failures)
-    (report_dir / "summary.json").write_text(json.dumps({
-        "class": IMAGE_TEARDOWN_CLASS,
-        "repetitions": repetitions,
-        "expected_tests_per_repetition": len(IMAGE_TEARDOWN_TESTS),
-        "failures": failures,
-        "root_cause": "Unconfirmed; repeat success alone is not permanent resolution.",
-    }, indent=2) + "\n", encoding="utf-8")
-    return failures
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("candidate", type=Path)
     parser.add_argument("tests", type=Path)
     parser.add_argument("report_dir", type=Path)
-    parser.add_argument("--image-teardown-repetitions", type=int, default=0,
-                        help="Additional complete protected-image fixture runs (0 disables, max 10).")
+    parser.add_argument("--image-stress-rounds", type=int, choices=range(0, 11), default=0,
+                        metavar="0..10", help="Extra fresh-process protected-image runs after the full suite")
     args = parser.parse_args()
-    if not 0 <= args.image_teardown_repetitions <= 10:
-        parser.error("Image teardown repetitions must be between 0 and 10.")
     if not args.candidate.is_file() or not args.tests.is_file():
         parser.error("Both the exact candidate APK and its test fixture are required.")
     adb = disposable_emulator()
@@ -211,15 +203,7 @@ def main():
                          "-e", "expectedExperimentalCalls", "true",
                          "-e", "numShards", str(SHARD_COUNT),
                          "-e", "shardIndex", str(index), RUNNER]
-        try:
-            result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, timeout=6 * 60)
-        except subprocess.TimeoutExpired as error:
-            output = error.stdout or ""
-            if isinstance(output, bytes):
-                output = output.decode("utf-8", errors="replace")
-            result = subprocess.CompletedProcess(command, 124,
-                                                 output + "\nInstrumentation shard timed out.\n")
+        result = run_instrumentation(command)
         logs.append(f"=== SHARD {index + 1}/{SHARD_COUNT} ===\n" + result.stdout)
         report = args.report_dir / f"junit-shard-{index}.xml"
         paths.append(report)
@@ -231,12 +215,14 @@ def main():
     print("\n".join(logs))
     all_failures = verify_sharded_cases(all_cases, all_failures)
     combine_junit(paths, args.report_dir / "junit.xml", all_failures)
-    # Full-suite failures remain failures even if all additional runs pass.
-    if args.image_teardown_repetitions:
-        all_failures.extend(run_image_teardown_stress(
-            adb, args.image_teardown_repetitions, args.report_dir / "image-teardown-stress"))
     if all_failures:
         raise SystemExit("\n".join(all_failures))
+    if args.image_stress_rounds:
+        expected = {(case["class"], case["name"]) for case in all_cases
+                    if case["class"] == IMAGE_TEST_CLASS}
+        failures = run_image_repeats(adb, args.report_dir, expected, args.image_stress_rounds)
+        if failures:
+            raise SystemExit("\n".join(failures))
 
 
 if __name__ == "__main__":
