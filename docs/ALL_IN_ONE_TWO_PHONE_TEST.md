@@ -204,5 +204,8 @@ Release remains a test candidate until applicable rows pass. A failed provider/n
 
 | ID | Action | Expected result |
 |---|---|---|
-| S13 | Start a remotely stored voice clip on a slow network, leave the chat before loading finishes, return and play again; rapidly switch between two clips | No permanently spinning selection, duplicate playback or older completion/focus callback stopping the newer clip; downloaded playback still continues when only the bubble scrolls out of view |
+| S15 | Start a remotely stored voice clip on a slow network, leave the chat before loading finishes, return and play again; rapidly switch between two clips | No permanently spinning selection, duplicate playback or older completion/focus callback stopping the newer clip; downloaded playback still continues when only the bubble scrolls out of view |
 | C18 | Play or record a voice message, then receive/start a voice/video call; minimize the call and try record/play/seek/speed in a chat and Shared Media | Voice capture is discarded and playback stops; message-audio controls cannot steal the call microphone/audio focus; controls work again after hanging up, with no background voice restart |
+
+
+| MB48 | Send a Bengali/emoji message containing multiple http/https web links, tap a link, long-press/select the message and retry with no browser handler | Only tapped explicit web links open externally; selection mode retains selection without opening links; malformed/custom-scheme/credential-bearing URLs stay plain; a missing handler shows a recoverable message. No link-preview download occurs |

@@ -1202,7 +1202,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if(message.mediaKind=="voice")VoicePlayer(model,message) else SharedImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind!="voice")Text(message.body,style=MaterialTheme.typography.bodyLarge.copy(fontSize=bubbleDisplay.messageFontSize.sp),maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout={truncated=it.hasVisualOverflow})
+                if(message.mediaKind!="voice")MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
+                    linksEnabled=!selectionMode,onTextLayout={truncated=it.hasVisualOverflow})
                 if(message.status=="SENDING")uploadPercent?.let {percent->
                     LinearProgressIndicator(progress={percent/100f},modifier=Modifier.width(160.dp))
                     Text(if(percent<100)"Uploading · $percent%" else "Processing attachment…",style=MaterialTheme.typography.labelSmall)
