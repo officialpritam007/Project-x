@@ -183,3 +183,11 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 - Conversation > Scheduled messages now exposes **Edit** beside Cancel. A local schedule's text and due time can be changed only before the WorkManager dispatch, with the original UUID/reply and creation time retained. Its WorkManager timer is replaced after the authenticated Room transaction.
 - Edited schedules do not consume the live composer draft. Another account/conversation cannot edit a schedule, and an already-dispatched schedule is explicitly rejected. Actual send-time precision remains limited by Android background scheduling and no server sync exists.
 - Tests cover idempotent UUID, reply/creation time and account isolation. This integrates with Stage 12 navigation order and previously merged privacy-safe theme reset without overwriting either.
+
+## Stage 10 — local per-chat FCM text preview privacy (pending CI)
+
+- Conversation > Custom notifications now includes **Hide notification message text**, persisted on the signed-in device separately for each account and conversation. It does not require a separate custom sound channel or a Supabase migration.
+- `ReceiveWorker.show` consumes only authorized server-generated preview metadata; if either global preview privacy is off or this conversation's local redaction is on, both collapsed and expanded Android notification text become **New message** and lockscreen visibility uses SECRET. Per-chat local privacy can never override stricter server privacy.
+- Account logout and chat deletion remove redaction keys, preserving all other contacts. FCM message dedupe, mute/block enforcement, call notifications and background retry remain unchanged.
+- Unit tests verify the complete global/local privacy matrix; Android instrumentation verifies separate account/conversation storage and cleanup. Incoming text hidden in notifications is still visible to authorized participants inside the conversation.
+- Other devices on the same account require separate local settings; exact Android manufacturer lockscreen behavior still needs the user's final two-phone acceptance.
