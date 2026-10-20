@@ -242,3 +242,5 @@ The candidate CI runs the complete sharded suite followed by five fresh-process 
 | ID | Action | Expected result |
 |---|---|---|
 | MB48 | Send a Bengali/emoji message containing multiple http/https web links, tap a link, long-press/select the message and retry with no browser handler | Only tapped explicit web links open externally; selection mode retains selection without opening links; malformed/custom-scheme/credential-bearing URLs stay plain; a missing handler shows a recoverable message. No link-preview download occurs |
+
+| MB48 | Open Settings → MB Preferences at 100% and 200% text in light/dark; scroll the hero and separated groups; open General, Home, Conversation, Themes, Privacy, Notifications one by one; Back to MB Preferences and Settings | Hero icon visible, cards/rows/dividers not overlapping or clipped, six working screens reachable, no duplicated bottom navigation, privacy/toggles retain real backend state; compare to owner MBWhatsApp Preferences reference for remaining visual differences |
