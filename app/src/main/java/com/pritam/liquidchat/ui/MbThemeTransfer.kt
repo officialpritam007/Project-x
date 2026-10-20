@@ -47,6 +47,8 @@ internal object MbThemeTransfer {
         put("quickReactions",MbQuickReactions.normalize(options.quickReactions))
         put("homeWallpaperDim",options.homeWallpaperDim)
         put("chatWallpaperDim",options.chatWallpaperDim)
+        put("homeAvatarSize",options.homeAvatarSize)
+        put("homeRowPadding",options.homeRowPadding)
     }.toString(2)
 
     /**
@@ -91,7 +93,9 @@ internal object MbThemeTransfer {
             quickReactions=if(j.has("quickReactions") && j.opt("quickReactions") is String)
                 MbQuickReactions.normalize(j.optString("quickReactions")) else current.quickReactions,
             homeWallpaperDim=number("homeWallpaperDim",current.homeWallpaperDim,0,100),
-            chatWallpaperDim=number("chatWallpaperDim",current.chatWallpaperDim,0,100)
+            chatWallpaperDim=number("chatWallpaperDim",current.chatWallpaperDim,0,100),
+            homeAvatarSize=number("homeAvatarSize",current.homeAvatarSize,40,68),
+            homeRowPadding=number("homeRowPadding",current.homeRowPadding,6,20)
         )
     }
 }

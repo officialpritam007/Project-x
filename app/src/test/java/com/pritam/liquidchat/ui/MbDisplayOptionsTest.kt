@@ -19,6 +19,8 @@ class MbDisplayOptionsTest {
         assertEquals(25,DisplayOptions().headerTitleSize)
         assertEquals(16,DisplayOptions().homeChatNameSize)
         assertEquals(14,DisplayOptions().homeChatPreviewSize)
+        assertEquals(52,DisplayOptions().homeAvatarSize)
+        assertEquals(11,DisplayOptions().homeRowPadding)
         assertEquals("Cyan",DisplayOptions().accentColor)
         assertEquals(false,DisplayOptions().showProfileAsTitle)
         assertEquals(false,DisplayOptions().hideArchiveAccess)
