@@ -46,7 +46,10 @@ import kotlinx.coroutines.isActive
     var retry by remember(memoryKey) {mutableIntStateOf(0)}
     var autoRetried by remember(memoryKey) {mutableStateOf(false)}
     LaunchedEffect(memoryKey,retry,lifecycle) {
-        currentLoadState(false)
+        // Returning to a tab with a decoded Coil bitmap must not pulse loading
+        // or hide an already-visible avatar while renewing its signed URL.
+        // Keep the explicit failure path below (and onError) fail-closed.
+        if(!cached)currentLoadState(false)
         val expectedEpoch=sessionEpoch
         if(local.isNotEmpty()) {url=local;return@LaunchedEffect}
         if(account.isNullOrBlank()||version==null||id.isBlank()||id=="null")return@LaunchedEffect
