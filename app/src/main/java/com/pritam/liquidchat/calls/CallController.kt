@@ -50,6 +50,13 @@ internal fun canPresentIncomingCall(
 ):Boolean=current==null && visible && expectedAccount==actualAccount &&
     expectedEpoch!=null && expectedEpoch==actualEpoch
 
+/** A delayed poll or retry must never mutate a replacement call/account. */
+internal fun canApplyCallResult(
+    expectedGeneration:Long,actualGeneration:Long,callId:String,currentId:String?,
+    account:String,owner:String?,sessionAccount:String?
+):Boolean=expectedGeneration==actualGeneration && callId==currentId &&
+    account==owner && account==sessionAccount
+
 private class CallApi(private val backend:Backend) {
     private suspend fun poll(id:String?,after:Long=0):CallPoll {
         val request=JSONObject().put("p_call",id ?: JSONObject.NULL).put("p_after",after)
@@ -94,7 +101,6 @@ class CallController(
     @Volatile private var connectionGeneration=0L
     private var iceSending:Job?=null
     private var candidateQueue:Channel<JSONObject>?=null
-    private var lastCandidate=0L
 
     init {
         if(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) scope.launch {
@@ -295,16 +301,20 @@ class CallController(
     }
 
     private fun begin(id:String,account:String) {
-        lastCandidate=0
+        val generation=connectionGeneration
+        val connection=engine ?: error("No local call engine")
+        fun current()=canApplyCallResult(generation,connectionGeneration,id,_view.value?.id,
+            account,owner,backend.session.value?.userId)
         val queue=candidateQueue ?: error("No local ICE queue")
         iceSending=scope.launch(Dispatchers.IO) {
             for(candidate in queue) {
-                if(owner!=account||_view.value?.id!=id)break
+                if(!current())break
                 for(attempt in 0..2) {
+                    if(!current())return@launch
                     try {api.candidate(id,candidate);break}
                     catch(e:CancellationException){throw e}
                     catch(e:Exception) {
-                        if(attempt==2) {withContext(Dispatchers.Main){failure(java.io.IOException("Call signaling could not recover."))};return@launch}
+                        if(attempt==2) {withContext(Dispatchers.Main){if(current())failure(java.io.IOException("Call signaling could not recover."))};return@launch}
                         delay(500L*(attempt+1))
                     }
                 }
@@ -312,24 +322,26 @@ class CallController(
         }
         polling=scope.launch(Dispatchers.IO) {
             var remoteAnswer=false
+            var lastCandidate=0L
             var lastHeartbeat=System.currentTimeMillis()
             var lastSuccess=android.os.SystemClock.elapsedRealtime()
             try {
-                while(isActive&&owner==account&&_view.value?.id==id) {
+                while(isActive&&current()) {
                     val snapshot=try {api.active(id,lastCandidate)} catch(e:CancellationException){throw e} catch(e:Exception) {
                         if(e is com.pritam.liquidchat.data.ApiException && e.status in listOf(400,401,403,404))throw e
                         if(android.os.SystemClock.elapsedRealtime()-lastSuccess>20000L)throw java.io.IOException("Signaling connection lost. Please call again.")
                         delay(1500);continue
                     }
+                    ensureActive()
+                    if(!current())return@launch
                     lastSuccess=android.os.SystemClock.elapsedRealtime()
                     val call=snapshot.call
                     if(call==null || call.expiresAt.isBefore(Instant.now()) ||
                         call.state=="ended"||call.state=="declined") {
-                        withContext(Dispatchers.Main) {stopLocal()}
+                        withContext(Dispatchers.Main) {if(current())stopLocal()}
                         return@launch
                     }
                     if(call.state=="accepted" && !mediaConnected && connectWatch==null) {
-                        val generation=connectionGeneration
                         connectWatch=scope.launch {
                             delay(30_000L)
                             if(generation==connectionGeneration && !mediaConnected && _view.value?.id==id)
@@ -337,21 +349,25 @@ class CallController(
                         }
                     }
                     if(call.state=="accepted" && call.answer.isNotBlank() && call.caller==account && !remoteAnswer) {
-                        engine?.acceptAnswer(call.answer)
+                        connection.acceptAnswer(call.answer)
+                        ensureActive()
+                        if(!current())return@launch
                         remoteAnswer=true
                     }
                     if(call.state=="accepted" && System.currentTimeMillis()-lastHeartbeat>12000L) {
                         try {api.heartbeat(id);lastHeartbeat=System.currentTimeMillis()}catch(e:CancellationException){throw e}catch(_:java.io.IOException){}
                     }
+                    ensureActive()
+                    if(!current())return@launch
                     for(i in 0 until snapshot.candidates.length()) {
                         val row=snapshot.candidates.getJSONObject(i)
                         lastCandidate=maxOf(lastCandidate,row.getLong("id"))
-                        if(row.optString("sender_id")!=account)engine?.remoteCandidate(row.getJSONObject("payload"))
+                        if(row.optString("sender_id")!=account)connection.remoteCandidate(row.getJSONObject("payload"))
                     }
                     delay(1300)
                 }
             }catch(e:CancellationException){throw e}
-            catch(e:Exception){withContext(Dispatchers.Main){failure(e)}}
+            catch(e:Exception){withContext(Dispatchers.Main){if(current())failure(e)}}
         }
     }
 
@@ -416,6 +432,5 @@ class CallController(
         ActiveCallService.stop(context)
         owner=null
         _view.value=null
-        lastCandidate=0
     }
 }
