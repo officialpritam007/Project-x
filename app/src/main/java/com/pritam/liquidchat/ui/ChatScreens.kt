@@ -448,6 +448,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             com.pritam.liquidchat.data.ConversationNotificationChannels.enabled(context,it,cid)
         } ?: false)
     }
+    var hideNotificationBody by remember(cid,session?.userId) {
+        mutableStateOf(session?.userId?.let {
+            com.pritam.liquidchat.data.ConversationNotificationChannels.hiddenPreview(context,it,cid)
+        } ?: false)
+    }
     var notificationError by remember(cid) {mutableStateOf<String?>(null)}
     var requestedCallKind by remember(cid) {mutableStateOf("audio")}
     val callPermissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {granted->
@@ -811,6 +816,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             }
                         })
                 }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide notification message text",style=MaterialTheme.typography.titleSmall)
+                        Text("Only show 'New message' for this conversation on this phone, including expanded alerts.",
+                            style=MaterialTheme.typography.bodySmall,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=hideNotificationBody,onCheckedChange={hide->
+                        try {
+                            com.pritam.liquidchat.data.ConversationNotificationChannels
+                                .setHiddenPreview(context,notificationAccount,cid,hide)
+                            hideNotificationBody=hide
+                            notificationError=null
+                        } catch(e:Exception) {
+                            notificationError=e.message ?: "Could not save message preview setting."
+                        }
+                    })
+                }
                 if(customNotificationEnabled) FilledTonalButton(onClick={
                     try {
                         com.pritam.liquidchat.data.ConversationNotificationChannels
@@ -823,7 +848,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         notificationError=e.message ?: "Android channel settings unavailable."
                     }
                 },modifier=Modifier.fillMaxWidth()) {Text("Choose sound and vibration in Android")}
-                Text("Android controls sounds, vibration, importance and permission. This is separate from this chat's Mute switch and your server notification-preview privacy setting.",
+                Text("Android controls sounds, vibration, importance and permission. This phone's per-chat redaction is independent of Mute and can only make your server preview privacy stricter.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 notificationError?.let {Text(it,color=MaterialTheme.colorScheme.error,
                     style=MaterialTheme.typography.bodySmall)}
