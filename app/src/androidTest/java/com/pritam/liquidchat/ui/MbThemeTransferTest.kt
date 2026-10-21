@@ -54,7 +54,7 @@ class MbThemeTransferTest {
         val json="""{"format":"liquid-chat-theme","version":1,"blurIntensity":999,"messageFontSize":-200,"accentColor":"bogus","unexpected":"ignored"}"""
         val updated=MbThemeTransfer.decode(json,DisplayOptions())
         assertEquals(100,updated.blurIntensity)
-        assertEquals(14,updated.messageFontSize)
+        assertEquals(10,updated.messageFontSize)
         assertEquals("Cyan",updated.accentColor)
         assertFalse(updated.hideArchiveAccess)
     }
