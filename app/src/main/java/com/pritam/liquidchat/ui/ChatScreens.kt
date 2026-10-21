@@ -1234,7 +1234,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
-            if(title in listOf("Devices","Language","Chat Folders")) unavailable=title else section=title
+            val destination=if(title=="Liquid Chat Preferences")"MB Preferences" else title
+            if(destination in listOf("Devices","Language","Chat Folders")) unavailable=destination else section=destination
         }
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
@@ -1314,7 +1315,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("MB "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="MB Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Themes",style=MaterialTheme.typography.titleLarge)
@@ -1423,7 +1424,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
 if(section=="MB Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Home Screen",style=MaterialTheme.typography.titleLarge)
-                Text("MB Home customization · every setting updates the existing Liquid Chat inbox.", 
+                Text("Personalize your Liquid Chat inbox; all settings work with existing conversations.", 
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
