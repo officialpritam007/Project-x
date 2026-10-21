@@ -276,8 +276,13 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         http.newCall(req).execute().use {res->
             val body=res.body?.string().orEmpty()
             if(!res.isSuccessful) {
-                if(res.code==401||res.code==403)discardRejectedReads(SessionSnapshot(current,original.generation))
-                throw ApiException(res.code,"",if(res.code==503)"Media sharing is temporarily unavailable." else "Media upload failed. Try again.")
+                if(res.code==401 || (res.code==403 && !sticker))
+                    discardRejectedReads(SessionSnapshot(current,original.generation))
+                throw ApiException(res.code,"",
+                    if(sticker && res.code==403)
+                        "Sticker delivery needs the matching server migration and media function."
+                    else if(res.code==503)"Media sharing is temporarily unavailable."
+                    else "Media upload failed. Try again.")
             }
             checkSession(original)
             JSONObject(body)
