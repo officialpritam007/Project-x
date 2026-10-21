@@ -1,3 +1,48 @@
+/** Validate a bounded still RGBA PNG for one-to-one stickers. */
+export function inspectStickerPng(data:Uint8Array):{width:number;height:number} {
+  const signature=[137,80,78,71,13,10,26,10];
+  if(data.length<100||data.length>524288||
+      signature.some((part,i)=>data[i]!==part))throw new Error("Use a PNG under 512 KB");
+  const view=new DataView(data.buffer,data.byteOffset,data.byteLength);
+  let cursor=8,seenIHDR=false,seenIDAT=false,seenIEND=false,count=0;
+  while(cursor<data.length) {
+    if(++count>1000 || cursor+12>data.length)throw new Error("Invalid PNG chunks");
+    const size=view.getUint32(cursor);
+    if(size>524288 || size+12>data.length-cursor)throw new Error("Invalid PNG length");
+    const type=String.fromCharCode(...data.subarray(cursor+4,cursor+8));
+    const chunk=cursor+8;
+    if(!seenIHDR) {
+      if(type!=="IHDR"||size!==13)throw new Error("Missing PNG header");
+      if(view.getUint32(chunk)!==512||view.getUint32(chunk+4)!==512 ||
+          data[chunk+8]!==8||data[chunk+9]!==6 ||
+          data[chunk+10]!==0||data[chunk+11]!==0||data[chunk+12]!==0)
+        throw new Error("Sticker must be 512x512 RGBA PNG");
+      seenIHDR=true;
+    } else if(type==="IHDR"||type==="acTL"||type==="fcTL"||type==="fdAT") {
+      throw new Error("Animated PNG is unsupported");
+    } else if(type==="IDAT") {
+      if(size===0 || seenIEND)throw new Error("Invalid sticker pixels");
+      seenIDAT=true;
+    } else if(type==="IEND") {
+      if(size!==0||!seenIDAT||cursor+12!==data.length)throw new Error("Invalid PNG ending");
+      seenIEND=true;
+    } else if(type[0]>="A" && type[0]<="Z") {
+      throw new Error("Unsupported PNG chunk");
+    }
+    // Check CRC32 over the chunk type and payload to reject corrupted PNGs.
+    let crc=0xffffffff;
+    for(let i=cursor+4;i<cursor+8+size;i++) {
+      crc^=data[i];
+      for(let b=0;b<8;b++)crc=(crc&1)!==0 ? ((crc>>>1)^0xedb88320)>>>0 : crc>>>1;
+    }
+    if(((crc^0xffffffff)>>>0)!==view.getUint32(cursor+8+size))throw new Error("Bad PNG checksum");
+    cursor+=size+12;
+    if(seenIEND)break;
+  }
+  if(!seenIHDR||!seenIDAT||!seenIEND||cursor!==data.length)throw new Error("Incomplete PNG");
+  return {width:512,height:512};
+}
+
 /** Bounded container inspection for the private-storage fallback. No executable media types. */
 export function inspectJpeg(data: Uint8Array): {width:number;height:number} {
   if(data.length<12||data[0]!==255||data[1]!==216||data[data.length-2]!==255||data[data.length-1]!==217)throw new Error("Use JPEG");
