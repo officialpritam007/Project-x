@@ -99,16 +99,24 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     // The reference mb_bottom_iosv2.xml uses five equal icon-and-label slots.
     // Preserve the original Liquid capsule as a selectable alternative.
     val referenceBar=display.navBarStyle=="Reference"
+    // MB 3.3.4 res/layout-v1/mb_bottom_iosv2.xml:
+    // 56dp row, five weighted columns, 30dp icons and 11sp captions.
+    // User-adjusted size preferences still take precedence over defaults.
+    val referenceIconSize=if(referenceBar&&display.navIconSize==24)30 else display.navIconSize
     // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
     GlassChromeSurface(
         Modifier.fillMaxWidth()
-            .padding(horizontal=if(referenceBar)8.dp else 22.dp,vertical=if(referenceBar)4.dp else 9.dp)
+            .then(if(referenceBar)Modifier else
+                Modifier.padding(horizontal=22.dp,vertical=9.dp))
             .navigationBarsPadding(),
-        if(referenceBar)Glass.card else Glass.capsule
+        if(referenceBar)Glass.compact else Glass.capsule
     ) {
-        Row(Modifier.padding(if(referenceBar)4.dp else 6.dp).selectableGroup()) {
+        Row(Modifier.fillMaxWidth()
+            .then(if(referenceBar)Modifier.height(56.dp).padding(horizontal=6.dp)
+                else Modifier.padding(6.dp))
+            .selectableGroup()) {
             plan.visible.forEach {i->
                 val title=titles[i]
                 val selected=tab==i
@@ -123,9 +131,11 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                     label="navigation selection"
                 )
                 Box(
-                    Modifier.weight(1f).heightIn(min=if(referenceBar)60.dp else 54.dp)
+                    Modifier.weight(1f)
+                        .then(if(referenceBar)Modifier.height(56.dp)
+                            else Modifier.heightIn(min=54.dp))
                         .clip(if(referenceBar)Glass.compact else Glass.capsule)
-                        .background(selection)
+                        .background(if(referenceBar)Color.Transparent else selection)
                         .clickable(role=Role.Tab) {onTab(i)}
                         .semantics {this.selected=selected;contentDescription=title},
                     contentAlignment=Alignment.Center
@@ -133,17 +143,21 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                     Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
                         if(!display.hideNavIcons) {
                         if(i==1) {
-                            Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,modifier=Modifier.size(display.navIconSize.dp),
+                            Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,modifier=Modifier.size(referenceIconSize.dp),
                                 tint=if(tab==i)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
                             val originalIndex=if(i>1)i-1 else i
-                            DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null,display.navIconSize)
+                            DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null,referenceIconSize)
                         }
                         }
                         if(showEffectiveNavigationLabels(display)) Text(title,fontSize=display.navLabelSize.sp,maxLines=1,
                             overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    if(referenceBar&&selected) Box(
+                        Modifier.align(Alignment.BottomCenter).width(56.dp).height(3.dp)
+                            .clip(Glass.capsule).background(MaterialTheme.colorScheme.primary)
+                    )
                 }
             }
             if(plan.overflow.isNotEmpty()) {
