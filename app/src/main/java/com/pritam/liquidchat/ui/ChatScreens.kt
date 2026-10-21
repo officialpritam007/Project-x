@@ -580,10 +580,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         val detail=buildString {
                             append("Contact: ")
                             append(if(name.isBlank())"Unknown" else name)
-                            append('\\n')
+                            append('\n')
                             append(number)
                         }
-                        val next=if(body.isBlank())detail else "$body\\n$detail"
+                        val next=if(body.isBlank())detail else "$body\n$detail"
                         require(next.length<=4000) {"Draft would exceed 4000 characters."}
                         updateInput(TextFieldValue(next,TextRange(next.length)))
                     } else error("That contact has no usable phone number.")
