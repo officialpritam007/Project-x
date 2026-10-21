@@ -1526,15 +1526,23 @@ if(section=="MB Home Screen") {
 
             }
         }
-                if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-            Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
-            Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
+                if(section=="MB Conversation Screen") {
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
+                Text("Customize private chats without changing messages, delivery or call behavior.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Wallpaper & contrast",style=MaterialTheme.typography.titleMedium)
+                Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.chatWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(chatWallpaperDim=it.toInt()))},
                 valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
             Text("50% preserves the original conversation wallpaper contrast. Only locally selected photos use this control.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider()
-            Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Message bubbles",style=MaterialTheme.typography.titleMedium)
+                Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("Tail","Rounded","Compact").forEach {style ->
                     FilterChip(selected=display.bubbleStyle==style,onClick={model.setDisplay(display.copy(bubbleStyle=style))},label={Text(style)})
@@ -1546,8 +1554,10 @@ if(section=="MB Home Screen") {
                     FilterChip(selected=display.bubbleColor==palette,onClick={model.setDisplay(display.copy(bubbleColor=palette))},label={Text(palette)})
                 }
             }
-            HorizontalDivider()
-            Text("Quick reaction emojis · choose 1–6",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Reactions & text",style=MaterialTheme.typography.titleMedium)
+                Text("Quick reaction emojis · choose 1–6",style=MaterialTheme.typography.titleSmall)
             Text("Only reactions accepted by the current messaging server can be selected.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             androidx.compose.foundation.layout.FlowRow(
@@ -1570,8 +1580,10 @@ if(section=="MB Home Screen") {
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
                 valueRange=14f..22f,steps=7,modifier=Modifier.fillMaxWidth())
-            HorizontalDivider()
-            Text("Preview",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Live message preview",style=MaterialTheme.typography.titleMedium)
+                Text("Preview",style=MaterialTheme.typography.titleSmall)
             listOf(false,true).forEach {mine ->
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
                     Surface(shape=conversationBubbleShape(display.bubbleStyle,mine),
@@ -1582,6 +1594,8 @@ if(section=="MB Home Screen") {
                             style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp))
                     }
                 }
+            }
+
             }
         }
         if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {
