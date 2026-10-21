@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.PeopleOutline
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -70,8 +71,33 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
                     currentCall?.let {MinimizedCallPill(model.calls,it,caller?.name)}
                 }
             }, bottomBar={
-            if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null)
-                GlassNavigation(tab,unreadChats=chats.count {it.unread>0 || it.manualUnread}) {tab=it}
+            if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null) {
+                val unread=chats.count {it.unread>0 || it.manualUnread}
+                val referenceNewChat=display.navBarStyle=="Reference" &&
+                    tab==0 && !display.hideHomeFloatingButtons
+                if(referenceNewChat) {
+                    // Reference mb_home_tab places its 56dp new-chat action
+                    // *beside* the bottom navigation, not above the chat list.
+                    // Both controls share a single system navigation inset.
+                    Row(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=4.dp)
+                        .navigationBarsPadding(),
+                        verticalAlignment=androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        GlassNavigation(tab,unreadChats=unread,
+                            modifier=Modifier.weight(1f),
+                            applyNavigationInset=false) {tab=it}
+                        GlassChromeSurface(Modifier.size(56.dp),Glass.capsule) {
+                            IconButton(onClick={tab=2},modifier=Modifier.fillMaxSize()) {
+                                Icon(Icons.Outlined.Add,contentDescription="New chat",
+                                    tint=MaterialTheme.colorScheme.primary,
+                                    modifier=Modifier.size(30.dp))
+                            }
+                        }
+                    }
+                } else {
+                    GlassNavigation(tab,unreadChats=unread) {tab=it}
+                }
+            }
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
