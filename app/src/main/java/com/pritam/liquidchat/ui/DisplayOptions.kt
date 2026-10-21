@@ -37,6 +37,12 @@ data class DisplayOptions(
     val showPinBadges:Boolean=true,
     val emojiPickerSize:Int=24,
     val linkColor:String="Theme",
-    val hideNavIcons:Boolean=false
+    val hideNavIcons:Boolean=false,
+    val outgoingBubblePreset:String="Follow",
+    val incomingBubblePreset:String="Follow",
+    val outgoingInk:String="Theme",
+    val incomingInk:String="Theme",
+    val quotedInk:String="Theme",
+    val timestampInk:String="Theme"
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
