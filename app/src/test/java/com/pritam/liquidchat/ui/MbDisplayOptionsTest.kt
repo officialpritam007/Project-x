@@ -24,6 +24,8 @@ class MbDisplayOptionsTest {
         assertEquals(false,DisplayOptions().hideHomeSearch)
         assertEquals(false,DisplayOptions().showHomeDividers)
         assertEquals("Reference",DisplayOptions().navBarStyle)
+        assertEquals(false,DisplayOptions().hidePhotoShortcut)
+        assertEquals(true,DisplayOptions().showPinBadges)
         assertEquals("Liquid",DisplayOptions().copy(navBarStyle="Liquid").navBarStyle)
         assertEquals("Cyan",DisplayOptions().accentColor)
         assertEquals(false,DisplayOptions().showProfileAsTitle)
