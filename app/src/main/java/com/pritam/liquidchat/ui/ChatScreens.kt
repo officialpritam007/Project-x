@@ -191,6 +191,8 @@ import kotlinx.coroutines.flow.drop
     }
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         GlassHeader(if(inboxDisplay.showProfileAsTitle)profile?.optString("display_name").orEmpty().ifBlank {"Liquid Chat"} else "Liquid Chat",brand=true) {
+            IconButton(onClick=onContacts) {Icon(Icons.Outlined.People,"Open contacts")}
+            IconButton(onClick=onProfile) {Icon(Icons.Outlined.AccountCircle,"Open profile")}
             Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Chat options")}
                 LiquidDropdownMenu(menu,{menu=false}) {
                     // The four filters already have visible, accessible chips below.
