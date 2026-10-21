@@ -252,3 +252,24 @@ All changes below are candidate source implementations committed to `main` per t
 6. Backend upgrades, physical WebRTC/TURN/calling reliability, final release configuration, APK artifact and complete two-device privacy/security regression remain **unverified or outstanding**.
 
 No Supabase migrations, production database mutations, push secrets, paid infrastructure, message schema or WebRTC call paths were changed by this direct-main UI continuation. Before a distributable APK can be called verified, the final exact main commit requires compilation, automated checks and device acceptance, which the owner deferred.
+
+
+## October 21 continuation: actual media type ports (source committed; release gate OPEN)
+
+User-selected current workflow: incremental `main` commits with no CI/build checks before the final integration pass. Historical branch/PR validation descriptions above remain useful release policy, but are not evidence that **these** new commits have passed validation.
+
+### Newly represented reference areas
+- `mb_alert_sticker.xml`, `mb_image_picker.xml`: in-chat Create sticker editor, transparent 512 × 512 PNG preparation, opt-in near-white background cutout, preview, local My Stickers library, reuse/delete and authorized import from received messages. This is **not** full semantic background segmentation, animated sticker packs or exact MB artwork.
+- `mb_dialog_media.xml`, `mb_activity_image_crop.xml`: client JPEG photo crop/rotate/flip/grayscale and same authenticated photo upload. Shared image saves and authenticated photo/video story export have dedicated bounded media types.
+- `mb_custom_webview.xml`: isolated HTTP(S) in-app message link browser with JS disabled by default and no Liquid Chat session bridge.
+- `mb_themes_settings.xml`: local photo-to-theme dominant accent picker; image is not uploaded.
+- `mb_list_tips_item.xml`, `mb_tips_help.xml`: real links to Liquid Chat settings and help.
+- Conversation overflow: authorized text-only export of up to 1000 downloaded, visible sent messages, 512 KiB; excludes deleted data, draft messages, tokens and signed media URLs.
+
+### Sticker backend deployment boundary
+`supabase/migrations/20261021183500_private_sticker_messages.sql` extends the private media schema for a **separate** `sticker` type; the Edge Function now requires PNG chunk/CRC and 512 × 512 RGBA header validation and a maximum size of 512 KiB, with server-side account, membership, rate, provider and block checks via the existing media intent and new `send_sticker` RPC. The Android outbox calls `send_sticker` and recipient parses `media_kind=sticker`, with transparent bubble rendering and a Shared Media sticker filter.
+
+**Important:** Both SQL migration and media Edge Function are **committed in Git only, not deployed**. Running a client with the new sticker UI against the existing production Supabase schema will fail to send stickers. Existing photo/voice/text flows must not be disabled to paper over this dependency. No SQL, Edge, Gradle, emulator or physical tests have been run for these changes, per owner instruction. This is not a final calling-enabled APK.
+
+### Exact-reference parity and broader remaining backlog
+The 55 `res/layout-v1/mb_*.xml` APK files remain the static reference inventory. True layout parity needs render-level comparison across 360/393/412 dp sizes, portrait/landscape, system/light/dark, accessibility scaling and interacting animations. Unimplemented reference-dependent modules include animated sticker packs, robust background removal, PDF/document/GIF and video chat attachments, per-contact privacy exceptions with server enforcement, complete notification behavior and branded resource packs, advanced editing history and full theme-font ingestion. WhatsApp-specific remote services cannot be copied onto a Supabase identity without separate server protocols, data models and authorization. Preserve FCM and WebRTC calls; two-phone voice/video/reconnect/notification acceptance and production signing remain necessary gates.
