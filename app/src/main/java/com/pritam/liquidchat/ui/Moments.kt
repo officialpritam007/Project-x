@@ -371,10 +371,11 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     val current=stories[index]
     val context=LocalContext.current
     val saveScope=rememberCoroutineScope()
+    val playback=remember(context) {MbStoryPlaybackSettings.read(context)}
     var savingStory by remember(current.id) {mutableStateOf(false)}
     var saveStatus by remember(current.id) {mutableStateOf<String?>(null)}
     var paused by remember(current.id) {mutableStateOf(false)}
-    var muted by remember {mutableStateOf(true)}
+    var muted by remember {mutableStateOf(MbStoryPlaybackSettings.initiallyMuted(context,playback))}
     var progress by remember(current.id) {mutableFloatStateOf(0f)}
     var imageReady by remember(current.id) {mutableStateOf(false)}
     var replay by remember(current.id) {mutableIntStateOf(0)}
@@ -382,7 +383,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
     val effectivePause=paused||savingStory||!foreground||currentCall!=null
     // Photos advance after five seconds; MP4 progress is driven by the actual player.
-    LaunchedEffect(current.id,effectivePause,imageReady,stories.size,current.mediaKind) {
+    LaunchedEffect(current.id,effectivePause,imageReady,stories.size,current.mediaKind,replay) {
         if(current.mediaKind!="story_video") {
             var lastTick=android.os.SystemClock.elapsedRealtime()
             while(progress<1f) {
@@ -391,7 +392,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                 progress=advancePhotoStory(progress,now-lastTick,effectivePause,imageReady)
                 lastTick=now
             }
-            if(!effectivePause) {
+            if(!effectivePause && playback.autoAdvance) {
                 if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
             }
         }
@@ -407,7 +408,9 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                         backend=model.backend,media=current.media,
                         paused=effectivePause,muted=muted,
                         onProgress={progress=it},
-                        onFinished={if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()},
+                        onFinished={if(playback.autoAdvance) {
+                            if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
+                        }},
                         modifier=Modifier.fillMaxSize()
                     )
                 } else ProtectedImage(model.backend,current.media,
@@ -486,6 +489,12 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                 saveStatus?.let {status->
                     Text(status,Modifier.align(Alignment.Center).padding(16.dp),
                         color=Color.White,style=MaterialTheme.typography.bodyMedium)
+                }
+                if(!playback.autoAdvance && progress>=1f) {
+                    TextButton(onClick={progress=0f;replay++},
+                        modifier=Modifier.align(Alignment.Center)) {
+                        Text("Replay story",color=Color.White)
+                    }
                 }
                 if(current.caption.isNotBlank())
                     Text(current.caption,Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
