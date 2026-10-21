@@ -20,7 +20,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_custom_webview.xml` | Partial | MessageInAppBrowser | Website behavior and navigation tests pending |
 | `mb_dialog_alert_ios.xml` | Partial | LiquidAlertDialog | Exact blur, transitions and button order unverified |
 | `mb_dialog_color_picker.xml` | Partial | Theme/color editor | Full reference dialog not matched |
-| `mb_dialog_launcher.xml` | Missing | App launcher remains fixed | Safe alternate launcher alias switch not implemented |
+| `mb_dialog_launcher.xml` | Partial | Classic/Night Glass Activity aliases + Appearance selector | Full reference icon pack and launcher-specific visual verification remain |
 | `mb_dialog_media.xml` | Partial | Attachment sheet and image/PDF/sticker send | GIF, arbitrary video and multi-file send missing |
 | `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
 | `mb_edittext_box.xml` | Partial | Compose conversation composer | Reference animations and accessories unverified |
@@ -65,7 +65,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 ## Backend and release dependencies
 
 - Existing messaging and calling remain Liquid Chat services (Supabase/FCM/WebRTC), **not WhatsApp protocol clients**. Reference-specific features such as linked WhatsApp accounts, proprietary groups/channels and commercial AI/VIP services require separate functionality; duplicating a UI control alone would be deceptive.
-- **Still in Git only, not applied to the running database:** `supabase/migrations/20261021183500_private_sticker_messages.sql` and `supabase/migrations/20261021195500_private_pdf_documents.sql`. Both need associated `supabase/functions/media` deployment. Existing database/user rows must be preserved. New sticker/PDF send cannot work before this paired deployment.
+- **Still in Git only, not applied to the running database:** `supabase/migrations/20261021183500_private_sticker_messages.sql`, `supabase/migrations/20261021195500_private_pdf_documents.sql`, and `supabase/migrations/20261021202500_message_edit_history.sql`. Sticker/PDF migrations also need the associated `supabase/functions/media` deployment. Existing database/user rows must be preserved. New sticker/PDF send cannot work before this paired deployment.
 - Chat Folders and saved sticker shelf are **device-only account-scoped**; they do not sync across phones. PDF scan is single-page monochrome (not automatic edge detection). Real sticker background removal is near-white masking, not ML segmentation.
 - To claim any row complete: inspect binary XML and event behavior, implement matching Compose UI, wire state/backend, and compare reference screenshots at 360/393/412 dp, both themes, relevant font scales and gesture states.
 - Owner-requested current workflow deferred builds, SQL/Edge checks, emulator and physical verification. Do **not** assert 100% parity, production readiness, a deployed migration or a final APK from this register.
