@@ -50,6 +50,7 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
         message.deletedAt.isEmpty() && when(kind) {
             "star"->message.starred
             "voice"->message.mediaKind=="voice" && message.mediaId.isNotEmpty()
+            "sticker"->message.mediaKind=="sticker" && message.mediaId.isNotEmpty()
             else->message.mediaKind=="image" && message.mediaId.isNotEmpty()
         }
     }.map {message->
@@ -64,6 +65,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
     message.deletedAt.isNotEmpty() -> "hidden"
     message.mediaKind=="voice" && message.mediaId.isNotEmpty() -> "voice"
     message.mediaKind=="image" && message.mediaId.isNotEmpty() -> "image"
+    message.mediaKind=="sticker" && message.mediaId.isNotEmpty() -> "sticker"
     else -> "text"
 }
 
@@ -133,13 +135,14 @@ internal fun starredMediaPresentation(message:Message):String = when {
             onPage={scope.launch {page(rows.isEmpty())}},
             avatar={Avatar(chat.name,chat.avatarId,model.backend,size=76.dp)},
             media={m->
-                if(kind=="image")SharedImagePreview(model,m,thumbnail=true)
+                if(kind=="image" || kind=="sticker")SharedImagePreview(model,m,thumbnail=true)
                 else GlassCard(Modifier.fillMaxWidth()) {
                     if(kind=="voice")VoicePlayer(model,m)
                     else {
                         when(starredMediaPresentation(m)) {
                             "voice"->VoicePlayer(model,m)
                             "image"->SharedImagePreview(model,m)
+                            "sticker"->SharedImagePreview(model,m)
                             "text"->Text(m.body,maxLines=6,overflow=TextOverflow.Ellipsis)
                         }
                         TextButton(onClick={model.open(chat.id,m.id);onDismiss()}) {Text("Go to message")}
@@ -186,7 +189,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
                     FlowRow(Modifier.fillMaxWidth(),
                         horizontalArrangement=Arrangement.spacedBy(8.dp),
                         verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                        listOf("image" to "Media","voice" to "Voice","star" to "Starred").forEach {(value,label)->
+                        listOf("image" to "Media","sticker" to "Stickers","voice" to "Voice","star" to "Starred").forEach {(value,label)->
                             FilterChip(selected=kind==value,onClick={onKind(value)},
                                 label={Text(label)},shape=Glass.capsule)
                         }
@@ -196,14 +199,14 @@ internal fun starredMediaPresentation(message:Message):String = when {
                     Text("Shared in this conversation",style=MaterialTheme.typography.labelMedium,
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                items(rows,key={it.id},span={GridItemSpan(if(kind=="image")1 else maxLineSpan)}) {media(it)}
+                items(rows,key={it.id},span={GridItemSpan(if(kind in listOf("image","sticker"))1 else maxLineSpan)}) {media(it)}
                 if(rows.isEmpty()&&!loading&&!failed) item(key="empty",span={GridItemSpan(maxLineSpan)}) {
                     GlassCard(Modifier.fillMaxWidth()) {
-                        Icon(when(kind){"voice"->Icons.Outlined.MicNone;"star"->Icons.Outlined.StarOutline;else->Icons.Outlined.PhotoLibrary},
+                        Icon(when(kind){"voice"->Icons.Outlined.MicNone;"sticker"->Icons.Outlined.AutoAwesome;"star"->Icons.Outlined.StarOutline;else->Icons.Outlined.PhotoLibrary},
                             null,Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
-                        Text("No shared ${when(kind){"voice"->"voice messages";"star"->"starred messages";else->"photos"}} yet",
+                        Text("No shared ${when(kind){"voice"->"voice messages";"sticker"->"stickers";"star"->"starred messages";else->"photos"}} yet",
                             style=MaterialTheme.typography.titleMedium)
-                        Text(when(kind){"star"->"Star a message to find it here.";"voice"->"Voice messages you exchange appear here.";else->"Photos you exchange appear here."},
+                        Text(when(kind){"star"->"Star a message to find it here.";"voice"->"Voice messages you exchange appear here.";"sticker"->"Stickers you exchange appear here.";else->"Photos you exchange appear here."},
                             style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
