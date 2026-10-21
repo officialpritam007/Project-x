@@ -1242,32 +1242,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}
 
     if(section=="MB Preferences") {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal=16.dp,vertical=12.dp)
-            .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
-            verticalArrangement=Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment=Alignment.CenterVertically) {
-                IconButton(onClick={section=null}) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")}
-                Text("MB Preferences",style=MaterialTheme.typography.headlineSmall)
-            }
-            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("Customization",style=MaterialTheme.typography.titleLarge)
-                Text("Appearance options change your own Liquid Chat display without affecting messages or your contacts.",
-                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                HorizontalDivider()
-                GlassActionRow("General Settings",Icons.Outlined.Palette,onClick={section="MB General Settings"})
-                HorizontalDivider()
-                GlassActionRow("Home Screen",Icons.Outlined.Home,onClick={section="MB Home Screen"})
-                HorizontalDivider()
-                GlassActionRow("Conversation Screen",Icons.Outlined.ChatBubbleOutline,onClick={section="MB Conversation Screen"})
-                HorizontalDivider()
-                GlassActionRow("Themes",Icons.Outlined.ColorLens,onClick={section="MB Themes"})
-                HorizontalDivider()
-                GlassActionRow("Privacy",Icons.Outlined.Lock,onClick={section="MB Privacy"})
-                HorizontalDivider()
-                GlassActionRow("Notifications",Icons.Outlined.Notifications,onClick={section="MB Notifications"})
-            }
-        }
+        MbPreferencesLanding(
+            onBack={section=null},
+            onNavigate={destination->section=destination}
+        )
         return
     }
 
