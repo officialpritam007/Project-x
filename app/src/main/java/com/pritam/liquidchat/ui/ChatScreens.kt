@@ -913,7 +913,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             "Text"->MaterialTheme.colorScheme.onSurface
             else->LocalContentColor.current
         }
-        GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
+        GlassChromeSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
         Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats",tint=headerIconTint)}
             if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
@@ -1085,7 +1085,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 IconButton(onClick={replyTo="";draftVersion=model.repository.saveDraft(cid,body)}) {Icon(Icons.Outlined.Close,"Cancel reply")}
             }
         }
-        GlassSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
+        GlassChromeSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
             Row(Modifier.fillMaxWidth().padding(4.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick={emojiPicker=true},enabled=draftReady) {Icon(Icons.Outlined.EmojiEmotions,"Open emoji picker")}
                 androidx.compose.foundation.text.BasicTextField(input,{if(it.text.length<=4000)updateInput(it)},enabled=draftReady,keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp).onFocusChanged {inputFocused=it.isFocused}.testTag("message-input").semantics {contentDescription="Message"},textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
@@ -2111,6 +2111,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications","Liquid Chat Help","Liquid Chat Updates"))"Liquid Chat Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("Liquid Chat "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Liquid Chat Updates") MbAppUpdates()
+        if(section=="Liquid Chat General Settings") MbGeneralAppearanceSettings(display,model::setDisplay)
         if(section=="Liquid Chat Home Screen") MbStoryPlaybackSettingsCard()
         if(section=="Liquid Chat Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Home interaction controls",style=MaterialTheme.typography.titleMedium)
