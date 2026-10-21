@@ -49,7 +49,7 @@ class MbPreferencesLandingTest {
         compose.onNodeWithText("Privacy").performScrollTo().performClick()
         compose.onNodeWithText("Notifications").performScrollTo().performClick()
         compose.runOnIdle {
-            assertEquals(listOf("MB Privacy","MB Notifications"),opened)
+            assertEquals(listOf("Liquid Chat Privacy","Liquid Chat Notifications"),opened)
         }
     }
 
@@ -58,6 +58,6 @@ class MbPreferencesLandingTest {
         assertEquals(targets.size,targets.distinct().size)
         assertEquals(6,targets.size)
         assertFalse(targets.any {it.contains("WhatsApp",ignoreCase=true)})
-        assertTrue(targets.all {it.startsWith("MB ")})
+        assertTrue(targets.all {it.startsWith("Liquid Chat ")})
     }
 }
