@@ -71,6 +71,11 @@ data class DisplayOptions(
     val showEditedLabel:Boolean=true,
     val showEditedTime:Boolean=false,
     val showLongPressPreview:Boolean=true,
-    val hideHomeFloatingButtons:Boolean=false
+    val hideHomeFloatingButtons:Boolean=false,
+    val appTextHex:String="",
+    val appBackgroundHex:String="",
+    val appChromeHex:String="",
+    val appUiScale:Int=100,
+    val appTextScale:Int=100
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
