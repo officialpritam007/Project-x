@@ -393,7 +393,7 @@ internal fun blockActionLabel(ownedBlocked:Boolean?):String =
 
 internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
 internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
-    "Chat Settings","MB General Settings"->SettingsPanel.APPEARANCE
+    "Chat Settings","Liquid Chat General Settings"->SettingsPanel.APPEARANCE
     "Power Saving"->SettingsPanel.POWER_SAVING
     else->SettingsPanel.OTHER
 }
@@ -1246,15 +1246,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
-            val destination=if(title=="Liquid Chat Preferences")"MB Preferences" else title
+            val destination=title
             if(destination in listOf("Devices","Language","Chat Folders")) unavailable=destination else section=destination
         }
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}
+    BackHandler {section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications"))"Liquid Chat Preferences" else null}
 
-    if(section=="MB Preferences") {
+    if(section=="Liquid Chat Preferences") {
         MbPreferencesLanding(
             onBack={section=null},
             onNavigate={destination->section=destination}
@@ -1327,9 +1327,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("MB "),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications"))"Liquid Chat Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("Liquid Chat "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
-        if(section=="MB Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+        if(section=="Liquid Chat Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Themes",style=MaterialTheme.typography.titleLarge)
             Text("Save your current Liquid Chat appearance to a JSON theme, or import a saved theme.",style=MaterialTheme.typography.bodyMedium)
             Text("Imported themes change only this device's colors, navigation and chat appearance. No messages, accounts or contacts are exported.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1350,7 +1350,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
             Text("This resets colors, fonts, bubble and navigation appearance. It preserves privacy settings, reduced-motion/transparency preferences, local photo files and messages.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("MBWhatsApp theme packages are not directly compatible. This imports Liquid Chat .json files only.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Import only Liquid Chat theme .json files.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             themeFeedback?.let {Text(it,color=MaterialTheme.colorScheme.primary)}
         }
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
@@ -1384,7 +1384,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) {
-            if(section=="MB General Settings") GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
+            if(section=="Liquid Chat General Settings") GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
                 Column(Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement=Arrangement.spacedBy(8.dp)) {
                     Text("General settings",style=MaterialTheme.typography.titleLarge)
@@ -1394,7 +1394,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text(if(section=="MB General Settings")"Theme & typography" else "Appearance",
+                Text(if(section=="Liquid Chat General Settings")"Theme & typography" else "Appearance",
                     style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
             Text("Main theme color",style=MaterialTheme.typography.labelLarge)
@@ -1431,9 +1431,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
         // MB General's cache control reuses the already-safe Coil-only cleanup.
         // Never expose "clear all" actions that would erase the durable Room outbox.
-        if(section=="MB General Settings") DataStorage(model)
+        if(section=="Liquid Chat General Settings") DataStorage(model)
         
-if(section=="MB Home Screen") {
+if(section=="Liquid Chat Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Home Screen",style=MaterialTheme.typography.titleLarge)
                 Text("Personalize your Liquid Chat inbox; all settings work with existing conversations.", 
@@ -1575,7 +1575,7 @@ if(section=="MB Home Screen") {
 
             }
         }
-                if(section=="MB Conversation Screen") {
+                if(section=="Liquid Chat Conversation Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
                 Text("Customize private chats without changing messages, delivery or call behavior.",
@@ -1676,8 +1676,8 @@ if(section=="MB Home Screen") {
                 runCatching {context.startActivity(intent)}
             }) {Text("Open Android app settings")}
         }
-        if(section in listOf("Privacy & Security","Notifications","MB Privacy","MB Notifications")) {
-            val privacyPage=section=="Privacy & Security" || section=="MB Privacy"
+        if(section in listOf("Privacy & Security","Notifications","Liquid Chat Privacy","Liquid Chat Notifications")) {
+            val privacyPage=section=="Privacy & Security" || section=="Liquid Chat Privacy"
             if(privacyPage) GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Device privacy",style=MaterialTheme.typography.titleMedium)
                 Text("Local screen and typing protection for this device.",
@@ -1732,7 +1732,7 @@ if(section=="MB Home Screen") {
 
                 }
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
-            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications" || section=="MB Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
+            listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications" || section=="Liquid Chat Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Text(label,Modifier.weight(1f))
                     Switch(checked=settings.optBoolean(key,true),enabled=!busy&&settings.has(key),onCheckedChange={checked->model.action {
@@ -1743,7 +1743,7 @@ if(section=="MB Home Screen") {
 
             }
         }
-        if(section=="Notifications" || section=="MB Notifications") NotificationSystemSettings()
+        if(section=="Notifications" || section=="Liquid Chat Notifications") NotificationSystemSettings()
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
         TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
