@@ -1696,10 +1696,20 @@ if(section=="Liquid Chat Home Screen") {
                         color=conversationBubbleColor(resolvedBubblePalette(display,mine),mine,LocalGlassDark.current)
                             ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
                             else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)) {
-                        Text(if(mine)"Outgoing message" else "Incoming message",Modifier.padding(12.dp),
-                            style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp),
-                            color=conversationInkColor(if(mine)display.outgoingInk else display.incomingInk,
-                                LocalGlassDark.current,MaterialTheme.colorScheme.onSurface))
+                        Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                            Text("↪ Original message",
+                                style=MaterialTheme.typography.labelSmall,
+                                color=conversationInkColor(display.quotedInk,LocalGlassDark.current,
+                                    MaterialTheme.colorScheme.onSurfaceVariant))
+                            Text(if(mine)"Outgoing message" else "Incoming message",
+                                style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp),
+                                color=conversationInkColor(if(mine)display.outgoingInk else display.incomingInk,
+                                    LocalGlassDark.current,MaterialTheme.colorScheme.onSurface))
+                            Text("12:34",modifier=Modifier.align(Alignment.End),
+                                style=MaterialTheme.typography.labelSmall,
+                                color=conversationInkColor(display.timestampInk,LocalGlassDark.current,
+                                    MaterialTheme.colorScheme.onSurfaceVariant))
+                        }
                     }
                 }
             }
