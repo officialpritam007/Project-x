@@ -2293,6 +2293,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     }
                 ) {Text("Apply")}
             }
+            MbColorPickerButton("Main theme color",
+                normalizedAccentHex(accentHexInput)?:display.customAccentHex) {hex->
+                accentHexInput=hex
+                model.setDisplay(display.copy(accentColor="Custom",customAccentHex=hex))
+            }
             if(display.accentColor=="Custom") Text(
                 "Custom accent applied across Liquid Chat · ${display.customAccentHex}",
                 style=MaterialTheme.typography.bodySmall,
@@ -2607,6 +2612,12 @@ if(section=="Liquid Chat Home Screen") {
             listOf(true,false).forEach {mine->
                 val current=if(mine)display.outgoingBubbleHex else display.incomingBubbleHex
                 var input by rememberSaveable(mine) {mutableStateOf(current)}
+                MbColorPickerButton(if(mine)"Outgoing bubble" else "Incoming bubble",current) {hex->
+                    input=hex
+                    model.setDisplay(if(mine)
+                        display.copy(outgoingBubbleHex=hex,outgoingBubblePreset="Custom")
+                    else display.copy(incomingBubbleHex=hex,incomingBubblePreset="Custom"))
+                }
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
                     horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -2657,6 +2668,15 @@ if(section=="Liquid Chat Home Screen") {
                     else->display.timestampInkHex
                 }
                 var hexInput by rememberSaveable(target) {mutableStateOf(currentHex)}
+                MbColorPickerButton(target,currentHex) {hex->
+                    hexInput=hex
+                    model.setDisplay(when(target) {
+                        "Outgoing text"->display.copy(outgoingInk="Custom",outgoingInkHex=hex)
+                        "Incoming text"->display.copy(incomingInk="Custom",incomingInkHex=hex)
+                        "Quoted text"->display.copy(quotedInk="Custom",quotedInkHex=hex)
+                        else->display.copy(timestampInk="Custom",timestampInkHex=hex)
+                    })
+                }
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
                     horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
