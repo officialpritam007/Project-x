@@ -55,6 +55,8 @@ data class DisplayOptions(
     val outgoingInkHex:String="#172D42",
     val incomingInkHex:String="#172D42",
     val quotedInkHex:String="#172D42",
-    val timestampInkHex:String="#536B7D"
+    val timestampInkHex:String="#536B7D",
+    val chatHeaderIconColor:String="Theme",
+    val chatHeaderNameSize:Int=16
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
