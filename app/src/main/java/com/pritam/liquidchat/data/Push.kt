@@ -176,7 +176,7 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         val decline=PendingIntent.getBroadcast(context,callId.hashCode(),Intent(context,com.pritam.liquidchat.calls.DeclineCallReceiver::class.java).putExtra("callId",callId).putExtra("accountId",account),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         MessageNotificationDedupe.postOnce(context,account,"call-$callId") {
             manager.notify(callId.hashCode(),NotificationCompat.Builder(context,"incoming_calls_v2")
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(LiquidNotificationIcon.resource(context))
             .setContentTitle(name)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(androidx.core.app.Person.Builder().setName(name).setImportant(true).build(),decline,answer).setIsVideo(video))
             .setFullScreenIntent(pending,true)
@@ -210,7 +210,7 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         val intent=Intent(context,MainActivity::class.java).putExtra("conversationId",cid).putExtra("accountId",account).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val pending=PendingIntent.getActivity(context,id.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification=NotificationCompat.Builder(context,channel)
-            .setSmallIcon(R.drawable.ic_notification).setContentTitle(visibleTitle).setContentText(visibleBody)
+            .setSmallIcon(LiquidNotificationIcon.resource(context)).setContentTitle(visibleTitle).setContentText(visibleBody)
             .setStyle(NotificationCompat.BigTextStyle().bigText(visibleBody)).setContentIntent(pending)
             .setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(if(showBody)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
