@@ -2800,6 +2800,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             var bookmarkName by rememberSaveable {mutableStateOf("")}
             var savedThemeNames by remember {mutableStateOf(LiquidThemeLibrary.names(context))}
             var removeThemeName by remember {mutableStateOf<String?>(null)}
+            var previewThemeName by remember {mutableStateOf<String?>(null)}
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
                 horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value=bookmarkName,onValueChange={bookmarkName=it.take(36)},
@@ -2819,7 +2820,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             savedThemeNames.forEach {name->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    Text(name,Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis)
+                    Text(name,Modifier.weight(1f),maxLines=1,
+                        overflow=TextOverflow.Ellipsis)
+                    TextButton(onClick={previewThemeName=name}) {Text("Preview")}
                     TextButton(onClick={
                         runCatching {
                             model.setDisplay(LiquidThemeLibrary.restore(context,name,model.display.value))
@@ -2829,6 +2832,29 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     IconButton(onClick={removeThemeName=name}) {
                         Icon(Icons.Outlined.DeleteOutline,"Delete saved theme: $name")
                     }
+                }
+            }
+            previewThemeName?.let {name->
+                val candidate=runCatching {
+                    LiquidThemeLibrary.restore(context,name,model.display.value)
+                }.getOrNull()
+                if(candidate!=null) {
+                    LiquidAlertDialog(
+                        onDismissRequest={previewThemeName=null},
+                        title={Text(name,maxLines=1,
+                            overflow=TextOverflow.Ellipsis)},
+                        text={MbThemePreview(candidate)},
+                        confirmButton={TextButton(onClick={
+                            model.setDisplay(candidate)
+                            previewThemeName=null
+                            themeFeedback="Theme applied: $name"
+                        }) {Text("Apply theme")}},
+                        dismissButton={TextButton(onClick={previewThemeName=null}) {
+                            Text("Cancel")
+                        }})
+                } else LaunchedEffect(name) {
+                    themeFeedback="Saved theme cannot be read."
+                    previewThemeName=null
                 }
             }
             removeThemeName?.let {name->
