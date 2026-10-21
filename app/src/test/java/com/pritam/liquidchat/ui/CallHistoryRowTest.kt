@@ -15,6 +15,19 @@ class CallHistoryRowTest {
         assertEquals("Declined",row(outgoing=true,outcome="declined").direction)
     }
 
+    @Test fun callHistoryMediaFiltersRetainCorrectRowsAndOriginalData() {
+        val incomingVoice=row(outgoing=false,outcome="missed").copy(id="voice-in",kind="audio")
+        val outgoingVoice=row(outgoing=true).copy(id="voice-out",kind="audio")
+        val video=row(outgoing=true).copy(id="video-out",kind="video")
+        val source=listOf(incomingVoice,outgoingVoice,video)
+        assertEquals(source,filterCallHistory(source,"All"))
+        assertEquals(listOf(incomingVoice),filterCallHistory(source,"Missed"))
+        assertEquals(listOf(incomingVoice,outgoingVoice),filterCallHistory(source,"Voice"))
+        assertEquals(listOf(video),filterCallHistory(source,"Video"))
+        assertEquals(source,filterCallHistory(source,"unknown"))
+        assertEquals(3,source.size)
+    }
+
     @Test fun callHistoryRedialRequestsSameMediaPermissionsAsChat() {
         assertArrayEquals(arrayOf(android.Manifest.permission.RECORD_AUDIO),
             callHistoryRequiredPermissions("audio"))
