@@ -338,7 +338,12 @@ import kotlinx.coroutines.launch
     }
     if(!inboxDisplay.hideHomeFloatingButtons) Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=78.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         if(!inboxDisplay.hidePhotoShortcut) GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
-        FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
+        // Reference mode already exposes the 56dp new-chat button directly
+        // beside the bottom navigation. Avoid rendering a duplicate floating FAB.
+        if(inboxDisplay.navBarStyle!="Reference") FloatingActionButton(
+            onClick=onContacts,shape=CircleShape,
+            containerColor=Color(0xFF00A6E8),contentColor=Color.White,
+            modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
     selectedChat?.let {c->
