@@ -1548,6 +1548,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val uploadFlow=remember(model,message.account,message.id) {model.repository.uploadProgress(message.account,message.id)}
     val uploadPercent by uploadFlow.collectAsStateWithLifecycle(initialValue=null)
     val mine=message.sender==message.account
+    val isSticker=message.mediaKind=="sticker"&&message.deletedAt.isEmpty()
     val bubbleDisplay=LocalDisplayOptions.current
     var swipe by remember(message.id) {mutableFloatStateOf(0f)}
     val threshold=with(LocalDensity.current) {72.dp.toPx()}
@@ -1567,16 +1568,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         Surface(
             shape=conversationBubbleShape(bubbleDisplay.bubbleStyle,mine),
             color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
-                else bubbleSurfaceColor(bubbleDisplay,mine,LocalGlassDark.current,
+                else if(isSticker)Color.Transparent else bubbleSurfaceColor(bubbleDisplay,mine,LocalGlassDark.current,
                     if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
                     else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)),
-            border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
-            shadowElevation=2.dp,
-            modifier=Modifier.widthIn(max=bubbleWidth).glassSource()
+            border=if(isSticker)null else androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
+            shadowElevation=if(isSticker)0.dp else 2.dp,
+            modifier=Modifier.widthIn(max=bubbleWidth).then(if(isSticker)Modifier else Modifier.glassSource())
                 .combinedClickable(onClick={if(selectionMode)onSelect()},
                     onLongClick={if(selectionMode)onSelect() else onLongClick()})
         ) {
-            Column(Modifier.padding(horizontal=11.dp,vertical=9.dp)) {
+            Column(Modifier.padding(horizontal=if(isSticker)0.dp else 11.dp,vertical=if(isSticker)2.dp else 9.dp)) {
                 if(message.deletedAt.isNotEmpty()) {
                     Text("This message was deleted",
                         style=MaterialTheme.typography.bodyMedium,
@@ -2471,7 +2472,7 @@ if(section=="Liquid Chat Home Screen") {
 
 @Composable internal fun SharedImagePreview(model:AppViewModel,message:Message,thumbnail:Boolean=false) {
     var open by remember(message.id) {mutableStateOf(false)}
-    ProtectedImage(model.backend,message.mediaId,message.localImage,if(message.mediaKind=="sticker")"Shared sticker" else "Shared photo",Modifier.fillMaxWidth().aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
+    ProtectedImage(model.backend,message.mediaId,message.localImage,if(message.mediaKind=="sticker")"Shared sticker" else "Shared photo",(if(message.mediaKind=="sticker")Modifier.width(192.dp) else Modifier.fillMaxWidth()).aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
