@@ -53,7 +53,7 @@ internal object MbHelpTopics {
 @Composable internal fun MbTipsAndHelp(onNavigate:(String)->Unit) {
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("Tips & Help",style=MaterialTheme.typography.titleLarge)
-        Text("Use these working Liquid Chat controls. Your messages and Supabase account stay on Liquid Chat, not WhatsApp.",
+        Text("Use these working Liquid Chat controls. Your messages and account remain exclusively in Liquid Chat.",
             style=MaterialTheme.typography.bodyMedium,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
