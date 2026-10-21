@@ -12,7 +12,7 @@ import java.util.UUID
 
 object Images {
     data class Prepared(val file:File,val width:Int,val height:Int)
-    suspend fun prepare(context:Context,uri:Uri,account:String):Prepared=withContext(Dispatchers.IO) {
+    suspend fun prepare(context:Context,uri:Uri,account:String,hd:Boolean=false):Prepared=withContext(Dispatchers.IO) {
         val directory=File(context.filesDir,"media/$account").apply {mkdirs()}
         val original=File(directory,"${UUID.randomUUID()}.source")
         val compressed=File(directory,"${UUID.randomUUID()}.jpg")
@@ -24,12 +24,21 @@ object Images {
             val bitmap=ImageDecoder.decodeBitmap(ImageDecoder.createSource(original)) {decoder,info,_->
                 val w=info.size.width;val h=info.size.height
                 if(w.toLong()*h>25000000)throw IOException("Choose a smaller image.")
-                val scale=minOf(1.0,2048.0/maxOf(w,h))
+                val scale=minOf(1.0,(if(hd)3072.0 else 2048.0)/maxOf(w,h))
                 decoder.setTargetSize(maxOf(1,(w*scale).toInt()),maxOf(1,(h*scale).toInt()))
                 decoder.allocator=ImageDecoder.ALLOCATOR_SOFTWARE
             }
             val w=bitmap.width;val h=bitmap.height
-            try {compressed.outputStream().use {check(bitmap.compress(Bitmap.CompressFormat.JPEG,85,it))}} finally {bitmap.recycle()}
+            try {
+                compressed.outputStream().use {
+                    check(bitmap.compress(Bitmap.CompressFormat.JPEG,if(hd)90 else 85,it))
+                }
+                if(compressed.length()>9_500_000L)compressed.outputStream().use {
+                    check(bitmap.compress(Bitmap.CompressFormat.JPEG,72,it))
+                }
+                if(compressed.length()>9_500_000L)throw IOException(
+                    "Image exceeds the upload limit. Choose a smaller photo.")
+            } finally {bitmap.recycle()}
             Prepared(compressed,w,h)
         } catch(e:Exception) {compressed.delete();throw e} finally {original.delete()}
     }
