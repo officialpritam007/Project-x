@@ -698,7 +698,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         HorizontalDivider(Modifier.padding(vertical=8.dp))
                         GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
                             onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
-                        GlassActionRow("Wallpaper",Icons.Outlined.Wallpaper,onClick={menu=false;appearance=true})
+                        GlassActionRow("Chat appearance",Icons.Outlined.Wallpaper,onClick={menu=false;appearance=true})
                         GlassActionRow(if(c.favorite)"Remove favorite" else "Favorite",Icons.Outlined.StarOutline,
                             onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
                         GlassActionRow(if(c.archived)"Unarchive" else "Archive",Icons.Outlined.Archive,
@@ -1000,7 +1000,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     if(appearance)LiquidAlertDialog(
         onDismissRequest={appearance=false},
-        title={Text("Chat wallpaper")},
+        title={Text("Chat appearance")},
         text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()),
             verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Text("Choose a built-in palette, private photo or muted MP4 video from this phone.",
