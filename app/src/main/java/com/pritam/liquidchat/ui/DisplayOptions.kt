@@ -44,6 +44,8 @@ data class DisplayOptions(
     val incomingInk:String="Theme",
     val quotedInk:String="Theme",
     val timestampInk:String="Theme",
-    val customAccentHex:String="#00789D"
+    val customAccentHex:String="#00789D",
+    val outgoingBubbleHex:String="#D0EDFB",
+    val incomingBubbleHex:String="#FAFDFF"
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
