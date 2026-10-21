@@ -19,7 +19,7 @@ android {
         buildConfigField("String","FCM_PROJECT_ID", "\"" + (System.getenv("FCM_PROJECT_ID") ?: "") + "\"")
         buildConfigField("String","FCM_API_KEY", "\"" + (System.getenv("FCM_API_KEY") ?: "") + "\"")
         buildConfigField("String","FCM_SENDER_ID", "\"" + (System.getenv("FCM_SENDER_ID") ?: "") + "\"")
-        buildConfigField("boolean","ENABLE_EXPERIMENTAL_CALLS",if(System.getenv("ENABLE_EXPERIMENTAL_CALLS")=="true") "true" else "false")
+        buildConfigField("boolean","ENABLE_EXPERIMENTAL_CALLS",if(System.getenv("ENABLE_EXPERIMENTAL_CALLS")?.equals("false",ignoreCase=true)==true) "false" else "true")
         versionCode = 18
         versionName = "1.0.0-rc11-liquid-preview"
     }
