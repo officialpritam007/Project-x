@@ -1433,6 +1433,32 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     FilterChip(selected=display.accentColor==value,onClick={model.setDisplay(display.copy(accentColor=value))},label={Text(value)})
                 }
             }
+            Text("Custom accent color · #RRGGBB",style=MaterialTheme.typography.labelLarge)
+            var accentHexInput by rememberSaveable {mutableStateOf(display.customAccentHex)}
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value=accentHexInput,
+                    onValueChange={accentHexInput=it.take(7)},
+                    label={Text("Hex color")},
+                    singleLine=true,
+                    isError=accentHexInput.isNotBlank() && normalizedAccentHex(accentHexInput)==null,
+                    modifier=Modifier.weight(1f)
+                )
+                FilledTonalButton(
+                    enabled=normalizedAccentHex(accentHexInput)!=null,
+                    onClick={
+                        normalizedAccentHex(accentHexInput)?.let {hex->
+                            model.setDisplay(display.copy(accentColor="Custom",customAccentHex=hex))
+                        }
+                    }
+                ) {Text("Apply")}
+            }
+            if(display.accentColor=="Custom") Text(
+                "Custom accent applied across Liquid Chat · ${display.customAccentHex}",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.primary
+            )
             Text("App font family",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("System","Serif","Mono","Cursive").forEach {value ->
