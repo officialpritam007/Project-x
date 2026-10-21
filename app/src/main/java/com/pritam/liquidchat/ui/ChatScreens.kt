@@ -598,6 +598,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
+    val playOutgoingConversationCue=rememberConversationSendCue(
+        model,cid,session?.userId,messages,messagesReady==cid,
+        chat?.lastSeq ?: 0L,chat?.muted!=false,foreground)
     var exportOwner by remember(cid) {mutableStateOf<String?>(null)}
     var exportFeedback by remember(cid) {mutableStateOf<String?>(null)}
     val exportChatText=rememberLauncherForActivityResult(
@@ -1091,6 +1094,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     val submittedVersion=draftVersion
                     queueing=true
                     model.send(cid,submittedBody,submittedReply,submittedVersion){
+                        playOutgoingConversationCue()
                         // Preserve any new draft typed while the previous message was being queued.
                         if(draftVersion==submittedVersion&&input.text==submittedBody&&replyTo==submittedReply){input=TextFieldValue("");replyTo=""}
                     }.invokeOnCompletion {queueing=false}
