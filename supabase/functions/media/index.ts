@@ -34,52 +34,57 @@ Deno.serve(async req => {
       if (!(file instanceof File) || file.size < 12 || file.size > 10485760) return reply({ error: "Invalid image" }, 400);
       const sticker = form.get("kind") === "sticker";
       const document = form.get("kind") === "document";
+      const chatVideo = form.get("kind") === "chat_video";
       const mediaKind = form.get("kind");
-      if(mediaKind!==null && !["voice","story_video","sticker","document"].includes(String(mediaKind)))
+      if(mediaKind!==null && !["voice","story_video","sticker","document","chat_video"].includes(String(mediaKind)))
         return reply({error:"Unsupported media kind"},400);
       const voice = mediaKind === "voice";
       const storyVideo = form.get("kind") === "story_video";
       const cid = form.get("conversation_id");
       if (storyVideo && cid) return reply({ error: "Video stories are not chat attachments" }, 400);
+      if (chatVideo && !cid) return reply({error:"Chat video needs a conversation"},400);
       if (sticker && (!cid || file.size > 524288))
         return reply({error:"Stickers require a conversation and a 512 KB PNG"},400);
       if(document && (!cid || file.size > 8388608))
         return reply({error:"PDF documents require a chat and must be at most 8 MB"},400);
-      resourceType = voice || storyVideo ? "video" : "image";
+      resourceType = voice || storyVideo || chatVideo ? "video" : "image";
       if (voice && file.size > 2097152) return reply({ error: "Voice exceeds 2 MB" }, 413);
       if (storyVideo && file.size > 8388608) return reply({ error: "Video story exceeds 8 MB" }, 413);
+      if (chatVideo && file.size > 8388608) return reply({ error: "Video attachment exceeds 8 MB" }, 413);
       const magic = new Uint8Array(await file.slice(0, 12).arrayBuffer());
       const jpeg = magic[0] === 255 && magic[1] === 216 && magic[2] === 255;
       const png = magic[0] === 137 && magic[1] === 80 && magic[2] === 78 && magic[3] === 71;
       const webp = String.fromCharCode(...magic.slice(0, 4)) === "RIFF" && String.fromCharCode(...magic.slice(8, 12)) === "WEBP";
       const mp4 = String.fromCharCode(...magic.slice(4, 8)) === "ftyp";
-      if (voice || storyVideo ? !mp4 : sticker ? !png : document ? !(magic[0]===37 && magic[1]===80 && magic[2]===68 && magic[3]===70) : (!jpeg && !png && !webp)) return reply({ error: "Invalid media format" }, 400);
+      if (voice || storyVideo || chatVideo ? !mp4 : sticker ? !png : document ? !(magic[0]===37 && magic[1]===80 && magic[2]===68 && magic[3]===70) : (!jpeg && !png && !webp)) return reply({ error: "Invalid media format" }, 400);
       const { data: intent, error } = await user.rpc("prepare_upload", {
         p_conversation: cid || null,
-        p_kind: storyVideo ? "story_video" : voice ? "voice" : sticker ? "sticker" : document ? "document" : "image",
+        p_kind: storyVideo ? "story_video" : chatVideo ? "chat_video" : voice ? "voice" : sticker ? "sticker" : document ? "document" : "image",
         // Never route video stories to a paid/unconfigured media provider.
-        p_provider: storyVideo || sticker || document || !cloudReady ? "supabase" : "cloudinary"
+        p_provider: storyVideo || chatVideo || sticker || document || !cloudReady ? "supabase" : "cloudinary"
       });
       if (error) return reply({ error: "Upload unavailable for this account or contact" }, 403);
-      if (storyVideo || sticker || document || !cloudReady) {
+      if (storyVideo || chatVideo || sticker || document || !cloudReady) {
         const data = new Uint8Array(await file.arrayBuffer());
         let width=0,height=0,duration=0;
         try {
-          if(storyVideo)({duration,width,height}=inspectStoryVideoMp4(data));
+          if(storyVideo || chatVideo)({duration,width,height}=inspectStoryVideoMp4(data));
           else if(sticker)({width,height}=inspectStickerPng(data));
           else if(document)inspectPdf(data);
           else if(voice)duration=inspectAacMp4(data).duration;
           else {const size=inspectJpeg(data);width=size.width;height=size.height;}
         } catch {
-          return reply({error:document?"Use a valid PDF document under 8 MB":sticker?"Use a valid 512x512 RGBA PNG sticker under 512 KB":storyVideo?"Use a valid H.264/AAC MP4 video at 720p, no longer than 30s (max 8 MB)":voice?"Use a valid AAC voice message under 120 seconds":"Use a valid JPEG image"},400);
+          return reply({error:document?"Use a valid PDF document under 8 MB":sticker?"Use a valid 512x512 RGBA PNG sticker under 512 KB":(storyVideo||chatVideo)?"Use a valid H.264/AAC MP4 video at 720p, no longer than 30s (max 8 MB)":voice?"Use a valid AAC voice message under 120 seconds":"Use a valid JPEG image"},400);
         }
-        const format=storyVideo?"mp4":voice?"m4a":sticker?"png":document?"pdf":"jpg";
+        const format=(storyVideo||chatVideo)?"mp4":voice?"m4a":sticker?"png":document?"pdf":"jpg";
         storagePath=intent.public_id+"."+format;
         const {error: providerError}=await admin.rpc("set_media_provider",{p_id:intent.id,p_provider:"supabase"});
         if(providerError)throw new Error("Invalid upload");
-        const {error: uploadError}=await admin.storage.from("liquid-media").upload(storagePath,data,{contentType:storyVideo?"video/mp4":voice?"audio/mp4":sticker?"image/png":document?"application/pdf":"image/jpeg",cacheControl:"0",upsert:false});
+        const {error: uploadError}=await admin.storage.from("liquid-media").upload(storagePath,data,{contentType:(storyVideo||chatVideo)?"video/mp4":voice?"audio/mp4":sticker?"image/png":document?"application/pdf":"image/jpeg",cacheControl:"0",upsert:false});
         if(uploadError)throw new Error("Storage upload failed");
-        const finalized=document
+        const finalized=chatVideo
+          ? await admin.rpc("finalize_chat_video",{p_id:intent.id,p_duration:duration,p_width:width,p_height:height,p_bytes:file.size})
+          : document
           ? await admin.rpc("finalize_document",{p_id:intent.id,p_bytes:file.size})
           : sticker
           ? await admin.rpc("finalize_sticker",{p_id:intent.id,p_bytes:file.size})
@@ -112,7 +117,7 @@ Deno.serve(async req => {
     if (body.action !== "download" || typeof body.id !== "string") return reply({ error: "Invalid request" }, 400);
     const { data: image, error } = await user.rpc("image_access", { p_id: body.id });
     if (error || !image) return reply({ error: "Image unavailable" }, 403);
-    const expires = image.kind === "voice" ? 180 : image.kind === "story_video" ? 90 : 60;
+    const expires = image.kind === "voice" ? 180 : (image.kind === "story_video" || image.kind==="chat_video") ? 90 : 60;
     if(image.provider==="supabase") {
       const {data,error}=await admin.storage.from("liquid-media").createSignedUrl(image.public_id+"."+image.format,expires);
       if(error||!data?.signedUrl)return reply({error:"Media unavailable"},503);
