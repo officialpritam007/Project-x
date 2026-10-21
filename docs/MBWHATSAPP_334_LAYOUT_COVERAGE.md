@@ -10,7 +10,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_alert_sticker.xml` | Partial | Sticker creator + saved shelf | Animated packs, exact dialog and segmentation missing |
 | `mb_animations.xml` | Partial | DisplayOptions animation settings | Touch and snow overlays not verified |
 | `mb_bomb_dialog.xml` | Unmapped | No confirmed safe counterpart | Decode actual dialog interaction before claiming feature |
-| `mb_bottom_iosv2.xml` | Partial | GlassNavigation | Exact size, icons and animation not verified |
+| `mb_bottom_iosv2.xml` | Partial | Reference-mode GlassNavigation: 56dp five-slot footer, 30dp reference icons and eight owner-supplied selected/unselected icon files, 11sp labels, 90dp selection line, account-scoped unread badge | Correct reference destination mapping, font/pixel states, alternate navigation and emulator verification remain unproven |
 | `mb_bottom_iosv2_ot.xml` | Partial | GlassNavigation variants | Alternate reference layout not matched |
 | `mb_box_item.xml` | Partial | GlassCard | Exact spacing and hierarchy unverified |
 | `mb_colorpicker_layout.xml` | Partial | Custom hex and photo-accent settings | Exact color-picker palette unverified |
@@ -28,14 +28,14 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_error_activity.xml` | Partial | Existing errors/retry dialogs | Dedicated reference-style error screen absent |
 | `mb_general_settings.xml` | Partial | General Settings | All source sliders/switches not enumerated yet |
 | `mb_home_settings.xml` | Partial | Home Screen Settings | Full reference tab and wallpaper options unverified |
-| `mb_home_tab.xml` | Partial | Chats home tabs + custom folders | Exact tab layout/animation unverified |
-| `mb_home_toolbar.xml` | Partial | GlassHeader | Pixel and icon parity unverified |
+| `mb_home_tab.xml` | Partial | Chats home tabs/custom folders, reference footer-adjacent 56dp New Chat action opening Contacts (no duplicate floating FAB) | Reference tab arrangement, alternate statuses, animations and screenshot match still unverified |
+| `mb_home_toolbar.xml` | Partial | Reference-mode 47dp header, default 17sp title, 28dp Liquid Chat logo and existing toolbar actions | Exact action icon sizes, colors, positioning and pixel parity remain unverified |
 | `mb_image_picker.xml` | Partial | Android picker, 10-photo selection, per-photo removal, reorder, individual crop/rotate/flip/B&W edit, first-photo caption, atomic private outbox; separate Undo/Redo photo editor | Original gallery selector geometry, group-send presentation and device proof missing |
 | `mb_info.xml` | Partial | ContactMediaDialog | Reference account/details UI unverified |
 | `mb_info_profile.xml` | Partial | Profile and contact information | Layout and gestures unverified |
 | `mb_info_row_text.xml` | Partial | Contact/profile information rows | Reference typography unverified |
 | `mb_item_expandable.xml` | Partial | Settings sections and cards | Animated expand/collapse not matched |
-| `mb_item_settings.xml` | Partial | MbPreferencesLanding | All control destinations not mapped |
+| `mb_item_settings.xml` | Partial | MB-style 48dp rows with 24dp leading/trailing icons, 15dp start and 10dp end insets; genuine Liquid Chat settings destinations | Some reference icons, control density and nested source destinations not matched |
 | `mb_layout_menu_item.xml` | Partial | GlassActionRow | Menu item art and spacing not verified |
 | `mb_list_layout.xml` | Partial | Compose preference lists | Full reference item density unverified |
 | `mb_list_layout_dialog.xml` | Partial | LiquidActionSheet | Reference scrolling/scrim unverified |
@@ -45,7 +45,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_new_dialog_bottom.xml` | Partial | LiquidActionSheet | Reference animation/geometry unverified |
 | `mb_notify_settings.xml` | Partial | Notification Settings + DND/landscape quiet mode | Contact-specific status notification options missing |
 | `mb_pop_view_layout.xml` | Partial | Long-press conversation preview | Pixel/layout/gesture parity unverified |
-| `mb_preferences.xml` | Partial | MbPreferencesLanding | Complete nested navigation/parity unverified |
+| `mb_preferences.xml` | Partial | Centered 110dp Liquid Chat logo, 20dp margins, 14sp section labels, inset dividers, connected General/Home/Conversation/Themes/Privacy/Notifications routes | Full binary layout/animation parity and some original menu groupings not verified |
 | `mb_privacy_settings.xml` | Partial | Server-backed Ghost Mode + privacy settings | Per-contact exceptions not implemented |
 | `mb_prof_d.xml` | Partial | Liquid Chat profile card | Exact arrangement and edit screen unverified |
 | `mb_search_view.xml` | Partial | GlassSearch + message search filters | Full reference global search UI missing |
@@ -75,6 +75,13 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 - PDF picker additionally supports selecting up to **five different files**. Each is copied into the signed-in account's private directory with bounded 8 MiB validation; the preview allows removing a document; `ChatRepository.sendDocuments` inserts all chosen independent PDF messages in a single Room transaction, then schedules one existing outbox drain. No server album grouping or deployed backend support is claimed.
 - Global downloaded-history search now intersects results with active account, its currently known conversation IDs, non-deleted and sent-only state. Plain-text type filter no longer includes unsent/unqueued attachments that have not yet been assigned media IDs.
 - These are source-only direct-main changes with `[skip ci]`; no CI, tests, migrations, Edge deployments or APK verification have been executed per user instruction.
+
+## 21 October 2026 — direct reference-icon/layout port (source only)
+
+- The owner-supplied APK's **eight original selected/unselected navigation PNG icons** for Chats, Calls, People/Contacts and Settings were extracted, bounded to 96×96 transparent raster canvases and committed as `app/src/main/assets/liquid_reference/ref_*.png`. They are used only in `DisplayOptions.navBarStyle == "Reference"`, via Coil's bundled-asset decoder; all resource paths are Liquid-branded. The app's Profile tab deliberately keeps its existing profile icon instead of pretending to be a WhatsApp-specific Status/Communities route.
+- Reference navbar measures 56dp, default 30dp icons, five weight-balanced tab regions, 11sp captions, and a selection line. New Chat has a 56dp dedicated footer-adjacent action on the home tab wired to the real Contacts screen; its duplicate floating FAB is suppressed in Reference style. No username or avatar data was copied from the APK.
+- Reference home toolbar uses 47dp, default 17sp title and a 28dp branded Liquid Chat icon. MB Preferences is reshaped with a 110dp centered **Liquid Chat** logo, 20dp outer margins, 14sp section headings and 48dp settings rows with 24dp icons.
+- Original assets are supplied solely as visual reference; the old Figma/Liquid theme remains available. This source-only port has **not** been compiled, linted, screen-captured or physically tested at the owner's request. Actual MB menu destination mapping, animations, complex layouts and pixel-perfect behavior are still incomplete. Do not claim full parity.
 
 ## Backend and release dependencies
 
