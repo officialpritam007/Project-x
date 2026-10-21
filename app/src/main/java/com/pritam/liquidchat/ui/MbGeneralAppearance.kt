@@ -57,12 +57,9 @@ internal fun scaledAppDensity(parent:Density,uiPercent:Int,textPercent:Int):Dens
     val ui=uiPercent.coerceIn(85,120)/100f
     val text=textPercent.coerceIn(90,130)/100f
     if(ui==1f && text==1f)return parent
-    return object:Density {
-        override val density:Float=parent.density*ui
-        override val fontScale:Float=parent.fontScale*text
-        override fun Dp.toSp():TextUnit = with(parent) {(this@toSp/text).toSp()}
-        override fun TextUnit.toDp():Dp = with(parent) {this@toDp.toDp()}*text
-    }
+    // Compose's Density factory supplies the correct FontScaling conversions
+    // for both sp and dp; custom overrides can accidentally double-scale text.
+    return Density(parent.density*ui,parent.fontScale*text)
 }
 
 @Composable private fun MbOptionalAppColor(
