@@ -29,6 +29,8 @@ data class DisplayOptions(
     val quickReactions:String=MbQuickReactions.defaultSetting,
     val navigationOrder:String=MbNavigationOrder.DEFAULT,
     val homeAvatarSize:Int=52,
-    val homeRowPadding:Int=11
+    val homeRowPadding:Int=11,
+    val hideHomeSearch:Boolean=false,
+    val showHomeDividers:Boolean=false
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}

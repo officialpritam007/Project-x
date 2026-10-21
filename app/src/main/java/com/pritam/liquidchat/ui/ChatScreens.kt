@@ -146,6 +146,13 @@ import kotlinx.coroutines.flow.drop
         }
     }
     val inboxDisplay=LocalDisplayOptions.current
+    LaunchedEffect(inboxDisplay.hideHomeSearch) {
+        // Disabling search must not leave an invisible query filtering the inbox.
+        if(inboxDisplay.hideHomeSearch && query.isNotEmpty()) {
+            query=""
+            model.search("")
+        }
+    }
     val activeFilter=if(inboxDisplay.hideArchiveAccess && filter==2)0 else filter
     LaunchedEffect(menu,signedInAccount?.userId) {
         if(menu && signedInAccount!=null) {
@@ -237,7 +244,7 @@ import kotlinx.coroutines.flow.drop
                 else {selectedStoryId=id;stories=true}
             }
         )
-        GlassSearch(query,{query=it;model.search(it)},"Search Chats")
+        if(!inboxDisplay.hideHomeSearch) GlassSearch(query,{query=it;model.search(it)},"Search Chats")
         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             listOf(0 to "All",1 to "Favorite",2 to "Archive",3 to "Unread")
                 .filter {it.first!=2 || !inboxDisplay.hideArchiveAccess}
@@ -253,6 +260,9 @@ import kotlinx.coroutines.flow.drop
                 // Wrapping it in a second clickable creates overlapping semantics
                 // and can trigger duplicate navigation / long-press actions.
                 ChatRow(chat,model.backend,onClick={model.open(chat.id)},onLongClick={selectedChat=chat})
+                if(inboxDisplay.showHomeDividers) HorizontalDivider(
+                    modifier=Modifier.padding(start=78.dp),
+                    color=MaterialTheme.colorScheme.outlineVariant)
             }
             if(query.isNotBlank()) {
                 val visibleResults=results.filter {it.deletedAt.isEmpty()}
@@ -1234,7 +1244,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
-            if(title in listOf("Devices","Language","Chat Folders")) unavailable=title else section=title
+            val destination=if(title=="Liquid Chat Preferences")"MB Preferences" else title
+            if(destination in listOf("Devices","Language","Chat Folders")) unavailable=destination else section=destination
         }
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
@@ -1314,7 +1325,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty(),style=MaterialTheme.typography.headlineSmall)}
+        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("MB General Settings","MB Conversation Screen","MB Home Screen","MB Themes","MB Privacy","MB Notifications"))"MB Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("MB "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Data and Storage") DataStorage(model)
         if(section=="MB Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Themes",style=MaterialTheme.typography.titleLarge)
@@ -1370,8 +1381,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             ) {Text("Remove photo")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
-        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
-            Text("Appearance",style=MaterialTheme.typography.titleMedium)
+        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) {
+            if(section=="MB General Settings") GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
+                Column(Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text("General settings",style=MaterialTheme.typography.titleLarge)
+                    Text("Customize appearance, motion and storage using working Liquid Chat controls.",
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text(if(section=="MB General Settings")"Theme & typography" else "Appearance",
+                    style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
             Text("Main theme color",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -1388,9 +1410,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
             Text("Uses Android's built-in fonts; imports no private font files.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Motion & accessibility",style=MaterialTheme.typography.titleMedium)
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Liquid Glass effects",style=MaterialTheme.typography.titleMedium)
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
             HorizontalDivider()
             Text("Liquid Glass blur intensity",style=MaterialTheme.typography.titleSmall)
@@ -1398,12 +1426,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Slider(value=display.blurIntensity.toFloat(),onValueChange={value->model.setDisplay(display.copy(blurIntensity=value.toInt()))},valueRange=0f..100f,enabled=!display.reducedTransparency,modifier=Modifier.fillMaxWidth())
             Text("Lower values reduce blur; Reduced transparency overrides this setting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        }
         // MB General's cache control reuses the already-safe Coil-only cleanup.
         // Never expose "clear all" actions that would erase the durable Room outbox.
         if(section=="MB General Settings") DataStorage(model)
-        if(section=="MB Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-            Text("Home Screen",style=MaterialTheme.typography.titleLarge)
-            Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
+        
+if(section=="MB Home Screen") {
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Home Screen",style=MaterialTheme.typography.titleLarge)
+                Text("Personalize your Liquid Chat inbox; all settings work with existing conversations.", 
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Bottom navigation & tabs",style=MaterialTheme.typography.titleMedium)
+                Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
             Text("Reorder tabs · all five destinations remain accessible",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             MbNavigationOrder.parse(display.navigationOrder).forEachIndexed {position,destination ->
@@ -1444,8 +1480,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
                 valueRange=9f..15f,steps=5,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide home search",style=MaterialTheme.typography.titleSmall)
+                        Text("The search field disappears but can be restored here.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.hideHomeSearch,
+                        onCheckedChange={model.setDisplay(display.copy(hideHomeSearch=it))})
+                }
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("Show my profile name as title",Modifier.weight(1f))
                 Switch(display.showProfileAsTitle,{model.setDisplay(display.copy(showProfileAsTitle=it))})
             }
@@ -1470,14 +1517,27 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
                 valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
-            HorizontalDivider()
-            Text("Photo wallpaper dimming · ${display.homeWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Home wallpaper",style=MaterialTheme.typography.titleMedium)
+                Text("Photo wallpaper dimming · ${display.homeWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(homeWallpaperDim=it.toInt()))},
                 valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
             Text("50% keeps the previous Home wallpaper appearance. Changes apply to locally selected photos.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider()
-            Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Chat list & typography",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Show chat dividers",style=MaterialTheme.typography.titleSmall)
+                        Text("Show separators between conversation rows.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.showHomeDividers,
+                        onCheckedChange={model.setDisplay(display.copy(showHomeDividers=it))})
+                }
+                Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeAvatarSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeAvatarSize=it.toInt()))},
                 valueRange=40f..68f,steps=27,modifier=Modifier.fillMaxWidth())
             Text("Conversation row spacing · ${display.homeRowPadding} dp",style=MaterialTheme.typography.titleSmall)
@@ -1492,16 +1552,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Conversation preview size · ${display.homeChatPreviewSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeChatPreviewSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatPreviewSize=it.toInt()))},
                 valueRange=12f..18f,steps=5,modifier=Modifier.fillMaxWidth())
+
+            }
         }
-        if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-            Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
-            Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
+                if(section=="MB Conversation Screen") {
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
+                Text("Customize private chats without changing messages, delivery or call behavior.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Wallpaper & contrast",style=MaterialTheme.typography.titleMedium)
+                Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.chatWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(chatWallpaperDim=it.toInt()))},
                 valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
             Text("50% preserves the original conversation wallpaper contrast. Only locally selected photos use this control.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider()
-            Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Message bubbles",style=MaterialTheme.typography.titleMedium)
+                Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("Tail","Rounded","Compact").forEach {style ->
                     FilterChip(selected=display.bubbleStyle==style,onClick={model.setDisplay(display.copy(bubbleStyle=style))},label={Text(style)})
@@ -1513,8 +1583,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     FilterChip(selected=display.bubbleColor==palette,onClick={model.setDisplay(display.copy(bubbleColor=palette))},label={Text(palette)})
                 }
             }
-            HorizontalDivider()
-            Text("Quick reaction emojis · choose 1–6",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Reactions & text",style=MaterialTheme.typography.titleMedium)
+                Text("Quick reaction emojis · choose 1–6",style=MaterialTheme.typography.titleSmall)
             Text("Only reactions accepted by the current messaging server can be selected.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             androidx.compose.foundation.layout.FlowRow(
@@ -1537,8 +1609,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
                 valueRange=14f..22f,steps=7,modifier=Modifier.fillMaxWidth())
-            HorizontalDivider()
-            Text("Preview",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Live message preview",style=MaterialTheme.typography.titleMedium)
+                Text("Preview",style=MaterialTheme.typography.titleSmall)
             listOf(false,true).forEach {mine ->
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
                     Surface(shape=conversationBubbleShape(display.bubbleStyle,mine),
@@ -1549,6 +1623,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp))
                     }
                 }
+            }
+
             }
         }
         if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {

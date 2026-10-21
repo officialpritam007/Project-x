@@ -108,7 +108,7 @@ internal object MbReferencePreferenceSections {
             IconButton(onClick=onBack) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack,contentDescription="Back to Settings")
             }
-            Text("MB Preferences",style=MaterialTheme.typography.headlineSmall)
+            Text("Liquid Chat Preferences",style=MaterialTheme.typography.headlineSmall)
         }
         GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
             Row(Modifier.fillMaxWidth().padding(18.dp),
@@ -116,7 +116,7 @@ internal object MbReferencePreferenceSections {
                 horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                 Box(Modifier.size(72.dp).background(
                     MaterialTheme.colorScheme.primaryContainer,CircleShape)
-                    .semantics {contentDescription="MB Preferences icon"},
+                    .semantics {contentDescription="Liquid Chat Preferences icon"},
                     contentAlignment=Alignment.Center) {
                     Icon(Icons.Outlined.Tune,contentDescription=null,
                         modifier=Modifier.size(34.dp),tint=MaterialTheme.colorScheme.primary)

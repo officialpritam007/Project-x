@@ -49,6 +49,8 @@ internal object MbThemeTransfer {
         put("chatWallpaperDim",options.chatWallpaperDim)
         put("homeAvatarSize",options.homeAvatarSize)
         put("homeRowPadding",options.homeRowPadding)
+        put("hideHomeSearch",options.hideHomeSearch)
+        put("showHomeDividers",options.showHomeDividers)
     }.toString(2)
 
     /**
@@ -95,7 +97,9 @@ internal object MbThemeTransfer {
             homeWallpaperDim=number("homeWallpaperDim",current.homeWallpaperDim,0,100),
             chatWallpaperDim=number("chatWallpaperDim",current.chatWallpaperDim,0,100),
             homeAvatarSize=number("homeAvatarSize",current.homeAvatarSize,40,68),
-            homeRowPadding=number("homeRowPadding",current.homeRowPadding,6,20)
+            homeRowPadding=number("homeRowPadding",current.homeRowPadding,6,20),
+            hideHomeSearch=bool("hideHomeSearch",current.hideHomeSearch),
+            showHomeDividers=bool("showHomeDividers",current.showHomeDividers)
         )
     }
 }
