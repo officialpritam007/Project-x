@@ -56,8 +56,11 @@ import com.pritam.liquidchat.data.Images
     if(edit) {BackHandler {edit=false};Column(Modifier.verticalScroll(rememberScrollState())) {TextButton(onClick={edit=false}){Text("Back to Profile")};ProfileScreen(model,busy)};return}
     MomentsPanel(model,"post",mine=true,archived=archived,modifier=Modifier.fillMaxSize().padding(horizontal=12.dp),bottomPadding=84.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),header={
     Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.SpaceBetween) {
             IconButton(onClick={archived=!archived}) {Icon(Icons.Outlined.GridView,"Toggle archived posts")}
+            Text("My Profile",style=MaterialTheme.typography.titleLarge,
+                fontWeight=FontWeight.SemiBold)
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
                 LiquidDropdownMenu(menu,{menu=false}) {
                     DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
@@ -67,7 +70,13 @@ import com.pritam.liquidchat.data.Images
                 }
             }
         }
-        ProfileHero(model,large=true)
+        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            ProfileHero(model,large=true)
+            Text("Liquid Chat profile",Modifier.fillMaxWidth(),
+                style=MaterialTheme.typography.labelMedium,
+                color=MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+        }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             val actions=listOf(
                 "Set Photo" to Icons.Outlined.PhotoCamera,
@@ -184,11 +193,10 @@ import com.pritam.liquidchat.data.Images
             color=MaterialTheme.colorScheme.onSurfaceVariant,
             modifier=Modifier.padding(start=10.dp,top=4.dp))
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            // Only show real working destinations. Placeholder routes falsely
+            // advertise device linking, translation and server-backed folders.
             val rows=listOf(
-                Triple("Power Saving","Reduced motion and battery settings",Icons.Outlined.BatteryFull),
-                Triple("Chat Folders","Additional folders not yet available",Icons.Outlined.Dashboard),
-                Triple("Devices","Device management not yet available",Icons.Outlined.Devices),
-                Triple("Language","English · more languages planned",Icons.Outlined.Language)
+                Triple("Power Saving","Reduced motion and battery settings",Icons.Outlined.BatteryFull)
             )
             rows.forEachIndexed {i,(title,subtitle,icon)->
                 PremiumSettingsTile(title,subtitle,icon) {onSection(title)}
