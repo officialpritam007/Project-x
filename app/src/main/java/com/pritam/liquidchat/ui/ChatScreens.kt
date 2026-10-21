@@ -30,6 +30,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -2459,11 +2463,39 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         swipe=(swipe+if(rtl)-delta else delta).coerceIn(0f,threshold*1.3f)
         if(swipe>=threshold&&!crossed) {crossed=true;haptic.performHapticFeedback(HapticFeedbackType.LongPress)}
     }
+    val replySwipeOffset by animateFloatAsState(
+        targetValue=swipe,
+        animationSpec=if(bubbleDisplay.reducedMotion) snap()
+            else spring(dampingRatio=Spring.DampingRatioMediumBouncy,
+                stiffness=Spring.StiffnessHigh),
+        label="conversation reply gesture")
     var expanded by remember(message.id) {mutableStateOf(false)}
     var truncated by remember(message.id) {mutableStateOf(false)}
     BoxWithConstraints(Modifier.fillMaxWidth()) {
     val bubbleWidth=minOf(maxWidth*.86f,480.dp)
-    Row(Modifier.fillMaxWidth().offset {androidx.compose.ui.unit.IntOffset((if(rtl)-swipe else swipe).toInt(),0)}.draggable(drag,Orientation.Horizontal,enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),onDragStopped={if(swipe>=threshold)replyCallback();swipe=0f;crossed=false}),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
+    if(message.status=="SENT" && message.deletedAt.isEmpty() &&
+        replySwipeOffset>3f) {
+        Icon(Icons.Outlined.Reply,contentDescription="Swipe to reply",
+            modifier=Modifier.align(if(rtl)Alignment.CenterEnd else Alignment.CenterStart)
+                .padding(horizontal=12.dp).size(26.dp)
+                .graphicsLayer {
+                    val strength=(replySwipeOffset/threshold).coerceIn(0f,1f)
+                    alpha=strength
+                    scaleX=.7f+.3f*strength
+                    scaleY=.7f+.3f*strength
+                },
+            tint=MaterialTheme.colorScheme.primary)
+    }
+    Row(Modifier.fillMaxWidth().offset {
+        androidx.compose.ui.unit.IntOffset((if(rtl)-replySwipeOffset else replySwipeOffset).toInt(),0)
+    }.draggable(drag,Orientation.Horizontal,
+        enabled=message.status=="SENT"&&message.deletedAt.isEmpty(),
+        onDragStopped={
+            if(swipe>=threshold)replyCallback()
+            swipe=0f
+            crossed=false
+        }),
+        horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
         Surface(
             shape=conversationBubbleShape(bubbleDisplay.bubbleStyle,mine),
             color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
