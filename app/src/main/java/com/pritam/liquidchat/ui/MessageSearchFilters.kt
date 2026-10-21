@@ -5,7 +5,7 @@ import java.time.Instant
 import java.time.ZoneId
 
 internal enum class SearchSender(val label:String) {ANY("Anyone"),YOU("You"),CONTACT("Contact")}
-internal enum class SearchMedia(val label:String) {ANY("Any type"),TEXT("Text"),IMAGE("Photos"),STICKER("Stickers"),VOICE("Voice"),DOCUMENT("Documents")}
+internal enum class SearchMedia(val label:String) {ANY("Any type"),TEXT("Text"),IMAGE("Photos"),VIDEO("Videos"),STICKER("Stickers"),VOICE("Voice"),DOCUMENT("Documents")}
 internal enum class SearchPeriod(val label:String) {ANY("Any time"),TODAY("Today"),WEEK("Past 7 days"),MONTH("Past 30 days")}
 
 /** Applies only to downloaded, account-scoped history; never imply a server-wide search. */
@@ -30,6 +30,7 @@ internal fun filterMessageHistory(
                 SearchMedia.ANY->true
                 SearchMedia.TEXT->!media&&m.mediaKind!="voice"
                 SearchMedia.IMAGE->media&&m.mediaKind=="image"
+                SearchMedia.VIDEO->media&&m.mediaKind=="chat_video"
                 SearchMedia.STICKER->media&&m.mediaKind=="sticker"
                 SearchMedia.DOCUMENT->media&&m.mediaKind=="document"
                 SearchMedia.VOICE->m.mediaKind=="voice"
