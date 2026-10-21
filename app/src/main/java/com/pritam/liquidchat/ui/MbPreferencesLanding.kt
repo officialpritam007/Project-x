@@ -29,9 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * MBWhatsApp 3.3.4's packaged mb_preferences.xml has a top icon followed by
+ * The supplied reference APK's packaged preferences layout has a top icon and
  * rounded, divided option groups and a separate navigation host. Recreate
- * that structure with six *working Liquid Chat routes*, not copied WhatsApp
+ * that structure with six *working Liquid Chat routes*, without copying foreign
  * services or dead switches. The app already owns the bottom navigation host.
  */
 internal data class MbReferencePreference(
@@ -118,8 +118,9 @@ internal object MbReferencePreferenceSections {
                     MaterialTheme.colorScheme.primaryContainer,CircleShape)
                     .semantics {contentDescription="Liquid Chat Preferences icon"},
                     contentAlignment=Alignment.Center) {
-                    Icon(Icons.Outlined.Tune,contentDescription=null,
-                        modifier=Modifier.size(34.dp),tint=MaterialTheme.colorScheme.primary)
+                    Icon(painter=androidx.compose.ui.res.painterResource(com.pritam.liquidchat.R.drawable.ic_liquid),
+                        contentDescription=null,modifier=Modifier.size(40.dp),
+                        tint=androidx.compose.ui.graphics.Color.Unspecified)
                 }
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                     Text("Personalize Liquid Chat",style=MaterialTheme.typography.titleLarge)
