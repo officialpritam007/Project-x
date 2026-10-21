@@ -480,6 +480,9 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     var publishId by remember {mutableStateOf(UUID.randomUUID().toString())}
     var photo by remember {mutableStateOf<Images.Prepared?>(null)}
     var video by remember {mutableStateOf<android.net.Uri?>(null)}
+    var textMode by remember {mutableStateOf(false)}
+    var textStory by rememberSaveable {mutableStateOf("")}
+    var textBackground by rememberSaveable {mutableStateOf("Indigo")}
     var videoDuration by remember {mutableLongStateOf(0L)}
     var trimStart by remember {mutableLongStateOf(0L)}
     var progress by remember {mutableIntStateOf(0)}
@@ -502,6 +505,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                     photo?.file?.delete()
                     photo=prepared
                     video=null
+                    textMode=false
                     media=null
                     publishId=UUID.randomUUID().toString()
                 } catch(e:CancellationException) {throw e}
@@ -523,6 +527,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                     videoDuration=duration
                     trimStart=0L
                     photo?.file?.delete();photo=null
+                    textMode=false
                     media=null
                     publishId=UUID.randomUUID().toString()
                 } catch(e:CancellationException) {throw e}
@@ -545,6 +550,34 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                     coil.compose.AsyncImage(selected.file,"Photo preview",
                         Modifier.fillMaxWidth().heightIn(max=200.dp)
                             .aspectRatio(selected.width.toFloat()/selected.height.coerceAtLeast(1)))
+                }
+                if(textMode && kind=="story") {
+                    val cardColor=when(textBackground) {
+                        "Emerald"->Color(0xFF106051)
+                        "Rose"->Color(0xFF7E2D4D)
+                        "Midnight"->Color(0xFF132233)
+                        else->Color(0xFF272B67)
+                    }
+                    Surface(shape=RoundedCornerShape(24.dp),color=cardColor,
+                        modifier=Modifier.fillMaxWidth().height(180.dp)) {
+                        Box(Modifier.padding(20.dp),contentAlignment=Alignment.Center) {
+                            Text(textStory.ifBlank {"Your story text"},
+                                color=Color.White,fontWeight=FontWeight.Bold,
+                                maxLines=6,style=MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                    OutlinedTextField(value=textStory,
+                        onValueChange={textStory=it.take(280);media=null},
+                        label={Text("Text story (max 280 characters)")},
+                        enabled=!busy,modifier=Modifier.fillMaxWidth(),maxLines=5)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                        com.pritam.liquidchat.data.TextStory.palettes.forEach {option->
+                            FilterChip(selected=textBackground==option,
+                                onClick={textBackground=option;media=null},
+                                label={Text(option)})
+                        }
+                    }
                 }
                 if(video!=null) {
                     GlassCard(Modifier.fillMaxWidth()) {
@@ -574,6 +607,16 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                             Spacer(Modifier.width(4.dp))
                             Text(if(photo==null)"Photo" else "Change photo")
                         }
+                        if(kind=="story")TextButton(onClick={
+                            photo?.file?.delete();photo=null
+                            video=null;media=null
+                            textMode=true
+                            publishId=UUID.randomUUID().toString()
+                        },enabled=!busy) {
+                            Icon(Icons.Outlined.TextFields,null)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Text")
+                        }
                         if(kind=="story")TextButton(onClick={videoPicker.launch("video/*")},enabled=!busy) {
                             Icon(Icons.Outlined.VideoLibrary,null)
                             Spacer(Modifier.width(4.dp))
@@ -594,10 +637,12 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
             }
         },
         confirmButton={
-            TextButton(enabled=(photo!=null||video!=null)&&!busy&&owner.isNotEmpty(),onClick={
+            TextButton(enabled=(photo!=null||video!=null||(kind=="story"&&textMode&&textStory.isNotBlank()))&&!busy&&owner.isNotEmpty(),onClick={
                 val selectedPhoto=photo
                 val selectedVideo=video
-                if(selectedPhoto==null&&selectedVideo==null)return@TextButton
+                val selectedText=if(textMode&&kind=="story")textStory.trim() else ""
+                val selectedBackground=textBackground
+                if(selectedPhoto==null&&selectedVideo==null&&selectedText.isEmpty())return@TextButton
                 busy=true;error=null;progress=0;stage="Publishing"
                 scope.launch {
                     try {
@@ -617,15 +662,27 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                                 stage="Uploading";progress=0
                                 try {model.backend.uploadStoryVideo(encoded) {value->scope.launch {progress=value}}.getString("id")}
                                 finally {encoded.delete()}
-                            } else {
+                            } else if(selectedPhoto!=null) {
                                 stage="Uploading";progress=0
-                                model.backend.uploadImage(selectedPhoto!!.file,null,onProgress={value->scope.launch {progress=value}}).getString("id")
+                                model.backend.uploadImage(selectedPhoto.file,null,onProgress={value->scope.launch {progress=value}}).getString("id")
+                            } else {
+                                stage="Preparing text story";progress=0
+                                val prepared=com.pritam.liquidchat.data.TextStory.prepare(
+                                    context,owner,selectedText,selectedBackground)
+                                try {
+                                    stage="Uploading"
+                                    model.backend.uploadImage(prepared.file,null,
+                                        onProgress={value->scope.launch {progress=value}}).getString("id")
+                                } finally {prepared.file.delete()}
                             }
                         }
                         stage="Publishing"
                         model.backend.rpc("publish_moment",JSONObject()
                             .put("p_id",publishId).put("p_media",media)
-                            .put("p_kind",kind).put("p_caption",caption.trim()))
+                            .put("p_kind",kind).put("p_caption",
+                                if(selectedText.isNotEmpty())(selectedText+
+                                    if(caption.isBlank())"" else "\\n"+caption.trim()).take(1000)
+                                else caption.trim()))
                         onPublished()
                     } catch(e:CancellationException) {throw e}
                     catch(e:Exception) {
