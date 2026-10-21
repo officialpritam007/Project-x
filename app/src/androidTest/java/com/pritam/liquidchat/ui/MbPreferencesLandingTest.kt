@@ -33,7 +33,7 @@ class MbPreferencesLandingTest {
         compose.runOnIdle {
             assertEquals(MbReferencePreferenceSections.all.map {it.target},opened)
             assertEquals(1,backs)
-            assertEquals(6,opened.distinct().size)
+            assertEquals(9,opened.distinct().size)
         }
     }
 
@@ -65,8 +65,8 @@ class MbPreferencesLandingTest {
     @Test fun referenceInventoryNeverExposesUnimplementedWhatsAppRoutes() {
         val targets=MbReferencePreferenceSections.all.map {it.target}
         assertEquals(targets.size,targets.distinct().size)
-        assertEquals(6,targets.size)
+        assertEquals(9,targets.size)
         assertFalse(targets.any {it.contains("WhatsApp",ignoreCase=true)})
-        assertTrue(targets.all {it.startsWith("Liquid Chat ")})
+        assertTrue(targets.all {it.startsWith("Liquid Chat ") || it in setOf("Account","Data and Storage","Power Saving")})
     }
 }
