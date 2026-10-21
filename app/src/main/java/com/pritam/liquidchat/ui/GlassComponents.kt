@@ -93,6 +93,8 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
     val display=LocalDisplayOptions.current
     val titles=MbNavigationOrder.titles
+    val hidden=rememberHiddenNavigationTabs()
+    val plan=navigationVisibilityPlan(display.navigationOrder,hidden)
     // The reference mb_bottom_iosv2.xml uses five equal icon-and-label slots.
     // Preserve the original Liquid capsule as a selectable alternative.
     val referenceBar=display.navBarStyle=="Reference"
@@ -106,7 +108,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
         if(referenceBar)Glass.card else Glass.capsule
     ) {
         Row(Modifier.padding(if(referenceBar)4.dp else 6.dp).selectableGroup()) {
-            MbNavigationOrder.parse(display.navigationOrder).forEach {i->
+            plan.visible.forEach {i->
                 val title=titles[i]
                 val selected=tab==i
                 val reducedMotion=display.reducedMotion
@@ -142,6 +144,15 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                             color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+            }
+            if(plan.overflow.isNotEmpty()) {
+                MbNavigationOverflow(
+                    destinations=plan.overflow,
+                    current=tab,
+                    referenceBar=referenceBar,
+                    onTab=onTab,
+                    modifier=Modifier.weight(1f)
+                )
             }
         }
     }
