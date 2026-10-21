@@ -24,6 +24,66 @@ data class PreparedChatVideo(
 object ChatVideo {
     const val MAX_BYTES=8_388_608L
 
+    /** Save only a sent, nonhidden, currently authorized video. Never expose
+     *  the signed URL as a permanent share link or background download.
+     */
+    suspend fun saveReceived(
+        context:Context,repository:ChatRepository,message:Message,destination:Uri
+    )=withContext(Dispatchers.IO) {
+        val backend=repository.backend
+        val account=backend.session.value?.userId ?: throw IOException("Sign in required.")
+        val epoch=backend.uiReads.epoch(account)
+        require(message.account==account && message.mediaKind=="chat_video" &&
+            message.status=="SENT" && message.mediaId.isNotBlank() &&
+            message.deletedAt.isEmpty()) {"Video is not available."}
+        suspend fun authorized():Boolean {
+            if(backend.session.value?.userId!=account ||
+                backend.uiReads.epoch(account)!=epoch)return false
+            val current=repository.dao.message(account,message.id) ?: return false
+            return current.mediaKind=="chat_video" &&
+                current.mediaId==message.mediaId &&
+                current.status=="SENT" && current.deletedAt.isEmpty() &&
+                !repository.dao.hidden(account,message.id)
+        }
+        check(authorized()) {"This video is no longer visible."}
+        val url=backend.imageUrl(account,message.mediaId,force=true)
+        require(url.startsWith("https://",ignoreCase=true)) {"Invalid private video URL."}
+        val conn=java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        val bytes=try {
+            conn.connectTimeout=15_000
+            conn.readTimeout=45_000
+            conn.useCaches=false
+            conn.instanceFollowRedirects=false
+            conn.inputStream.use {input->
+                val output=java.io.ByteArrayOutputStream()
+                val buffer=ByteArray(8192)
+                var count=0
+                while(true) {
+                    val n=input.read(buffer)
+                    if(n<0)break
+                    count+=n
+                    if(count>MAX_BYTES)throw IOException("Chat video exceeds 8 MB.")
+                    output.write(buffer,0,n)
+                }
+                output.toByteArray()
+            }
+        } finally {conn.disconnect()}
+        require(bytes.size>=100 &&
+            bytes[4]=='f'.code.toByte() && bytes[5]=='t'.code.toByte() &&
+            bytes[6]=='y'.code.toByte() && bytes[7]=='p'.code.toByte()) {
+            "Invalid received MP4 video."
+        }
+        check(authorized()) {"Video access changed."}
+        // Fetch new authorization after transfer; a deleted or blocked video
+        // cannot be saved from a previously valid signed URL.
+        backend.imageUrl(account,message.mediaId,force=true)
+        check(authorized()) {"Video access changed."}
+        context.contentResolver.openOutputStream(destination,"w")?.use {output->
+            output.write(bytes)
+            output.flush()
+        } ?: throw IOException("Could not write the chosen video.")
+    }
+
     suspend fun prepare(
         context:Context,
         source:Uri,
