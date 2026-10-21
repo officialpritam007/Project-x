@@ -21,10 +21,11 @@ import androidx.compose.ui.unit.sp
         buildAnnotatedString {
             append(body)
             if(linksEnabled)messageWebLinks(body).forEach {link->
-                addLink(LinkAnnotation.Url(link.url,
+                val browserUrl=androidBrowserUrl(link)
+                addLink(LinkAnnotation.Url(browserUrl,
                     styles=TextLinkStyles(style=SpanStyle(color=color,textDecoration=TextDecoration.Underline)),
                     linkInteractionListener={
-                        try {uriHandler.openUri(link.url)}catch(_:Exception) {failed=true}
+                        try {uriHandler.openUri(browserUrl)}catch(_:Exception) {failed=true}
                     }),link.start,link.end)
             }
         }
