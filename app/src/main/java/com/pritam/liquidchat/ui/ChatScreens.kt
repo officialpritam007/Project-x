@@ -1440,6 +1440,14 @@ if(section=="MB Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Bottom navigation & tabs",style=MaterialTheme.typography.titleMedium)
                 Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
+                Row(Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    listOf("Reference" to "iOS navigation", "Liquid" to "Liquid capsule").forEach { (value,label)->
+                        FilterChip(selected=display.navBarStyle==value,
+                            onClick={model.setDisplay(display.copy(navBarStyle=value))},
+                            label={Text(label)})
+                    }
+                }
             Text("Reorder tabs · all five destinations remain accessible",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             MbNavigationOrder.parse(display.navigationOrder).forEachIndexed {position,destination ->
