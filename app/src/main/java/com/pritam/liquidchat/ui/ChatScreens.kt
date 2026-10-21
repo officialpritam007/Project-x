@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
+import com.pritam.liquidchat.data.SavedMedia
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -65,6 +66,7 @@ import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 
 @Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null,self:Boolean=false,size:androidx.compose.ui.unit.Dp=48.dp) {
     Box(Modifier.size(size).clip(CircleShape).background(if(self)Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
@@ -2398,7 +2400,38 @@ if(section=="Liquid Chat Home Screen") {
                 Box(Modifier.weight(1f).fillMaxWidth().clip(androidx.compose.ui.graphics.RectangleShape).onSizeChanged {size=it}.transformable(transform)) {
                     ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.fillMaxSize().graphicsLayer {scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y})
                 }
-                TextButton(onClick={zoom=1f;pan=Offset.Zero}) {Text("Reset zoom")}
+                val context=LocalContext.current
+                val scope=rememberCoroutineScope()
+                var saving by remember(message.id) {mutableStateOf(false)}
+                var saveFeedback by remember(message.id) {mutableStateOf<String?>(null)}
+                Row(Modifier.fillMaxWidth(),
+                    verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.SpaceEvenly) {
+                    TextButton(onClick={zoom=1f;pan=Offset.Zero}) {Text("Reset zoom")}
+                    if(message.status=="SENT" && message.deletedAt.isEmpty() &&
+                        message.mediaId.isNotEmpty() && message.mediaKind=="image") {
+                        TextButton(onClick={
+                            saving=true
+                            saveFeedback=null
+                            scope.launch {
+                                try {
+                                    SavedMedia.savePhoto(context,model.repository,message)
+                                    saveFeedback="Photo saved to Pictures/Liquid Chat"
+                                } catch(e:kotlinx.coroutines.CancellationException) {throw e}
+                                  catch(e:Exception) {
+                                    saveFeedback=e.message ?: "Could not save photo."
+                                } finally {saving=false}
+                            }
+                        },enabled=!saving) {
+                            Text(if(saving)"Saving…" else "Save photo")
+                        }
+                    }
+                }
+                saveFeedback?.let {Text(it,
+                    modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp),
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)}
+
             }
         }
     }
