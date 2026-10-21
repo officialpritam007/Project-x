@@ -201,8 +201,10 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                             overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    // The underline belongs to the parent Box, not ColumnScope.
+                    // Aligning BottomCenter on a Column child does not compile.
                     if(referenceBar&&selected) Box(
-                        Modifier.align(Alignment.BottomCenter).width(90.dp).height(3.dp)
+                        Modifier.align(Alignment.BottomCenter).fillMaxWidth(.92f).height(3.dp)
                             .clip(Glass.capsule).background(MaterialTheme.colorScheme.primary)
                     )
                 }
