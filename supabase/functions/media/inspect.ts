@@ -1,3 +1,14 @@
+/** Bounded PDF envelope check. Preview remains outside the app's WebView. */
+export function inspectPdf(data:Uint8Array):void {
+  if(data.length<100 || data.length>8388608)throw new Error("PDF exceeds 8 MB");
+  const prefix=new TextDecoder().decode(data.subarray(0,9));
+  if(!/^%PDF-1\.[0-7](?:\r|\n|\x20|\x25)/.test(prefix) &&
+     !prefix.startsWith("%PDF-2.0"))throw new Error("Invalid PDF header");
+  const tail=new TextDecoder().decode(data.subarray(Math.max(0,data.length-1024)));
+  if(!tail.includes("%%EOF"))throw new Error("Incomplete PDF file");
+  if(data.includes(0) && data.slice(0,8).every(x=>x===0))throw new Error("Invalid PDF bytes");
+}
+
 /** Validate a bounded still RGBA PNG for one-to-one stickers. */
 export function inspectStickerPng(data:Uint8Array):{width:number;height:number} {
   const signature=[137,80,78,71,13,10,26,10];
