@@ -1,6 +1,8 @@
 package com.pritam.liquidchat.ui
 
 import android.content.Context
+import androidx.activity.ComponentActivity
+import androidx.test.platform.app.InstrumentationRegistry
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.SystemClock
@@ -9,7 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import coil.Coil
@@ -30,7 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /** All HTTP is intercepted; these tests never access live accounts or media. */
 class ProtectedImageCacheTest {
-    @get:Rule val compose=createComposeRule()
+    // Explicit ActivityScenario ownership permits synchronous Compose teardown
+    // while intercepted image resources are still valid.
+    @get:Rule val compose=createAndroidComposeRule<ComponentActivity>()
     private val context=ApplicationProvider.getApplicationContext<Context>()
     private val signs=AtomicInteger()
     private val downloads=AtomicInteger()
@@ -38,8 +42,6 @@ class ProtectedImageCacheTest {
     private var revokeAfterFirst=false
     private var rejectFirst=false
     private var rejectEveryDownload=false
-    // Compose must stop observing this intercepted loader before it is shut down.
-    private val fixtureVisible=mutableStateOf(true)
     private fun response(request:Request,body:ResponseBody,status:Int=200)=Response.Builder()
         .request(request).protocol(Protocol.HTTP_1_1).code(status).message("fixture").body(body).build()
     private fun json(request:Request,value:JSONObject)=response(request,value.toString().toResponseBody("application/json".toMediaType()))
@@ -79,11 +81,12 @@ class ProtectedImageCacheTest {
         val loader=imageLoader();val backend=backend()
         Coil.setImageLoader(loader)
         try {body(backend)} finally {
-            // Stop image effects and settle recompositions before invalidating the
-            // fixture account and tearing down its HTTP/Coil resources.
-            // This also prevents teardown from racing an Android Activity destroy.
-            compose.runOnIdle {fixtureVisible.value=false}
-            compose.waitForIdle()
+            // Destroy the *real* Compose-host Activity before invalidating the
+            // account, Coil or intercepted HTTP client. Hiding the content first
+            // only scheduled another deferred composition disposal, which could
+            // race ActivityScenario shutdown and trigger SlotWriter corruption.
+            compose.activityRule.scenario.close()
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
             runBlocking {backend.forgetLocal()}
             Coil.setImageLoader(original);loader.shutdown()
             context.getSharedPreferences("protected-image-fixture",Context.MODE_PRIVATE).edit().clear().commit()
@@ -111,7 +114,7 @@ class ProtectedImageCacheTest {
     @Test fun tabReturnReusesBitmapAndAvatarMutationFetchesNewImage()=fixture {backend->
         val shown=mutableStateOf(true)
         val visualLoadingEvents=mutableListOf<Boolean>()
-        compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {
+        compose.setContent {LiquidTheme(false) {
             if(shown.value)ProtectedImage(backend,"avatar-fixture",
                 description="Fixture image",modifier=Modifier.size(64.dp),
                 onLoadState={visualLoadingEvents.add(it)})
@@ -138,7 +141,7 @@ class ProtectedImageCacheTest {
     @Test fun expiredImageTransferRenewsLinkOnceAutomatically() {
         rejectFirst=true
         fixture {backend->
-            compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
             awaitImage(Color.BLUE);assertEquals(2,signs.get());assertEquals(2,downloads.get())
             compose.onNodeWithText("Retry image").assertDoesNotExist()
         }
@@ -146,7 +149,7 @@ class ProtectedImageCacheTest {
     @Test fun expiredPermissionIsRecheckedAndRevokedImageDisappears() {
         ttl=3;revokeAfterFirst=true
         fixture {backend->
-            compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
             awaitImage()
             awaitRetry()
             compose.onNodeWithContentDescription("Fixture image").assertDoesNotExist()
@@ -157,7 +160,7 @@ class ProtectedImageCacheTest {
     @Test fun repeatedTransferRejectionStopsAndManualRetryIsBounded() {
         rejectEveryDownload=true
         fixture {backend->
-            compose.setContent {if(fixtureVisible.value)LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
+            compose.setContent {LiquidTheme(false) {ProtectedImage(backend,"avatar-fixture",description="Fixture image",modifier=Modifier.size(64.dp))}}
             compose.waitUntil(10_000) {downloads.get()>=2}
             awaitRetry()
             assertTransferCountsStay(2)
