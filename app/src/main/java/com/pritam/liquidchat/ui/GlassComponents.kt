@@ -91,7 +91,7 @@ import androidx.compose.ui.platform.LocalContext
 internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     options.showNavLabels || options.hideNavIcons
 
-@Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
+@Composable fun GlassNavigation(tab:Int,unreadChats:Int=0,onTab:(Int)->Unit) {
     val display=LocalDisplayOptions.current
     val titles=MbNavigationOrder.titles
     val hidden=rememberHiddenNavigationTabs()
@@ -142,13 +142,25 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                 ) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
                         if(!display.hideNavIcons) {
-                        if(i==1) {
-                            Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,modifier=Modifier.size(referenceIconSize.dp),
-                                tint=if(tab==i)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            val originalIndex=if(i>1)i-1 else i
-                            DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null,referenceIconSize)
-                        }
+                            // Only show a real account-scoped unread count; never a
+                            // hard-coded reference badge or count from another tab.
+                            BadgedBox(badge={
+                                if(i==0&&unreadChats>0) Badge {
+                                    Text(if(unreadChats>99)"99+" else unreadChats.toString(),
+                                        fontSize=9.sp)
+                                }
+                            }) {
+                                if(i==1) {
+                                    Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,
+                                        modifier=Modifier.size(referenceIconSize.dp),
+                                        tint=if(tab==i)MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else {
+                                    val originalIndex=if(i>1)i-1 else i
+                                    DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],
+                                        null,referenceIconSize)
+                                }
+                            }
                         }
                         if(showEffectiveNavigationLabels(display)) Text(title,fontSize=display.navLabelSize.sp,maxLines=1,
                             overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,
