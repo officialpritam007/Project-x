@@ -76,7 +76,11 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
             else if(recovery) {Box(Modifier.padding(padding)) {RecoveryScreen(model,busy)}}
             else if(!acceptedPolicy) {Box(Modifier.padding(padding)) {UserPolicyScreen(busy,model::acceptPolicy,model::logout)}}
-            else if(profileRequiresRetry(loaded,profile?.optString("id"),session?.userId,profileError)) {Column(Modifier.padding(padding).padding(24.dp)) {Text(profileError ?: "Loading your profile…");Button(onClick={model.action {model.loadProfile()}},enabled=!busy) {Text("Retry")};TextButton(onClick=model::logout) {Text("Sign out")}}}
+            else if(profileRequiresRetry(loaded,profile?.optString("id"),session?.userId,profileError)) {
+                MbRecoveryScreen(loading=!loaded || busy,busy=busy,
+                    onRetry={model.action {model.loadProfile()}},onSignOut=model::logout,
+                    modifier=Modifier.padding(padding))
+            }
             else if(profile==null) {Box(Modifier.padding(padding)) {ProfileScreen(model,busy)}}
             else if(active!=null) {conversationStates.SaveableStateProvider(active!!) {Box(Modifier.padding(padding)) {
                 MbIncognitoKeyboard(display.incognitoKeyboard) {ConversationScreen(model,active!!,chats,busy)}
