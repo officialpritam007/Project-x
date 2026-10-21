@@ -62,6 +62,12 @@ data class DisplayOptions(
     val photoQuality:String="Standard",
     val incognitoKeyboard:Boolean=false,
     val customStickerSize:Boolean=false,
-    val stickerSize:Int=192
+    val stickerSize:Int=192,
+    val doubleTapReactionEnabled:Boolean=false,
+    val doubleTapReactionEmoji:String="❤️",
+    val hideQuickReplySuggestions:Boolean=false,
+    val confirmSavedStickerSend:Boolean=true,
+    val showEditedLabel:Boolean=true,
+    val showEditedTime:Boolean=false
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
