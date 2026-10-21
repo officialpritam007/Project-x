@@ -358,21 +358,17 @@ import kotlinx.coroutines.launch
         Text("Conversation preview",style=MaterialTheme.typography.titleSmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(horizontal=12.dp))
         GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
-            val preview=previewMessages.filter {it.deletedAt.isEmpty()}.takeLast(3)
+            val preview=previewMessages.filter {
+                homeOwner!=null && c.account==homeOwner &&
+                    model.session.value?.userId==homeOwner &&
+                    it.account==homeOwner && it.conversation==c.id &&
+                    it.status=="SENT" && it.deletedAt.isEmpty()
+            }.takeLast(3)
             if(preview.isEmpty()) Text("No downloaded messages to preview.",
-                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
             else preview.forEach {m->
-                Text(if(m.sender==m.account)"You" else c.name,
-                    style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
-                Text(when {
-                    m.mediaKind=="voice"->"Voice message"
-                    m.mediaKind=="sticker"->"Sticker"
-                    m.mediaKind=="document"->m.body
-                    m.mediaKind=="chat_video"->if(m.body=="Video")"Private video" else "Video: ${m.body}"
-                    m.mediaId.isNotEmpty() || m.localImage.isNotEmpty()->"Photo message"
-                    else->m.body
-                },
-                    maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
+                MbConversationPeekRow(m,c.name)
             }
         }
         }
