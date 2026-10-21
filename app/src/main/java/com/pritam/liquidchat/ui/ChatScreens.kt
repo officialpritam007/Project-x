@@ -1769,7 +1769,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
         // MB General's cache control reuses the already-safe Coil-only cleanup.
         // Never expose "clear all" actions that would erase the durable Room outbox.
-        if(section=="Liquid Chat General Settings") DataStorage(model)
+        if(section=="Liquid Chat General Settings") {
+            val accountId by model.session.collectAsStateWithLifecycle()
+            MbQuickReplySettings(accountId?.userId)
+            DataStorage(model)
+        }
         
 if(section=="Liquid Chat Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
