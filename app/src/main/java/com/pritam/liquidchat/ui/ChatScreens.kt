@@ -674,16 +674,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var stickerNotice by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     var preparedSticker by remember(cid,session?.userId) {mutableStateOf<Images.Prepared?>(null)}
     var stickerSourceUri by remember(cid,session?.userId) {mutableStateOf<android.net.Uri?>(null)}
-    var removeStickerWhite by remember(cid,session?.userId) {mutableStateOf(false)}
+    var removeStickerWhite by remember(cid,session?.userId) {mutableStateOf(true)}
     val stickerPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
         if(uri!=null)model.action {
             val account=model.backend.session.value?.userId ?: return@action
-            val created=StickerFactory.prepare(context,uri,account)
+            val created=StickerFactory.prepare(context,uri,account,removeWhite=true)
             if(model.backend.session.value?.userId==account) {
                 preparedSticker?.file?.delete()
                 preparedSticker=created
                 stickerSourceUri=uri
-                removeStickerWhite=false
+                removeStickerWhite=true
             } else created.file.delete()
         }
     }
