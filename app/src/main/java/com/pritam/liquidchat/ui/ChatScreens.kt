@@ -565,7 +565,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var prepared by remember(cid) {mutableStateOf<Images.Prepared?>(null)}
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val account=model.backend.session.value?.userId ?: return@action
-        val image=Images.prepare(context,uri,account)
+        val image=Images.prepare(context,uri,account,hd=model.display.value.photoQuality=="HD")
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
     var contactPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
@@ -611,7 +611,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             try {
                 if(model.backend.session.value?.userId==cameraAccount) {
                     val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file)
-                    val image=Images.prepare(context,uri,cameraAccount)
+                    val image=Images.prepare(context,uri,cameraAccount,hd=model.display.value.photoQuality=="HD")
                     if(model.backend.session.value?.userId==cameraAccount)prepared=image else image.file.delete()
                 }
             } finally {file.delete();cameraPath=""}
@@ -880,6 +880,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
 
     }
     if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
+        Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp),
+            verticalAlignment=Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("HD photo upload",style=MaterialTheme.typography.titleSmall)
+                Text("Larger JPEG photos; same private media delivery.",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked=display.photoQuality=="HD",
+                onCheckedChange={model.setDisplay(display.copy(
+                    photoQuality=if(it)"HD" else "Standard"))})
+        }
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Share contact as text",Icons.Outlined.PersonOutline,
             onClick={
@@ -1937,6 +1949,20 @@ if(section=="Liquid Chat Home Screen") {
                 }
                 Text("Changing icon colors never changes contact actions or calling availability.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Media upload quality",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    listOf("Standard","HD").forEach {quality->
+                        FilterChip(selected=display.photoQuality==quality,
+                            onClick={model.setDisplay(display.copy(photoQuality=quality))},
+                            label={Text(quality)})
+                    }
+                }
+                Text("HD sends larger, sharper JPEG images via the same authenticated upload; it uses more storage and data.",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Copy message preferences",style=MaterialTheme.typography.titleMedium)
