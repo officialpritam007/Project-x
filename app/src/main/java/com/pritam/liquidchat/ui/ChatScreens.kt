@@ -1992,8 +1992,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                         listOf(
                             Images.Edit.CROP_SQUARE to "Crop 1:1",
-                            Images.Edit.ROTATE_RIGHT to "Rotate 90°",
-                            Images.Edit.FLIP_HORIZONTAL to "Flip",
+                            Images.Edit.CROP_PORTRAIT to "Crop 4:5",
+                            Images.Edit.CROP_WIDE to "Crop 16:9",
+                            Images.Edit.ROTATE_LEFT to "Rotate left",
+                            Images.Edit.ROTATE_RIGHT to "Rotate right",
+                            Images.Edit.FLIP_HORIZONTAL to "Flip horizontal",
+                            Images.Edit.FLIP_VERTICAL to "Flip vertical",
                             Images.Edit.GRAYSCALE to "B&W"
                         ).forEach {(operation,label)->
                             FilterChip(selected=false,enabled=editingAllowed,
