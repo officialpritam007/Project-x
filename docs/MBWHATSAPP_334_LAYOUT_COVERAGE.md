@@ -14,12 +14,12 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_bottom_iosv2_ot.xml` | Partial | GlassNavigation variants | Alternate reference layout not matched |
 | `mb_box_item.xml` | Partial | GlassCard | Exact spacing and hierarchy unverified |
 | `mb_colorpicker_layout.xml` | Partial | Custom hex and photo-accent settings | Exact color-picker palette unverified |
-| `mb_convo_settings.xml` | Partial | Conversation Screen Settings | Custom controls implemented; screenshot parity unverified |
+| `mb_convo_settings.xml` | Partial | Conversation Screen Settings with five animated, accessible expandable groups; existing privacy/media controls preserved | Other reference sections, precise icons, nested layout and visual acceptance still unverified |
 | `mb_custom_cm.xml` | Unmapped | No confirmed native counterpart | Inspect original hierarchy and control semantics |
-| `mb_custom_color_picker_dialog.xml` | Partial | Liquid accent hex input | Native popup palette and eyedropper missing |
+| `mb_custom_color_picker_dialog.xml` | Partial | Native HSV sliders, hex input, 18 swatches and explicit photo-based dominant accent sampler | Reference exact pixel palette and manual photo pixel eyedropper remain missing |
 | `mb_custom_webview.xml` | Partial | MessageInAppBrowser | Website behavior and navigation tests pending |
-| `mb_dialog_alert_ios.xml` | Partial | LiquidAlertDialog | Exact blur, transitions and button order unverified |
-| `mb_dialog_color_picker.xml` | Partial | Theme/color editor | Full reference dialog not matched |
+| `mb_dialog_alert_ios.xml` | Partial | Reference-mode 22dp rounded dialogs with fade/spring entry and reduced-motion support | Exact reference backdrop blur, button order and exit transition unverified |
+| `mb_dialog_color_picker.xml` | Partial | 18-color swatch palette, three HSV sliders, hex input and local image sampling | Exact reference palette art and manual eyedropper gesture not yet matched |
 | `mb_dialog_launcher.xml` | Partial | Classic/Night Glass Activity aliases + Appearance selector | Full reference icon pack and launcher-specific visual verification remain |
 | `mb_dialog_media.xml` | Partial | Attachment sheet; individual/10-photo atomic gallery, one or five PDFs with atomic outbox, stickers, 30-second private compressed chat video and signed playback | GIF animations, longer videos, true grouped-album backend, deployed SQL/Edge, UI screenshots and phone verification pending |
 | `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
@@ -34,7 +34,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_info.xml` | Partial | ContactMediaDialog | Reference account/details UI unverified |
 | `mb_info_profile.xml` | Partial | Profile and contact information | Layout and gestures unverified |
 | `mb_info_row_text.xml` | Partial | Contact/profile information rows | Reference typography unverified |
-| `mb_item_expandable.xml` | Partial | Settings sections and cards | Animated expand/collapse not matched |
+| `mb_item_expandable.xml` | Partial | MbExpandableSettingsCard with accessible header and animate/fade expand-collapse | Exact reference tint, padding and section hierarchy not visually verified |
 | `mb_item_settings.xml` | Partial | MB-style 48dp rows with 24dp leading/trailing icons, 15dp start and 10dp end insets; genuine Liquid Chat settings destinations | Some reference icons, control density and nested source destinations not matched |
 | `mb_layout_menu_item.xml` | Partial | GlassActionRow | Menu item art and spacing not verified |
 | `mb_list_layout.xml` | Partial | Compose preference lists | Full reference item density unverified |
@@ -42,9 +42,9 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_list_layout_item.xml` | Partial | Settings list entries | Exact row semantics unverified |
 | `mb_list_tips_item.xml` | Partial | MbTipsAndHelp | All tips and content not yet ported |
 | `mb_mes_reg.xml` | Unmapped | No confirmed native counterpart | Identify exact underlying screen before implementation |
-| `mb_new_dialog_bottom.xml` | Partial | LiquidActionSheet | Reference animation/geometry unverified |
+| `mb_new_dialog_bottom.xml` | Partial | Reference-mode 22dp upper corners, 48dp menu actions and Material sheet presentation | Motion curve, scrim, exact icon art and device verification unproven |
 | `mb_notify_settings.xml` | Partial | Notification Settings + DND/landscape quiet mode | Contact-specific status notification options missing |
-| `mb_pop_view_layout.xml` | Partial | Long-press conversation preview | Pixel/layout/gesture parity unverified |
+| `mb_pop_view_layout.xml` | Partial | Long-press popup with 3 account-scoped sender-aware incoming/outgoing bubble previews, timestamps and private-media placeholders | Exact reference gesture radius and visual geometry unverified |
 | `mb_preferences.xml` | Partial | Centered 110dp Liquid Chat logo, 20dp margins, 14sp section labels, inset dividers, connected General/Home/Conversation/Themes/Privacy/Notifications routes | Full binary layout/animation parity and some original menu groupings not verified |
 | `mb_privacy_settings.xml` | Partial | Server-backed Ghost Mode + privacy settings | Per-contact exceptions not implemented |
 | `mb_prof_d.xml` | Partial | Liquid Chat profile card | Exact arrangement and edit screen unverified |
@@ -54,7 +54,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_service_ui.xml` | Unmapped | No confirmed safe counterpart | Investigate service UI without copying WhatsApp protocol |
 | `mb_settings.xml` | Partial | SettingsScreen | Full feature list and reference layout not matched |
 | `mb_switch_layout.xml` | Partial | Material3 switches | Reference track/thumb behavior unverified |
-| `mb_themes_settings.xml` | Partial | Theme JSON + library + photo color extraction | Fonts/assets and exact presets still missing |
+| `mb_themes_settings.xml` | Partial | Theme JSON/library, user-confirmed saved-theme preview, local accent photo extraction, HSV/swatches | Proprietary reference theme files, external fonts/assets, exact package previews unimplemented |
 | `mb_tip_aitools.xml` | Partial | Offline draft Text tools: clean spacing, capitalization and case changes with preview/Apply | No remote AI rewrite, translation, hallucination-prone suggestions or external AI service configured |
 | `mb_tip_logout.xml` | Partial | Liquid Chat sign-out confirmation | Exact layout/animation unverified |
 | `mb_tips_help.xml` | Partial | MbTipsAndHelp | Original page content not fully ported |
@@ -100,3 +100,13 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - The Android outbox retries each video as a normal message. Users can choose a clip start, add caption, send, explicitly play received videos with short-lived URLs, find them in Shared Videos/search/starred views, or export caption-only text. A user-initiated Save MP4 control reauthorizes the visible message before downloading at most 8 MB to an Android SAF-selected location. Playback stops on app backgrounding, authorization changes, and active calls.
 - Gallery batches support drag-free left/right reordering, single-image edits before queuing and a first-photo caption. There is no claim of a native server album object.
 - **Release blocker:** no applied migration, current Edge deployment, Gradle build, emulator, signed-URL read/save, multiple-device call test, or screenshot comparison has been performed. The owner explicitly deferred testing and deployment. Never mark video messages operational until the migration/Edge release pair is verified against the production database; do not replace or delete existing user data.
+
+## 2026-10-22 — reference conversation, popup and theme source port
+
+- **Conversation:** Tapping a visible emoji reaction chip now sends an authenticated toggle for the current account after rechecking the live message is not deleted/changed. Swiping a sent message to reply draws a reveal indicator and springs back, honoring reduced-motion preferences. The backend message-action semantics are retained.
+- **Reference dialogs & menus:** Shared `GlassActionRow` switches to 48dp target height and 24dp icons in Reference mode, and LiquidActionSheet uses tighter spacing and 22dp top corners. LiquidAlertDialog animates alpha/scale on presentation and avoids animation under reduced motion. These are layout/motion counterparts, not screenshot proofs.
+- **Theme editor:** 18 preselected RGB swatches, independent hue/saturation/brightness sliders and hex fields, plus a user-chosen photo's dominant color extracted locally. No color commits until Apply. Saved themes display sanitized mock incoming/outgoing conversation previews before explicit application, without leaking real chat data.
+- **Expandable settings:** Header, Media Quality, Copy, Wallpaper and Message Bubble groups use a reusable animated expandable component with descriptive screen-reader state and preserved actual settings callbacks.
+- **Long-press chat preview:** Sender-aligned metadata-only text bubbles, time labels, and strict active-account/conversation/sent/deletion gates; only the last three downloaded messages are exposed. No signed attachment URLs or third-party reference account data are rendered.
+- **Source-level maintenance:** Fixed selection underline's invalid `ColumnScope.align(Alignment.BottomCenter)` usage by retaining underline in `BoxScope` and using a bounded relative width.
+- **Owner's release gate remains unchanged:** These commits are `[skip ci]` source changes. Do not assert MB 3.3.4 pixel equivalence or call/sticker/PDF/video end-to-end operation. CI, builds, unit tests, emulator tests, Supabase migrations, Edge Function deployment, screenshot comparisons and two-phone testing have not been run and remain explicitly deferred.
