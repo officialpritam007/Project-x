@@ -55,7 +55,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_settings.xml` | Partial | SettingsScreen | Full feature list and reference layout not matched |
 | `mb_switch_layout.xml` | Partial | Material3 switches | Reference track/thumb behavior unverified |
 | `mb_themes_settings.xml` | Partial | Theme JSON + library + photo color extraction | Fonts/assets and exact presets still missing |
-| `mb_tip_aitools.xml` | Missing | No remote AI text feature wired | Requires explicit AI service/privacy policy; do not invent integration |
+| `mb_tip_aitools.xml` | Partial | Offline draft Text tools: clean spacing, capitalization and case changes with preview/Apply | No remote AI rewrite, translation, hallucination-prone suggestions or external AI service configured |
 | `mb_tip_logout.xml` | Partial | Liquid Chat sign-out confirmation | Exact layout/animation unverified |
 | `mb_tips_help.xml` | Partial | MbTipsAndHelp | Original page content not fully ported |
 | `mb_toast_no.xml` | Partial | App notices + FCM notifications | Reference toast and suppression semantics unverified |
@@ -67,6 +67,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 - **Batch gallery images:** real Android multi-image picker, bounded to 10 selected images, previews with remove-one controls and optional first-photo caption, account-scoped JPEG processing, and a single Room transaction that queues all selected independent messages or none. WorkManager reuses the existing private media upload/delivery/retry flow. This is not a WhatsApp-protocol grouped album.
 - **Photo edit continuation:** fully local center-cropped 1:1 / 4:5 / 16:9 variants, ±90° rotation, horizontal/vertical flip, grayscale and five-step Undo, with bounded temporary revision cleanup on cancel, selecting new photo or successful queue. The native gestures and exact reference toolbar are still unverified.
 - **Caption/profile copy:** one-tap copy for authorized Story/Post descriptions (including full-screen viewers), plus copy of the signed-in account's own username and bio. Android clipboard is written only on user action; no third-party service is called.
+- **Offline Text tools:** in-chat draft transformations (capitalization, whitespace cleanup, uppercase/lowercase) include before-apply preview, explicit user action and stale-draft protection. These do not contact an AI model, transmit content or claim reference AI parity.
 - **Still missing/blocked:** GIF/video attachment transport, pixel-perfect APK dialog art and animated transitions, fully verified private media SQL/Edge deployment, advanced contact-specific status alerts, third-party AI/VIP integrations and WhatsApp-specific groups/channels. User explicitly defers build, lint, CI, SQL/Edge deployments and device tests until later.
 
 ## Backend and release dependencies
