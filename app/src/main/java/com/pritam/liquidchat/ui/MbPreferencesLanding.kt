@@ -42,16 +42,16 @@ internal data class MbReferencePreference(
 
 internal object MbReferencePreferenceSections {
     val visual=listOf(
-        MbReferencePreference("General Settings","MB General Settings",Icons.Outlined.Palette),
-        MbReferencePreference("Home Screen","MB Home Screen",Icons.Outlined.Home),
-        MbReferencePreference("Conversation Screen","MB Conversation Screen",Icons.Outlined.ChatBubbleOutline)
+        MbReferencePreference("General Settings","Liquid Chat General Settings",Icons.Outlined.Palette),
+        MbReferencePreference("Home Screen","Liquid Chat Home Screen",Icons.Outlined.Home),
+        MbReferencePreference("Conversation Screen","Liquid Chat Conversation Screen",Icons.Outlined.ChatBubbleOutline)
     )
     val themes=listOf(
-        MbReferencePreference("Themes","MB Themes",Icons.Outlined.ColorLens)
+        MbReferencePreference("Themes","Liquid Chat Themes",Icons.Outlined.ColorLens)
     )
     val controls=listOf(
-        MbReferencePreference("Privacy","MB Privacy",Icons.Outlined.Lock),
-        MbReferencePreference("Notifications","MB Notifications",Icons.Outlined.Notifications)
+        MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.Lock),
+        MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.Notifications)
     )
     val all=visual+themes+controls
 }
@@ -138,7 +138,7 @@ internal object MbReferencePreferenceSections {
         MbReferenceSection("Privacy & alerts",
             "Manage actual account privacy and Android notification controls.",
             MbReferencePreferenceSections.controls,onNavigate)
-        Text("These options apply to Liquid Chat. WhatsApp-only options are not shown as working settings.",
+        Text("These settings control the actual features of Liquid Chat.",
             Modifier.fillMaxWidth().padding(horizontal=12.dp),
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
