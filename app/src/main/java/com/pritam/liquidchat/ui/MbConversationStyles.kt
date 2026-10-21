@@ -49,7 +49,8 @@ internal fun resolvedBubblePalette(options:DisplayOptions,mine:Boolean):String {
 }
 
 /** Color overrides never alter serialized messages or their decrypted/plain text. */
-internal fun conversationInkColor(preset:String,dark:Boolean,default:Color):Color=when(preset) {
+internal fun conversationInkColor(preset:String,dark:Boolean,default:Color,customHex:String?=null):Color=when(preset) {
+    "Custom" -> normalizedAccentHex(customHex.orEmpty())?.let {Color(android.graphics.Color.parseColor(it))} ?: default
     "Blue" -> if(dark)Color(0xFFB9DBFF) else Color(0xFF1456A0)
     "Green" -> if(dark)Color(0xFFB4F1CB) else Color(0xFF176044)
     "Purple" -> if(dark)Color(0xFFE0C7FF) else Color(0xFF6C3E9F)
