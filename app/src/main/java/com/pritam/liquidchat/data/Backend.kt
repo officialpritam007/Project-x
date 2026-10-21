@@ -280,11 +280,13 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         http.newCall(req).execute().use {res->
             val body=res.body?.string().orEmpty()
             if(!res.isSuccessful) {
-                if(res.code==401 || (res.code==403 && !sticker && !document))
+                // A 403 may be an authenticated conversation/block/quota denial,
+                // not an expired auth session. Only 401 invalidates the session.
+                if(res.code==401)
                     discardRejectedReads(SessionSnapshot(current,original.generation))
                 throw ApiException(res.code,"",
-                    if((sticker || document) && res.code==403)
-                        "Media delivery needs the matching server migration and media function."
+                    if(res.code==403)
+                        "Media sharing is not permitted for this chat, or the selected media format is not available yet."
                     else if(res.code==503)"Media sharing is temporarily unavailable."
                     else "Media upload failed. Try again.")
             }
@@ -310,7 +312,8 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
             val body=response.body?.string().orEmpty()
             checkSession(original)
             if(!response.isSuccessful) {
-                if(response.code==401||response.code==403)discardRejectedReads(SessionSnapshot(current,original.generation))
+                // A server policy may deny an authenticated upload with 403.
+                if(response.code==401)discardRejectedReads(SessionSnapshot(current,original.generation))
                 throw ApiException(response.code,"",when(response.code) {
                     413->"Video is too large. Choose a shorter clip."
                     400->"Video format or duration unsupported. Choose another clip."
