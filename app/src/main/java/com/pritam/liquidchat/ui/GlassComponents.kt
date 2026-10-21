@@ -146,6 +146,10 @@ import androidx.compose.ui.platform.LocalContext
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
     GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
         Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(start=20.dp,end=8.dp),verticalAlignment=Alignment.CenterVertically) {
+            if(brand) {
+                DesignIcon("icon_7_223","Liquid Chat",22)
+                Spacer(Modifier.width(10.dp))
+            }
             Text(title,Modifier.weight(1f),fontSize=LocalDisplayOptions.current.headerTitleSize.sp,fontWeight=FontWeight.SemiBold,color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             trailing()
         }
