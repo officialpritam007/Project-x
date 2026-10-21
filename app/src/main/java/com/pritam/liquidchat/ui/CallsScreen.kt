@@ -226,6 +226,14 @@ private fun elapsedLabel(seconds:Long):String {
                 FilterChip(selected=filter==choice,onClick={filter=choice},label={Text(choice)},shape=Glass.capsule)
             }
         }
+        Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),
+            verticalAlignment=Alignment.CenterVertically) {
+            Text(when(filter){"Missed"->"Missed calls";"Voice"->"Voice calls";"Video"->"Video calls";else->"Recent calls"},
+                Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,
+                fontWeight=FontWeight.SemiBold)
+            Text("${visible.size} loaded",style=MaterialTheme.typography.labelMedium,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         if(permissionError!=null) GlassCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment=Alignment.CenterVertically) {
                 Text(permissionError.orEmpty(),Modifier.weight(1f),color=MaterialTheme.colorScheme.error)
