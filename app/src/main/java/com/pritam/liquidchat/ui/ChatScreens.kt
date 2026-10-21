@@ -698,6 +698,32 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         mutableStateOf(StickerLibrary.list(context,session?.userId))
     }
     var stickerNotice by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
+    var confirmSavedSticker by remember(cid,session?.userId) {mutableStateOf<java.io.File?>(null)}
+    var sendingSavedSticker by remember(cid,session?.userId) {mutableStateOf(false)}
+    fun sendSavedSticker(file:java.io.File) {
+        val owner=session?.userId ?: return
+        if(sendingSavedSticker)return
+        sendingSavedSticker=true
+        model.action {
+            try {
+                check(model.session.value?.userId==owner && model.repository.active.value==cid) {
+                    "Conversation or account changed. Open the sticker shelf again."
+                }
+                val outgoing=StickerLibrary.prepareForSend(context,owner,file)
+                try {
+                    check(model.session.value?.userId==owner && model.repository.active.value==cid) {
+                        "Conversation or account changed."
+                    }
+                    model.repository.sendSticker(cid,outgoing)
+                    confirmSavedSticker=null
+                    stickerLibraryOpen=false
+                } catch(e:Exception) {
+                    outgoing.file.delete()
+                    throw e
+                }
+            } finally {sendingSavedSticker=false}
+        }
+    }
     var preparedSticker by remember(cid,session?.userId) {mutableStateOf<Images.Prepared?>(null)}
     var stickerSourceUri by remember(cid,session?.userId) {mutableStateOf<android.net.Uri?>(null)}
     var removeStickerWhite by remember(cid,session?.userId) {mutableStateOf(true)}
@@ -1704,18 +1730,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         modifier=Modifier.size(76.dp))
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick={
-                        val owner=session?.userId
-                        if(owner!=null)model.action {
-                            val outgoing=StickerLibrary.prepareForSend(context,owner,file)
-                            try {
-                                model.repository.sendSticker(cid,outgoing)
-                                stickerLibraryOpen=false
-                            } catch(e:Exception) {
-                                outgoing.file.delete()
-                                throw e
-                            }
-                        }
-                    },enabled=!busy) {Text("Send")}
+                        if(display.confirmSavedStickerSend)confirmSavedSticker=file
+                        else sendSavedSticker(file)
+                    },enabled=!busy&&!sendingSavedSticker) {Text("Send")}
                     IconButton(onClick={
                         val owner=session?.userId
                         if(owner!=null)runCatching {
@@ -1733,6 +1750,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }},
         confirmButton={TextButton(onClick={stickerLibraryOpen=false}) {Text("Done")}}
     )
+    confirmSavedSticker?.let {file->
+        LiquidAlertDialog(
+            onDismissRequest={if(!busy&&!sendingSavedSticker)confirmSavedSticker=null},
+            title={Text("Send saved sticker?")},
+            text={Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                coil.compose.AsyncImage(model=file,contentDescription="Sticker to send",
+                    modifier=Modifier.fillMaxWidth().height(160.dp))
+                Text("Share this sticker with ${chat?.name ?: "this conversation"}?")
+            }},
+            confirmButton={TextButton(onClick={sendSavedSticker(file)},enabled=!busy&&!sendingSavedSticker) {Text("Send sticker")}},
+            dismissButton={TextButton(onClick={confirmSavedSticker=null},enabled=!busy&&!sendingSavedSticker) {Text("Cancel")}}
+        )
+    }
     preparedSticker?.let {sticker->
         LiquidAlertDialog(
             onDismissRequest={
