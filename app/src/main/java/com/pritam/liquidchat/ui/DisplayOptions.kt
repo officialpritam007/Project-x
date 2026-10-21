@@ -32,6 +32,8 @@ data class DisplayOptions(
     val homeRowPadding:Int=11,
     val hideHomeSearch:Boolean=false,
     val showHomeDividers:Boolean=false,
-    val navBarStyle:String="Reference"
+    val navBarStyle:String="Reference",
+    val hidePhotoShortcut:Boolean=false,
+    val showPinBadges:Boolean=true
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
