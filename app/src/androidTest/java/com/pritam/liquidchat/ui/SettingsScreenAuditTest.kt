@@ -25,6 +25,22 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Appearance").assertDoesNotExist()
     }
 
+    @Test fun mbGeneralGroupsHaveRealControlsAndBackToPreferences() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("MB Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("General Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Theme & typography").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("App font family").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Motion & accessibility").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Reduced motion").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Liquid Glass effects").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Reduced transparency").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Liquid Glass blur intensity").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("MB Preferences").assertIsDisplayed()
+    }
+
     @Test fun chatSettingsKeepsTheActualAppearanceControls() {
         val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
