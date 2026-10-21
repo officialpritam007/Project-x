@@ -291,6 +291,10 @@ import kotlinx.coroutines.launch
         }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         val selectedFolder=customFolders.firstOrNull {it.id==activeFolder}
+        val authorizedChatIds=remember(chats,homeOwner) {
+            if(homeOwner==null)emptySet() else chats.asSequence()
+                .filter {it.account==homeOwner}.map {it.id}.toSet()
+        }
         val visible=chats.filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
             .filter {selectedFolder==null || it.id in selectedFolder.members}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
@@ -314,7 +318,13 @@ import kotlinx.coroutines.launch
                     color=MaterialTheme.colorScheme.outlineVariant)
             }
             if(query.isNotBlank()) {
-                val visibleResults=results.filter {it.deletedAt.isEmpty()}
+                // Never display cached search hits from a different login,
+                // a conversation absent from this session, or revoked content.
+                val visibleResults=results.filter {
+                    homeOwner!=null && it.account==homeOwner &&
+                        it.conversation in authorizedChatIds &&
+                        it.deletedAt.isEmpty() && it.status=="SENT"
+                }
                 item {Text("Downloaded message history",style=MaterialTheme.typography.labelLarge)}
                 items(visibleResults,key={"result-${it.id}"}) {m->
                     val chat=chats.firstOrNull {it.id==m.conversation}
