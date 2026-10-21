@@ -560,6 +560,40 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val image=Images.prepare(context,uri,account)
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    var contactPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
+    val phonePicker=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {result->
+        val selectedAccount=contactPickerAccount
+        contactPickerAccount=null
+        val uri=result.data?.data
+        if(result.resultCode==android.app.Activity.RESULT_OK && uri!=null &&
+            selectedAccount!=null && session?.userId==selectedAccount) {
+            runCatching {
+                val resolver=context.contentResolver
+                val projection=arrayOf(
+                    android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                    android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+                resolver.query(uri,projection,null,null,null)?.use {cursor->
+                    if(!cursor.moveToFirst())return@use
+                    val name=cursor.getString(0).orEmpty().trim().take(100)
+                    val number=cursor.getString(1).orEmpty().trim().take(64)
+                    if(number.isNotBlank()) {
+                        val detail=buildString {
+                            append("Contact: ")
+                            append(if(name.isBlank())"Unknown" else name)
+                            append('\\n')
+                            append(number)
+                        }
+                        val next=if(body.isBlank())detail else "$body\\n$detail"
+                        require(next.length<=4000) {"Draft would exceed 4000 characters."}
+                        updateInput(TextFieldValue(next,TextRange(next.length)))
+                    } else error("That contact has no usable phone number.")
+                } ?: error("Cannot read the selected contact.")
+            }.onFailure {error->
+                model.action {throw java.io.IOException(
+                    error.message ?: "Could not read that contact.")}
+            }
+        }
+    }
     var attachments by remember(cid) {mutableStateOf(false)}
     var cameraPath by rememberSaveable(cid) {mutableStateOf("")}
     var cameraAccount by rememberSaveable(cid) {mutableStateOf("")}
@@ -839,6 +873,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
+        GlassActionRow("Share contact as text",Icons.Outlined.PersonOutline,
+            onClick={
+                attachments=false
+                contactPickerAccount=session?.userId
+                val intent=android.content.Intent(android.content.Intent.ACTION_PICK,
+                    android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+                runCatching {phonePicker.launch(intent)}.onFailure {
+                    contactPickerAccount=null
+                    model.action {throw java.io.IOException("No contact picker available.")}
+                }
+            })
         GlassActionRow("Camera",Icons.Outlined.PhotoCamera,onClick={attachments=false
             val account=model.backend.session.value?.userId
             if(account!=null) {
