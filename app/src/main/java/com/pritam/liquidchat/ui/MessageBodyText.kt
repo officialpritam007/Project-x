@@ -4,7 +4,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,10 +24,10 @@ internal fun linkedTextColor(preset:String,themeColor:Color,dark:Boolean):Color 
     body:String,fontSize:Int,expanded:Boolean,linksEnabled:Boolean,
     textColor:Color=Color.Unspecified,onTextLayout:(TextLayoutResult)->Unit
 ) {
-    val uriHandler=LocalUriHandler.current
+    var browserLink by remember(body) {mutableStateOf<String?>(null)}
     val color=linkedTextColor(LocalDisplayOptions.current.linkColor,MaterialTheme.colorScheme.primary,LocalGlassDark.current)
     var failed by remember(body) {mutableStateOf(false)}
-    val annotated=remember(body,linksEnabled,color,uriHandler) {
+    val annotated=remember(body,linksEnabled,color) {
         buildAnnotatedString {
             append(body)
             if(linksEnabled)messageWebLinks(body).forEach {link->
@@ -36,14 +35,16 @@ internal fun linkedTextColor(preset:String,themeColor:Color,dark:Boolean):Color 
                 addLink(LinkAnnotation.Url(browserUrl,
                     styles=TextLinkStyles(style=SpanStyle(color=color,textDecoration=TextDecoration.Underline)),
                     linkInteractionListener={
-                        try {uriHandler.openUri(browserUrl)}catch(_:Exception) {failed=true}
+                        if(safeBrowserDestination(browserUrl))browserLink=browserUrl
+                        else failed=true
                     }),link.start,link.end)
             }
         }
     }
     Text(annotated,style=MaterialTheme.typography.bodyLarge.copy(fontSize=fontSize.sp,color=textColor),
         maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout=onTextLayout)
+    browserLink?.let {url->MessageInAppBrowser(url,onDismiss={browserLink=null})}
     if(failed)LiquidAlertDialog(onDismissRequest={failed=false},
-        text={Text("No app could open this web link. You can copy the message instead.")},
+        text={Text("This web link could not be opened safely. You can copy the message instead.")},
         confirmButton={androidx.compose.material3.TextButton(onClick={failed=false}) {Text("OK")}})
 }
