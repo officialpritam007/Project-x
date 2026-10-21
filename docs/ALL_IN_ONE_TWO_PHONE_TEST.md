@@ -244,3 +244,14 @@ The candidate CI runs the complete sharded suite followed by five fresh-process 
 | MB48 | Send a Bengali/emoji message containing multiple http/https web links, tap a link, long-press/select the message and retry with no browser handler | Only tapped explicit web links open externally; selection mode retains selection without opening links; malformed/custom-scheme/credential-bearing URLs stay plain; a missing handler shows a recoverable message. No link-preview download occurs |
 
 | MB48 | Open Settings → MB Preferences at 100% and 200% text in light/dark; scroll the hero and separated groups; open General, Home, Conversation, Themes, Privacy, Notifications one by one; Back to MB Preferences and Settings | Hero icon visible, cards/rows/dividers not overlapping or clipped, six working screens reachable, no duplicated bottom navigation, privacy/toggles retain real backend state; compare to owner MBWhatsApp Preferences reference for remaining visual differences |
+
+
+## Liquid Chat-only branding and reference UI acceptance (single final APK round)
+
+| ID | Action | Expected result |
+| --- | --- | --- |
+| LC-UI1 | Inspect launcher, Home header, Profile, Settings and all six Liquid Chat Preferences pages, including light/dark and 200% text scale | Only **Liquid Chat** appears as the application/product brand; no MB/MBWhatsApp product labels or dead navigation destinations |
+| LC-UI2 | Tap the Home header Contacts icon, Profile icon and overflow; return via five-tab navigation and enter Calls | Correct real destinations/actions; no double navigation, missing call tab, lost draft or hidden existing content |
+| LC-UI3 | Open every customization page, change a setting and restart the app, then import/export a Liquid Chat theme JSON | Saved settings and supported visual effects persist; no account/media/credential export or loss of other user's messages |
+| LC-UI4 | Compare the original owner-provided reference APK and Liquid Chat Home, Conversation, Calls, media, Stories, Contacts, Profile and Settings screens side-by-side | Record spacing, icon, animation, typography and behavioral differences. A passing CI test alone is **not** a pixel-perfect or feature-complete reference replication |
+| LC-UI5 | On two real phones, send text with links, photos, voice notes, receive notifications, start/answer/end voice/video calls and change foreground/background state | Calls, FCM, online/read privacy, media, UI state and deduplication function on **Liquid Chat**'s own accounts; any carrier/NAT/TURN limitation must be recorded, not hidden |
