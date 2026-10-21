@@ -698,6 +698,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             } else pdf.file.delete()
         }
     }
+    val galleryDocumentScanner=rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()) {pages->
+        if(pages.isNotEmpty())model.action {
+            val account=model.backend.session.value?.userId ?: return@action
+            val selected=pages.take(10)
+            require(pages.size<=10) {"Choose at most ten pages."}
+            val pdf=PdfDocuments.scanGalleryPhotos(context,selected,account)
+            if(model.backend.session.value?.userId==account) {
+                preparedPdf?.file?.delete()
+                preparedPdf=pdf
+            } else pdf.file.delete()
+        }
+    }
     var stickerLibraryOpen by remember(cid,session?.userId) {mutableStateOf(false)}
     var savedStickers by remember(cid,session?.userId) {
         mutableStateOf(StickerLibrary.list(context,session?.userId))
@@ -1128,6 +1141,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
             onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
+        GlassActionRow("Combine photos into PDF",Icons.Outlined.Description,
+            onClick={attachments=false;galleryDocumentScanner.launch("image/*")})
         GlassActionRow("Scan document",Icons.Outlined.PhotoCamera,onClick={
             attachments=false
             val owner=model.backend.session.value?.userId
