@@ -123,7 +123,12 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     }
     Column(verticalArrangement=Arrangement.spacedBy(9.dp)) {
         Row(Modifier.fillMaxWidth().padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically) {
-            Text("Stories",Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+            Column(Modifier.weight(1f)) {
+                Text("Stories",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+                Text("24-hour moments from your contacts",
+                    style=MaterialTheme.typography.labelSmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             TextButton(onClick=onStories) {Text("See all")}
         }
         LazyRow(
