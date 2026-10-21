@@ -37,6 +37,15 @@ class MbPreferencesLandingTest {
         }
     }
 
+    @Test fun userFacingPreferencesContainOnlyLiquidChatBranding() {
+        compose.setContent { LiquidTheme(false) {
+            MbPreferencesLanding(onBack={},onNavigate={})
+        } }
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+        compose.onAllNodes(hasText("MB",substring=true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("WhatsApp",substring=true,ignoreCase=true)).assertCountEquals(0)
+    }
+
     @Test fun darkAndLargeFontKeepPrivacyAndNotificationsReachable() {
         val opened=mutableListOf<String>()
         compose.setContent {
