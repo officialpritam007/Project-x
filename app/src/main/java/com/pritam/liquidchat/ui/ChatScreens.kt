@@ -1238,7 +1238,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 } else {
                 if(message.replyTo.isNotEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
                     Column(Modifier.padding(8.dp)) {Text("Reply",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(quoted?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=2,overflow=TextOverflow.Ellipsis,
-                        color=conversationInkColor(bubbleDisplay.quotedInk,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
+                        color=conversationInkColor(bubbleDisplay.quotedInk,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface,bubbleDisplay.quotedInkHex),
                         style=MaterialTheme.typography.bodySmall)}
                 }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
@@ -1248,7 +1248,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 if(message.mediaKind!="voice")MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
                     linksEnabled=!selectionMode,
                     textColor=conversationInkColor(if(mine)bubbleDisplay.outgoingInk else bubbleDisplay.incomingInk,
-                        LocalGlassDark.current,resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface)),
+                        LocalGlassDark.current,resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
+                        if(mine)bubbleDisplay.outgoingInkHex else bubbleDisplay.incomingInkHex),
                     onTextLayout={truncated=it.hasVisualOverflow})
                 if(message.status=="SENDING")uploadPercent?.let {percent->
                     LinearProgressIndicator(progress={percent/100f},modifier=Modifier.width(160.dp))
@@ -1261,7 +1262,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if(message.starred&&message.deletedAt.isEmpty())Icon(Icons.Outlined.Star,"Starred",Modifier.size(12.dp))
                     if(message.editedAt.isNotEmpty()&&message.deletedAt.isEmpty())Text("edited",style=MaterialTheme.typography.labelSmall)
                     Text(time,style=MaterialTheme.typography.labelSmall,
-                        color=conversationInkColor(bubbleDisplay.timestampInk,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant))
+                        color=conversationInkColor(bubbleDisplay.timestampInk,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant,bubbleDisplay.timestampInkHex))
                     if(mine)Receipt(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
                 }
                 if(message.reactions!="{}"&&message.deletedAt.isEmpty()) {
@@ -1757,7 +1758,7 @@ if(section=="Liquid Chat Home Screen") {
                 Text(target,style=MaterialTheme.typography.labelMedium)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    listOf("Theme","Blue","Green","Purple","Rose","Amber").forEach {palette->
+                    listOf("Theme","Blue","Green","Purple","Rose","Amber","Custom").forEach {palette->
                         FilterChip(selected=selected==palette,
                             onClick={model.setDisplay(when(target) {
                                 "Outgoing text"->display.copy(outgoingInk=palette)
@@ -1766,6 +1767,37 @@ if(section=="Liquid Chat Home Screen") {
                                 else->display.copy(timestampInk=palette)
                             })},label={Text(palette)})
                     }
+                }
+                val currentHex=when(target) {
+                    "Outgoing text"->display.outgoingInkHex
+                    "Incoming text"->display.incomingInkHex
+                    "Quoted text"->display.quotedInkHex
+                    else->display.timestampInkHex
+                }
+                var hexInput by rememberSaveable(target) {mutableStateOf(currentHex)}
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value=hexInput,
+                        onValueChange={hexInput=it.take(7)},
+                        label={Text("Custom #RRGGBB")},
+                        singleLine=true,
+                        isError=hexInput.isNotEmpty()&&normalizedAccentHex(hexInput)==null,
+                        modifier=Modifier.weight(1f)
+                    )
+                    FilledTonalButton(
+                        enabled=normalizedAccentHex(hexInput)!=null,
+                        onClick={
+                            normalizedAccentHex(hexInput)?.let {hex->
+                                model.setDisplay(when(target) {
+                                    "Outgoing text"->display.copy(outgoingInk="Custom",outgoingInkHex=hex)
+                                    "Incoming text"->display.copy(incomingInk="Custom",incomingInkHex=hex)
+                                    "Quoted text"->display.copy(quotedInk="Custom",quotedInkHex=hex)
+                                    else->display.copy(timestampInk="Custom",timestampInkHex=hex)
+                                })
+                            }
+                        }
+                    ) {Text("Apply")}
                 }
             }
             }
@@ -1822,15 +1854,16 @@ if(section=="Liquid Chat Home Screen") {
                             Text("↪ Original message",
                                 style=MaterialTheme.typography.labelSmall,
                                 color=conversationInkColor(display.quotedInk,LocalGlassDark.current,
-                                    MaterialTheme.colorScheme.onSurfaceVariant))
+                                    MaterialTheme.colorScheme.onSurfaceVariant,display.quotedInkHex))
                             Text(if(mine)"Outgoing message" else "Incoming message",
                                 style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp),
                                 color=conversationInkColor(if(mine)display.outgoingInk else display.incomingInk,
-                                    LocalGlassDark.current,MaterialTheme.colorScheme.onSurface))
+                                    LocalGlassDark.current,MaterialTheme.colorScheme.onSurface,
+                                    if(mine)display.outgoingInkHex else display.incomingInkHex))
                             Text("12:34",modifier=Modifier.align(Alignment.End),
                                 style=MaterialTheme.typography.labelSmall,
                                 color=conversationInkColor(display.timestampInk,LocalGlassDark.current,
-                                    MaterialTheme.colorScheme.onSurfaceVariant))
+                                    MaterialTheme.colorScheme.onSurfaceVariant,display.timestampInkHex))
                         }
                     }
                 }
