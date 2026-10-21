@@ -32,6 +32,7 @@ internal object ChatTextExport {
         for(message in selected) {
             val safe=when(message.mediaKind) {
                 "voice"->"[Voice message]"
+                "chat_video"->"[Private video] ${message.body.take(1000)}"
                 "sticker"->"[Sticker]"
                 "document"->"[PDF] ${message.body.removePrefix("Document: ").take(160)}"
                 "image"->if(message.mediaId.isNotEmpty()||
