@@ -1279,21 +1279,30 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
 @OptIn(ExperimentalLayoutApi::class)
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
     var section by rememberSaveable {mutableStateOf<String?>(null)}
+    var fromPreferences by rememberSaveable {mutableStateOf(false)}
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
             val destination=title
-            if(destination in listOf("Devices","Language","Chat Folders")) unavailable=destination else section=destination
+            if(destination in listOf("Devices","Language","Chat Folders")) unavailable=destination else {
+                fromPreferences=false
+                section=destination
+            }
         }
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications"))"Liquid Chat Preferences" else null}
+    BackHandler {
+        section=if(fromPreferences && section!="Liquid Chat Preferences")"Liquid Chat Preferences"
+            else if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications"))"Liquid Chat Preferences"
+            else null
+        if(section==null)fromPreferences=false
+    }
 
     if(section=="Liquid Chat Preferences") {
         MbPreferencesLanding(
-            onBack={section=null},
-            onNavigate={destination->section=destination}
+            onBack={section=null;fromPreferences=false},
+            onNavigate={destination->fromPreferences=true;section=destination}
         )
         return
     }
