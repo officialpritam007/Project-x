@@ -112,7 +112,11 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                 val reducedMotion=display.reducedMotion
                 val selection by animateColorAsState(
                     targetValue=if(selected)MaterialTheme.colorScheme.primary.copy(alpha=.18f) else Color.Transparent,
-                    animationSpec=tween(durationMillis=if(reducedMotion)0 else 220),
+                    animationSpec=tween(durationMillis=if(reducedMotion)0 else when(display.animation) {
+                        "Normal" -> 160
+                        "Extra" -> 360
+                        else -> 240
+                    }),
                     label="navigation selection"
                 )
                 Box(
