@@ -37,6 +37,15 @@ class MbPreferencesLandingTest {
         }
     }
 
+    @Test fun userFacingPreferencesContainOnlyLiquidChatBranding() {
+        compose.setContent { LiquidTheme(false) {
+            MbPreferencesLanding(onBack={},onNavigate={})
+        } }
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+        compose.onAllNodes(hasText("MB",substring=true)).assertCountEquals(0)
+        compose.onAllNodes(hasText("WhatsApp",substring=true,ignoreCase=true)).assertCountEquals(0)
+    }
+
     @Test fun darkAndLargeFontKeepPrivacyAndNotificationsReachable() {
         val opened=mutableListOf<String>()
         compose.setContent {
@@ -49,7 +58,7 @@ class MbPreferencesLandingTest {
         compose.onNodeWithText("Privacy").performScrollTo().performClick()
         compose.onNodeWithText("Notifications").performScrollTo().performClick()
         compose.runOnIdle {
-            assertEquals(listOf("MB Privacy","MB Notifications"),opened)
+            assertEquals(listOf("Liquid Chat Privacy","Liquid Chat Notifications"),opened)
         }
     }
 
@@ -58,6 +67,6 @@ class MbPreferencesLandingTest {
         assertEquals(targets.size,targets.distinct().size)
         assertEquals(6,targets.size)
         assertFalse(targets.any {it.contains("WhatsApp",ignoreCase=true)})
-        assertTrue(targets.all {it.startsWith("MB ")})
+        assertTrue(targets.all {it.startsWith("Liquid Chat ")})
     }
 }

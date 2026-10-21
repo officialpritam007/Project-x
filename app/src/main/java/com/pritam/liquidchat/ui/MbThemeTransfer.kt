@@ -66,7 +66,7 @@ internal object MbThemeTransfer {
         require(text.toByteArray(Charsets.UTF_8).size<=MAX_IMPORT_BYTES) {"Theme file is too large."}
         val j=JSONObject(text)
         require(j.optString("format")=="liquid-chat-theme" && j.optInt("version")==1) {
-            "Choose a Liquid Chat theme JSON (v1). MBWhatsApp theme files are not directly compatible."
+            "Choose a compatible Liquid Chat theme JSON (v1)."
         }
         fun choice(key:String,allowed:Set<String>,previous:String):String =
             j.optString(key,previous).takeIf {it in allowed} ?: previous

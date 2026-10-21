@@ -29,9 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * MBWhatsApp 3.3.4's packaged mb_preferences.xml has a top icon followed by
+ * The supplied reference APK's packaged preferences layout has a top icon and
  * rounded, divided option groups and a separate navigation host. Recreate
- * that structure with six *working Liquid Chat routes*, not copied WhatsApp
+ * that structure with six *working Liquid Chat routes*, without copying foreign
  * services or dead switches. The app already owns the bottom navigation host.
  */
 internal data class MbReferencePreference(
@@ -42,16 +42,16 @@ internal data class MbReferencePreference(
 
 internal object MbReferencePreferenceSections {
     val visual=listOf(
-        MbReferencePreference("General Settings","MB General Settings",Icons.Outlined.Palette),
-        MbReferencePreference("Home Screen","MB Home Screen",Icons.Outlined.Home),
-        MbReferencePreference("Conversation Screen","MB Conversation Screen",Icons.Outlined.ChatBubbleOutline)
+        MbReferencePreference("General Settings","Liquid Chat General Settings",Icons.Outlined.Palette),
+        MbReferencePreference("Home Screen","Liquid Chat Home Screen",Icons.Outlined.Home),
+        MbReferencePreference("Conversation Screen","Liquid Chat Conversation Screen",Icons.Outlined.ChatBubbleOutline)
     )
     val themes=listOf(
-        MbReferencePreference("Themes","MB Themes",Icons.Outlined.ColorLens)
+        MbReferencePreference("Themes","Liquid Chat Themes",Icons.Outlined.ColorLens)
     )
     val controls=listOf(
-        MbReferencePreference("Privacy","MB Privacy",Icons.Outlined.Lock),
-        MbReferencePreference("Notifications","MB Notifications",Icons.Outlined.Notifications)
+        MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.Lock),
+        MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.Notifications)
     )
     val all=visual+themes+controls
 }
@@ -118,8 +118,9 @@ internal object MbReferencePreferenceSections {
                     MaterialTheme.colorScheme.primaryContainer,CircleShape)
                     .semantics {contentDescription="Liquid Chat Preferences icon"},
                     contentAlignment=Alignment.Center) {
-                    Icon(Icons.Outlined.Tune,contentDescription=null,
-                        modifier=Modifier.size(34.dp),tint=MaterialTheme.colorScheme.primary)
+                    Icon(painter=androidx.compose.ui.res.painterResource(com.pritam.liquidchat.R.drawable.ic_liquid),
+                        contentDescription=null,modifier=Modifier.size(40.dp),
+                        tint=androidx.compose.ui.graphics.Color.Unspecified)
                 }
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                     Text("Personalize Liquid Chat",style=MaterialTheme.typography.titleLarge)
@@ -138,7 +139,7 @@ internal object MbReferencePreferenceSections {
         MbReferenceSection("Privacy & alerts",
             "Manage actual account privacy and Android notification controls.",
             MbReferencePreferenceSections.controls,onNavigate)
-        Text("These options apply to Liquid Chat. WhatsApp-only options are not shown as working settings.",
+        Text("These settings control the actual features of Liquid Chat.",
             Modifier.fillMaxWidth().padding(horizontal=12.dp),
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
