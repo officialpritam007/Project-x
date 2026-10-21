@@ -111,7 +111,7 @@ internal object MbNavigationVisibility {
             if(showEffectiveNavigationLabels(display))Text("More",fontSize=display.navLabelSize.sp,
                 maxLines=1,overflow=TextOverflow.Ellipsis,
                 color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            if(referenceBar&&selected)Box(Modifier.width(56.dp).height(3.dp)
+            if(referenceBar&&selected)Box(Modifier.width(90.dp).height(3.dp)
                 .clip(Glass.capsule).background(MaterialTheme.colorScheme.primary))
         }
         LiquidDropdownMenu(expanded,onDismissRequest={expanded=false}) {
