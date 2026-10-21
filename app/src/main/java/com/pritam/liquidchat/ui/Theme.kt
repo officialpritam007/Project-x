@@ -13,6 +13,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontFamily
@@ -118,11 +120,18 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
 @Composable fun LiquidTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val haze=remember {HazeState()}
     val imported=rememberImportedFonts()
-    CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze) {
+    val options=LocalDisplayOptions.current
+    val parentDensity=LocalDensity.current
+    val density=remember(parentDensity,options.appUiScale,options.appTextScale) {
+        scaledAppDensity(parentDensity,options.appUiScale,options.appTextScale)
+    }
+    val baseScheme=if(options.accentColor=="Custom")
+        customAccentScheme(if(dark)Dark else Light,dark,options.customAccentHex)
+        else liquidAccentScheme(dark,options.accentColor)
+    CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze,
+        LocalDensity provides density) {
         MaterialTheme(
-            colorScheme=if(LocalDisplayOptions.current.accentColor=="Custom")
-                customAccentScheme(if(dark)Dark else Light,dark,LocalDisplayOptions.current.customAccentHex)
-            else liquidAccentScheme(dark,LocalDisplayOptions.current.accentColor),
+            colorScheme=appAppearanceScheme(baseScheme,options),
             shapes=Shapes(small=Glass.compact,medium=Glass.card,large=Glass.hero),
             typography=liquidTypography(LocalDisplayOptions.current.fontPreset,
                 LocalDisplayOptions.current.titleFontPreset,imported.body,imported.title),
@@ -130,20 +139,46 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
         )
     }
 }
-@Composable fun glassBackground(): Brush = Brush.linearGradient(
-    if(LocalGlassDark.current)
+@Composable fun glassBackground(): Brush {
+    appOverrideColor(LocalDisplayOptions.current.appBackgroundHex)?.let {
+        return Brush.linearGradient(listOf(it,it))
+    }
+    return Brush.linearGradient(if(LocalGlassDark.current)
         listOf(Color(0xFF081729),Color(0xFF152B41),Color(0xFF18253A),Color(0xFF132E43),Color(0xFF101C2D))
     else
         listOf(Color(0xFFD9F0FB),Color(0xFFEAF7FF),Color(0xFFF2ECFA),Color(0xFFEAF5FA),Color(0xFFDDEFFB))
-)
+    )
+}
 /** Source-backed live blur with foreground text outside the captured effect. */
 @Composable fun GlassSurface(modifier: Modifier=Modifier, shape: Shape=Glass.card, content: @Composable () -> Unit) {
-    val dark=LocalGlassDark.current
+    GlassSurfaceImpl(modifier,shape,null,content)
+}
+/** Apply custom chrome tints only to supported headers and composer surfaces. */
+@Composable internal fun GlassChromeSurface(modifier:Modifier=Modifier,shape:Shape=Glass.card,
+    content:@Composable ()->Unit) {
+    val tint=appOverrideColor(LocalDisplayOptions.current.appChromeHex)
+    if(tint==null)GlassSurface(modifier,shape,content)
+    else {
+        val scheme=MaterialTheme.colorScheme
+        val ink=readableAppInk(scheme.onSurface,tint)
+        CompositionLocalProvider(LocalAppChromeInk provides ink,LocalContentColor provides ink) {
+            MaterialTheme(colorScheme=scheme.copy(
+                onSurface=ink,
+                onSurfaceVariant=readableAppInk(scheme.onSurfaceVariant,tint),
+                primary=readableAppInk(scheme.primary,tint))) {
+                GlassSurfaceImpl(modifier,shape,tint,content)
+            }
+        }
+    }
+}
+@Composable private fun GlassSurfaceImpl(modifier:Modifier,shape:Shape,tintOverride:Color?,
+    content:@Composable ()->Unit) {
+    val dark=if(tintOverride!=null)tintOverride.luminance()<.5f else LocalGlassDark.current
     val options=LocalDisplayOptions.current
     val opaque=options.reducedTransparency
     // Keep 22dp as the original blur at 55%; update the surface dynamically.
     val blurRadius=(options.blurIntensity.coerceIn(0,100)*0.4f).dp
-    val tint=if(dark) Color(0xFF263A50) else Color.White
+    val tint=tintOverride ?: if(dark) Color(0xFF263A50) else Color.White
     Surface(
         modifier.shadow(10.dp,shape,
             ambientColor=Color(0xFF254B65).copy(alpha=if(dark).22f else .12f),
@@ -157,7 +192,7 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
             state,
             style=HazeStyle(
                 backgroundColor=MaterialTheme.colorScheme.background,
-                tint=HazeTint(tint.copy(alpha=if(dark).56f else .57f)),
+                tint=HazeTint(tint.copy(alpha=if(tintOverride!=null).82f else if(dark).56f else .57f)),
                 blurRadius=blurRadius,
                 noiseFactor=.018f,
                 fallbackTint=HazeTint(tint.copy(alpha=.94f))
