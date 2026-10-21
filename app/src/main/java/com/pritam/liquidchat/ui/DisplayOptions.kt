@@ -35,6 +35,7 @@ data class DisplayOptions(
     val navBarStyle:String="Reference",
     val hidePhotoShortcut:Boolean=false,
     val showPinBadges:Boolean=true,
-    val emojiPickerSize:Int=24
+    val emojiPickerSize:Int=24,
+    val linkColor:String="Theme"
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
