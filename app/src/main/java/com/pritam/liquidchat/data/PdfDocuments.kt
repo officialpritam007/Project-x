@@ -118,6 +118,68 @@ internal object PdfDocuments {
             finally {image.recycle()}
         }
 
+    /** One A4 document from 1–10 explicitly selected gallery images.
+     *  Source bytes stay on device; the shared PDF follows the same private upload
+     *  and participant authorization path as a scanned camera document.
+     */
+    suspend fun scanGalleryPhotos(context:Context,photos:List<Uri>,account:String):PreparedPdf =
+        withContext(Dispatchers.IO) {
+            require(account.matches(Regex("[a-zA-Z0-9_-]{8,80}")))
+            require(photos.isNotEmpty() && photos.size<=10 && photos.distinct().size==photos.size) {
+                "Select between one and ten different pages."
+            }
+            val directory=File(context.filesDir,"media/$account").apply {mkdirs()}
+            val result=File(directory,"${UUID.randomUUID()}.pdf")
+            try {
+                val pdf=android.graphics.pdf.PdfDocument()
+                try {
+                    photos.forEachIndexed {index,uri->
+                        val mime=context.contentResolver.getType(uri)
+                        require(mime==null || mime.startsWith("image/")) {
+                            "Only gallery images can be scanned."
+                        }
+                        val bitmap=android.graphics.ImageDecoder.decodeBitmap(
+                            android.graphics.ImageDecoder.createSource(context.contentResolver,uri)
+                        ) {decoder,info,_->
+                            val width=info.size.width
+                            val height=info.size.height
+                            require(width>0 && height>0 && width.toLong()*height<=25_000_000L) {
+                                "Page ${index+1} is too large."
+                            }
+                            val factor=minOf(1.0,1500.0/maxOf(width,height))
+                            decoder.setTargetSize(maxOf(1,(width*factor).toInt()),
+                                maxOf(1,(height*factor).toInt()))
+                            decoder.allocator=android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                        }
+                        try {
+                            val pageInfo=android.graphics.pdf.PdfDocument.PageInfo.Builder(
+                                595,842,index+1).create()
+                            val page=pdf.startPage(pageInfo)
+                            val canvas=page.canvas
+                            canvas.drawColor(android.graphics.Color.WHITE)
+                            val scale=minOf(555f/bitmap.width,802f/bitmap.height)
+                            val width=bitmap.width*scale
+                            val height=bitmap.height*scale
+                            val target=android.graphics.RectF((595f-width)/2,(842f-height)/2,
+                                (595f+width)/2,(842f+height)/2)
+                            val filter=android.graphics.ColorMatrix().apply {setSaturation(0f)}
+                            val paint=android.graphics.Paint(
+                                android.graphics.Paint.ANTI_ALIAS_FLAG or
+                                    android.graphics.Paint.FILTER_BITMAP_FLAG
+                            ).apply {colorFilter=android.graphics.ColorMatrixColorFilter(filter)}
+                            canvas.drawBitmap(bitmap,null,target,paint)
+                            pdf.finishPage(page)
+                        } finally {bitmap.recycle()}
+                    }
+                    result.outputStream().use {pdf.writeTo(it)}
+                } finally {pdf.close()}
+                if(result.length() !in 100..MAX_BYTES.toLong()) {
+                    throw IOException("Combined scan exceeds 8 MB. Choose fewer or smaller images.")
+                }
+                PreparedPdf(result,safeName("Scanned-${photos.size}-pages.pdf"))
+            } catch(e:Exception) {result.delete();throw e}
+        }
+
     /** User-directed copy of one authorized, undeleted PDF to a selected SAF URI. */
     suspend fun saveReceived(
         context:Context,repository:ChatRepository,message:Message,destination:Uri
