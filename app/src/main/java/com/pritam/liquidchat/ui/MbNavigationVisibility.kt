@@ -96,19 +96,23 @@ internal object MbNavigationVisibility {
     val display=LocalDisplayOptions.current
     var expanded by remember {mutableStateOf(false)}
     val selected=current in destinations
+    val iconSize=if(referenceBar&&display.navIconSize==24)30 else display.navIconSize
     Box(modifier) {
-        Column(Modifier.fillMaxWidth().heightIn(min=if(referenceBar)60.dp else 54.dp)
+        Column(Modifier.fillMaxWidth()
+            .then(if(referenceBar)Modifier.height(56.dp) else Modifier.heightIn(min=54.dp))
             .clip(if(referenceBar)Glass.compact else Glass.capsule)
-            .background(if(selected)MaterialTheme.colorScheme.primary.copy(alpha=.18f) else Color.Transparent)
+            .background(if(selected&&!referenceBar)MaterialTheme.colorScheme.primary.copy(alpha=.18f) else Color.Transparent)
             .clickable(role=Role.Button) {expanded=true}
             .semantics {contentDescription="More navigation";this.selected=selected},
             horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
             if(!display.hideNavIcons)Icon(Icons.Outlined.MoreHoriz,contentDescription=null,
-                modifier=Modifier.size(display.navIconSize.dp),
+                modifier=Modifier.size(iconSize.dp),
                 tint=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             if(showEffectiveNavigationLabels(display))Text("More",fontSize=display.navLabelSize.sp,
                 maxLines=1,overflow=TextOverflow.Ellipsis,
                 color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            if(referenceBar&&selected)Box(Modifier.width(56.dp).height(3.dp)
+                .clip(Glass.capsule).background(MaterialTheme.colorScheme.primary))
         }
         LiquidDropdownMenu(expanded,onDismissRequest={expanded=false}) {
             destinations.forEach {destination->
