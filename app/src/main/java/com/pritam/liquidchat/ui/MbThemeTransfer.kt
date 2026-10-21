@@ -20,7 +20,8 @@ internal object MbThemeTransfer {
             hideOutgoingTyping=current.hideOutgoingTyping,
             hideHomePreviews=current.hideHomePreviews,
             preventScreenshots=current.preventScreenshots,
-            copySenderAndTime=current.copySenderAndTime
+            copySenderAndTime=current.copySenderAndTime,
+            photoQuality=current.photoQuality
         )
 
     fun export(options:DisplayOptions):String = JSONObject().apply {
