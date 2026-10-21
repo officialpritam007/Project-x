@@ -21,6 +21,14 @@ import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 class ApiException(val status: Int, val code: String, message: String) : IOException(message)
+
+/**
+ * Ordinary API and media endpoints return HTTP 403 for an authenticated but
+ * forbidden action (membership, block, RLS, quota). Only HTTP 401 means the
+ * current access token was rejected. Refresh-token endpoint failures follow
+ * a separate, stricter rule inside validSession().
+ */
+internal fun shouldRotateReadScopeForApiStatus(status:Int):Boolean = status==401
 data class Session(val userId: String, val access: String, val refresh: String, val expires: Long,val email:String="")
 
 class Backend(private val store: SessionStore, private val http:OkHttpClient = OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS).build()) {
@@ -179,7 +187,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
             // membership, a block, or a restricted RPC. That must not rotate
             // the authentication cache or invalidate visible conversations.
             // A true 401 after token refresh is the only rejection here.
-            if(e.status==401) {
+            if(shouldRotateReadScopeForApiStatus(e.status)) {
                 discardRejectedReads(SessionSnapshot(attempted,original.generation))
             }
             throw e
@@ -286,7 +294,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
             if(!res.isSuccessful) {
                 // A 403 may be an authenticated conversation/block/quota denial,
                 // not an expired auth session. Only 401 invalidates the session.
-                if(res.code==401)
+                if(shouldRotateReadScopeForApiStatus(res.code))
                     discardRejectedReads(SessionSnapshot(current,original.generation))
                 throw ApiException(res.code,"",
                     if(res.code==403)
@@ -317,7 +325,7 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
             checkSession(original)
             if(!response.isSuccessful) {
                 // A server policy may deny an authenticated upload with 403.
-                if(response.code==401)discardRejectedReads(SessionSnapshot(current,original.generation))
+                if(shouldRotateReadScopeForApiStatus(response.code))discardRejectedReads(SessionSnapshot(current,original.generation))
                 throw ApiException(response.code,"",when(response.code) {
                     413->"Video is too large. Choose a shorter clip."
                     400->"Video format or duration unsupported. Choose another clip."
