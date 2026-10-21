@@ -29,7 +29,7 @@ internal object ChatTextExport {
             "Contact: ${contactName.take(100)}\n" +
             "Only visible, downloaded messages on this phone are included.\n\n"
         val result=StringBuilder(title)
-        selected.forEach {message->
+        for(message in selected) {
             val safe=when(message.mediaKind) {
                 "voice"->"[Voice message]"
                 "sticker"->"[Sticker]"
@@ -40,9 +40,9 @@ internal object ChatTextExport {
             }.take(4000)
             val author=if(message.sender==account)"You" else contactName.take(100)
             val line="[${formatter.format(Instant.ofEpochMilli(message.localTime))}] ${author}: ${safe}\n"
-            if((result.length+line.length)*3>MAX_BYTES) {
+            if((result.length+line.length+30)*4>MAX_BYTES) {
                 result.append("\n[Export size limit reached]\n")
-                return@forEach
+                break
             }
             result.append(line)
         }
