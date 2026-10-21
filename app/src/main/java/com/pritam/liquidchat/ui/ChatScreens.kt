@@ -321,7 +321,7 @@ import kotlinx.coroutines.launch
             }
         }
     }
-    Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=78.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    if(!inboxDisplay.hideHomeFloatingButtons) Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=78.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         if(!inboxDisplay.hidePhotoShortcut) GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
@@ -330,6 +330,7 @@ import kotlinx.coroutines.launch
         val previewFlow=remember(model,c.id) {model.repository.messages(c.id)}
         val previewMessages by previewFlow.collectAsStateWithLifecycle(initialValue=emptyList())
         LiquidActionSheet(title=c.name,onDismiss={selectedChat=null}) {
+        if(inboxDisplay.showLongPressPreview) {
         Text("Conversation preview",style=MaterialTheme.typography.titleSmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(horizontal=12.dp))
         GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
@@ -348,6 +349,7 @@ import kotlinx.coroutines.launch
                 },
                     maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
             }
+        }
         }
         GlassActionRow("Open conversation",Icons.Outlined.ChatBubbleOutline,
             onClick={selectedChat=null;model.open(c.id)})
@@ -2110,6 +2112,21 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Liquid Chat Updates") MbAppUpdates()
         if(section=="Liquid Chat Home Screen") MbStoryPlaybackSettingsCard()
+        if(section=="Liquid Chat Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Home interaction controls",style=MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Show preview on chat long-press",Modifier.weight(1f))
+                Switch(checked=display.showLongPressPreview,
+                    onCheckedChange={model.setDisplay(display.copy(showLongPressPreview=it))})
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Hide floating new-chat buttons",Modifier.weight(1f))
+                Switch(checked=display.hideHomeFloatingButtons,
+                    onCheckedChange={model.setDisplay(display.copy(hideHomeFloatingButtons=it))})
+            }
+            Text("Contacts and New chat remain available through existing navigation.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         if(section=="Liquid Chat Home Screen") MbNavigationVisibilitySettingsCard()
         if(section=="Liquid Chat Notifications") MbConversationSoundSettings()
         if(section=="Liquid Chat Conversation Screen") MbConversationInteractionSettings(model,display)
