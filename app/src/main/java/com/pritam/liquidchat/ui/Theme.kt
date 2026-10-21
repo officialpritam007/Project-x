@@ -99,7 +99,9 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
     val haze=remember {HazeState()}
     CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze) {
         MaterialTheme(
-            colorScheme=liquidAccentScheme(dark,LocalDisplayOptions.current.accentColor),
+            colorScheme=if(LocalDisplayOptions.current.accentColor=="Custom")
+                customAccentScheme(if(dark)Dark else Light,dark,LocalDisplayOptions.current.customAccentHex)
+            else liquidAccentScheme(dark,LocalDisplayOptions.current.accentColor),
             shapes=Shapes(small=Glass.compact,medium=Glass.card,large=Glass.hero),
             typography=liquidTypography(LocalDisplayOptions.current.fontPreset),
             content=content
