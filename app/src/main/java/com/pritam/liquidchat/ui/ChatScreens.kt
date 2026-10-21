@@ -1216,7 +1216,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         Surface(
             shape=conversationBubbleShape(bubbleDisplay.bubbleStyle,mine),
             color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
-                else conversationBubbleColor(resolvedBubblePalette(bubbleDisplay,mine),mine,LocalGlassDark.current)
+                else resolvedBubbleColor(bubbleDisplay,mine,LocalGlassDark.current)
                     ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
                     else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
             border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
@@ -1243,7 +1243,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 if(message.mediaKind!="voice")MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
                     linksEnabled=!selectionMode,
                     textColor=conversationInkColor(if(mine)bubbleDisplay.outgoingInk else bubbleDisplay.incomingInk,
-                        LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
+                        LocalGlassDark.current,resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface)),
                     onTextLayout={truncated=it.hasVisualOverflow})
                 if(message.status=="SENDING")uploadPercent?.let {percent->
                     LinearProgressIndicator(progress={percent/100f},modifier=Modifier.width(160.dp))
@@ -1685,6 +1685,33 @@ if(section=="Liquid Chat Home Screen") {
                     }
                 }
             }
+
+            Text("Pick independent bubble colors",style=MaterialTheme.typography.titleSmall)
+            listOf(true,false).forEach {mine->
+                val current=if(mine)display.outgoingBubbleHex else display.incomingBubbleHex
+                var input by rememberSaveable(mine) {mutableStateOf(current)}
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value=input,
+                        onValueChange={input=it.take(7)},
+                        label={Text(if(mine)"Outgoing #RRGGBB" else "Incoming #RRGGBB")},
+                        isError=input.isNotEmpty() && normalizedAccentHex(input)==null,
+                        singleLine=true,
+                        modifier=Modifier.weight(1f)
+                    )
+                    FilledTonalButton(
+                        enabled=normalizedAccentHex(input)!=null,
+                        onClick={
+                            normalizedAccentHex(input)?.let {hex->
+                                model.setDisplay(if(mine)
+                                    display.copy(outgoingBubbleHex=hex,outgoingBubblePreset="Custom")
+                                else display.copy(incomingBubbleHex=hex,incomingBubblePreset="Custom"))
+                            }
+                        }
+                    ) {Text("Apply")}
+                }
+            }
             Text("Message ink & timestamps",style=MaterialTheme.typography.titleSmall)
             listOf("Outgoing text","Incoming text","Quoted text","Message time").forEach {target->
                 val selected=when(target) {
@@ -1754,7 +1781,7 @@ if(section=="Liquid Chat Home Screen") {
             listOf(false,true).forEach {mine ->
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
                     Surface(shape=conversationBubbleShape(display.bubbleStyle,mine),
-                        color=conversationBubbleColor(resolvedBubblePalette(display,mine),mine,LocalGlassDark.current)
+                        color=resolvedBubbleColor(display,mine,LocalGlassDark.current)
                             ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
                             else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)) {
                         Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
