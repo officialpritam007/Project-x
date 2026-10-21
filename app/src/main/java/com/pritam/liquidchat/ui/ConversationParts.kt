@@ -114,11 +114,12 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
 
 @Composable internal fun TypingBubble() {
     val reduced=LocalDisplayOptions.current.reducedMotion
+    val dotDuration=when(LocalDisplayOptions.current.animation) {"Normal"->650;"Extra"->330;else->500}
     Surface(shape=Glass.card,color=MaterialTheme.colorScheme.surface,modifier=Modifier.semantics(mergeDescendants=true) {contentDescription="Typing";liveRegion=LiveRegionMode.Polite}) {
         Row(Modifier.padding(horizontal=16.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(5.dp)) {
             val transition=rememberInfiniteTransition(label="Typing")
             repeat(3) {i->
-                val opacity=if(reduced)1f else transition.animateFloat(.3f,1f,infiniteRepeatable(tween(500,delayMillis=i*120),RepeatMode.Reverse),label="Dot $i").value
+                val opacity=if(reduced)1f else transition.animateFloat(.3f,1f,infiniteRepeatable(tween(dotDuration,delayMillis=i*(dotDuration/4)),RepeatMode.Reverse),label="Dot $i").value
                 Box(Modifier.size(7.dp).alpha(opacity).background(MaterialTheme.colorScheme.onSurfaceVariant,CircleShape))
             }
         }
