@@ -24,8 +24,8 @@ class MbPreferencesLandingTest {
                 MbPreferencesLanding(onBack={backs++},onNavigate={opened+=it})
             }
         }
-        compose.onNodeWithText("MB Preferences").assertIsDisplayed()
-        compose.onNodeWithContentDescription("MB Preferences icon").assertExists()
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Liquid Chat Preferences icon").assertExists()
         for(route in MbReferencePreferenceSections.all) {
             compose.onNodeWithText(route.label).performScrollTo().performClick()
         }
