@@ -51,6 +51,10 @@ data class DisplayOptions(
     val hideStoriesCarousel:Boolean=false,
     val randomAccentOnLaunch:Boolean=false,
     val notificationIconStyle:String="Classic",
-    val bubbleOpacity:Int=100
+    val bubbleOpacity:Int=100,
+    val outgoingInkHex:String="#172D42",
+    val incomingInkHex:String="#172D42",
+    val quotedInkHex:String="#172D42",
+    val timestampInkHex:String="#536B7D"
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
