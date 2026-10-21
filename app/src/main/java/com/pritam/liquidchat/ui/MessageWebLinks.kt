@@ -19,3 +19,10 @@ internal fun messageWebLinks(text:String):List<MessageWebLink> =
             parsed.rawUserInfo!=null || parsed.port !in -1..65535)return@mapNotNull null
         MessageWebLink(match.range.first,match.range.first+url.length,url)
     }.toList()
+
+/** Android IntentFilter scheme matching is case-sensitive; the message stays verbatim. */
+internal fun androidBrowserUrl(link:MessageWebLink):String {
+    val separator=link.url.indexOf(':')
+    if(separator<=0)return link.url
+    return link.url.substring(0,separator).lowercase(java.util.Locale.ROOT)+link.url.substring(separator)
+}
