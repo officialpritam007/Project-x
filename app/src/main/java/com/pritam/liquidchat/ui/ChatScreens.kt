@@ -153,7 +153,8 @@ import kotlinx.coroutines.flow.drop
             model.search("")
         }
     }
-    val activeFilter=if(inboxDisplay.hideArchiveAccess && filter==2)0 else filter
+    LaunchedEffect(inboxDisplay.hideHomeFilters) {if(inboxDisplay.hideHomeFilters)filter=0}
+    val activeFilter=if(inboxDisplay.hideHomeFilters || (inboxDisplay.hideArchiveAccess && filter==2))0 else filter
     LaunchedEffect(menu,signedInAccount?.userId) {
         if(menu && signedInAccount!=null) {
             try {model.repository.loadSettings()}
@@ -198,6 +199,10 @@ import kotlinx.coroutines.flow.drop
                     // The four filters already have visible, accessible chips below.
                     // Keep overflow for an action rather than duplicating navigation.
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
+                    if(inboxDisplay.hideStoriesCarousel) {
+                        DropdownMenuItem(text={Text("View stories")},onClick={stories=true;menu=false})
+                        DropdownMenuItem(text={Text("Add my story")},onClick={addStoryImmediately=true;ownStories=true;menu=false})
+                    }
                     DropdownMenuItem(text={Text("Choose home wallpaper")},onClick={
                         menu=false
                         homePickerAccount=homeOwner
@@ -238,7 +243,7 @@ import kotlinx.coroutines.flow.drop
                 }
             }
         }
-        HomeStoriesRow(
+        if(!inboxDisplay.hideStoriesCarousel) HomeStoriesRow(
             model,onMine={addStoryImmediately=true;ownStories=true},onStories={stories=true},
             refreshKey=storyRefreshKey,
             onOpenStory={id,mine->
@@ -247,7 +252,7 @@ import kotlinx.coroutines.flow.drop
             }
         )
         if(!inboxDisplay.hideHomeSearch) GlassSearch(query,{query=it;model.search(it)},"Search Chats")
-        FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+        if(!inboxDisplay.hideHomeFilters) FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             listOf(0 to "All",1 to "Favorite",2 to "Archive",3 to "Unread")
                 .filter {it.first!=2 || !inboxDisplay.hideArchiveAccess}
                 .forEach { (index,label)->FilterChip(selected=activeFilter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
@@ -1560,6 +1565,21 @@ if(section=="Liquid Chat Home Screen") {
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text("Hide filter chips",Modifier.weight(1f))
+                    Switch(checked=display.hideHomeFilters,
+                        onCheckedChange={model.setDisplay(display.copy(hideHomeFilters=it))})
+                }
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide Stories carousel")
+                        Text("Stories remain available from the Home options menu.",
+                            style=MaterialTheme.typography.bodySmall,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.hideStoriesCarousel,
+                        onCheckedChange={model.setDisplay(display.copy(hideStoriesCarousel=it))})
+                }
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Hide home search",style=MaterialTheme.typography.titleSmall)
