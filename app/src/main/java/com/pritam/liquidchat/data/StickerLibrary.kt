@@ -31,6 +31,10 @@ internal object StickerLibrary {
         require(prepared.width==512 && prepared.height==512 &&
             prepared.file.isFile && prepared.file.length() in 100..524288 &&
             prepared.file.extension=="png")
+        val sourceRoot=File(context.filesDir,"media/$account").canonicalFile
+        require(prepared.file.canonicalFile.parentFile==sourceRoot) {
+            "This sticker belongs to a different account."
+        }
         val folder=root(context,account).apply {mkdirs()}
         require(list(context,account).size<LIMIT) {"Remove a sticker to save another."}
         val file=File(folder,"${UUID.randomUUID()}.png")
