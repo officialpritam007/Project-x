@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pritam.liquidchat.data.Delivery
 import com.pritam.liquidchat.data.Message
 import java.time.*
@@ -171,6 +172,7 @@ internal fun recentEmojiChoices(previous:List<String>,selected:String):List<Stri
     var recent by remember {mutableStateOf<List<String>>(emptyList())}
     fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
     val displayed=findEmojis(category,query)
+    val emojiSize=LocalDisplayOptions.current.emojiPickerSize.coerceIn(18,32).sp
     LiquidAlertDialog(
         onDismissRequest=onDismiss,
         title={Text("Emoji")},
@@ -207,7 +209,7 @@ internal fun recentEmojiChoices(previous:List<String>,selected:String):List<Stri
                                 TextButton(onClick={choose(emoji)},
                                     modifier=Modifier.weight(1f).heightIn(min=48.dp),
                                     contentPadding=PaddingValues(0.dp)) {
-                                    Text(emoji,style=MaterialTheme.typography.titleLarge)
+                                    Text(emoji,fontSize=emojiSize)
                                 }
                             }
                         }
@@ -222,7 +224,7 @@ internal fun recentEmojiChoices(previous:List<String>,selected:String):List<Stri
                                     onClick={choose(row[index])},
                                     modifier=Modifier.weight(1f).heightIn(min=48.dp),
                                     contentPadding=PaddingValues(0.dp)
-                                ) {Text(row[index],style=MaterialTheme.typography.titleLarge)}
+                                ) {Text(row[index],fontSize=emojiSize)}
                             else Spacer(Modifier.weight(1f))
                         }
                     }

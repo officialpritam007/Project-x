@@ -73,6 +73,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Message bubble style").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Reactions & text").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Quick reaction emojis · choose 1–6").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Emoji picker size · 24 sp").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Live message preview").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming message").performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()

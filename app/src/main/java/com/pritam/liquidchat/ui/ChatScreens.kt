@@ -1627,6 +1627,11 @@ if(section=="MB Home Screen") {
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
                 valueRange=14f..22f,steps=7,modifier=Modifier.fillMaxWidth())
+            // MB 3.3.4 mb_emoji_sizer: changes the real emoji picker, not message content.
+            Text("Emoji picker size · ${display.emojiPickerSize} sp",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.emojiPickerSize.toFloat(),
+                onValueChange={value->model.setDisplay(display.copy(emojiPickerSize=value.toInt()))},
+                valueRange=18f..32f,steps=13,modifier=Modifier.fillMaxWidth())
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Live message preview",style=MaterialTheme.typography.titleMedium)
