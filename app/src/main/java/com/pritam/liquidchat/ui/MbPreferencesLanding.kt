@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -59,7 +60,8 @@ internal object MbReferencePreferenceSections {
     val utility=listOf(
         MbReferencePreference("My account","Account",Icons.Outlined.PersonOutline),
         MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage),
-        MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull)
+        MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull),
+        MbReferencePreference("Tips & Help","Liquid Chat Help",Icons.Outlined.HelpOutline)
     )
     val all=visual+themes+controls+utility
 }
