@@ -1589,10 +1589,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         style=MaterialTheme.typography.bodySmall)}
                 }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
-                    if(message.mediaKind=="voice")VoicePlayer(model,message) else SharedImagePreview(model,message)
+                    if(message.mediaKind=="voice")VoicePlayer(model,message)
+                    else SharedImagePreview(model,message)
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind!="voice")MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
+                if(message.mediaKind!="voice" && !(message.mediaKind=="sticker" && message.body=="Sticker"))MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
                     linksEnabled=!selectionMode,
                     textColor=conversationInkColor(if(mine)bubbleDisplay.outgoingInk else bubbleDisplay.incomingInk,
                         LocalGlassDark.current,resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
@@ -2470,7 +2471,7 @@ if(section=="Liquid Chat Home Screen") {
 
 @Composable internal fun SharedImagePreview(model:AppViewModel,message:Message,thumbnail:Boolean=false) {
     var open by remember(message.id) {mutableStateOf(false)}
-    ProtectedImage(model.backend,message.mediaId,message.localImage,"Shared photo",Modifier.fillMaxWidth().aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
+    ProtectedImage(model.backend,message.mediaId,message.localImage,if(message.mediaKind=="sticker")"Shared sticker" else "Shared photo",Modifier.fillMaxWidth().aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
@@ -2484,7 +2485,7 @@ if(section=="Liquid Chat Home Screen") {
                     pan=Offset((pan.x+move.x).coerceIn(-limitX,limitX),(pan.y+move.y).coerceIn(-limitY,limitY))
                 }
                 Box(Modifier.weight(1f).fillMaxWidth().clip(androidx.compose.ui.graphics.RectangleShape).onSizeChanged {size=it}.transformable(transform)) {
-                    ProtectedImage(model.backend,message.mediaId,message.localImage,"Full-size shared photo",Modifier.fillMaxSize().graphicsLayer {scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y})
+                    ProtectedImage(model.backend,message.mediaId,message.localImage,if(message.mediaKind=="sticker")"Full-size shared sticker" else "Full-size shared photo",Modifier.fillMaxSize().graphicsLayer {scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y})
                 }
                 val context=LocalContext.current
                 val scope=rememberCoroutineScope()
