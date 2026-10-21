@@ -820,6 +820,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     forwardSearch=""
                     selectedIds=emptySet()
                 },enabled=selectedText.isNotEmpty()) {Text("Forward")}
+                val starCandidates=selectedText.filter {it.status=="SENT"}
+                val shouldStar=starCandidates.any {!it.starred}
+                TextButton(onClick={
+                    val toChange=starCandidates.filter {it.starred==!shouldStar}
+                    selectedIds=emptySet()
+                    model.action {
+                        toChange.forEach {message->
+                            model.repository.messageAction(message.id,"star",shouldStar.toString())
+                        }
+                    }
+                },enabled=starCandidates.isNotEmpty()) {
+                    Text(if(shouldStar)"Star" else "Unstar")
+                }
                 IconButton(onClick={selectedIds=emptySet()}) {Icon(Icons.Outlined.Close,"Cancel selection")}
             }
         }
