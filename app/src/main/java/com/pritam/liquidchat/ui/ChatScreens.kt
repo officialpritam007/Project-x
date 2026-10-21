@@ -1336,6 +1336,22 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 Text("Select multiple")
                             }
                         }
+                        if(m.mediaKind=="sticker" && m.status=="SENT" &&
+                            m.mediaId.isNotEmpty() && m.deletedAt.isEmpty()) {
+                            TextButton(onClick={
+                                actionMessage=null
+                                model.action {
+                                    StickerLibrary.saveReceived(context,model.repository,m)
+                                    savedStickers=StickerLibrary.list(context,session?.userId)
+                                    stickerNotice="Sticker saved"
+                                    stickerLibraryOpen=true
+                                }
+                            },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                                Icon(Icons.Outlined.AutoAwesome,null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Save to My stickers")
+                            }
+                        }
                         if(m.mediaKind!="voice")TextButton(onClick={
                             clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)));actionMessage=null
                         },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Copy text")}
