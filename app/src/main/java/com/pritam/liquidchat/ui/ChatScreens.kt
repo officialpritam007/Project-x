@@ -3195,27 +3195,21 @@ if(section=="Liquid Chat Home Screen") {
                 Slider(value=display.chatHeaderNameSize.toFloat(),
                     onValueChange={model.setDisplay(display.copy(chatHeaderNameSize=it.toInt()))},
                     valueRange=12f..24f,steps=11,modifier=Modifier.fillMaxWidth())
-                Text("Call, video and menu icon colors",style=MaterialTheme.typography.titleSmall)
-                Row(Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    listOf("Theme","Accent","Text").forEach {mode->
-                        FilterChip(selected=display.chatHeaderIconColor==mode,
-                            onClick={model.setDisplay(display.copy(chatHeaderIconColor=mode))},
-                            label={Text(mode)})
-                    }
-                }
+                MbReferenceChoicePicker(
+                    title="Call, video and menu icon colors",
+                    choices=listOf("Theme","Accent","Text"),
+                    selected=display.chatHeaderIconColor,
+                    onSelect={mode->model.setDisplay(display.copy(chatHeaderIconColor=mode))})
                 Text("Changing icon colors never changes contact actions or calling availability.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             MbExpandableSettingsCard("Media upload quality") {
-                Row(Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    listOf("Standard","HD").forEach {quality->
-                        FilterChip(selected=display.photoQuality==quality,
-                            onClick={model.setDisplay(display.copy(photoQuality=quality))},
-                            label={Text(quality)})
-                    }
-                }
+                MbReferenceChoicePicker(title="Media upload quality",
+                    choices=listOf("Standard","HD"),
+                    selected=display.photoQuality,
+                    onSelect={quality->
+                        model.setDisplay(display.copy(photoQuality=quality))
+                    })
                 Text("HD sends larger, sharper JPEG images via the same authenticated upload; it uses more storage and data.",
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -3244,18 +3238,18 @@ if(section=="Liquid Chat Home Screen") {
             Slider(value=display.bubbleOpacity.toFloat(),
                 onValueChange={model.setDisplay(display.copy(bubbleOpacity=it.toInt()))},
                 valueRange=45f..100f,steps=54,modifier=Modifier.fillMaxWidth())
-                Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                listOf("Tail","Rounded","Compact").forEach {style ->
-                    FilterChip(selected=display.bubbleStyle==style,onClick={model.setDisplay(display.copy(bubbleStyle=style))},label={Text(style)})
-                }
-            }
-            Text("Message bubble color",style=MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                listOf("Original","Green","Lavender","Rose","Night").forEach {palette ->
-                    FilterChip(selected=display.bubbleColor==palette,onClick={model.setDisplay(display.copy(bubbleColor=palette))},label={Text(palette)})
-                }
-            }
+                MbReferenceChoicePicker(title="Message bubble style",
+                    choices=listOf("Tail","Rounded","Compact"),
+                    selected=display.bubbleStyle,
+                    onSelect={style->
+                        model.setDisplay(display.copy(bubbleStyle=style))
+                    })
+                MbReferenceChoicePicker(title="Message bubble color",
+                    choices=listOf("Original","Green","Lavender","Rose","Night"),
+                    selected=display.bubbleColor,
+                    onSelect={palette->
+                        model.setDisplay(display.copy(bubbleColor=palette))
+                    })
             Text("Incoming and outgoing bubble colors",style=MaterialTheme.typography.titleSmall)
             Text("Follow uses the shared bubble palette above; independent colors override it.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
