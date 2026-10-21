@@ -686,6 +686,36 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val image=Images.prepare(context,uri,account,hd=model.display.value.photoQuality=="HD")
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    // The reference app allows multi-select. Each image is still an independent
+    // authorized and retriable Liquid Chat message (no invented album backend).
+    var preparedAlbum by remember(cid,session?.userId) {
+        mutableStateOf<List<Images.Prepared>>(emptyList())
+    }
+    var albumSending by remember(cid,session?.userId) {mutableStateOf(false)}
+    val albumPicker=rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()) {uris->
+        if(uris.isNotEmpty())model.action {
+            val owner=model.backend.session.value?.userId ?: return@action
+            require(uris.size<=10) {"Choose up to ten photos at a time."}
+            val staged=mutableListOf<Images.Prepared>()
+            try {
+                uris.distinct().forEach {uri->
+                    check(model.backend.session.value?.userId==owner) {
+                        "The signed-in account changed while preparing photos."
+                    }
+                    staged+=Images.prepare(context,uri,owner,
+                        hd=model.display.value.photoQuality=="HD")
+                }
+                if(model.backend.session.value?.userId==owner) {
+                    preparedAlbum.forEach {it.file.delete()}
+                    preparedAlbum=staged.toList()
+                } else error("The signed-in account changed.")
+            } catch(error:Exception) {
+                staged.forEach {it.file.delete()}
+                throw error
+            }
+        }
+    }
     var preparedPdf by remember(cid,session?.userId) {mutableStateOf<PreparedPdf?>(null)}
     val documentPicker=rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()) {uri->
@@ -1139,6 +1169,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     photoQuality=if(it)"HD" else "Standard"))})
         }
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
+        GlassActionRow("Select multiple photos",Icons.Outlined.PhotoLibrary,
+            onClick={attachments=false;albumPicker.launch("image/*")})
         GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
             onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
         GlassActionRow("Combine photos into PDF",Icons.Outlined.Description,
@@ -1848,6 +1880,55 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             },enabled=!busy) {Text("Cancel")}}
         )
     }
+    if(preparedAlbum.isNotEmpty()) LiquidAlertDialog(
+        onDismissRequest={
+            if(!albumSending&&!busy) {
+                preparedAlbum.forEach {it.file.delete()}
+                preparedAlbum=emptyList()
+            }
+        },
+        title={Text("Send ${preparedAlbum.size} photos")},
+        text={Column(Modifier.fillMaxWidth().heightIn(max=440.dp)
+            .verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                preparedAlbum.forEach {image->
+                    coil.compose.AsyncImage(model=image.file,
+                        contentDescription="Selected photo",
+                        modifier=Modifier.size(114.dp))
+                }
+            }
+            Text("Up to 10 private photos. Each is queued as an individual message, so delivery and retry are independent.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            if(albumSending)Text("Queuing photos…",
+                style=MaterialTheme.typography.bodySmall)
+        }},
+        confirmButton={TextButton(enabled=!albumSending&&!busy&&session!=null,
+            onClick={
+                val owner=session?.userId ?: return@TextButton
+                albumSending=true
+                model.action {
+                    try {
+                        while(preparedAlbum.isNotEmpty()) {
+                            check(model.backend.session.value?.userId==owner) {
+                                "Account changed before all selected photos were queued."
+                            }
+                            val image=preparedAlbum.first()
+                            model.repository.sendImage(cid,image,"")
+                            // Ownership of the local file has moved to the durable
+                            // outbox. Never delete already queued photos on cancel.
+                            preparedAlbum=preparedAlbum.drop(1)
+                        }
+                    } finally {albumSending=false}
+                }
+            }) {Text("Send photos")}},
+        dismissButton={TextButton(enabled=!albumSending&&!busy,onClick={
+            preparedAlbum.forEach {it.file.delete()}
+            preparedAlbum=emptyList()
+        }) {Text("Cancel")}}
+    )
     prepared?.let {image->
         val editingAllowed=!photoEditBusy&&!busy
         LiquidAlertDialog(
