@@ -87,6 +87,22 @@ import androidx.compose.ui.platform.LocalContext
     AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp),
         colorFilter=LocalAppChromeInk.current?.let {androidx.compose.ui.graphics.ColorFilter.tint(it)})
 }
+/** Authentic, owner-supplied APK navigation art, stored without any foreign branding.
+ * Only used for matching visible Liquid Chat destinations in Reference mode.
+ */
+@Composable internal fun LiquidReferenceIcon(
+    asset:String,description:String?,size:Int,tint:Color
+) {
+    val context=LocalContext.current
+    val request=remember(context,asset) {
+        ImageRequest.Builder(context)
+            .data("file:///android_asset/liquid_reference/${asset}.png")
+            .build()
+    }
+    AsyncImage(model=request,contentDescription=description,
+        modifier=Modifier.size(size.dp),
+        colorFilter=androidx.compose.ui.graphics.ColorFilter.tint(tint))
+}
 /** Never allow a fully blank navigation button when icons are hidden. */
 internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     options.showNavLabels || options.hideNavIcons
@@ -153,7 +169,23 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                                         fontSize=9.sp)
                                 }
                             }) {
-                                if(i==1) {
+                                if(referenceBar && i in 0..3) {
+                                    // Real visual counterparts: Chats, Calls,
+                                    // Contacts (people), Settings. Profile keeps
+                                    // its Liquid identity rather than a false
+                                    // WhatsApp Status/Communities destination.
+                                    val iconName=when(i) {
+                                        0->"chats"
+                                        1->"calls"
+                                        2->"contacts"
+                                        else->"settings"
+                                    }
+                                    LiquidReferenceIcon(
+                                        "ref_${iconName}_${if(selected)"on" else "off"}",
+                                        null,referenceIconSize,
+                                        if(selected)MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else if(i==1) {
                                     Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,
                                         modifier=Modifier.size(referenceIconSize.dp),
                                         tint=if(tab==i)MaterialTheme.colorScheme.primary
