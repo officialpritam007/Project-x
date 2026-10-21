@@ -37,6 +37,9 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
         return
     }
     val context=LocalContext.current
+    var scripts by remember(link) {mutableStateOf(false)}
+    var currentUrl by remember(link) {mutableStateOf(link)}
+    var canGoBack by remember(link) {mutableStateOf(false)}
     val browser=remember(link) {
         WebView(context).apply {
             setBackgroundColor(android.graphics.Color.WHITE)
@@ -48,16 +51,21 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
             settings.cacheMode=WebSettings.LOAD_NO_CACHE
             settings.safeBrowsingEnabled=true
             isLongClickable=false
+            android.webkit.CookieManager.getInstance().setAcceptCookie(false)
+            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this,false)
             webViewClient=object:WebViewClient() {
                 override fun shouldOverrideUrlLoading(view:WebView?,request:WebResourceRequest):Boolean =
                     !safeBrowserDestination(request.url.toString())
+
+                override fun onPageFinished(view:WebView?,url:String?) {
+                    super.onPageFinished(view,url)
+                    if(url!=null)currentUrl=url
+                    canGoBack=view?.canGoBack()==true
+                }
             }
             loadUrl(link)
         }
     }
-    var scripts by remember(link) {mutableStateOf(false)}
-    var currentUrl by remember(link) {mutableStateOf(link)}
-    var canGoBack by remember(link) {mutableStateOf(false)}
     BackHandler {if(canGoBack)browser.goBack() else onDismiss()}
     DisposableEffect(browser) {
         onDispose {
