@@ -840,6 +840,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
         }
     }
+    var textToolsOpen by remember(cid,session?.userId) {mutableStateOf(false)}
+    var textToolChoice by remember(cid,session?.userId) {
+        mutableStateOf<OfflineTextAction?>(null)
+    }
+    var textToolSource by remember(cid,session?.userId) {mutableStateOf("")}
     var attachments by remember(cid) {mutableStateOf(false)}
     var cameraPath by rememberSaveable(cid) {mutableStateOf("")}
     var cameraAccount by rememberSaveable(cid) {mutableStateOf("")}
@@ -1152,6 +1157,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 IconButton(onClick={emojiPicker=true},enabled=draftReady) {Icon(Icons.Outlined.EmojiEmotions,"Open emoji picker")}
                 androidx.compose.foundation.text.BasicTextField(input,{if(it.text.length<=4000)updateInput(it)},enabled=draftReady,keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp).onFocusChanged {inputFocused=it.isFocused}.testTag("message-input").semantics {contentDescription="Message"},textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
                 IconButton(onClick={attachments=true},enabled=!busy&&replyTo.isEmpty()) {Icon(Icons.Outlined.AttachFile,"Attach image")}
+                if(body.isNotBlank()) IconButton(
+                    onClick={textToolsOpen=true},enabled=draftReady&&!queueing,
+                    modifier=Modifier.size(36.dp)) {
+                    Icon(Icons.Outlined.AutoFixHigh,"Offline text tools")
+                }
                 if(body.isBlank()&&replyTo.isEmpty())VoiceCapture(model,cid,busy) else FilledIconButton(onClick={if(body.isNotBlank()&&!queueing){
                     val submittedBody=body
                     val submittedReply=replyTo
@@ -1173,6 +1183,45 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
     }
 
+    }
+    if(textToolsOpen) LiquidActionSheet(
+        title="Text tools · offline",onDismiss={textToolsOpen=false}) {
+        Text("Only this unsent draft is transformed. This is not an AI service and your text stays on this phone.",
+            modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp),
+            style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        OfflineTextAction.entries.forEach {option->
+            GlassActionRow(option.label,Icons.Outlined.TextFields,onClick={
+                textToolSource=body
+                textToolChoice=option
+                textToolsOpen=false
+            })
+        }
+    }
+    textToolChoice?.let {choice->
+        val result=remember(textToolSource,choice) {
+            transformDraftOffline(textToolSource,choice)
+        }
+        LiquidAlertDialog(
+            onDismissRequest={textToolChoice=null},
+            title={Text(choice.label)},
+            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text("Preview",style=MaterialTheme.typography.labelMedium)
+                Text(result,modifier=Modifier.fillMaxWidth().heightIn(max=240.dp)
+                    .verticalScroll(rememberScrollState()))
+                if(body!=textToolSource)Text("Your draft has changed. Close and open Text tools again.",
+                    color=MaterialTheme.colorScheme.error,
+                    style=MaterialTheme.typography.bodySmall)
+            }},
+            confirmButton={TextButton(onClick={
+                if(body==textToolSource) {
+                    updateInput(TextFieldValue(result,TextRange(result.length)))
+                }
+                textToolChoice=null
+            },enabled=draftReady&&!queueing&&body==textToolSource&&
+                result!=textToolSource) {Text("Apply to draft")}},
+            dismissButton={TextButton(onClick={textToolChoice=null}) {Text("Cancel")}}
+        )
     }
     if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
         Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp),
