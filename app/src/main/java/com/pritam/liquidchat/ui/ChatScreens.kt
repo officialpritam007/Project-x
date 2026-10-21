@@ -123,7 +123,16 @@ import kotlinx.coroutines.launch
     val signedInAccount by model.session.collectAsStateWithLifecycle()
     val homeOwner=signedInAccount?.userId
     val context=LocalContext.current
+    var customFolders by remember(homeOwner) {
+        mutableStateOf(MbChatFolders.list(context,homeOwner))
+    }
+    var activeFolder by remember(homeOwner) {mutableStateOf<String?>(null)}
+    var folderChat by remember(homeOwner) {mutableStateOf<Chat?>(null)}
     var homePhotoRevision by remember(homeOwner) {mutableIntStateOf(0)}
+    LaunchedEffect(homeOwner,model.repository.foreground.value) {
+        customFolders=MbChatFolders.list(context,homeOwner)
+        if(customFolders.none {it.id==activeFolder})activeFolder=null
+    }
     val homeForeground by model.repository.foreground.collectAsStateWithLifecycle()
     var homePickerAccount by remember {mutableStateOf<String?>(null)}
     var homeVideoPickerAccount by remember {mutableStateOf<String?>(null)}
@@ -263,12 +272,26 @@ import kotlinx.coroutines.launch
                 .filter {it.first!=2 || !inboxDisplay.hideArchiveAccess}
                 .forEach { (index,label)->FilterChip(selected=activeFilter==index,onClick={filter=index},label={Text(label)},shape=Glass.capsule)}
         }
+        if(customFolders.isNotEmpty() && !inboxDisplay.hideHomeFilters) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected=activeFolder==null,
+                    onClick={activeFolder=null},label={Text("All folders")})
+                customFolders.forEach {folder->
+                    FilterChip(selected=activeFolder==folder.id,
+                        onClick={activeFolder=folder.id},
+                        label={Text(folder.name)})
+                }
+            }
+        }
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        val selectedFolder=customFolders.firstOrNull {it.id==activeFolder}
         val visible=chats.filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
+            .filter {selectedFolder==null || it.id in selectedFolder.members}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
         Row(Modifier.fillMaxWidth().padding(horizontal=7.dp,vertical=1.dp),
             verticalAlignment=Alignment.CenterVertically) {
-            Text(when(activeFilter){1->"Favorites";2->"Archived chats";3->"Unread chats";else->"Conversations"},
+            Text(selectedFolder?.name ?: when(activeFilter){1->"Favorites";2->"Archived chats";3->"Unread chats";else->"Conversations"},
                 Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,
                 fontWeight=FontWeight.SemiBold)
             Text("${visible.size} shown",style=MaterialTheme.typography.labelMedium,
@@ -322,6 +345,9 @@ import kotlinx.coroutines.launch
         }
         GlassActionRow("Open conversation",Icons.Outlined.ChatBubbleOutline,
             onClick={selectedChat=null;model.open(c.id)})
+        if(customFolders.isNotEmpty())GlassActionRow("Add to Chat Folder",
+            Icons.Outlined.FolderOpen,
+            onClick={selectedChat=null;folderChat=c})
         HorizontalDivider(Modifier.padding(vertical=8.dp))
         GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
             onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
@@ -345,6 +371,31 @@ import kotlinx.coroutines.launch
         GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
             onClick={selectedChat=null;deleteChat=c},destructive=true)
     }}
+    folderChat?.let {c->
+        LiquidAlertDialog(onDismissRequest={folderChat=null},
+            title={Text("Chat folders")},
+            text={Column(Modifier.fillMaxWidth(),
+                verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text(c.name,style=MaterialTheme.typography.titleSmall)
+                Text("Select the folders where this chat should appear.",
+                    style=MaterialTheme.typography.bodySmall)
+                customFolders.forEach {folder->
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                        Checkbox(checked=c.id in folder.members,
+                            onCheckedChange={checked->
+                                if(homeOwner!=null && c.account==homeOwner)
+                                    runCatching {
+                                        MbChatFolders.membership(context,homeOwner,
+                                            folder.id,c.id,checked)
+                                    }.onSuccess {customFolders=it}
+                            })
+                        Text(folder.name)
+                    }
+                }
+            }},
+            confirmButton={TextButton(onClick={folderChat=null}) {Text("Done")}}
+        )
+    }
     deleteChat?.let {c->LiquidAlertDialog(onDismissRequest={deleteChat=null},title={Text("Delete your chat history?")},text={Text("This removes your existing history on every device. The other person keeps their copy.")},confirmButton={TextButton(onClick={deleteChat=null;model.updateChat(c,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={deleteChat=null}) {Text("Cancel")}})}
     if(stories) MomentsDialog(model,mine=false,
         onDismiss={stories=false;selectedStoryId=null;storyRefreshKey++},
@@ -1802,7 +1853,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(section==null) {
         SettingsHome(model) {title->
             val destination=title
-            if(destination in listOf("Devices","Language","Chat Folders")) unavailable=destination else {
+            if(destination in listOf("Devices","Language")) unavailable=destination else {
                 fromPreferences=false
                 section=destination
             }
@@ -1901,6 +1952,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications","Liquid Chat Help"))"Liquid Chat Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("Liquid Chat "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Data and Storage") DataStorage(model)
+        if(section=="Chat Folders") MbChatFoldersSettings(model)
         if(section=="Liquid Chat Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Themes",style=MaterialTheme.typography.titleLarge)
             Text("Save your current Liquid Chat appearance to a JSON theme, or import a saved theme.",style=MaterialTheme.typography.bodyMedium)
