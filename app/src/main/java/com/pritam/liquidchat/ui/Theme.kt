@@ -55,11 +55,12 @@ private val PremiumTypography=Typography(
     labelLarge=Typography().labelLarge.copy(fontWeight=FontWeight.Medium)
 )
 /** Four built-in Android font families; no unlicensed/private MBWhatsApp fonts. */
-internal fun liquidTypography(preset:String):Typography {
+private fun builtInTypography(preset:String,imported:FontFamily?=null):Typography {
     val family=when(preset) {
         "Serif" -> FontFamily.Serif
         "Mono" -> FontFamily.Monospace
         "Cursive" -> FontFamily.Cursive
+        "Imported" -> imported ?: return PremiumTypography
         else -> return PremiumTypography
     }
     return Typography(
@@ -80,6 +81,25 @@ internal fun liquidTypography(preset:String):Typography {
         labelSmall=PremiumTypography.labelSmall.copy(fontFamily=family)
     )
 }
+internal fun normalizedTitleFontPreset(value:String?):String =
+    value?.takeIf {it in setOf("Follow","System","Serif","Mono","Cursive","Imported")} ?: "Follow"
+
+/** Separate title font preserves body/chat text styles. */
+internal fun liquidTypography(preset:String,titlePreset:String="Follow",
+    importedBody:FontFamily?=null,importedTitle:FontFamily?=null):Typography {
+    val body=builtInTypography(preset,importedBody)
+    val selected=normalizedTitleFontPreset(titlePreset)
+    if(selected=="Follow")return body
+    val titles=builtInTypography(selected,importedTitle)
+    return body.copy(
+        headlineLarge=titles.headlineLarge,
+        headlineMedium=titles.headlineMedium,
+        headlineSmall=titles.headlineSmall,
+        titleLarge=titles.titleLarge,
+        titleMedium=titles.titleMedium,
+        titleSmall=titles.titleSmall
+    )
+}
 /** User-selected primary theme; Cyan deliberately retains the original palette exactly. */
 internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
     val base=if(dark)Dark else Light
@@ -97,13 +117,15 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
 }
 @Composable fun LiquidTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val haze=remember {HazeState()}
+    val imported=rememberImportedFonts()
     CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze) {
         MaterialTheme(
             colorScheme=if(LocalDisplayOptions.current.accentColor=="Custom")
                 customAccentScheme(if(dark)Dark else Light,dark,LocalDisplayOptions.current.customAccentHex)
             else liquidAccentScheme(dark,LocalDisplayOptions.current.accentColor),
             shapes=Shapes(small=Glass.compact,medium=Glass.card,large=Glass.hero),
-            typography=liquidTypography(LocalDisplayOptions.current.fontPreset),
+            typography=liquidTypography(LocalDisplayOptions.current.fontPreset,
+                LocalDisplayOptions.current.titleFontPreset,imported.body,imported.title),
             content=content
         )
     }
