@@ -32,6 +32,8 @@ blindly; compare actual feature code on the current head.
 | Recovery | Full-screen account-safe profile loading/retry/sign out |
 | Conversation sounds | Optional default-off foreground text/audio cues honoring DND, silent mode, audio playback, calling and current account |
 | Visual themes | Round-trip compatible appearance-only settings with no exported auth/personal message state |
+| PDF scanner | New account-private 1–10 gallery-photo grayscale A4 pages composed into a single PDF (≤8 MiB) through existing document outbox; production document migration remains pending |
+| Private fonts | Added per-slot deletion, with safe fallback to System/Follow instead of leaving a selected deleted font |
 
 The uploaded archive's test source has been partially ported into independent `app/src/test`
 source files for the later owner-approved verification phase; those tests have **not** been executed.
