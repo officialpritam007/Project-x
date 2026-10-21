@@ -61,6 +61,7 @@ data class DisplayOptions(
     val copySenderAndTime:Boolean=false,
     val photoQuality:String="Standard",
     val incognitoKeyboard:Boolean=false,
+    val titleFontPreset:String="Follow",
     val customStickerSize:Boolean=false,
     val stickerSize:Int=192,
     val doubleTapReactionEnabled:Boolean=false,
