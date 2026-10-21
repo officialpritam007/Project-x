@@ -1,0 +1,45 @@
+package com.pritam.liquidchat.data
+
+import android.app.NotificationManager
+import android.content.Context
+import android.content.res.Configuration
+
+/** Device- and account-scoped choices for silent message notifications. */
+internal object DeviceAlertPreferences {
+    private const val PREFS="liquid_message_alert_policies_v1"
+    private fun key(account:String,suffix:String)="$account:$suffix"
+
+    fun quietDuringDnd(context:Context,account:String):Boolean =
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+            .getBoolean(key(account,"dnd"),false)
+
+    fun quietDuringLandscape(context:Context,account:String):Boolean =
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+            .getBoolean(key(account,"landscape"),false)
+
+    fun update(context:Context,account:String,dnd:Boolean?=null,landscape:Boolean?=null) {
+        require(account.isNotBlank())
+        val editor=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+        if(dnd!=null)editor.putBoolean(key(account,"dnd"),dnd)
+        if(landscape!=null)editor.putBoolean(key(account,"landscape"),landscape)
+        check(editor.commit()) {"Couldn't save notification alert preference."}
+    }
+
+    fun shouldSilence(context:Context,account:String):Boolean {
+        val landscape=context.resources.configuration.orientation ==
+            Configuration.ORIENTATION_LANDSCAPE
+        val manager=context.getSystemService(NotificationManager::class.java)
+        val dndActive=runCatching {
+            manager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        }.getOrDefault(false)
+        return (landscape && quietDuringLandscape(context,account)) ||
+            (dndActive && quietDuringDnd(context,account))
+    }
+
+    fun clearAccount(context:Context,account:String) {
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+            .remove(key(account,"dnd"))
+            .remove(key(account,"landscape"))
+            .apply()
+    }
+}
