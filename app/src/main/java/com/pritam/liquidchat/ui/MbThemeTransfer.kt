@@ -55,6 +55,7 @@ internal object MbThemeTransfer {
         put("hidePhotoShortcut",options.hidePhotoShortcut)
         put("showPinBadges",options.showPinBadges)
         put("emojiPickerSize",options.emojiPickerSize)
+        put("linkColor",options.linkColor)
     }.toString(2)
 
     /**
@@ -107,7 +108,8 @@ internal object MbThemeTransfer {
             navBarStyle=choice("navBarStyle",setOf("Reference","Liquid"),current.navBarStyle),
             hidePhotoShortcut=bool("hidePhotoShortcut",current.hidePhotoShortcut),
             showPinBadges=bool("showPinBadges",current.showPinBadges),
-            emojiPickerSize=number("emojiPickerSize",current.emojiPickerSize,18,32)
+            emojiPickerSize=number("emojiPickerSize",current.emojiPickerSize,18,32),
+            linkColor=choice("linkColor",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.linkColor)
         )
     }
 }

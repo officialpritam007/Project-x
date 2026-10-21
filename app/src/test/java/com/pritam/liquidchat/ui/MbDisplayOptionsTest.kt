@@ -27,6 +27,8 @@ class MbDisplayOptionsTest {
         assertEquals(false,DisplayOptions().hidePhotoShortcut)
         assertEquals(true,DisplayOptions().showPinBadges)
         assertEquals(24,DisplayOptions().emojiPickerSize)
+        assertEquals("Theme",DisplayOptions().linkColor)
+        assertEquals("Green",DisplayOptions().copy(linkColor="Green").linkColor)
         assertEquals(32,DisplayOptions().copy(emojiPickerSize=32).emojiPickerSize)
         assertEquals("Liquid",DisplayOptions().copy(navBarStyle="Liquid").navBarStyle)
         assertEquals("Cyan",DisplayOptions().accentColor)
