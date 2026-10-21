@@ -74,3 +74,9 @@ internal fun resolvedBubbleTextColor(options:DisplayOptions,mine:Boolean,dark:Bo
     val light=color.red*.2126f + color.green*.7152f + color.blue*.0722f
     return if(light>.52f) Color(0xFF132439) else Color.White
 }
+
+
+/** Same opacity in real message content and Settings preview; deleted highlights stay solid. */
+internal fun bubbleSurfaceColor(options:DisplayOptions,mine:Boolean,dark:Boolean,fallback:Color):Color =
+    (resolvedBubbleColor(options,mine,dark) ?: fallback)
+        .copy(alpha=options.bubbleOpacity.coerceIn(45,100)/100f)
