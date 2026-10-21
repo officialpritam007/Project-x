@@ -25,15 +25,31 @@
         <receiver android:name=".calls.DeclineCallReceiver" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="liquidchat" android:host="auth" android:path="/callback" />
             </intent-filter>
         </activity>
+        <!-- Exactly one launcher alias is enabled. The OAuth / push target MainActivity
+             stays exported and is not disabled when changing app icons. -->
+        <activity-alias android:name=".launcher.Default"
+            android:enabled="true" android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher" android:label="Liquid Chat">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".launcher.NightGlass"
+            android:enabled="false" android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:icon="@drawable/ic_liquid_launcher_alt" android:label="Liquid Chat">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>
