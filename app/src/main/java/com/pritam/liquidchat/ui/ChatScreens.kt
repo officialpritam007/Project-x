@@ -483,6 +483,14 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var selectedIds by remember(cid,session?.userId) {mutableStateOf<Set<String>>(emptySet())}
     var forwardSearch by remember(cid,session?.userId) {mutableStateOf("")}
     val clipboard=LocalClipboardManager.current
+    fun copiedText(message:Message,includeDetails:Boolean):String {
+        if(!includeDetails)return message.body
+        val from=if(message.sender==message.account)"You" else chat?.name.orEmpty().ifBlank {"Contact"}
+        val timestamp=java.time.Instant.ofEpochMilli(message.localTime)
+            .atZone(java.time.ZoneId.systemDefault())
+            .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))
+        return "$from · $timestamp:\n\${message.body}"
+    }
     var replyTo by remember(cid) {mutableStateOf("")}
     var editMessage by remember(cid) {mutableStateOf<Message?>(null)}
     var editBody by remember(cid) {mutableStateOf("")}
@@ -804,7 +812,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 Text("${selectedText.size} selected",Modifier.weight(1f),
                     style=MaterialTheme.typography.labelLarge)
                 TextButton(onClick={
-                    clipboard.setText(AnnotatedString(selectedText.joinToString("\n") {it.body}))
+                    clipboard.setText(AnnotatedString(selectedText.joinToString("\n") {copiedText(it,display.copySenderAndTime)}))
                     selectedIds=emptySet()
                 },enabled=selectedText.isNotEmpty()) {Text("Copy")}
                 TextButton(onClick={
@@ -1267,7 +1275,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             }
                         }
                         if(m.mediaKind!="voice")TextButton(onClick={
-                            clipboard.setText(AnnotatedString(m.body));actionMessage=null
+                            clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)));actionMessage=null
                         },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Copy text")}
                         TextButton(onClick={
                             actionMessage=null
@@ -1929,6 +1937,19 @@ if(section=="Liquid Chat Home Screen") {
                 }
                 Text("Changing icon colors never changes contact actions or calling availability.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Copy message preferences",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Include sender and time when copying")
+                        Text("Off copies message text only, including multi-selection.",
+                            style=MaterialTheme.typography.bodySmall,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.copySenderAndTime,
+                        onCheckedChange={model.setDisplay(display.copy(copySenderAndTime=it))})
+                }
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Wallpaper & contrast",style=MaterialTheme.typography.titleMedium)
