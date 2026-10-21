@@ -490,6 +490,37 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         enqueue(account)
     }
 
+    /**
+     * Enqueue several private PDFs as independent messages in one durable
+     * transaction. A failed batch leaves all local input files with the picker
+     * and never uploads a partially created server album.
+     */
+    suspend fun sendDocuments(cid:String,documents:List<PreparedPdf>) {
+        require(documents.size in 1..5) {"Choose up to five PDFs."}
+        val account=account()
+        val root=java.io.File(context.filesDir,"media/$account").canonicalFile
+        val paths=documents.map {it.file.canonicalPath }
+        require(paths.distinct().size==paths.size) {"Duplicate document."}
+        val queued=documents.map {document->
+            require(document.file.isFile &&
+                document.file.canonicalFile.parentFile==root &&
+                document.file.extension.lowercase()=="pdf" &&
+                document.file.length() in 100..PdfDocuments.MAX_BYTES.toLong()) {
+                "Invalid or foreign-account PDF."
+            }
+            val body="Document: ${PdfDocuments.safeName(document.name)}"
+            Message(account,UUID.randomUUID().toString(),cid,account,
+                body,localImage=document.file.absolutePath,mediaKind="document")
+        }
+        draftMutex.withLock {db.withTransaction {
+            checkAccount(account)
+            queued.forEach {putVisible(it)}
+            val latest=queued.last()
+            dao.pendingPreview(account,cid,"Queued: ${latest.body}",latest.localTime)
+        }}
+        enqueue(account)
+    }
+
     suspend fun sendDocument(cid:String,pdf:PreparedPdf) {
         val account=account()
         val name=PdfDocuments.safeName(pdf.name)
