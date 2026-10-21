@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * The supplied reference APK's packaged preferences layout has a top icon and
@@ -71,16 +72,18 @@ internal object MbReferencePreferenceSections {
     route:MbReferencePreference,
     onNavigate:(String)->Unit
 ) {
-    Row(Modifier.fillMaxWidth().heightIn(min=56.dp).clip(Glass.compact)
+    // res/layout-v1/mb_item_settings.xml: 24dp leading/trailing icon,
+    // 15dp leading inset, 10dp trailing inset and 8dp vertical padding.
+    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).clip(Glass.compact)
         .clickable(role=Role.Button,onClick={onNavigate(route.target)})
-        .padding(horizontal=12.dp,vertical=12.dp),
+        .padding(start=15.dp,end=10.dp,top=8.dp,bottom=8.dp),
         verticalAlignment=Alignment.CenterVertically,
-        horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+        horizontalArrangement=Arrangement.spacedBy(16.dp)) {
         Icon(route.icon,contentDescription=null,
-            modifier=Modifier.size(23.dp),tint=MaterialTheme.colorScheme.onSurface)
+            modifier=Modifier.size(24.dp),tint=MaterialTheme.colorScheme.onSurface)
         Text(route.label,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
         Icon(Icons.Outlined.ChevronRight,contentDescription=null,
-            tint=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.size(22.dp))
+            tint=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.size(24.dp))
     }
 }
 
@@ -90,17 +93,17 @@ internal object MbReferencePreferenceSections {
     routes:List<MbReferencePreference>,
     onNavigate:(String)->Unit
 ) {
-    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Text(heading.uppercase(),Modifier.padding(start=12.dp),
-            style=MaterialTheme.typography.labelMedium,
-            fontWeight=FontWeight.SemiBold,
+    Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+        // Reference mb_preferences.xml positions 14sp all-caps section labels
+        // 40dp from the viewport edge; this column itself has 20dp margins.
+        Text(heading.uppercase(),Modifier.padding(start=20.dp,top=12.dp),
+            fontSize=14.sp,fontWeight=FontWeight.SemiBold,
             color=MaterialTheme.colorScheme.primary)
-        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-            Text(hint,style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(2.dp))
+        GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
             routes.forEachIndexed {i,route->
-                if(i>0) HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
+                if(i>0) HorizontalDivider(
+                    modifier=Modifier.padding(start=60.dp),
+                    color=MaterialTheme.colorScheme.outlineVariant)
                 MbReferenceActionRow(route,onNavigate)
             }
         }
@@ -112,34 +115,24 @@ internal object MbReferencePreferenceSections {
     onNavigate:(String)->Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-        .padding(horizontal=16.dp,vertical=12.dp)
+        .padding(horizontal=20.dp,vertical=10.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
-        verticalArrangement=Arrangement.spacedBy(16.dp)) {
+        verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=onBack) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowBack,contentDescription="Back to Settings")
             }
             Text("Liquid Chat Preferences",style=MaterialTheme.typography.headlineSmall)
         }
-        GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
-            Row(Modifier.fillMaxWidth().padding(18.dp),
-                verticalAlignment=Alignment.CenterVertically,
-                horizontalArrangement=Arrangement.spacedBy(16.dp)) {
-                Box(Modifier.size(72.dp).background(
-                    MaterialTheme.colorScheme.primaryContainer,CircleShape)
-                    .semantics {contentDescription="Liquid Chat Preferences icon"},
-                    contentAlignment=Alignment.Center) {
-                    Icon(painter=androidx.compose.ui.res.painterResource(com.pritam.liquidchat.R.drawable.ic_liquid),
-                        contentDescription=null,modifier=Modifier.size(40.dp),
-                        tint=androidx.compose.ui.graphics.Color.Unspecified)
-                }
-                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                    Text("Personalize Liquid Chat",style=MaterialTheme.typography.titleLarge)
-                    Text("Home, conversations, themes and privacy",
-                        style=MaterialTheme.typography.bodySmall,
-                        color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+        // Reference uses a centered 110dp launcher graphic above grouped rows.
+        // Show the Liquid Chat logo, never the third-party app branding.
+        Box(Modifier.fillMaxWidth().padding(top=10.dp,bottom=8.dp),
+            contentAlignment=Alignment.Center) {
+            Icon(painter=androidx.compose.ui.res.painterResource(
+                com.pritam.liquidchat.R.drawable.ic_liquid),
+                contentDescription="Liquid Chat Preferences icon",
+                modifier=Modifier.size(110.dp).padding(10.dp),
+                tint=androidx.compose.ui.graphics.Color.Unspecified)
         }
         MbReferenceSection("Customization",
             "Customize your device's app appearance. Chat messages and contacts are unchanged.",
