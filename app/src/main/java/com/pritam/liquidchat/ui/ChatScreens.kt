@@ -3194,8 +3194,7 @@ if(section=="Liquid Chat Home Screen") {
                 Text("Customize private chats without changing messages, delivery or call behavior.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("Conversation header",style=MaterialTheme.typography.titleMedium)
+            MbExpandableSettingsCard("Conversation header") {
                 Text("Contact name size · ${display.chatHeaderNameSize} sp",style=MaterialTheme.typography.titleSmall)
                 Slider(value=display.chatHeaderNameSize.toFloat(),
                     onValueChange={model.setDisplay(display.copy(chatHeaderNameSize=it.toInt()))},
@@ -3212,8 +3211,7 @@ if(section=="Liquid Chat Home Screen") {
                 Text("Changing icon colors never changes contact actions or calling availability.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("Media upload quality",style=MaterialTheme.typography.titleMedium)
+            MbExpandableSettingsCard("Media upload quality") {
                 Row(Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     listOf("Standard","HD").forEach {quality->
@@ -3226,8 +3224,7 @@ if(section=="Liquid Chat Home Screen") {
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("Copy message preferences",style=MaterialTheme.typography.titleMedium)
+            MbExpandableSettingsCard("Copy message preferences") {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Include sender and time when copying")
@@ -3239,16 +3236,14 @@ if(section=="Liquid Chat Home Screen") {
                         onCheckedChange={model.setDisplay(display.copy(copySenderAndTime=it))})
                 }
             }
-            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("Wallpaper & contrast",style=MaterialTheme.typography.titleMedium)
+            MbExpandableSettingsCard("Wallpaper & contrast") {
                 Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.chatWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(chatWallpaperDim=it.toInt()))},
                 valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
             Text("50% preserves the original conversation wallpaper contrast. Only locally selected photos use this control.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("Message bubbles",style=MaterialTheme.typography.titleMedium)
+            MbExpandableSettingsCard("Message bubbles") {
             Text("Bubble opacity · ${display.bubbleOpacity}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.bubbleOpacity.toFloat(),
                 onValueChange={model.setDisplay(display.copy(bubbleOpacity=it.toInt()))},
