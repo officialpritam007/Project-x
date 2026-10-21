@@ -35,7 +35,7 @@ object Images {
             try {
                 original=android.graphics.BitmapFactory.decodeFile(prepared.file.absolutePath)
                     ?: throw IOException("Could not open the selected photo.")
-                val source=original
+                val source=original ?: throw IOException("Could not decode the selected photo.")
                 transformed=when(edit) {
                     Edit.CROP_SQUARE -> {
                         val size=minOf(source.width,source.height)
