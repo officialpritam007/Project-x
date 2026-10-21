@@ -75,7 +75,7 @@ internal object MbHelpTopics {
     }
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("About compatibility",style=MaterialTheme.typography.titleMedium)
-        Text("MBWhatsApp-specific protocol tricks, third-party account linking and unimplemented mod options cannot be enabled just by importing an APK. Calling and messages use Liquid Chat's own authenticated services.",
+        Text("External messaging-service protocols, account linking and unsupported third-party options cannot be enabled by importing another APK. Calls and messages use Liquid Chat's own authenticated services.",
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
