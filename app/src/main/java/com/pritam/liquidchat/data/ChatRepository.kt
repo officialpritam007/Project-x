@@ -424,6 +424,26 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }}
         enqueue(account)
     }
+    suspend fun sendSticker(cid:String,sticker:Images.Prepared) {
+        val account=account()
+        require(sticker.width==512 && sticker.height==512 &&
+            sticker.file.isFile && sticker.file.length() in 100..524288 &&
+            sticker.file.extension.lowercase()=="png")
+        val root=java.io.File(context.filesDir,"media/$account").canonicalFile
+        require(sticker.file.canonicalFile.parentFile==root) {
+            "Sticker must belong to the signed-in account."
+        }
+        val message=Message(account,UUID.randomUUID().toString(),cid,account,
+            "Sticker",localImage=sticker.file.absolutePath,imageWidth=512,
+            imageHeight=512,mediaKind="sticker")
+        db.withTransaction {
+            checkAccount(account)
+            putVisible(message)
+            dao.pendingPreview(account,cid,"Queued: Sticker",message.localTime)
+        }
+        enqueue(account)
+    }
+
     suspend fun sendVoice(cid:String,file:java.io.File,duration:Int) {
         val account=account()
         require(duration in 500..120000 && file.isFile && file.length() in 1..2097152)
@@ -480,7 +500,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                     if(sending.localImage.isNotEmpty() && sending.mediaId.isEmpty()) {
                         val key=expected to m.id
                         val upload=try {
-                            backend.uploadImage(java.io.File(sending.localImage),m.conversation,sending.mediaKind=="voice") {percent->
+                            backend.uploadImage(java.io.File(sending.localImage),m.conversation,
+                                voice=sending.mediaKind=="voice",sticker=sending.mediaKind=="sticker") {percent->
                                 if(backend.session.value?.userId==expected)
                                     _uploadProgress.update {it+(key to percent)}
                             }
@@ -489,6 +510,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                         currentCoroutineContext().ensureActive();checkAccount(expected);putVisible(sending)
                     }
                     val raw=if(sending.mediaKind=="voice" && sending.mediaId.isNotEmpty()) backend.rpc("send_voice",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
+                        else if(sending.mediaKind=="sticker" && sending.mediaId.isNotEmpty())
+                            backend.rpc("send_sticker",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
                         else if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
                         else if(sending.replyTo.isNotEmpty())backend.rpc("send_reply",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body).put("p_reply",sending.replyTo))
                         else backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
