@@ -1380,10 +1380,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 Text("Save to My stickers")
                             }
                         }
-                        if(m.mediaKind!="voice")TextButton(onClick={
+                        if(m.mediaKind=="image" && m.body.isNotBlank())TextButton(onClick={
                             clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)));actionMessage=null
                         },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Copy text")}
-                        TextButton(onClick={
+                        if(m.mediaKind=="image" && m.body.isNotBlank())TextButton(onClick={
                             actionMessage=null
                             context.startActivity(android.content.Intent.createChooser(
                                 android.content.Intent(android.content.Intent.ACTION_SEND)
