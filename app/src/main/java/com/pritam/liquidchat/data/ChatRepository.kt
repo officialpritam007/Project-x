@@ -465,6 +465,31 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         enqueue(owner)
     }
 
+    suspend fun sendChatVideo(cid:String,video:PreparedChatVideo,caption:String="") {
+        val account=account()
+        require(caption.length<=1000)
+        val root=java.io.File(context.filesDir,"media/$account").canonicalFile
+        require(video.file.isFile && video.file.extension.lowercase()=="mp4"
+            && video.file.canonicalFile.parentFile==root
+            && video.file.length() in 100..ChatVideo.MAX_BYTES
+            && video.durationMs in 500..30000
+            && minOf(video.width,video.height) in 1..720
+            && maxOf(video.width,video.height) in 1..1280) {
+            "Invalid or foreign-account video."
+        }
+        val body=caption.trim().ifBlank {"Video"}
+        val message=Message(account,UUID.randomUUID().toString(),cid,account,
+            body,localImage=video.file.absolutePath,
+            imageWidth=video.width,imageHeight=video.height,
+            mediaKind="chat_video",durationMs=video.durationMs)
+        db.withTransaction {
+            checkAccount(account)
+            putVisible(message)
+            dao.pendingPreview(account,cid,"Queued: Video",message.localTime)
+        }
+        enqueue(account)
+    }
+
     suspend fun sendDocument(cid:String,pdf:PreparedPdf) {
         val account=account()
         val name=PdfDocuments.safeName(pdf.name)
@@ -563,7 +588,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                         val upload=try {
                             backend.uploadImage(java.io.File(sending.localImage),m.conversation,
                                 voice=sending.mediaKind=="voice",sticker=sending.mediaKind=="sticker",
-                                document=sending.mediaKind=="document") {percent->
+                                document=sending.mediaKind=="document",
+                                chatVideo=sending.mediaKind=="chat_video") {percent->
                                 if(backend.session.value?.userId==expected)
                                     _uploadProgress.update {it+(key to percent)}
                             }
@@ -574,6 +600,10 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                     val raw=if(sending.mediaKind=="voice" && sending.mediaId.isNotEmpty()) backend.rpc("send_voice",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
                         else if(sending.mediaKind=="sticker" && sending.mediaId.isNotEmpty())
                             backend.rpc("send_sticker",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
+                        else if(sending.mediaKind=="chat_video" && sending.mediaId.isNotEmpty())
+                            backend.rpc("send_chat_video",JSONObject()
+                                .put("p_id",m.id).put("p_media",sending.mediaId)
+                                .put("p_caption",m.body))
                         else if(sending.mediaKind=="document" && sending.mediaId.isNotEmpty())
                             backend.rpc("send_document",JSONObject()
                                 .put("p_id",m.id).put("p_media",sending.mediaId)
