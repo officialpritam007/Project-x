@@ -1372,9 +1372,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) {
             if(section=="MB General Settings") GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
-                Text("General settings",style=MaterialTheme.typography.titleLarge)
-                Text("Customize the app's appearance, motion and storage. Every control below updates your existing Liquid Chat settings.",
-                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text("General settings",style=MaterialTheme.typography.titleLarge)
+                    Text("Customize appearance, motion and storage using working Liquid Chat controls.",
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text(if(section=="MB General Settings")"Theme & typography" else "Appearance",
