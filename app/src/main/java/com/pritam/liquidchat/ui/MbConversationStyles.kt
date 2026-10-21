@@ -57,3 +57,20 @@ internal fun conversationInkColor(preset:String,dark:Boolean,default:Color):Colo
     "Amber" -> if(dark)Color(0xFFFFE0A0) else Color(0xFF86500F)
     else -> default
 }
+
+/** Fully local, opaque left/right picker matching the reference's separate color controls. */
+internal fun resolvedBubbleColor(options:DisplayOptions,mine:Boolean,dark:Boolean):Color? {
+    val palette=resolvedBubblePalette(options,mine)
+    if(palette=="Custom") {
+        val valid=normalizedAccentHex(if(mine)options.outgoingBubbleHex else options.incomingBubbleHex)
+        return valid?.let {Color(android.graphics.Color.parseColor(it))}
+    }
+    return conversationBubbleColor(palette,mine,dark)
+}
+
+internal fun resolvedBubbleTextColor(options:DisplayOptions,mine:Boolean,dark:Boolean,theme:Color):Color {
+    if(resolvedBubblePalette(options,mine)!="Custom")return theme
+    val color=resolvedBubbleColor(options,mine,dark) ?: return theme
+    val light=color.red*.2126f + color.green*.7152f + color.blue*.0722f
+    return if(light>.52f) Color(0xFF132439) else Color.White
+}
