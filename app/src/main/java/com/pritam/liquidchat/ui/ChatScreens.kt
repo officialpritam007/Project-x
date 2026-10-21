@@ -349,6 +349,7 @@ import kotlinx.coroutines.launch
                     m.mediaKind=="voice"->"Voice message"
                     m.mediaKind=="sticker"->"Sticker"
                     m.mediaKind=="document"->m.body
+                    m.mediaKind=="chat_video"->if(m.body=="Video")"Private video" else "Video: ${m.body}"
                     m.mediaId.isNotEmpty() || m.localImage.isNotEmpty()->"Photo message"
                     else->m.body
                 },
