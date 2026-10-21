@@ -1623,6 +1623,15 @@ if(section=="MB Home Screen") {
             }
             TextButton(onClick={model.setDisplay(display.copy(
                 quickReactions=MbQuickReactions.defaultSetting))}) {Text("Reset quick reactions")}
+            Text("Web link color",style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Theme","Blue","Green","Purple","Rose","Amber").forEach {palette->
+                    FilterChip(selected=display.linkColor==palette,
+                        onClick={model.setDisplay(display.copy(linkColor=palette))},label={Text(palette)})
+                }
+            }
+            Text("Applies to real HTTPS/HTTP links in message text without changing the link or browser action.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Message font size",style=MaterialTheme.typography.titleSmall)
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
