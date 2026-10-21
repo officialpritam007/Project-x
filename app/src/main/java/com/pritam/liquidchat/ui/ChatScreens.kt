@@ -576,6 +576,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         } else {file.delete();cameraPath=""}
     }
     val display=LocalDisplayOptions.current
+    var quickRepliesOpen by remember(cid,session?.userId) {mutableStateOf(false)}
+    var quickReplyShortcut by remember(cid,session?.userId) {mutableStateOf("")}
+    var quickReplyText by remember(cid,session?.userId) {mutableStateOf("")}
+    var quickReplyFeedback by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
+    var quickReplies by remember(cid,session?.userId) {
+        mutableStateOf(MbQuickReplies.list(context,session?.userId))
+    }
     var chatAccent by remember(cid,session?.userId) {
         mutableStateOf(session?.userId?.let {MbConversationAccent.read(context,it,cid)} ?: "Follow")
     }
@@ -679,6 +686,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             onClick={menu=false;details=true})
                         GlassActionRow("Search conversation",Icons.Outlined.Search,
                             onClick={menu=false;searchOpen=true})
+                        GlassActionRow("Quick replies",Icons.Outlined.ChatBubbleOutline,
+                            onClick={menu=false;quickRepliesOpen=true})
                         GlassActionRow("Schedule message",Icons.Outlined.Schedule,
                             onClick={
                                 menu=false
@@ -770,6 +779,28 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     selectedIds=emptySet()
                 },enabled=selectedText.isNotEmpty()) {Text("Forward")}
                 IconButton(onClick={selectedIds=emptySet()}) {Icon(Icons.Outlined.Close,"Cancel selection")}
+            }
+        }
+        val matchingQuickReplies=MbQuickReplies.matches(quickReplies,body)
+        if(matchingQuickReplies.isNotEmpty() && draftReady) {
+            GlassSurface(Modifier.fillMaxWidth().padding(horizontal=10.dp),Glass.compact) {
+                Column(Modifier.fillMaxWidth().padding(8.dp),
+                    verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                    Text("Quick replies",style=MaterialTheme.typography.labelMedium,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    matchingQuickReplies.forEach {reply->
+                        TextButton(onClick={
+                            updateInput(TextFieldValue(reply.body,TextRange(reply.body.length)))
+                        },modifier=Modifier.fillMaxWidth()) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text("/"+reply.shortcut,style=MaterialTheme.typography.labelLarge)
+                                Text(reply.body,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                    style=MaterialTheme.typography.bodySmall,
+                                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
             }
         }
         if(body.length>=3800)Text("${body.length} / 4000",Modifier.align(Alignment.End).padding(end=20.dp),style=MaterialTheme.typography.labelSmall)
@@ -998,6 +1029,67 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }}
         )
     }
+    if(quickRepliesOpen) LiquidAlertDialog(
+        onDismissRequest={quickRepliesOpen=false},
+        title={Text("Quick replies")},
+        text={Column(Modifier.fillMaxWidth().heightIn(max=460.dp)
+            .verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text("Type / in the message box to insert a saved reply. Selecting a reply never sends it automatically.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(value=quickReplyShortcut,
+                onValueChange={quickReplyShortcut=it.take(25)},
+                label={Text("Shortcut (e.g. /hello)")},
+                modifier=Modifier.fillMaxWidth(),singleLine=true)
+            OutlinedTextField(value=quickReplyText,
+                onValueChange={if(it.length<=4000)quickReplyText=it},
+                label={Text("Reply text")},
+                modifier=Modifier.fillMaxWidth(),maxLines=4)
+            FilledTonalButton(onClick={
+                val account=session?.userId
+                if(account!=null) {
+                    runCatching {
+                        quickReplies=MbQuickReplies.save(context,account,
+                            quickReplyShortcut,quickReplyText)
+                    }.onSuccess {
+                        quickReplyShortcut=""
+                        quickReplyText=""
+                        quickReplyFeedback="Reply saved"
+                    }.onFailure {quickReplyFeedback=it.message ?: "Unable to save reply"}
+                }
+            },modifier=Modifier.fillMaxWidth(),enabled=session?.userId!=null) {
+                Text("Save quick reply")
+            }
+            quickReplyFeedback?.let {
+                Text(it,style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if(quickReplies.isEmpty()) {
+                Text("No quick replies saved on this phone.",
+                    style=MaterialTheme.typography.bodySmall)
+            } else quickReplies.forEach {reply->
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("/"+reply.shortcut,style=MaterialTheme.typography.titleSmall)
+                        Text(reply.body,maxLines=2,overflow=TextOverflow.Ellipsis,
+                            style=MaterialTheme.typography.bodySmall)
+                    }
+                    TextButton(onClick={
+                        quickReplyShortcut="/"+reply.shortcut
+                        quickReplyText=reply.body
+                    }) {Text("Edit")}
+                    IconButton(onClick={
+                        session?.userId?.let {account->
+                            quickReplies=MbQuickReplies.delete(context,account,reply.shortcut)
+                        }
+                    }) {Icon(Icons.Outlined.DeleteOutline,"Delete quick reply")}
+                }
+                HorizontalDivider()
+            }
+        }},
+        confirmButton={TextButton(onClick={quickRepliesOpen=false}) {Text("Done")}}
+    )
     if(appearance)LiquidAlertDialog(
         onDismissRequest={appearance=false},
         title={Text("Chat appearance")},
