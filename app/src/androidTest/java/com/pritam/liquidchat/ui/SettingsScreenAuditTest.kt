@@ -75,6 +75,29 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
     }
 
+    @Test fun mbPrivacyKeepsBothServerAndDeviceControlsAccessible() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Privacy").performScrollTo().performClick()
+        compose.onNodeWithText("Device privacy").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Block screenshots and app previews").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Hide outgoing typing").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Online presence & read receipts").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Read receipts").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+    }
+
+    @Test fun mbNotificationsUsesRealNotificationPreviewsAndSystemPanel() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Notifications").performScrollTo().performClick()
+        compose.onAllNodesWithText("Notification previews").onFirst().performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Device privacy").assertDoesNotExist()
+    }
+
     @Test fun chatSettingsKeepsTheActualAppearanceControls() {
         val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
