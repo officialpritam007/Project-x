@@ -78,7 +78,7 @@ class ActiveCallService : Service() {
                     Intent(this,ActiveCallService::class.java).setAction(END),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 val notification:Notification=NotificationCompat.Builder(this,CHANNEL)
-                    .setSmallIcon(R.drawable.ic_notification)
+                    .setSmallIcon(com.pritam.liquidchat.data.LiquidNotificationIcon.resource(this))
                     .setContentTitle("Liquid Chat call")
                     .setContentText(if(video)"Video call in progress" else "Voice call in progress")
                     .setContentIntent(resume)
