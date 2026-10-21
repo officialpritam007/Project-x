@@ -17,6 +17,9 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.BatteryFull
+import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -53,7 +56,12 @@ internal object MbReferencePreferenceSections {
         MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.Lock),
         MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.Notifications)
     )
-    val all=visual+themes+controls
+    val utility=listOf(
+        MbReferencePreference("My account","Account",Icons.Outlined.PersonOutline),
+        MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage),
+        MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull)
+    )
+    val all=visual+themes+controls+utility
 }
 
 @Composable private fun MbReferenceActionRow(
@@ -139,6 +147,9 @@ internal object MbReferencePreferenceSections {
         MbReferenceSection("Privacy & alerts",
             "Manage actual account privacy and Android notification controls.",
             MbReferencePreferenceSections.controls,onNavigate)
+        MbReferenceSection("Account & storage",
+            "Profile, device cache and reduced-motion controls already available in Liquid Chat.",
+            MbReferencePreferenceSections.utility,onNavigate)
         Text("These settings control the actual features of Liquid Chat.",
             Modifier.fillMaxWidth().padding(horizontal=12.dp),
             style=MaterialTheme.typography.bodySmall,
