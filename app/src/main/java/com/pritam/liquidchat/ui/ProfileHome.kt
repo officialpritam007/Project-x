@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +50,7 @@ import com.pritam.liquidchat.data.Images
     var archived by rememberSaveable {mutableStateOf(false)}
     var menu by remember {mutableStateOf(false)}
     val context=LocalContext.current
+    val clipboard=LocalClipboardManager.current
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val id=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,id)
@@ -100,7 +103,25 @@ import com.pritam.liquidchat.data.Images
                 }
             }
         }
-        GlassCard(Modifier.fillMaxWidth()) {Text("@${profile?.optString("username").orEmpty()}",fontSize=19.sp,fontWeight=FontWeight.Bold);Text("Username",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant);profile?.optString("bio")?.takeIf {it.isNotBlank()}?.let {Text(it)}}
+        GlassCard(Modifier.fillMaxWidth()) {
+            val username=profile?.optString("username").orEmpty()
+            Text("@$username",fontSize=19.sp,fontWeight=FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Username",fontSize=13.sp,modifier=Modifier.weight(1f),
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                if(username.isNotBlank())IconButton(onClick={
+                    clipboard.setText(AnnotatedString("@$username"))
+                }) {Icon(Icons.Outlined.ContentCopy,"Copy username")}
+            }
+            profile?.optString("bio")?.takeIf {it.isNotBlank()}?.let {bio->
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text(bio,modifier=Modifier.weight(1f))
+                    IconButton(onClick={clipboard.setText(AnnotatedString(bio))}) {
+                        Icon(Icons.Outlined.ContentCopy,"Copy profile description")
+                    }
+                }
+            }
+        }
         GlassSurface(shape=Glass.capsule) {
             Row(Modifier.padding(5.dp)) {listOf("Posts","Archived").forEachIndexed {i,title->
                 Text(title,Modifier.clip(Glass.capsule).background(if(archived==(i==1))MaterialTheme.colorScheme.primaryContainer else Color.Transparent).clickable {archived=i==1}.padding(horizontal=17.dp,vertical=8.dp),fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(archived==(i==1))MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
