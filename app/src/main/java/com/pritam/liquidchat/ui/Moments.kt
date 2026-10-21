@@ -24,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
@@ -200,6 +202,7 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
     val revision by model.backend.uiReads.revision.collectAsStateWithLifecycle()
     val scope=rememberCoroutineScope()
+    val clipboard=LocalClipboardManager.current
     val uid=account?.userId
     val cacheKey=remember(kind,mine,archived) {momentsCacheKey(kind,mine,archived)}
     val version=remember(uid,cacheKey,revision) {model.backend.uiReads.version(uid,cacheKey)}
@@ -320,7 +323,12 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                             Text("Video story · ${(moment.durationMs/1000)}s",Modifier.align(Alignment.BottomCenter).padding(12.dp))
                         }
                     } else ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=ContentScale.Crop)
-                    if(moment.caption.isNotBlank())Text(moment.caption)
+                    if(moment.caption.isNotBlank()) {
+                        Text(moment.caption)
+                        TextButton(enabled=currentAccount(),onClick={
+                            if(currentAccount())clipboard.setText(AnnotatedString(moment.caption))
+                        }) {Text("Copy caption")}
+                    }
                     if(moment.owner!=account?.userId)Row {
                         TextButton(onClick={reporting=moment},enabled=!busy){Text("Report ${if(kind=="story")"story" else "post"}")}
                         TextButton(onClick={model.action {model.repository.block(moment.owner,true)}},enabled=!busy){Text("Block user")}
@@ -345,7 +353,16 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         TextButton(onClick={focused=null}){Text("Close")}
                         ProtectedImage(model.backend,moment.media,description="Full-size post",
                             modifier=Modifier.weight(1f).fillMaxWidth())
-                        Text(moment.caption,Modifier.padding(16.dp))
+                        if(moment.caption.isNotBlank()) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment=Alignment.CenterVertically) {
+                                Text(moment.caption,Modifier.weight(1f))
+                                TextButton(onClick={
+                                    if(currentAccount())clipboard.setText(
+                                        AnnotatedString(moment.caption))
+                                },enabled=currentAccount()) {Text("Copy")}
+                            }
+                        }
                     }
                 }
             }
@@ -370,6 +387,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     val index=stories.indexOfFirst {it.id==currentId}.coerceAtLeast(0)
     val current=stories[index]
     val context=LocalContext.current
+    val clipboard=LocalClipboardManager.current
     val saveScope=rememberCoroutineScope()
     val playback=remember(context) {MbStoryPlaybackSettings.read(context)}
     var savingStory by remember(current.id) {mutableStateOf(false)}
@@ -481,6 +499,14 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                                 Icon(Icons.Outlined.Download,
                                     if(current.mediaKind=="story_video")"Save video story" else "Save photo story",
                                     tint=Color.White)
+                            }
+                        }
+                        if(current.caption.isNotBlank()) {
+                            IconButton(onClick={
+                                clipboard.setText(AnnotatedString(current.caption))
+                                saveStatus="Caption copied"
+                            }) {
+                                Icon(Icons.Outlined.ContentCopy,"Copy story caption",tint=Color.White)
                             }
                         }
                         IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close story",tint=Color.White)}
