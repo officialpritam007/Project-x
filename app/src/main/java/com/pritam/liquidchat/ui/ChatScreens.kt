@@ -2040,6 +2040,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications","Liquid Chat Help"))"Liquid Chat Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("Liquid Chat "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
+        if(section=="Liquid Chat General Settings" || section=="Appearance") LauncherIconSettings()
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Chat Folders") MbChatFoldersSettings(model)
         if(section=="Liquid Chat Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
