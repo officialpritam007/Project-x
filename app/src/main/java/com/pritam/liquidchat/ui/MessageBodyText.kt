@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -23,7 +24,7 @@ internal fun linkedTextColor(preset:String,themeColor:Color,dark:Boolean):Color 
 /** Inline links remain plain text during message selection; no automatic URL requests. */
 @Composable internal fun MessageBodyText(
     body:String,fontSize:Int,expanded:Boolean,linksEnabled:Boolean,
-    onTextLayout:(TextLayoutResult)->Unit
+    textColor:Color=Color.Unspecified,onTextLayout:(TextLayoutResult)->Unit
 ) {
     val uriHandler=LocalUriHandler.current
     val color=linkedTextColor(LocalDisplayOptions.current.linkColor,MaterialTheme.colorScheme.primary,LocalGlassDark.current)
@@ -41,7 +42,7 @@ internal fun linkedTextColor(preset:String,themeColor:Color,dark:Boolean):Color 
             }
         }
     }
-    Text(annotated,style=MaterialTheme.typography.bodyLarge.copy(fontSize=fontSize.sp),
+    Text(annotated,style=MaterialTheme.typography.bodyLarge.copy(fontSize=fontSize.sp,color=textColor),
         maxLines=if(expanded)Int.MAX_VALUE else 12,overflow=TextOverflow.Ellipsis,onTextLayout=onTextLayout)
     if(failed)LiquidAlertDialog(onDismissRequest={failed=false},
         text={Text("No app could open this web link. You can copy the message instead.")},
