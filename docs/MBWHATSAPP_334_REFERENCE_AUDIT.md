@@ -230,3 +230,25 @@ Reference inspected: user-provided `MBWhatsApp_3.3.4_by_stefanoYG.apk` (119 MB).
 The exact owner APK binary XML `mb_general_settings.xml` includes grouped list bars, switches, seek bars and color pickers. This stage reorganizes **existing working controls** into separate rounded Liquid Glass surfaces: **Theme & typography** (mode, six accents and four built-in font options), **Motion & accessibility** (animation and reduced motion), and **Liquid Glass effects** (reduced transparency and blur intensity). The safe Coil cache/storage panel remains directly beneath them; Chat Settings still exposes its appearance controls. Navigation returns to MB Preferences.
 
 An Android UI regression navigates from Settings through MB Preferences, scrolls to every General control group and uses Back to return. This is a structural reference implementation, **not an exact replica of proprietary artwork, custom pickers or every MBWhatsApp setting**. CI Android build/JVM/lint, Edge and API29/35/36 emulator tests plus image-teardown stress are required before merge. No Supabase data/schema, FCM, calling flag, WebRTC, billing or proprietary asset change. #91 remains open regardless of a single green run.
+
+## 2026-10-21 native frontend/backend continuation — direct-main, unverified
+
+All changes below are candidate source implementations committed to `main` per the owner's instruction; **no build, CI, emulator or two-device tests were run for these commits**. Their existence must not be reported as verified parity.
+
+- Conversation header: persisted 12–24sp name size and independent Theme/Accent/Text icon colors. Real header call buttons remain wired to the existing WebRTC controller. Added local per-account/per-chat accent presets used by header and send action.
+- Composer: account-scoped /shortcut quick replies with create, edit, delete and tap-to-insert, using the existing authenticated text outbox on send. Quick reply text is cleared on sign-out/account deletion. This is a device-local preset, not a synchronized Supabase feature.
+- Attachments: Android contact/phone picker inserts a selected phone contact as **text** into the normal message draft. This does not claim vCard format or a new backend media type.
+- Copy preferences: optional sender/timestamp metadata for single and multi-selection clipboard actions; disabled by default, locally persisted, unaffected by theme resets.
+- Photos: Standard (2048px) and HD (3072px) JPEG preprocessing selection in chat attachment UI and conversation settings. Both use the existing authenticated image upload. File caps and original media authorization remain in place; no claim of uncompressed/lossless transfer.
+- Stories: a text-only story can be rasterized into a JPEG with a local background palette and published via the existing `publish_moment` RPC as a **photo story**. It inherits 24-hour expiry, authorized saved-contact visibility and existing media permissions. This is not music status, interactive text/status protocol metadata or the proprietary reference platform.
+
+### Still incomplete, or requiring independent product/backend work
+
+1. Exact MBWhatsApp visual and animation parity across every screen, layout asset, gesture, status style, theme, launcher/icon and font/emoji pack is **not achieved**.
+2. Sticker authoring/transparency, sticker packs and the v3.3.4 border-free sticker option are **not implemented** as true transferable sticker media.
+3. Document attachments/scanning, generic video/document chat media and vCard/contact objects need secure new media types, persistence and authorized viewers. Existing contact sharing is plain text only.
+4. Edited-message history with inline diff, status music, complete contact-specific story alerts and other reference extras require explicit client/server implementations.
+5. WhatsApp account linking, proprietary Meta AI features, groups/channels and protocol-specific tick/once-view bypasses are **not compatible** with Liquid Chat's independent one-to-one Supabase backend; never represent them as working toggles.
+6. Backend upgrades, physical WebRTC/TURN/calling reliability, final release configuration, APK artifact and complete two-device privacy/security regression remain **unverified or outstanding**.
+
+No Supabase migrations, production database mutations, push secrets, paid infrastructure, message schema or WebRTC call paths were changed by this direct-main UI continuation. Before a distributable APK can be called verified, the final exact main commit requires compilation, automated checks and device acceptance, which the owner deferred.
