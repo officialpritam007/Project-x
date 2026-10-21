@@ -451,7 +451,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                                     if(muted)"Unmute story" else "Mute story",tint=Color.White)
                             }
                         }
-                        if(current.mediaKind=="image") {
+                        if(current.mediaKind=="image" || current.mediaKind=="story_video") {
                             IconButton(onClick={
                                 if(!savingStory) {
                                     savingStory=true
@@ -459,9 +459,15 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                                     val story=current
                                     saveScope.launch {
                                         try {
-                                            SavedMedia.saveStoryPhoto(context,model.backend,
-                                                story.id,story.media,story.expires)
-                                            saveStatus="Saved to Pictures/Liquid Chat"
+                                            if(story.mediaKind=="story_video") {
+                                                SavedMedia.saveStoryVideo(context,model.backend,
+                                                    story.id,story.media,story.expires)
+                                                saveStatus="Saved to Movies/Liquid Chat"
+                                            } else {
+                                                SavedMedia.saveStoryPhoto(context,model.backend,
+                                                    story.id,story.media,story.expires)
+                                                saveStatus="Saved to Pictures/Liquid Chat"
+                                            }
                                         } catch(e:CancellationException) {throw e}
                                           catch(e:Exception) {
                                             saveStatus=e.message ?: "Could not save story."
@@ -469,7 +475,9 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                                     }
                                 }
                             },enabled=!savingStory) {
-                                Icon(Icons.Outlined.Download,"Save photo story",tint=Color.White)
+                                Icon(Icons.Outlined.Download,
+                                    if(current.mediaKind=="story_video")"Save video story" else "Save photo story",
+                                    tint=Color.White)
                             }
                         }
                         IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close story",tint=Color.White)}
