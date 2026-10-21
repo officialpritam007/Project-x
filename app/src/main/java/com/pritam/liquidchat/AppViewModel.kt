@@ -289,6 +289,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val result=JSONObject(backend.request("/functions/v1/account","POST",JSONObject().put("action","delete")))
         backend.forgetLocal();repository.clearAccount(current.userId)
         com.pritam.liquidchat.ui.MbQuickReplies.clear(getApplication(),current.userId)
+        com.pritam.liquidchat.data.StickerLibrary.clearAccount(getApplication(),current.userId)
         com.pritam.liquidchat.ui.MbConversationAccent.clearAccount(getApplication(),current.userId)
         com.pritam.liquidchat.data.MessageNotificationDedupe.clearAccount(getApplication(),current.userId)
         policyPrefs.edit().remove("accepted_${current.userId}").apply();policyEpoch.value++
@@ -312,6 +313,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if(id!=null){
                 repository.clearAccount(id)
                 com.pritam.liquidchat.ui.MbQuickReplies.clear(getApplication(),id)
+                com.pritam.liquidchat.data.StickerLibrary.clearAccount(getApplication(),id)
                 com.pritam.liquidchat.ui.MbConversationAccent.clearAccount(getApplication(),id)
                 com.pritam.liquidchat.data.MessageNotificationDedupe.clearAccount(getApplication(),id)
                 policyPrefs.edit().remove("accepted_$id").apply();policyEpoch.value++
