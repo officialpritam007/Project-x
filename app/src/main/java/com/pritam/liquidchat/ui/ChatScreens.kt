@@ -550,6 +550,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         filterMessageHistory(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod)
     }
     var actionMessage by remember(cid) {mutableStateOf<Message?>(null)}
+    var historyMessage by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    var historyRevisions by remember(cid,session?.userId) {
+        mutableStateOf(emptyList<MessageEditVersion>())
+    }
+    var historyLoading by remember(cid,session?.userId) {mutableStateOf(false)}
+    var historyError by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     var forwardMessages by remember(cid,session?.userId) {mutableStateOf<List<Message>>(emptyList())}
     var selectedIds by remember(cid,session?.userId) {mutableStateOf<Set<String>>(emptySet())}
     var forwardSearch by remember(cid,session?.userId) {mutableStateOf("")}
@@ -1460,6 +1466,34 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if("Message actions" in categories) {
                         Text("Message actions",style=MaterialTheme.typography.labelMedium,
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        if(m.status=="SENT" && m.editedAt.isNotEmpty() &&
+                            m.mediaId.isEmpty() && m.deletedAt.isEmpty()) {
+                            TextButton(onClick={
+                                if(!busy) {
+                                    actionMessage=null
+                                    historyMessage=m
+                                    historyRevisions=emptyList()
+                                    historyError=null
+                                    historyLoading=true
+                                    model.action {
+                                        try {
+                                            val result=model.backend.rpc("message_edit_history",
+                                                org.json.JSONObject().put("p_id",m.id))
+                                            if(model.session.value?.userId==m.account &&
+                                                historyMessage?.id==m.id)
+                                                historyRevisions=parseEditVersions(result)
+                                        } catch(e:kotlinx.coroutines.CancellationException) {
+                                            throw e
+                                        } catch(e:Exception) {
+                                            historyError=e.message ?: "Edit history unavailable."
+                                        } finally {historyLoading=false}
+                                    }
+                                }
+                            },enabled=!busy,
+                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                                Text("View edit history")
+                            }
+                        }
                         if(m.status=="SENT") {
                             TextButton(onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null},
                                 modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Reply")}
@@ -1575,6 +1609,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 }
             }},
             confirmButton={TextButton(onClick={forwardMessages=emptyList()}) {Text("Cancel")}})
+    }
+    historyMessage?.let {message->
+        MessageEditHistoryDialog(historyRevisions,historyLoading,historyError,
+            onDismiss={historyMessage=null;historyRevisions=emptyList()})
     }
     editMessage?.let {m->LiquidAlertDialog(onDismissRequest={editMessage=null},title={Text("Edit message")},text={OutlinedTextField(editBody,{if(it.length<=4000)editBody=it},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences),modifier=Modifier.fillMaxWidth())},confirmButton={TextButton(onClick={model.action {model.repository.messageAction(m.id,"edit",editBody);editMessage=null}},enabled=!busy&&editBody.isNotBlank()) {Text("Save")}},dismissButton={TextButton(onClick={editMessage=null}) {Text("Cancel")}})}
     deleteMessage?.let {m->LiquidAlertDialog(onDismissRequest={deleteMessage=null},title={Text("Delete message?")},text={Column {
