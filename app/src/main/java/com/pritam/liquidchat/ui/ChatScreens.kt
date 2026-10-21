@@ -1669,9 +1669,14 @@ if(section=="MB Home Screen") {
                 runCatching {context.startActivity(intent)}
             }) {Text("Open Android app settings")}
         }
-        if(section in listOf("Privacy & Security","Notifications","MB Privacy","MB Notifications")) GlassCard(Modifier.fillMaxWidth()) {
-            Text("Privacy & notifications",style=MaterialTheme.typography.titleMedium)
-            if(section=="Privacy & Security" || section=="MB Privacy") {
+        if(section in listOf("Privacy & Security","Notifications","MB Privacy","MB Notifications")) {
+            val privacyPage=section=="Privacy & Security" || section=="MB Privacy"
+            if(privacyPage) GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Device privacy",style=MaterialTheme.typography.titleMedium)
+                Text("Local screen and typing protection for this device.",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Block screenshots and app previews",style=MaterialTheme.typography.titleSmall)
@@ -1692,6 +1697,12 @@ if(section=="MB Home Screen") {
                         onCheckedChange={model.setDisplay(display.copy(hideOutgoingTyping=it))})
                 }
                 HorizontalDivider()
+
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text(if(privacyPage)"Online presence & read receipts" else "Notification previews",
+                    style=MaterialTheme.typography.titleMedium)
+                if(privacyPage) {
                 val loaded=settings.has("show_presence") && settings.has("read_receipts") && settings.has("notification_previews")
                 val enabled=ghostModeActive(settings.optBoolean("show_presence",true),settings.optBoolean("read_receipts",true))
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
@@ -1711,7 +1722,8 @@ if(section=="MB Home Screen") {
                 Text("Ghost Mode uses server-enforced account privacy. Switching it off restores both privacy controls; it cannot retract receipts already sent.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider()
-            }
+
+                }
             if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
             listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications" || section=="MB Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -1720,6 +1732,8 @@ if(section=="MB Home Screen") {
                         model.repository.settings(if(key=="show_presence")checked else settings.optBoolean("show_presence",true),if(key=="read_receipts")checked else settings.optBoolean("read_receipts",true),if(key=="notification_previews")checked else settings.optBoolean("notification_previews",true))
                     }})
                 }
+            }
+
             }
         }
         if(section=="Notifications" || section=="MB Notifications") NotificationSystemSettings()
