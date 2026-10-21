@@ -61,7 +61,8 @@ internal object MbReferencePreferenceSections {
         MbReferencePreference("My account","Account",Icons.Outlined.PersonOutline),
         MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage),
         MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull),
-        MbReferencePreference("Tips & Help","Liquid Chat Help",Icons.Outlined.HelpOutline)
+        MbReferencePreference("Tips & Help","Liquid Chat Help",Icons.Outlined.HelpOutline),
+        MbReferencePreference("App updates","Liquid Chat Updates",Icons.Outlined.HelpOutline)
     )
     val all=visual+themes+controls+utility
 }
