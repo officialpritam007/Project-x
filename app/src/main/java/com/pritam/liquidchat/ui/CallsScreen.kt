@@ -93,6 +93,14 @@ internal fun callHistoryPage(data:JSONArray,account:String)=CallHistoryPage(
     data.length()>=50
 )
 
+/** In-memory only; never modifies the server page cursor or filtered row history. */
+internal fun filterCallHistory(rows:List<CallHistoryRow>,selection:String):List<CallHistoryRow> = when(selection) {
+    "Missed"->rows.filter {it.missed}
+    "Voice"->rows.filter {it.kind=="audio"}
+    "Video"->rows.filter {it.kind=="video"}
+    else->rows
+}
+
 /** Same runtime microphone/camera permissions as the conversation call buttons. */
 internal fun callHistoryCanRedial(callsEnabled:Boolean,kind:String,hasAccount:Boolean,callInProgress:Boolean):Boolean =
     callsEnabled && hasAccount && !callInProgress && kind in listOf("audio","video")
@@ -201,7 +209,7 @@ private fun elapsedLabel(seconds:Long):String {
             model.backend.uiReads.invalidate(account,cacheKey)
         }
     }
-    val visible=remember(rows,filter) {if(filter=="Missed")rows.filter {it.missed} else rows}
+    val visible=remember(rows,filter) {filterCallHistory(rows,filter)}
     Column(
         Modifier.fillMaxSize().padding(horizontal=12.dp),
         verticalArrangement=Arrangement.spacedBy(12.dp)
@@ -212,7 +220,7 @@ private fun elapsedLabel(seconds:Long):String {
             }
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            listOf("All","Missed").forEach {choice->
+            listOf("All","Missed","Voice","Video").forEach {choice->
                 FilterChip(selected=filter==choice,onClick={filter=choice},label={Text(choice)},shape=Glass.capsule)
             }
         }
@@ -234,7 +242,7 @@ private fun elapsedLabel(seconds:Long):String {
             if(loading&&!loadedOnce&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-history-loading"))}
             if(loadedOnce&&!loading&&error==null&&visible.isEmpty()&&!more) item(key="empty") {
                 GlassCard(Modifier.fillMaxWidth()) {
-                    Text(if(filter=="Missed")"No missed calls" else "No recent calls",style=MaterialTheme.typography.titleMedium)
+                    Text(when(filter) {"Missed"->"No missed calls";"Voice"->"No voice calls";"Video"->"No video calls";else->"No recent calls"},style=MaterialTheme.typography.titleMedium)
                     Text("Your voice and video call history will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
