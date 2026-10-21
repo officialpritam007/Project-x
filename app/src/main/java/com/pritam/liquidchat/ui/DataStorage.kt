@@ -20,6 +20,10 @@ import kotlinx.coroutines.withContext
     val unsentCount by model.unsent.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     var imageBytes by remember {mutableLongStateOf(0)}
+    var automaticCleanup by remember(context) {
+        mutableStateOf(ImageCacheAutoCleanup.preference(context))
+    }
+    var maintenanceError by remember {mutableStateOf<String?>(null)}
     var confirmClear by remember {mutableStateOf(false)}
     var clearing by remember {mutableStateOf(false)}
     LaunchedEffect(context) {
@@ -48,6 +52,29 @@ import kotlinx.coroutines.withContext
         Text("Clearing cached images only frees local image-cache space. Chat history, sent media, drafts and unsent messages are not deleted.",
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    GlassCard(Modifier.fillMaxWidth()) {
+        Text("Automatic image cache cleanup",style=MaterialTheme.typography.titleMedium)
+        Text("Optional background cleanup of locally cached thumbnails. It does not delete chat messages, drafts, uploads or your saved photos and wallpapers.",
+            style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+            horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            ImageCacheAutoCleanup.choices.forEach {period->
+                FilterChip(selected=automaticCleanup==period,
+                    onClick={
+                        runCatching {ImageCacheAutoCleanup.update(context,period)}
+                            .onSuccess {automaticCleanup=period;maintenanceError=null}
+                            .onFailure {maintenanceError=it.message ?: "Could not schedule cleanup."}
+                    },
+                    label={Text(period)})
+            }
+        }
+        Text("Android may delay background maintenance to conserve battery.",
+            style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        maintenanceError?.let {Text(it,color=MaterialTheme.colorScheme.error,
+            style=MaterialTheme.typography.bodySmall)}
     }
     GlassCard(Modifier.fillMaxWidth()) {
         Text("Media limits",style=MaterialTheme.typography.titleMedium)
