@@ -1398,6 +1398,56 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("This resets colors, fonts, bubble and navigation appearance. It preserves privacy settings, reduced-motion/transparency preferences, local photo files and messages.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Import only Liquid Chat theme .json files.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+
+            HorizontalDivider()
+            Text("Saved themes on this device",style=MaterialTheme.typography.titleMedium)
+            var bookmarkName by rememberSaveable {mutableStateOf("")}
+            var savedThemeNames by remember {mutableStateOf(LiquidThemeLibrary.names(context))}
+            var removeThemeName by remember {mutableStateOf<String?>(null)}
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value=bookmarkName,onValueChange={bookmarkName=it.take(36)},
+                    label={Text("Theme name")},singleLine=true,modifier=Modifier.weight(1f))
+                FilledTonalButton(enabled=bookmarkName.trim().isNotEmpty(),onClick={
+                    runCatching {LiquidThemeLibrary.save(context,bookmarkName,model.display.value)}
+                        .onSuccess {
+                            savedThemeNames=LiquidThemeLibrary.names(context)
+                            bookmarkName=""
+                            themeFeedback="Theme saved on this device."
+                        }
+                        .onFailure {themeFeedback=it.message ?: "Unable to save theme."}
+                }) {Text("Save")}
+            }
+            if(savedThemeNames.isEmpty()) Text("No saved themes yet.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            savedThemeNames.forEach {name->
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text(name,Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis)
+                    TextButton(onClick={
+                        runCatching {
+                            model.setDisplay(LiquidThemeLibrary.restore(context,name,model.display.value))
+                        }.onSuccess {themeFeedback="Theme applied: $name"}
+                            .onFailure {themeFeedback=it.message ?: "Unable to apply theme."}
+                    }) {Text("Apply")}
+                    IconButton(onClick={removeThemeName=name}) {
+                        Icon(Icons.Outlined.DeleteOutline,"Delete saved theme: $name")
+                    }
+                }
+            }
+            removeThemeName?.let {name->
+                LiquidAlertDialog(onDismissRequest={removeThemeName=null},
+                    title={Text("Delete saved theme?")},
+                    text={Text(name)},
+                    confirmButton={TextButton(onClick={
+                        LiquidThemeLibrary.delete(context,name)
+                        savedThemeNames=LiquidThemeLibrary.names(context)
+                        removeThemeName=null
+                        themeFeedback="Saved theme deleted."
+                    }) {Text("Delete")}},
+                    dismissButton={TextButton(onClick={removeThemeName=null}) {Text("Cancel")}})
+            }
+
             themeFeedback?.let {Text(it,color=MaterialTheme.colorScheme.primary)}
         }
         if(section=="Account") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
