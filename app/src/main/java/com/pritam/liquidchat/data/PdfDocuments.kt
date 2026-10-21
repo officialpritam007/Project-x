@@ -64,6 +64,60 @@ internal object PdfDocuments {
             } catch(e:Exception) {file.delete();throw e}
         }
 
+    /** Convert a private camera capture into a single-page monochrome A4 PDF. */
+    suspend fun scanPhoto(context:Context,captured:File,account:String):PreparedPdf =
+        withContext(Dispatchers.IO) {
+            require(account.matches(Regex("[a-zA-Z0-9_-]{8,80}")))
+            require(captured.isFile && captured.canonicalFile.path.startsWith(
+                File(context.cacheDir,"camera").canonicalPath+File.separator)) {
+                "Scan source must be a local camera photo."
+            }
+            val image=android.graphics.ImageDecoder.decodeBitmap(
+                android.graphics.ImageDecoder.createSource(captured)
+            ) {decoder,info,_->
+                val width=info.size.width
+                val height=info.size.height
+                require(width>0 && height>0 && width.toLong()*height<=25_000_000L) {
+                    "Capture is too large."
+                }
+                val factor=minOf(1.0,1500.0/maxOf(width,height))
+                decoder.setTargetSize(maxOf(1,(width*factor).toInt()),
+                    maxOf(1,(height*factor).toInt()))
+                decoder.allocator=android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+            val directory=File(context.filesDir,"media/$account").apply {mkdirs()}
+            val output=File(directory,"${UUID.randomUUID()}.pdf")
+            try {
+                val pdf=android.graphics.pdf.PdfDocument()
+                try {
+                    val pageInfo=android.graphics.pdf.PdfDocument.PageInfo.Builder(
+                        595,842,1).create()
+                    val page=pdf.startPage(pageInfo)
+                    val canvas=page.canvas
+                    canvas.drawColor(android.graphics.Color.WHITE)
+                    val scale=minOf(555f/image.width,802f/image.height)
+                    val width=image.width*scale
+                    val height=image.height*scale
+                    val target=android.graphics.RectF((595f-width)/2,(842f-height)/2,
+                        (595f+width)/2,(842f+height)/2)
+                    val filter=android.graphics.ColorMatrix().apply {setSaturation(0f)}
+                    val paint=android.graphics.Paint(
+                        android.graphics.Paint.ANTI_ALIAS_FLAG or
+                            android.graphics.Paint.FILTER_BITMAP_FLAG
+                    ).apply {
+                        colorFilter=android.graphics.ColorMatrixColorFilter(filter)
+                    }
+                    canvas.drawBitmap(image,null,target,paint)
+                    pdf.finishPage(page)
+                    output.outputStream().use {pdf.writeTo(it)}
+                } finally {pdf.close()}
+                if(output.length() !in 100..MAX_BYTES.toLong())
+                    throw IOException("Scanned PDF exceeds 8 MB. Try again with another photo.")
+                PreparedPdf(output,"Scanned-document.pdf")
+            } catch(e:Exception) {output.delete();throw e}
+            finally {image.recycle()}
+        }
+
     /** User-directed copy of one authorized, undeleted PDF to a selected SAF URI. */
     suspend fun saveReceived(
         context:Context,repository:ChatRepository,message:Message,destination:Uri
