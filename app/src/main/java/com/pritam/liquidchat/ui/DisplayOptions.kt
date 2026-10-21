@@ -11,7 +11,7 @@ data class DisplayOptions(
     val bubbleStyle:String="Tail",
     val bubbleColor:String="Original",
     val messageFontSize:Int=16,
-    val showNavLabels:Boolean=false,
+    val showNavLabels:Boolean=true,
     val navIconSize:Int=24,
     val navLabelSize:Int=11,
     val headerTitleSize:Int=25,
@@ -31,6 +31,9 @@ data class DisplayOptions(
     val homeAvatarSize:Int=52,
     val homeRowPadding:Int=11,
     val hideHomeSearch:Boolean=false,
-    val showHomeDividers:Boolean=false
+    val showHomeDividers:Boolean=false,
+    val navBarStyle:String="Reference",
+    val hidePhotoShortcut:Boolean=false,
+    val showPinBadges:Boolean=true
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}

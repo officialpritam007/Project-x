@@ -51,6 +51,9 @@ internal object MbThemeTransfer {
         put("homeRowPadding",options.homeRowPadding)
         put("hideHomeSearch",options.hideHomeSearch)
         put("showHomeDividers",options.showHomeDividers)
+        put("navBarStyle",options.navBarStyle)
+        put("hidePhotoShortcut",options.hidePhotoShortcut)
+        put("showPinBadges",options.showPinBadges)
     }.toString(2)
 
     /**
@@ -99,7 +102,10 @@ internal object MbThemeTransfer {
             homeAvatarSize=number("homeAvatarSize",current.homeAvatarSize,40,68),
             homeRowPadding=number("homeRowPadding",current.homeRowPadding,6,20),
             hideHomeSearch=bool("hideHomeSearch",current.hideHomeSearch),
-            showHomeDividers=bool("showHomeDividers",current.showHomeDividers)
+            showHomeDividers=bool("showHomeDividers",current.showHomeDividers),
+            navBarStyle=choice("navBarStyle",setOf("Reference","Liquid"),current.navBarStyle),
+            hidePhotoShortcut=bool("hidePhotoShortcut",current.hidePhotoShortcut),
+            showPinBadges=bool("showPinBadges",current.showPinBadges)
         )
     }
 }

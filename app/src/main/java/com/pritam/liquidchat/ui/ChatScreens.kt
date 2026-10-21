@@ -90,7 +90,7 @@ import kotlinx.coroutines.flow.drop
             Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
                 if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
                 Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    if(chat.pinnedAt>0)Icon(Icons.Outlined.PushPin,"Pinned",Modifier.size(14.dp))
+                    if(homeDisplay.showPinBadges && chat.pinnedAt>0)Icon(Icons.Outlined.PushPin,"Pinned",Modifier.size(14.dp))
                     if(chat.favorite)Icon(Icons.Outlined.Star,"Favorite",Modifier.size(14.dp))
                     if(chat.muted)Icon(Icons.Outlined.NotificationsOff,"Muted",Modifier.size(14.dp))
                 }
@@ -278,7 +278,7 @@ import kotlinx.coroutines.flow.drop
         }
     }
     Column(Modifier.align(Alignment.BottomEnd).padding(end=17.dp,bottom=78.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
+        if(!inboxDisplay.hidePhotoShortcut) GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
         FloatingActionButton(onClick=onContacts,shape=CircleShape,containerColor=Color(0xFF00A6E8),contentColor=Color.White,modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
@@ -1440,6 +1440,14 @@ if(section=="MB Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Bottom navigation & tabs",style=MaterialTheme.typography.titleMedium)
                 Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
+                Row(Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    listOf("Reference" to "iOS navigation", "Liquid" to "Liquid capsule").forEach { (value,label)->
+                        FilterChip(selected=display.navBarStyle==value,
+                            onClick={model.setDisplay(display.copy(navBarStyle=value))},
+                            label={Text(label)})
+                    }
+                }
             Text("Reorder tabs · all five destinations remain accessible",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             MbNavigationOrder.parse(display.navigationOrder).forEachIndexed {position,destination ->
@@ -1493,6 +1501,11 @@ if(section=="MB Home Screen") {
                         onCheckedChange={model.setDisplay(display.copy(hideHomeSearch=it))})
                 }
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text("Hide photo shortcut",Modifier.weight(1f))
+                    Switch(checked=display.hidePhotoShortcut,
+                        onCheckedChange={model.setDisplay(display.copy(hidePhotoShortcut=it))})
+                }
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("Show my profile name as title",Modifier.weight(1f))
                 Switch(display.showProfileAsTitle,{model.setDisplay(display.copy(showProfileAsTitle=it))})
             }
@@ -1536,6 +1549,11 @@ if(section=="MB Home Screen") {
                     }
                     Switch(checked=display.showHomeDividers,
                         onCheckedChange={model.setDisplay(display.copy(showHomeDividers=it))})
+                }
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text("Show pinned chat indicators",Modifier.weight(1f))
+                    Switch(checked=display.showPinBadges,
+                        onCheckedChange={model.setDisplay(display.copy(showPinBadges=it))})
                 }
                 Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeAvatarSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeAvatarSize=it.toInt()))},
