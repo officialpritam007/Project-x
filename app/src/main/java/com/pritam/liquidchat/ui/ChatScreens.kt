@@ -8,6 +8,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
 import com.pritam.liquidchat.data.StickerFactory
 import com.pritam.liquidchat.data.StickerLibrary
+import com.pritam.liquidchat.data.PdfDocuments
+import com.pritam.liquidchat.data.PreparedPdf
 import com.pritam.liquidchat.data.SavedMedia
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
@@ -602,6 +604,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val image=Images.prepare(context,uri,account,hd=model.display.value.photoQuality=="HD")
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    var preparedPdf by remember(cid,session?.userId) {mutableStateOf<PreparedPdf?>(null)}
+    val documentPicker=rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()) {uri->
+        if(uri!=null)model.action {
+            val account=model.backend.session.value?.userId ?: return@action
+            val pdf=PdfDocuments.prepare(context,uri,account)
+            if(model.backend.session.value?.userId==account) {
+                preparedPdf?.file?.delete()
+                preparedPdf=pdf
+            } else pdf.file.delete()
+        }
+    }
     var stickerLibraryOpen by remember(cid,session?.userId) {mutableStateOf(false)}
     var savedStickers by remember(cid,session?.userId) {
         mutableStateOf(StickerLibrary.list(context,session?.userId))
@@ -962,6 +976,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     photoQuality=if(it)"HD" else "Standard"))})
         }
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
+        GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
+            onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
         GlassActionRow("Create sticker",Icons.Outlined.AutoAwesome,
             onClick={attachments=false;stickerPicker.launch("image/*")})
         GlassActionRow("My stickers",Icons.Outlined.Collections,
@@ -1473,6 +1489,32 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
     var photoEditBusy by remember(cid,session?.userId) {mutableStateOf(false)}
+    preparedPdf?.let {pdf->
+        LiquidAlertDialog(
+            onDismissRequest={if(!busy){pdf.file.delete();preparedPdf=null}},
+            title={Text("Send PDF document")},
+            text={Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Outlined.Description,null,Modifier.size(36.dp),
+                    tint=MaterialTheme.colorScheme.primary)
+                Text(pdf.name,style=MaterialTheme.typography.titleMedium)
+                Text("Private PDF attachment · ${pdf.file.length()/1024} KB · 8 MB maximum",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Only the participants of this Liquid Chat conversation can access the document.",
+                    style=MaterialTheme.typography.bodySmall)
+            }},
+            confirmButton={TextButton(onClick={
+                model.action {
+                    model.repository.sendDocument(cid,pdf)
+                    preparedPdf=null
+                }
+            },enabled=!busy && session!=null) {Text("Send PDF")}},
+            dismissButton={TextButton(onClick={
+                pdf.file.delete()
+                preparedPdf=null
+            },enabled=!busy) {Text("Cancel")}}
+        )
+    }
     if(stickerLibraryOpen) LiquidAlertDialog(
         onDismissRequest={stickerLibraryOpen=false},
         title={Text("My stickers")},
@@ -1713,11 +1755,14 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         style=MaterialTheme.typography.bodySmall)}
                 }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
-                    if(message.mediaKind=="voice")VoicePlayer(model,message)
-                    else SharedImagePreview(model,message)
+                    when(message.mediaKind) {
+                        "voice"->VoicePlayer(model,message)
+                        "document"->PdfMessageAttachment(model,message)
+                        else->SharedImagePreview(model,message)
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind!="voice" && !(message.mediaKind=="sticker" && message.body=="Sticker"))MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
+                if(message.mediaKind !in listOf("voice","document") && !(message.mediaKind=="sticker" && message.body=="Sticker"))MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
                     linksEnabled=!selectionMode,
                     textColor=conversationInkColor(if(mine)bubbleDisplay.outgoingInk else bubbleDisplay.incomingInk,
                         LocalGlassDark.current,resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
