@@ -1390,10 +1390,76 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(starsOpen&&chat!=null)ContactMediaDialog(model,chat,messages,initialKind="star") {starsOpen=false}
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
-    prepared?.let {image->LiquidAlertDialog(onDismissRequest={image.file.delete();prepared=null},title={Text("Send image")},text={Column {
-        coil.compose.AsyncImage(image.file,"Image preview",Modifier.fillMaxWidth().heightIn(max=260.dp).aspectRatio(image.width.toFloat()/image.height))
-        OutlinedTextField(input,{if(it.text.length<=4000)updateInput(it)},keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
-    }},confirmButton={TextButton(onClick={val caption=body;val version=draftVersion;model.action {model.repository.sendImage(cid,image,caption,version);prepared=null;if(draftVersion==version){input=TextFieldValue("");replyTo=""}}},enabled=!busy) {Text("Send")}},dismissButton={TextButton(onClick={image.file.delete();prepared=null}) {Text("Cancel")}})}
+    var photoEditBusy by remember(cid,session?.userId) {mutableStateOf(false)}
+    prepared?.let {image->
+        val editingAllowed=!photoEditBusy&&!busy
+        LiquidAlertDialog(
+            onDismissRequest={if(editingAllowed){image.file.delete();prepared=null}},
+            title={Text("Edit & send photo")},
+            text={
+                Column(Modifier.fillMaxWidth().heightIn(max=500.dp)
+                    .verticalScroll(rememberScrollState()),
+                    verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    // Cache-keyed preview ensures old edits do not linger after a swap.
+                    coil.compose.AsyncImage(
+                        model=coil.request.ImageRequest.Builder(context)
+                            .data(image.file).memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                            .diskCachePolicy(coil.request.CachePolicy.DISABLED).build(),
+                        contentDescription="Edited photo preview",
+                        modifier=Modifier.fillMaxWidth().heightIn(max=240.dp)
+                            .aspectRatio(image.width.toFloat()/image.height.coerceAtLeast(1)))
+                    Text("Photo editor",style=MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                        listOf(
+                            Images.Edit.CROP_SQUARE to "Crop 1:1",
+                            Images.Edit.ROTATE_RIGHT to "Rotate 90°",
+                            Images.Edit.FLIP_HORIZONTAL to "Flip",
+                            Images.Edit.GRAYSCALE to "B&W"
+                        ).forEach {(operation,label)->
+                            FilterChip(selected=false,enabled=editingAllowed,
+                                onClick={
+                                    val owner=session?.userId
+                                    if(owner!=null && !photoEditBusy) {
+                                        photoEditBusy=true
+                                        model.action {
+                                            try {
+                                                val next=Images.edit(context,owner,image,operation)
+                                                if(model.session.value?.userId==owner && prepared===image) {
+                                                    prepared=next
+                                                    image.file.delete()
+                                                } else next.file.delete()
+                                            } finally {photoEditBusy=false}
+                                        }
+                                    }
+                                },
+                                label={Text(label)})
+                        }
+                    }
+                    Text("All edits are performed on this phone. The result is sent as a private photo through Liquid Chat.",
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(input,{if(it.text.length<=4000)updateInput(it)},
+                        keyboardOptions=KeyboardOptions(
+                            capitalization=KeyboardCapitalization.Sentences,
+                            keyboardType=KeyboardType.Text),
+                        label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton={TextButton(onClick={
+                val caption=body
+                val version=draftVersion
+                model.action {
+                    model.repository.sendImage(cid,image,caption,version)
+                    prepared=null
+                    if(draftVersion==version){input=TextFieldValue("");replyTo=""}
+                }
+            },enabled=editingAllowed) {Text("Send")}},
+            dismissButton={TextButton(
+                onClick={image.file.delete();prepared=null},enabled=editingAllowed
+            ) {Text("Cancel")}}
+        )
+    }
     if(confirmDelete&&chat!=null) LiquidAlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
 
