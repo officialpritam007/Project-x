@@ -27,4 +27,18 @@ internal object MbConversationAccent {
         context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
             .putString(key(account,conversation),choice).apply()
     }
+
+    fun clearConversation(context:Context,account:String,conversation:String) {
+        if(account.isNotBlank()&&conversation.isNotBlank())
+            context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+                .remove(key(account,conversation)).apply()
+    }
+
+    fun clearAccount(context:Context,account:String) {
+        if(account.isBlank())return
+        val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+        val editor=prefs.edit()
+        prefs.all.keys.filter {it.startsWith("$account:")}.forEach(editor::remove)
+        editor.apply()
+    }
 }
