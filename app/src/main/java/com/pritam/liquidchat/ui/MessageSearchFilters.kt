@@ -28,7 +28,8 @@ internal fun filterMessageHistory(
             when(sender) {SearchSender.ANY->true;SearchSender.YOU->m.sender==account;SearchSender.CONTACT->m.sender!=account} &&
             when(type) {
                 SearchMedia.ANY->true
-                SearchMedia.TEXT->!media&&m.mediaKind!="voice"
+                // A queued attachment without a media ID is still not plain text.
+                SearchMedia.TEXT->!media&&m.mediaKind=="image"
                 SearchMedia.IMAGE->media&&m.mediaKind=="image"
                 SearchMedia.VIDEO->media&&m.mediaKind=="chat_video"
                 SearchMedia.STICKER->media&&m.mediaKind=="sticker"
