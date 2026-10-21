@@ -43,6 +43,20 @@ class MbThemeTransferTest {
         assertTrue(restored.reducedTransparency)
     }
 
+    @Test fun originalReferenceSizeLimitsRemainUsableAndClamped() {
+        val full=DisplayOptions(messageFontSize=30,navIconSize=50,
+            navLabelSize=20,homeChatNameSize=30)
+        assertEquals(full,MbThemeTransfer.decode(MbThemeTransfer.export(full),DisplayOptions()))
+        val oversized="""{"format":"liquid-chat-theme","version":1,
+            "messageFontSize":99,"navIconSize":99,"navLabelSize":99,
+            "homeChatNameSize":99}"""
+        val max=MbThemeTransfer.decode(oversized,DisplayOptions())
+        assertEquals(30,max.messageFontSize)
+        assertEquals(50,max.navIconSize)
+        assertEquals(20,max.navLabelSize)
+        assertEquals(30,max.homeChatNameSize)
+    }
+
     @Test fun rejectsForeignFormatsAndLargeFiles() {
         val invalid="{\"format\":\"mbwhatsapp\",\"version\":1}"
         val result=runCatching {MbThemeTransfer.decode(invalid,DisplayOptions())}
