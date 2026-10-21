@@ -424,6 +424,47 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }}
         enqueue(account)
     }
+
+    /**
+     * Queue a selected multi-photo batch atomically. Each photo remains a normal
+     * independently acknowledged message, but all local outbox rows are written
+     * in one Room transaction before the worker can observe them.
+     *
+     * Caller retains ownership of the files until this call succeeds. On
+     * success the durable outbox owns every file and removes it after delivery.
+     * Caption belongs to the first photo, matching the reference preview.
+     */
+    suspend fun sendImages(cid:String,images:List<Images.Prepared>,caption:String="") {
+        require(images.size in 1..10) {"Choose between one and ten photos."}
+        require(caption.length<=4000) {"Photo caption is too long."}
+        val owner=account()
+        val root=java.io.File(context.filesDir,"media/$owner").canonicalFile
+        val paths=images.map {it.file.canonicalPath}
+        require(paths.distinct().size==paths.size) {"The same photo was selected twice."}
+        images.forEach {image->
+            require(image.file.isFile && image.file.canonicalFile.parentFile==root &&
+                image.file.extension.lowercase()=="jpg" &&
+                image.file.length() in 100..9_500_000L &&
+                image.width in 1..3072 && image.height in 1..3072 &&
+                image.width.toLong()*image.height<=25_000_000L) {
+                "Only account-private prepared photos can be sent."
+            }
+        }
+        val queued=images.mapIndexed {index,image->
+            Message(owner,UUID.randomUUID().toString(),cid,owner,
+                if(index==0) caption.ifBlank {"Photo"} else "Photo",
+                localImage=image.file.absolutePath,
+                imageWidth=image.width,imageHeight=image.height)
+        }
+        draftMutex.withLock {db.withTransaction {
+            checkAccount(owner)
+            queued.forEach {putVisible(it)}
+            val latest=queued.last()
+            dao.pendingPreview(owner,cid,"Queued: ${latest.body.take(160)}",latest.localTime)
+        }}
+        enqueue(owner)
+    }
+
     suspend fun sendDocument(cid:String,pdf:PreparedPdf) {
         val account=account()
         val name=PdfDocuments.safeName(pdf.name)
