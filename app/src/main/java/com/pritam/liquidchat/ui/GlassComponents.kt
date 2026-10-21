@@ -147,7 +147,8 @@ import androidx.compose.ui.platform.LocalContext
     GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
         Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(start=20.dp,end=8.dp),verticalAlignment=Alignment.CenterVertically) {
             if(brand) {
-                DesignIcon("icon_7_223","Liquid Chat",22)
+                Icon(painter=androidx.compose.ui.res.painterResource(com.pritam.liquidchat.R.drawable.ic_liquid),
+                    contentDescription="Liquid Chat",modifier=Modifier.size(22.dp),tint=Color.Unspecified)
                 Spacer(Modifier.width(10.dp))
             }
             Text(title,Modifier.weight(1f),fontSize=LocalDisplayOptions.current.headerTitleSize.sp,fontWeight=FontWeight.SemiBold,color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
