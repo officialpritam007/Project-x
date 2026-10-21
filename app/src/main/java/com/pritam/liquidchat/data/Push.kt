@@ -214,7 +214,9 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             .setStyle(NotificationCompat.BigTextStyle().bigText(visibleBody)).setContentIntent(pending)
             .setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(if(showBody)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE).build()
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setSilent(DeviceAlertPreferences.shouldSilence(context,account))
+            .build()
         // Commit before notifying: notifications dismissed by the user must never alert again.
         MessageNotificationDedupe.postOnce(context,account,id) {
             manager.notify(id.hashCode(),notification)
