@@ -62,7 +62,7 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
     LiquidTheme(dark) {
         VoicePlaybackLifecycle(model,session?.userId to active)
         if(logoutPrompt) LiquidAlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
-        Box(Modifier.fillMaxSize()) {
+        MbTouchHost {
         Box(Modifier.matchParentSize().glassSource(0f).background(glassBackground()))
         Scaffold(snackbarHost={SnackbarHost(snackbar)}, containerColor=Color.Transparent,
             topBar={
