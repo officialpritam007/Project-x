@@ -1486,10 +1486,10 @@ if(section=="Liquid Chat Home Screen") {
             }
             Text("Navigation icon size · ${display.navIconSize} dp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.navIconSize.toFloat(),onValueChange={model.setDisplay(display.copy(navIconSize=it.toInt()))},
-                valueRange=18f..30f,steps=11,modifier=Modifier.fillMaxWidth())
+                valueRange=20f..50f,steps=29,modifier=Modifier.fillMaxWidth())
             Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
-                valueRange=9f..15f,steps=5,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
+                valueRange=8f..20f,steps=11,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)
@@ -1568,7 +1568,7 @@ if(section=="Liquid Chat Home Screen") {
             HorizontalDivider()
             Text("Conversation name size · ${display.homeChatNameSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeChatNameSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatNameSize=it.toInt()))},
-                valueRange=13f..20f,steps=6,modifier=Modifier.fillMaxWidth())
+                valueRange=10f..30f,steps=19,modifier=Modifier.fillMaxWidth())
             Text("Conversation preview size · ${display.homeChatPreviewSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeChatPreviewSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatPreviewSize=it.toInt()))},
                 valueRange=12f..18f,steps=5,modifier=Modifier.fillMaxWidth())
@@ -1637,7 +1637,7 @@ if(section=="Liquid Chat Home Screen") {
             Text("Message font size",style=MaterialTheme.typography.titleSmall)
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
-                valueRange=14f..22f,steps=7,modifier=Modifier.fillMaxWidth())
+                valueRange=10f..30f,steps=19,modifier=Modifier.fillMaxWidth())
             // MB 3.3.4 mb_emoji_sizer: changes the real emoji picker, not message content.
             Text("Emoji picker size · ${display.emojiPickerSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.emojiPickerSize.toFloat(),
