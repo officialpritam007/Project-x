@@ -21,7 +21,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_dialog_alert_ios.xml` | Partial | LiquidAlertDialog | Exact blur, transitions and button order unverified |
 | `mb_dialog_color_picker.xml` | Partial | Theme/color editor | Full reference dialog not matched |
 | `mb_dialog_launcher.xml` | Partial | Classic/Night Glass Activity aliases + Appearance selector | Full reference icon pack and launcher-specific visual verification remain |
-| `mb_dialog_media.xml` | Partial | Attachment sheet and image/PDF/sticker send | GIF, arbitrary video and multi-file send missing |
+| `mb_dialog_media.xml` | Partial | Attachment sheet, PDF/stickers, single photo and up-to-10 photo picker with private sequential outbox | GIF/video attachment and exact reference grouped album presentation still missing |
 | `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
 | `mb_edittext_box.xml` | Partial | Compose conversation composer | Reference animations and accessories unverified |
 | `mb_edittext_layout.xml` | Partial | Compose text field/selection | Reference geometry not matched |
@@ -30,7 +30,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_home_settings.xml` | Partial | Home Screen Settings | Full reference tab and wallpaper options unverified |
 | `mb_home_tab.xml` | Partial | Chats home tabs + custom folders | Exact tab layout/animation unverified |
 | `mb_home_toolbar.xml` | Partial | GlassHeader | Pixel and icon parity unverified |
-| `mb_image_picker.xml` | Partial | Android gallery + photo editor + sticker picker | Multi-image selector/editor parity missing |
+| `mb_image_picker.xml` | Partial | Android gallery, basic photo editor and 10-photo multi-select with individual removal | Native batch crop/edit controls and exact reference selector layout missing |
 | `mb_info.xml` | Partial | ContactMediaDialog | Reference account/details UI unverified |
 | `mb_info_profile.xml` | Partial | Profile and contact information | Layout and gestures unverified |
 | `mb_info_row_text.xml` | Partial | Contact/profile information rows | Reference typography unverified |
@@ -59,14 +59,20 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_tip_logout.xml` | Partial | Liquid Chat sign-out confirmation | Exact layout/animation unverified |
 | `mb_tips_help.xml` | Partial | MbTipsAndHelp | Original page content not fully ported |
 | `mb_toast_no.xml` | Partial | App notices + FCM notifications | Reference toast and suppression semantics unverified |
-| `mb_update.xml` | Missing | No reference-style in-app update screen | Needs signed release/update distribution workflow |
+| `mb_update.xml` | Partial | Liquid Chat App Updates panel / update information | Signed release distribution/verification and exact reference layout remain unverified |
 | `mb_vip_settings.xml` | Unmapped | No verified equivalent paid entitlement | Do not import another service's subscription or licensing logic |
+
+## 21 October 2026 — reference APK follow-up (committed source only)
+
+- **Batch gallery images:** real Android multi-image picker, bounded to 10 selected images, previews with remove-one controls, account-scoped JPEG processing, user-confirmed sequential durable image outbox; partial failures preserve unqueued photos for explicit retry. No fake group album or server data rewrite.
+- **Caption copy:** one-tap copy for authorized Story and Post descriptions, including full-screen viewers. This uses Android clipboard on direct user action and does not transmit captions to a new service.
+- **Still missing/blocked:** GIF/video attachment transport, pixel-perfect APK dialog art and animated transitions, fully verified private media SQL/Edge deployment, advanced contact-specific status alerts, third-party AI/VIP integrations and WhatsApp-specific groups/channels. User explicitly defers build, lint, CI, SQL/Edge deployments and device tests until later.
 
 ## Backend and release dependencies
 
 - Existing messaging and calling remain Liquid Chat services (Supabase/FCM/WebRTC), **not WhatsApp protocol clients**. Reference-specific features such as linked WhatsApp accounts, proprietary groups/channels and commercial AI/VIP services require separate functionality; duplicating a UI control alone would be deceptive.
 - **Still in Git only, not applied to the running database:** `supabase/migrations/20261021183500_private_sticker_messages.sql`, `supabase/migrations/20261021195500_private_pdf_documents.sql`, and `supabase/migrations/20261021202500_message_edit_history.sql`. Sticker/PDF migrations also need the associated `supabase/functions/media` deployment. Existing database/user rows must be preserved. New sticker/PDF send cannot work before this paired deployment.
-- Chat Folders and saved sticker shelf are **device-only account-scoped**; they do not sync across phones. PDF scan is single-page monochrome (not automatic edge detection). Real sticker background removal is near-white masking, not ML segmentation.
+- Chat Folders and saved sticker shelf are **device-only account-scoped**; they do not sync across phones. PDF scanning supports single captured camera pages or up to 10 gallery pages, with no automatic document edge detection. Real sticker background removal is near-white masking, not ML segmentation. Gallery batch-photo sending now queues up to 10 private independent image messages and does **not** claim true WhatsApp grouped-album protocol parity.
 - To claim any row complete: inspect binary XML and event behavior, implement matching Compose UI, wire state/backend, and compare reference screenshots at 360/393/412 dp, both themes, relevant font scales and gesture states.
 - Owner-requested current workflow deferred builds, SQL/Edge checks, emulator and physical verification. Do **not** assert 100% parity, production readiness, a deployed migration or a final APK from this register.
 
