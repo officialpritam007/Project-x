@@ -167,7 +167,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                             color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if(referenceBar&&selected) Box(
-                        Modifier.align(Alignment.BottomCenter).width(56.dp).height(3.dp)
+                        Modifier.align(Alignment.BottomCenter).width(90.dp).height(3.dp)
                             .clip(Glass.capsule).background(MaterialTheme.colorScheme.primary)
                     )
                 }
