@@ -6,7 +6,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 
 | Reference layout | Status | Liquid Chat route/counterpart | Gap before claiming exact parity |
 |---|---|---|---|
-| `mb_activity_image_crop.xml` | Partial | Photo edit sheet + PDF scanner | Reference crop gestures, exact toolbar and undo history missing |
+| `mb_activity_image_crop.xml` | Partial | Photo editor with 1:1, 4:5 and 16:9 centered crop, ±90° rotate, two-axis flip, B&W and five-step Undo; PDF scanner | Reference freehand crop gestures, exact toolbar, full edit history/Redo, pixel comparison and real-device proof missing |
 | `mb_alert_sticker.xml` | Partial | Sticker creator + saved shelf | Animated packs, exact dialog and segmentation missing |
 | `mb_animations.xml` | Partial | DisplayOptions animation settings | Touch and snow overlays not verified |
 | `mb_bomb_dialog.xml` | Unmapped | No confirmed safe counterpart | Decode actual dialog interaction before claiming feature |
@@ -30,7 +30,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_home_settings.xml` | Partial | Home Screen Settings | Full reference tab and wallpaper options unverified |
 | `mb_home_tab.xml` | Partial | Chats home tabs + custom folders | Exact tab layout/animation unverified |
 | `mb_home_toolbar.xml` | Partial | GlassHeader | Pixel and icon parity unverified |
-| `mb_image_picker.xml` | Partial | Android gallery, basic photo editor and 10-photo multi-select with individual removal | Native batch crop/edit controls and exact reference selector layout missing |
+| `mb_image_picker.xml` | Partial | Android picker with 10-photo selection, per-photo removal, first-photo caption, atomic private outbox, Undo-enabled single-photo editor | Batch crop/edit controls, original gallery selector geometry and native grouped album parity missing |
 | `mb_info.xml` | Partial | ContactMediaDialog | Reference account/details UI unverified |
 | `mb_info_profile.xml` | Partial | Profile and contact information | Layout and gestures unverified |
 | `mb_info_row_text.xml` | Partial | Contact/profile information rows | Reference typography unverified |
@@ -65,6 +65,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 ## 21 October 2026 — reference APK follow-up (committed source only)
 
 - **Batch gallery images:** real Android multi-image picker, bounded to 10 selected images, previews with remove-one controls and optional first-photo caption, account-scoped JPEG processing, and a single Room transaction that queues all selected independent messages or none. WorkManager reuses the existing private media upload/delivery/retry flow. This is not a WhatsApp-protocol grouped album.
+- **Photo edit continuation:** fully local center-cropped 1:1 / 4:5 / 16:9 variants, ±90° rotation, horizontal/vertical flip, grayscale and five-step Undo, with bounded temporary revision cleanup on cancel, selecting new photo or successful queue. The native gestures and exact reference toolbar are still unverified.
 - **Caption/profile copy:** one-tap copy for authorized Story/Post descriptions (including full-screen viewers), plus copy of the signed-in account's own username and bio. Android clipboard is written only on user action; no third-party service is called.
 - **Still missing/blocked:** GIF/video attachment transport, pixel-perfect APK dialog art and animated transitions, fully verified private media SQL/Edge deployment, advanced contact-specific status alerts, third-party AI/VIP integrations and WhatsApp-specific groups/channels. User explicitly defers build, lint, CI, SQL/Edge deployments and device tests until later.
 
