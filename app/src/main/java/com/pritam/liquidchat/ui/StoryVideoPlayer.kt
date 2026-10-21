@@ -34,16 +34,36 @@ import org.json.JSONObject
 ) {
     val context=LocalContext.current
     val account by backend.session.collectAsStateWithLifecycle()
-    var url by remember(media,account?.userId) {mutableStateOf<String?>(null)}
-    var failure by remember(media,account?.userId) {mutableStateOf(false)}
-    var retry by remember(media,account?.userId) {mutableIntStateOf(0)}
-    LaunchedEffect(media,account?.userId,retry) {
+    // User ID alone is insufficient: policy/authorization may rotate while
+    // this account remains signed in. A new scope must discard player and URL.
+    val sessionEpoch by backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
+    val authorizedEpoch=backend.uiReads.epoch(account?.userId)
+    var url by remember(media,account?.userId,sessionEpoch) {
+        mutableStateOf<String?>(null)
+    }
+    var failure by remember(media,account?.userId,sessionEpoch) {
+        mutableStateOf(false)
+    }
+    var retry by remember(media,account?.userId,sessionEpoch) {
+        mutableIntStateOf(0)
+    }
+    LaunchedEffect(media,account?.userId,sessionEpoch,retry) {
+        url=null
         failure=false
+        val owner=account?.userId
+        if(owner==null || authorizedEpoch==null || sessionEpoch!=authorizedEpoch) return@LaunchedEffect
         try {
-            url=JSONObject(backend.request("/functions/v1/media","POST",
+            val signed=JSONObject(backend.request("/functions/v1/media","POST",
                 JSONObject().put("action","download").put("id",media))).getString("url")
+            if(backend.session.value?.userId==owner &&
+                backend.uiReads.epoch(owner)==authorizedEpoch)url=signed
         } catch(e:CancellationException) {throw e}
-        catch(_:Exception) {failure=true;url=null}
+        catch(_:Exception) {
+            if(backend.uiReads.epoch(owner)==authorizedEpoch) {
+                failure=true
+                url=null
+            }
+        }
     }
     val currentOnProgress by rememberUpdatedState(onProgress)
     val currentOnFinished by rememberUpdatedState(onFinished)
