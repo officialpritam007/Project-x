@@ -51,11 +51,18 @@ import androidx.compose.ui.platform.LocalContext
     destructive:Boolean=false,enabled:Boolean=true
 ) {
     val tint=if(destructive)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    Row(Modifier.fillMaxWidth().heightIn(min=52.dp).clip(Glass.compact)
+    val reference=LocalDisplayOptions.current.navBarStyle=="Reference"
+    Row(Modifier.fillMaxWidth().heightIn(min=if(reference)48.dp else 52.dp)
+        .clip(Glass.compact)
         .clickable(enabled=enabled,role=Role.Button,onClick=onClick)
-        .padding(horizontal=12.dp,vertical=12.dp),
-        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
-        Icon(icon,null,Modifier.size(23.dp),tint=tint.copy(alpha=if(enabled)1f else .38f))
+        .padding(start=if(reference)15.dp else 12.dp,
+            end=if(reference)10.dp else 12.dp,
+            top=if(reference)8.dp else 12.dp,
+            bottom=if(reference)8.dp else 12.dp),
+        verticalAlignment=Alignment.CenterVertically,
+        horizontalArrangement=Arrangement.spacedBy(if(reference)16.dp else 14.dp)) {
+        Icon(icon,null,Modifier.size(if(reference)24.dp else 23.dp),
+            tint=tint.copy(alpha=if(enabled)1f else .38f))
         Text(label,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge,
             color=tint.copy(alpha=if(enabled)1f else .38f))
     }
@@ -66,17 +73,24 @@ import androidx.compose.ui.platform.LocalContext
 @Composable internal fun LiquidActionSheet(
     title:String,onDismiss:()->Unit,content:@Composable ColumnScope.()->Unit
 ) {
+    val reference=LocalDisplayOptions.current.navBarStyle=="Reference"
     ModalBottomSheet(onDismissRequest=onDismiss,
         sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
-        shape=androidx.compose.foundation.shape.RoundedCornerShape(topStart=30.dp,topEnd=30.dp),
+        shape=androidx.compose.foundation.shape.RoundedCornerShape(
+            topStart=if(reference)22.dp else 30.dp,
+            topEnd=if(reference)22.dp else 30.dp),
         containerColor=glassPopupColor(),tonalElevation=0.dp) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-            .padding(horizontal=20.dp).padding(bottom=16.dp),
-            verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            .padding(horizontal=if(reference)12.dp else 20.dp)
+            .padding(bottom=16.dp),
+            verticalArrangement=Arrangement.spacedBy(if(reference)0.dp else 4.dp)) {
             Text(title,style=MaterialTheme.typography.titleLarge,
-                modifier=Modifier.padding(horizontal=12.dp,vertical=8.dp))
+                modifier=Modifier.padding(horizontal=if(reference)15.dp else 12.dp,
+                    vertical=8.dp))
             content()
-            TextButton(onClick=onDismiss,modifier=Modifier.align(Alignment.End)) {Text("Done")}
+            TextButton(onClick=onDismiss,modifier=Modifier.align(Alignment.End)) {
+                Text("Done")
+            }
         }
     }
 }
