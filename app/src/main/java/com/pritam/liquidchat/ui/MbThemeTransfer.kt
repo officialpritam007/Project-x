@@ -65,6 +65,10 @@ internal object MbThemeTransfer {
         put("randomAccentOnLaunch",options.randomAccentOnLaunch)
         put("notificationIconStyle",options.notificationIconStyle)
         put("bubbleOpacity",options.bubbleOpacity)
+        put("outgoingInkHex",options.outgoingInkHex)
+        put("incomingInkHex",options.incomingInkHex)
+        put("quotedInkHex",options.quotedInkHex)
+        put("timestampInkHex",options.timestampInkHex)
         put("showHomeDividers",options.showHomeDividers)
         put("navBarStyle",options.navBarStyle)
         put("hidePhotoShortcut",options.hidePhotoShortcut)
@@ -104,10 +108,10 @@ internal object MbThemeTransfer {
             hideNavIcons=bool("hideNavIcons",current.hideNavIcons),
             outgoingBubblePreset=choice("outgoingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night","Custom"),current.outgoingBubblePreset),
             incomingBubblePreset=choice("incomingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night","Custom"),current.incomingBubblePreset),
-            outgoingInk=choice("outgoingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.outgoingInk),
-            incomingInk=choice("incomingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.incomingInk),
-            quotedInk=choice("quotedInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.quotedInk),
-            timestampInk=choice("timestampInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.timestampInk),
+            outgoingInk=choice("outgoingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber","Custom"),current.outgoingInk),
+            incomingInk=choice("incomingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber","Custom"),current.incomingInk),
+            quotedInk=choice("quotedInk",setOf("Theme","Blue","Green","Purple","Rose","Amber","Custom"),current.quotedInk),
+            timestampInk=choice("timestampInk",setOf("Theme","Blue","Green","Purple","Rose","Amber","Custom"),current.timestampInk),
             navIconSize=number("navIconSize",current.navIconSize,20,50),
             navLabelSize=number("navLabelSize",current.navLabelSize,8,20),
             headerTitleSize=number("headerTitleSize",current.headerTitleSize,20,30),
@@ -134,12 +138,16 @@ internal object MbThemeTransfer {
             randomAccentOnLaunch=bool("randomAccentOnLaunch",current.randomAccentOnLaunch),
             notificationIconStyle=choice("notificationIconStyle",setOf("Classic","Outline"),current.notificationIconStyle),
             bubbleOpacity=number("bubbleOpacity",current.bubbleOpacity,45,100),
+            outgoingInkHex=normalizedAccentHex(j.optString("outgoingInkHex",current.outgoingInkHex)) ?: current.outgoingInkHex,
+            incomingInkHex=normalizedAccentHex(j.optString("incomingInkHex",current.incomingInkHex)) ?: current.incomingInkHex,
+            quotedInkHex=normalizedAccentHex(j.optString("quotedInkHex",current.quotedInkHex)) ?: current.quotedInkHex,
+            timestampInkHex=normalizedAccentHex(j.optString("timestampInkHex",current.timestampInkHex)) ?: current.timestampInkHex,
             showHomeDividers=bool("showHomeDividers",current.showHomeDividers),
             navBarStyle=choice("navBarStyle",setOf("Reference","Liquid"),current.navBarStyle),
             hidePhotoShortcut=bool("hidePhotoShortcut",current.hidePhotoShortcut),
             showPinBadges=bool("showPinBadges",current.showPinBadges),
             emojiPickerSize=number("emojiPickerSize",current.emojiPickerSize,18,32),
-            linkColor=choice("linkColor",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.linkColor)
+            linkColor=choice("linkColor",setOf("Theme","Blue","Green","Purple","Rose","Amber","Custom"),current.linkColor)
         )
     }
 }
