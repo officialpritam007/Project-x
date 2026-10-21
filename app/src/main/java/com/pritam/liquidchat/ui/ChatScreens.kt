@@ -146,6 +146,13 @@ import kotlinx.coroutines.flow.drop
         }
     }
     val inboxDisplay=LocalDisplayOptions.current
+    LaunchedEffect(inboxDisplay.hideHomeSearch) {
+        // Disabling search must not leave an invisible query filtering the inbox.
+        if(inboxDisplay.hideHomeSearch && query.isNotEmpty()) {
+            query=""
+            model.search("")
+        }
+    }
     val activeFilter=if(inboxDisplay.hideArchiveAccess && filter==2)0 else filter
     LaunchedEffect(menu,signedInAccount?.userId) {
         if(menu && signedInAccount!=null) {
@@ -237,7 +244,7 @@ import kotlinx.coroutines.flow.drop
                 else {selectedStoryId=id;stories=true}
             }
         )
-        GlassSearch(query,{query=it;model.search(it)},"Search Chats")
+        if(!inboxDisplay.hideHomeSearch) GlassSearch(query,{query=it;model.search(it)},"Search Chats")
         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             listOf(0 to "All",1 to "Favorite",2 to "Archive",3 to "Unread")
                 .filter {it.first!=2 || !inboxDisplay.hideArchiveAccess}
@@ -253,6 +260,9 @@ import kotlinx.coroutines.flow.drop
                 // Wrapping it in a second clickable creates overlapping semantics
                 // and can trigger duplicate navigation / long-press actions.
                 ChatRow(chat,model.backend,onClick={model.open(chat.id)},onLongClick={selectedChat=chat})
+                if(inboxDisplay.showHomeDividers) HorizontalDivider(
+                    modifier=Modifier.padding(start=78.dp),
+                    color=MaterialTheme.colorScheme.outlineVariant)
             }
             if(query.isNotBlank()) {
                 val visibleResults=results.filter {it.deletedAt.isEmpty()}
@@ -1474,6 +1484,15 @@ if(section=="MB Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide home search",style=MaterialTheme.typography.titleSmall)
+                        Text("The search field disappears but can be restored here.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.hideHomeSearch,
+                        onCheckedChange={model.setDisplay(display.copy(hideHomeSearch=it))})
+                }
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("Show my profile name as title",Modifier.weight(1f))
                 Switch(display.showProfileAsTitle,{model.setDisplay(display.copy(showProfileAsTitle=it))})
             }
@@ -1509,6 +1528,15 @@ if(section=="MB Home Screen") {
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Chat list & typography",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Show chat dividers",style=MaterialTheme.typography.titleSmall)
+                        Text("Show separators between conversation rows.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked=display.showHomeDividers,
+                        onCheckedChange={model.setDisplay(display.copy(showHomeDividers=it))})
+                }
                 Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeAvatarSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeAvatarSize=it.toInt()))},
                 valueRange=40f..68f,steps=27,modifier=Modifier.fillMaxWidth())
