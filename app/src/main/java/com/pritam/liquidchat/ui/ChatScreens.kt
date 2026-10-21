@@ -682,11 +682,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             chat?.let {model.calls.start(cid,it.peer,kind)}
         else callPermissionLauncher.launch(needed)
     }
-    var prepared by remember(cid) {mutableStateOf<Images.Prepared?>(null)}
+    var prepared by remember(cid,session?.userId) {mutableStateOf<Images.Prepared?>(null)}
+    var photoUndo by remember(cid,session?.userId) {
+        mutableStateOf<List<Images.Prepared>>(emptyList())
+    }
+    fun replacePhotoDraft(next:Images.Prepared) {
+        prepared?.file?.delete()
+        photoUndo.forEach {it.file.delete()}
+        photoUndo=emptyList()
+        prepared=next
+    }
+    fun clearPhotoDraft() {
+        prepared?.file?.delete()
+        photoUndo.forEach {it.file.delete()}
+        photoUndo=emptyList()
+        prepared=null
+    }
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
         val account=model.backend.session.value?.userId ?: return@action
         val image=Images.prepare(context,uri,account,hd=model.display.value.photoQuality=="HD")
-        if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
+        if(model.backend.session.value?.userId==account)replacePhotoDraft(image) else image.file.delete()
     }}
     // The reference app allows multi-select. Each image is still an independent
     // authorized and retriable Liquid Chat message (no invented album backend).
@@ -835,7 +850,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 if(model.backend.session.value?.userId==cameraAccount) {
                     val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file)
                     val image=Images.prepare(context,uri,cameraAccount,hd=model.display.value.photoQuality=="HD")
-                    if(model.backend.session.value?.userId==cameraAccount)prepared=image else image.file.delete()
+                    if(model.backend.session.value?.userId==cameraAccount)replacePhotoDraft(image) else image.file.delete()
                 }
             } finally {file.delete();cameraPath=""}
         } else {file.delete();cameraPath=""}
@@ -1958,7 +1973,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     prepared?.let {image->
         val editingAllowed=!photoEditBusy&&!busy
         LiquidAlertDialog(
-            onDismissRequest={if(editingAllowed){image.file.delete();prepared=null}},
+            onDismissRequest={if(editingAllowed)clearPhotoDraft()},
             title={Text("Edit & send photo")},
             text={
                 Column(Modifier.fillMaxWidth().heightIn(max=500.dp)
@@ -1990,8 +2005,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                             try {
                                                 val next=Images.edit(context,owner,image,operation)
                                                 if(model.session.value?.userId==owner && prepared===image) {
+                                                    val revisions=photoUndo+image
+                                                    photoUndo=revisions.takeLast(5)
+                                                    revisions.dropLast(5).forEach {it.file.delete()}
                                                     prepared=next
-                                                    image.file.delete()
                                                 } else next.file.delete()
                                             } finally {photoEditBusy=false}
                                         }
@@ -1999,6 +2016,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 },
                                 label={Text(label)})
                         }
+                    }
+                    Row(verticalAlignment=Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            enabled=editingAllowed&&photoUndo.isNotEmpty(),
+                            onClick={
+                                val previous=photoUndo.lastOrNull()
+                                if(previous!=null&&prepared===image) {
+                                    photoUndo=photoUndo.dropLast(1)
+                                    prepared=previous
+                                    image.file.delete()
+                                }
+                            }) {
+                            Icon(Icons.Outlined.Undo,null,Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Undo")
+                        }
+                        Text("${photoUndo.size} / 5 saved steps",
+                            style=MaterialTheme.typography.bodySmall,
+                            color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text("All edits are performed on this phone. The result is sent as a private photo through Liquid Chat.",
                         style=MaterialTheme.typography.bodySmall,
@@ -2015,12 +2052,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 val version=draftVersion
                 model.action {
                     model.repository.sendImage(cid,image,caption,version)
+                    // Only the selected edit is sent; discard private revisions.
+                    photoUndo.forEach {it.file.delete()}
+                    photoUndo=emptyList()
                     prepared=null
                     if(draftVersion==version){input=TextFieldValue("");replyTo=""}
                 }
             },enabled=editingAllowed) {Text("Send")}},
             dismissButton={TextButton(
-                onClick={image.file.delete();prepared=null},enabled=editingAllowed
+                onClick={clearPhotoDraft()},enabled=editingAllowed
             ) {Text("Cancel")}}
         )
     }
