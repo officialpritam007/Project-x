@@ -12,6 +12,66 @@ import java.util.UUID
 
 object Images {
     data class Prepared(val file:File,val width:Int,val height:Int)
+
+    enum class Edit { CROP_SQUARE, ROTATE_RIGHT, FLIP_HORIZONTAL, GRAYSCALE }
+
+    /**
+     * Apply a local edit to a previously prepared JPEG without altering its
+     * original until the replacement has been fully encoded.
+     *
+     * This is a real image edit, not a pretend sticker type. The edited photo
+     * continues through the same authenticated Supabase media outbox.
+     */
+    suspend fun edit(context:Context,account:String,prepared:Prepared,edit:Edit):Prepared =
+        withContext(Dispatchers.IO) {
+            require(account.isNotBlank())
+            val directory=File(context.filesDir,"media/$account").canonicalFile
+            require(prepared.file.isFile && prepared.file.canonicalFile.parentFile==directory) {
+                "The selected photo no longer belongs to this account."
+            }
+            val output=File(directory,"${UUID.randomUUID()}.jpg")
+            var original:Bitmap?=null
+            var transformed:Bitmap?=null
+            try {
+                original=android.graphics.BitmapFactory.decodeFile(prepared.file.absolutePath)
+                    ?: throw IOException("Could not open the selected photo.")
+                val source=original
+                transformed=when(edit) {
+                    Edit.CROP_SQUARE -> {
+                        val size=minOf(source.width,source.height)
+                        Bitmap.createBitmap(source,(source.width-size)/2,(source.height-size)/2,size,size)
+                    }
+                    Edit.ROTATE_RIGHT -> Bitmap.createBitmap(source,0,0,source.width,source.height,
+                        android.graphics.Matrix().apply {postRotate(90f)},true)
+                    Edit.FLIP_HORIZONTAL -> Bitmap.createBitmap(source,0,0,source.width,source.height,
+                        android.graphics.Matrix().apply {postScale(-1f,1f)},true)
+                    Edit.GRAYSCALE -> {
+                        val destination=Bitmap.createBitmap(source.width,source.height,Bitmap.Config.ARGB_8888)
+                        val matrix=android.graphics.ColorMatrix().apply {setSaturation(0f)}
+                        android.graphics.Canvas(destination).drawBitmap(source,0f,0f,
+                            android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                                colorFilter=android.graphics.ColorMatrixColorFilter(matrix)
+                            })
+                        destination
+                    }
+                }
+                val result=transformed ?: throw IOException("Image editing failed.")
+                output.outputStream().use {stream->
+                    check(result.compress(Bitmap.CompressFormat.JPEG,88,stream))
+                }
+                if(output.length()>9_500_000L)output.outputStream().use {stream->
+                    check(result.compress(Bitmap.CompressFormat.JPEG,70,stream))
+                }
+                if(output.length() !in 1..9_500_000L)throw IOException("Edited photo exceeds upload limit.")
+                Prepared(output,result.width,result.height)
+            } catch(e:Exception) {
+                output.delete()
+                throw e
+            } finally {
+                if(transformed!==original)transformed?.recycle()
+                original?.recycle()
+            }
+        }
     suspend fun prepare(context:Context,uri:Uri,account:String,hd:Boolean=false):Prepared=withContext(Dispatchers.IO) {
         val directory=File(context.filesDir,"media/$account").apply {mkdirs()}
         val original=File(directory,"${UUID.randomUUID()}.source")
