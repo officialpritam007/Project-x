@@ -2111,6 +2111,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(section=="Liquid Chat Updates") MbAppUpdates()
         if(section=="Liquid Chat Home Screen") MbStoryPlaybackSettingsCard()
         if(section=="Liquid Chat Home Screen") MbNavigationVisibilitySettingsCard()
+        if(section=="Liquid Chat Notifications") MbConversationSoundSettings()
         if(section=="Liquid Chat Conversation Screen") MbConversationInteractionSettings(model,display)
         if(section=="Liquid Chat Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Keyboard privacy and stickers",style=MaterialTheme.typography.titleMedium)
