@@ -694,6 +694,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         mutableStateOf<List<Images.Prepared>>(emptyList())
     }
     var albumSending by remember(cid,session?.userId) {mutableStateOf(false)}
+    var albumCaption by remember(cid,session?.userId) {mutableStateOf("")}
     val albumPicker=rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()) {uris->
         if(uris.isNotEmpty())model.action {
@@ -711,6 +712,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 if(model.backend.session.value?.userId==owner) {
                     preparedAlbum.forEach {it.file.delete()}
                     preparedAlbum=staged.toList()
+                    albumCaption=""
                 } else error("The signed-in account changed.")
             } catch(error:Exception) {
                 staged.forEach {it.file.delete()}
@@ -1887,6 +1889,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             if(!albumSending&&!busy) {
                 preparedAlbum.forEach {it.file.delete()}
                 preparedAlbum=emptyList()
+                albumCaption=""
             }
         },
         title={Text("Send ${preparedAlbum.size} photos")},
@@ -1914,6 +1917,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     }
                 }
             }
+            OutlinedTextField(value=albumCaption,
+                onValueChange={if(it.length<=4000)albumCaption=it},
+                enabled=!albumSending&&!busy,
+                label={Text("Caption for first photo (optional)")},
+                modifier=Modifier.fillMaxWidth(),maxLines=3)
             Text("Up to 10 private photos. Each is queued as an individual message, so delivery and retry are independent.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1931,10 +1939,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 "Account changed before all selected photos were queued."
                             }
                             val image=preparedAlbum.first()
-                            model.repository.sendImage(cid,image,"")
+                            model.repository.sendImage(cid,image,albumCaption)
                             // Ownership of the local file has moved to the durable
                             // outbox. Never delete already queued photos on cancel.
                             preparedAlbum=preparedAlbum.drop(1)
+                            // A batch caption belongs only to the first photo,
+                            // including when sending the remaining photos is retried.
+                            albumCaption=""
                         }
                     } finally {albumSending=false}
                 }
@@ -1942,6 +1953,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         dismissButton={TextButton(enabled=!albumSending&&!busy,onClick={
             preparedAlbum.forEach {it.file.delete()}
             preparedAlbum=emptyList()
+            albumCaption=""
         }) {Text("Cancel")}}
     )
     prepared?.let {image->
