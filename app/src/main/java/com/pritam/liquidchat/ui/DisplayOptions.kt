@@ -59,6 +59,9 @@ data class DisplayOptions(
     val chatHeaderIconColor:String="Theme",
     val chatHeaderNameSize:Int=16,
     val copySenderAndTime:Boolean=false,
-    val photoQuality:String="Standard"
+    val photoQuality:String="Standard",
+    val incognitoKeyboard:Boolean=false,
+    val customStickerSize:Boolean=false,
+    val stickerSize:Int=192
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
