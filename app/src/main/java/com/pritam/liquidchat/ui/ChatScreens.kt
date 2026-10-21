@@ -1238,7 +1238,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 } else {
                 if(message.replyTo.isNotEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
                     Column(Modifier.padding(8.dp)) {Text("Reply",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(quoted?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=2,overflow=TextOverflow.Ellipsis,
-                        color=conversationInkColor(bubbleDisplay.quotedInk,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface,bubbleDisplay.quotedInkHex),
+                        color=conversationInkColor(bubbleDisplay.quotedInk,LocalGlassDark.current,
+                            resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),bubbleDisplay.quotedInkHex),
                         style=MaterialTheme.typography.bodySmall)}
                 }
                 if(message.mediaId.isNotEmpty()||message.localImage.isNotEmpty()) {
@@ -1262,7 +1263,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if(message.starred&&message.deletedAt.isEmpty())Icon(Icons.Outlined.Star,"Starred",Modifier.size(12.dp))
                     if(message.editedAt.isNotEmpty()&&message.deletedAt.isEmpty())Text("edited",style=MaterialTheme.typography.labelSmall)
                     Text(time,style=MaterialTheme.typography.labelSmall,
-                        color=conversationInkColor(bubbleDisplay.timestampInk,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant,bubbleDisplay.timestampInkHex))
+                        color=conversationInkColor(bubbleDisplay.timestampInk,LocalGlassDark.current,
+                            resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant),bubbleDisplay.timestampInkHex))
                     if(mine)Receipt(message.status,message.seq,chat?.peerDelivered ?: 0,chat?.peerRead ?: 0)
                 }
                 if(message.reactions!="{}"&&message.deletedAt.isEmpty()) {
@@ -1863,16 +1865,17 @@ if(section=="Liquid Chat Home Screen") {
                             Text("↪ Original message",
                                 style=MaterialTheme.typography.labelSmall,
                                 color=conversationInkColor(display.quotedInk,LocalGlassDark.current,
-                                    MaterialTheme.colorScheme.onSurfaceVariant,display.quotedInkHex))
+                                    resolvedBubbleTextColor(display,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant),display.quotedInkHex))
                             Text(if(mine)"Outgoing message" else "Incoming message",
                                 style=MaterialTheme.typography.bodyLarge.copy(fontSize=display.messageFontSize.sp),
                                 color=conversationInkColor(if(mine)display.outgoingInk else display.incomingInk,
-                                    LocalGlassDark.current,MaterialTheme.colorScheme.onSurface,
+                                    LocalGlassDark.current,
+                                    resolvedBubbleTextColor(display,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
                                     if(mine)display.outgoingInkHex else display.incomingInkHex))
                             Text("12:34",modifier=Modifier.align(Alignment.End),
                                 style=MaterialTheme.typography.labelSmall,
                                 color=conversationInkColor(display.timestampInk,LocalGlassDark.current,
-                                    MaterialTheme.colorScheme.onSurfaceVariant,display.timestampInkHex))
+                                    resolvedBubbleTextColor(display,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant),display.timestampInkHex))
                         }
                     }
                 }
