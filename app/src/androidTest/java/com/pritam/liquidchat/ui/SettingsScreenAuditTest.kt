@@ -41,6 +41,38 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
     }
 
+    @Test fun homeReferenceGroupsKeepRealNavigationAndInboxControls() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Home Screen").performScrollTo().performClick()
+        compose.onNodeWithText("Bottom navigation & tabs").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Show navigation labels").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Inbox header & filters").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Hide Archive filter").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Home wallpaper").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Chat list & typography").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Conversation preview size · ${model.display.value.homeChatPreviewSize} sp").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+    }
+
+    @Test fun conversationReferenceGroupsKeepActualMessageSettingsAndPreview() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Conversation Screen").performScrollTo().performClick()
+        compose.onNodeWithText("Wallpaper & contrast").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Message bubble style").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Reactions & text").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Quick reaction emojis · choose 1–6").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Live message preview").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Incoming message").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+    }
+
     @Test fun chatSettingsKeepsTheActualAppearanceControls() {
         val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
