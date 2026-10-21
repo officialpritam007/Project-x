@@ -129,11 +129,11 @@ import kotlinx.coroutines.launch
     var activeFolder by remember(homeOwner) {mutableStateOf<String?>(null)}
     var folderChat by remember(homeOwner) {mutableStateOf<Chat?>(null)}
     var homePhotoRevision by remember(homeOwner) {mutableIntStateOf(0)}
-    LaunchedEffect(homeOwner,model.repository.foreground.value) {
+    val homeForeground by model.repository.foreground.collectAsStateWithLifecycle()
+    LaunchedEffect(homeOwner,homeForeground) {
         customFolders=MbChatFolders.list(context,homeOwner)
         if(customFolders.none {it.id==activeFolder})activeFolder=null
     }
-    val homeForeground by model.repository.foreground.collectAsStateWithLifecycle()
     var homePickerAccount by remember {mutableStateOf<String?>(null)}
     var homeVideoPickerAccount by remember {mutableStateOf<String?>(null)}
     val homeVideo=remember(homeOwner,homePhotoRevision) {
