@@ -56,6 +56,12 @@ internal object MbThemeTransfer {
         put("showPinBadges",options.showPinBadges)
         put("emojiPickerSize",options.emojiPickerSize)
         put("linkColor",options.linkColor)
+        put("outgoingBubblePreset",options.outgoingBubblePreset)
+        put("incomingBubblePreset",options.incomingBubblePreset)
+        put("outgoingInk",options.outgoingInk)
+        put("incomingInk",options.incomingInk)
+        put("quotedInk",options.quotedInk)
+        put("timestampInk",options.timestampInk)
     }.toString(2)
 
     /**
@@ -109,7 +115,13 @@ internal object MbThemeTransfer {
             hidePhotoShortcut=bool("hidePhotoShortcut",current.hidePhotoShortcut),
             showPinBadges=bool("showPinBadges",current.showPinBadges),
             emojiPickerSize=number("emojiPickerSize",current.emojiPickerSize,18,32),
-            linkColor=choice("linkColor",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.linkColor)
+            linkColor=choice("linkColor",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.linkColor),
+            outgoingBubblePreset=choice("outgoingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night"),current.outgoingBubblePreset),
+            incomingBubblePreset=choice("incomingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night"),current.incomingBubblePreset),
+            outgoingInk=choice("outgoingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.outgoingInk),
+            incomingInk=choice("incomingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.incomingInk),
+            quotedInk=choice("quotedInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.quotedInk),
+            timestampInk=choice("timestampInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.timestampInk)
         )
     }
 }
