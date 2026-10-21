@@ -117,7 +117,7 @@ import org.json.JSONObject
                 )
                 if(playbackError) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
-                        Text("Unable to play this story",color=Color.White)
+                        Text("Unable to play this private video",color=Color.White)
                         TextButton(onClick={url=null;retry++}) {Text("Retry playback")}
                     }
                 }
