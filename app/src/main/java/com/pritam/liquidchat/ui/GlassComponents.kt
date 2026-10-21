@@ -91,7 +91,10 @@ import androidx.compose.ui.platform.LocalContext
 internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     options.showNavLabels || options.hideNavIcons
 
-@Composable fun GlassNavigation(tab:Int,unreadChats:Int=0,onTab:(Int)->Unit) {
+@Composable fun GlassNavigation(
+    tab:Int,unreadChats:Int=0,modifier:Modifier=Modifier,
+    applyNavigationInset:Boolean=true,onTab:(Int)->Unit
+) {
     val display=LocalDisplayOptions.current
     val titles=MbNavigationOrder.titles
     val hidden=rememberHiddenNavigationTabs()
@@ -107,10 +110,10 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
     GlassChromeSurface(
-        Modifier.fillMaxWidth()
+        modifier.fillMaxWidth()
             .then(if(referenceBar)Modifier else
                 Modifier.padding(horizontal=22.dp,vertical=9.dp))
-            .navigationBarsPadding(),
+            .then(if(applyNavigationInset)Modifier.navigationBarsPadding() else Modifier),
         if(referenceBar)Glass.compact else Glass.capsule
     ) {
         Row(Modifier.fillMaxWidth()
