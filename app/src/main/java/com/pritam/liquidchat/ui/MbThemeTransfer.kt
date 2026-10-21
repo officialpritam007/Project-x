@@ -47,6 +47,7 @@ internal object MbThemeTransfer {
         put("homeChatNameSize",options.homeChatNameSize)
         put("homeChatPreviewSize",options.homeChatPreviewSize)
         put("accentColor",options.accentColor)
+        put("customAccentHex",options.customAccentHex)
         put("showProfileAsTitle",options.showProfileAsTitle)
         put("hideArchiveAccess",options.hideArchiveAccess)
         put("fontPreset",options.fontPreset)
@@ -105,7 +106,8 @@ internal object MbThemeTransfer {
             headerTitleSize=number("headerTitleSize",current.headerTitleSize,20,30),
             homeChatNameSize=number("homeChatNameSize",current.homeChatNameSize,10,30),
             homeChatPreviewSize=number("homeChatPreviewSize",current.homeChatPreviewSize,12,18),
-            accentColor=choice("accentColor",setOf("Cyan","Blue","Green","Purple","Rose","Amber"),current.accentColor),
+            accentColor=choice("accentColor",setOf("Cyan","Blue","Green","Purple","Rose","Amber","Custom"),current.accentColor),
+            customAccentHex=normalizedAccentHex(j.optString("customAccentHex",current.customAccentHex)) ?: current.customAccentHex,
             showProfileAsTitle=bool("showProfileAsTitle",current.showProfileAsTitle),
             hideArchiveAccess=bool("hideArchiveAccess",current.hideArchiveAccess),
             fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset),
