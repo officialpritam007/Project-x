@@ -255,6 +255,14 @@ import kotlinx.coroutines.flow.drop
         if(connection!="Connected"&&connection!="Online") Text(connection,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         val visible=chats.filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
             .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
+        Row(Modifier.fillMaxWidth().padding(horizontal=7.dp,vertical=1.dp),
+            verticalAlignment=Alignment.CenterVertically) {
+            Text(when(activeFilter){1->"Favorites";2->"Archived chats";3->"Unread chats";else->"Conversations"},
+                Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,
+                fontWeight=FontWeight.SemiBold)
+            Text("${visible.size} shown",style=MaterialTheme.typography.labelMedium,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
             items(visible,key={"chat-${it.id}"}) {chat->
@@ -338,8 +346,24 @@ import kotlinx.coroutines.flow.drop
     val filtered=remember(contacts,username,alphabetical) {contacts.filter {username.isBlank()||it.name.contains(username,true)||it.username.contains(username,true)}.let {if(alphabetical)it.sortedBy {c->c.name.lowercase()} else it.reversed()}}
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-        GlassHeader("Contacts") {IconButton(onClick={alphabetical=!alphabetical}) {Icon(Icons.Outlined.SortByAlpha,"Change contact sort order")}}
+        GlassHeader("Contacts") {
+            IconButton(onClick={showFind=true}) {Icon(Icons.Outlined.PersonSearch,"Find friends")}
+            IconButton(onClick={alphabetical=!alphabetical}) {Icon(Icons.Outlined.SortByAlpha,"Change contact sort order")}
+        }
         GlassSearch(username,{username=it.lowercase().take(24)},"Search Contacts")
+        GlassSurface(Modifier.fillMaxWidth(),Glass.compact) {
+            Row(Modifier.fillMaxWidth().padding(horizontal=15.dp,vertical=12.dp),
+                verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Saved contacts",style=MaterialTheme.typography.titleSmall)
+                    Text(if(alphabetical)"Sorted A to Z" else "Sorted Z to A",
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text("${filtered.size}",style=MaterialTheme.typography.titleLarge,
+                    color=MaterialTheme.colorScheme.primary)
+            }
+        }
         GlassCard(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().heightIn(min=46.dp).clickable {
                 val intent=android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT,"Find me on Liquid Chat: @${model.profile.value?.optString("username").orEmpty()}")
