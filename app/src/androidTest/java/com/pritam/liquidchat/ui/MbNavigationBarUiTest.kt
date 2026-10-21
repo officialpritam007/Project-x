@@ -24,6 +24,20 @@ class MbNavigationBarUiTest {
         compose.runOnIdle {assertEquals(listOf(0,1,2,3,4),visited)}
     }
 
+    @Test fun hiddenIconsKeepAllFiveLabelledAndClickable() {
+        val visited=mutableListOf<Int>()
+        compose.setContent {
+            CompositionLocalProvider(LocalDisplayOptions provides DisplayOptions(
+                navBarStyle="Reference",hideNavIcons=true,showNavLabels=false
+            )) {LiquidTheme(false) {GlassNavigation(0) {visited+=it}}}
+        }
+        MbNavigationOrder.titles.forEach {title->
+            compose.onNodeWithContentDescription(title).assertIsDisplayed().performClick()
+            compose.onNodeWithText(title).assertExists()
+        }
+        compose.runOnIdle {assertEquals(listOf(0,1,2,3,4),visited)}
+    }
+
     @Test fun optionalLiquidCapsuleRetainsReorderedNavigation() {
         val visited=mutableListOf<Int>()
         compose.setContent {

@@ -34,6 +34,7 @@ internal object MbThemeTransfer {
         put("bubbleColor",options.bubbleColor)
         put("messageFontSize",options.messageFontSize)
         put("showNavLabels",options.showNavLabels)
+        put("hideNavIcons",options.hideNavIcons)
         put("navIconSize",options.navIconSize)
         put("navLabelSize",options.navLabelSize)
         put("headerTitleSize",options.headerTitleSize)
@@ -86,6 +87,7 @@ internal object MbThemeTransfer {
             bubbleColor=choice("bubbleColor",setOf("Original","Green","Lavender","Rose","Night"),current.bubbleColor),
             messageFontSize=number("messageFontSize",current.messageFontSize,10,30),
             showNavLabels=bool("showNavLabels",current.showNavLabels),
+            hideNavIcons=bool("hideNavIcons",current.hideNavIcons),
             navIconSize=number("navIconSize",current.navIconSize,20,50),
             navLabelSize=number("navLabelSize",current.navLabelSize,8,20),
             headerTitleSize=number("headerTitleSize",current.headerTitleSize,20,30),

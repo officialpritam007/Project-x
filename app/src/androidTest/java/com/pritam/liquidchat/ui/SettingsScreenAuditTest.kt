@@ -50,6 +50,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("iOS navigation").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Liquid capsule").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Show navigation labels").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Hide navigation icons").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Inbox header & filters").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Hide Archive filter").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Hide home search").performScrollTo().assertIsDisplayed()

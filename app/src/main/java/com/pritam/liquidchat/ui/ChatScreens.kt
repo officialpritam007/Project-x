@@ -1482,14 +1482,25 @@ if(section=="Liquid Chat Home Screen") {
 
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("Show navigation labels",Modifier.weight(1f))
-                Switch(display.showNavLabels,{model.setDisplay(display.copy(showNavLabels=it))})
+                Switch(display.showNavLabels,{model.setDisplay(display.copy(showNavLabels=it))},
+                    enabled=!display.hideNavIcons)
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Hide navigation icons")
+                    Text("Labels stay visible so every tab remains identifiable.",
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked=display.hideNavIcons,
+                    onCheckedChange={model.setDisplay(display.copy(hideNavIcons=it))})
             }
             Text("Navigation icon size · ${display.navIconSize} dp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.navIconSize.toFloat(),onValueChange={model.setDisplay(display.copy(navIconSize=it.toInt()))},
                 valueRange=20f..50f,steps=29,modifier=Modifier.fillMaxWidth())
             Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
-                valueRange=8f..20f,steps=11,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
+                valueRange=8f..20f,steps=11,enabled=showEffectiveNavigationLabels(display),modifier=Modifier.fillMaxWidth())
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)

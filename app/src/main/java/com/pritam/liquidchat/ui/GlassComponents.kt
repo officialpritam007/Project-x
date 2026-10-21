@@ -85,6 +85,10 @@ import androidx.compose.ui.platform.LocalContext
     val request=remember(context,asset) {ImageRequest.Builder(context).data("file:///android_asset/figma/$asset.svg").decoderFactory(SvgDecoder.Factory()).build()}
     AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp))
 }
+/** Never allow a fully blank navigation button when icons are hidden. */
+internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
+    options.showNavLabels || options.hideNavIcons
+
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
     val display=LocalDisplayOptions.current
     val titles=MbNavigationOrder.titles
@@ -119,6 +123,7 @@ import androidx.compose.ui.platform.LocalContext
                     contentAlignment=Alignment.Center
                 ) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+                        if(!display.hideNavIcons) {
                         if(i==1) {
                             Icon(androidx.compose.material.icons.Icons.Outlined.Call,null,modifier=Modifier.size(display.navIconSize.dp),
                                 tint=if(tab==i)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -126,7 +131,8 @@ import androidx.compose.ui.platform.LocalContext
                             val originalIndex=if(i>1)i-1 else i
                             DesignIcon(if(tab==i)on[originalIndex] else off[originalIndex],null,display.navIconSize)
                         }
-                        if(display.showNavLabels) Text(title,fontSize=display.navLabelSize.sp,maxLines=1,
+                        }
+                        if(showEffectiveNavigationLabels(display)) Text(title,fontSize=display.navLabelSize.sp,maxLines=1,
                             overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             color=if(selected)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
