@@ -759,6 +759,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         mutableStateOf<PreparedChatVideo?>(null)
     }
     var videoCaption by remember(cid,session?.userId) {mutableStateOf("")}
+    var videoSending by remember(cid,session?.userId) {mutableStateOf(false)}
     val videoPicker=rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()) {uri->
         val requestedOwner=videoPickerOwner
@@ -1890,30 +1891,43 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     preparedChatVideo?.let {clip->
         LiquidAlertDialog(
-            onDismissRequest={if(!busy) {clip.file.delete();preparedChatVideo=null}},
+            onDismissRequest={if(!busy&&!videoSending) {
+                clip.file.delete()
+                preparedChatVideo=null
+            }},
             title={Text("Send private video")},
             text={Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Outlined.Videocam,null,Modifier.size(40.dp))
                 Text("${clip.durationMs/1000f}s · ${clip.width}×${clip.height} · ${clip.file.length()/1024} KB")
                 OutlinedTextField(videoCaption,{if(it.length<=1000)videoCaption=it},
                     label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth(),
-                    maxLines=3,enabled=!busy)
+                    maxLines=3,enabled=!busy&&!videoSending)
                 Text("The video is available only to this chat's participants through short-lived access URLs.",
                     style=MaterialTheme.typography.bodySmall)
             }},
             confirmButton={TextButton(onClick={
                 val text=videoCaption
-                model.action {
-                    model.repository.sendChatVideo(cid,clip,text)
-                    preparedChatVideo=null
-                    videoCaption=""
+                val owner=session?.userId ?: return@TextButton
+                if(!videoSending) {
+                    videoSending=true
+                    model.action {
+                        try {
+                            check(model.backend.session.value?.userId==owner)
+                            model.repository.sendChatVideo(cid,clip,text)
+                            if(model.backend.session.value?.userId==owner &&
+                                preparedChatVideo===clip) {
+                                preparedChatVideo=null
+                                videoCaption=""
+                            }
+                        } finally {videoSending=false}
+                    }
                 }
-            },enabled=!busy&&session!=null) {Text("Send video")}},
+            },enabled=!busy&&!videoSending&&session!=null) {Text("Send video")}},
             dismissButton={TextButton(onClick={
                 clip.file.delete()
                 preparedChatVideo=null
                 videoCaption=""
-            },enabled=!busy) {Text("Cancel")}})
+            },enabled=!busy&&!videoSending) {Text("Cancel")}})
     }
     preparedPdf?.let {pdf->
         LiquidAlertDialog(
