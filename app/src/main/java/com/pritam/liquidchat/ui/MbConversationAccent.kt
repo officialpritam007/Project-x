@@ -38,7 +38,7 @@ internal object MbConversationAccent {
         if(account.isBlank())return
         val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
         val editor=prefs.edit()
-        prefs.all.keys.filter {it.startsWith("$account:")}.forEach(editor::remove)
+        prefs.all.keys.filter {it.startsWith("$account:")}.forEach {editor.remove(it)}
         editor.apply()
     }
 }
