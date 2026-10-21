@@ -10,6 +10,9 @@ import com.pritam.liquidchat.data.StickerFactory
 import com.pritam.liquidchat.data.StickerLibrary
 import com.pritam.liquidchat.data.PdfDocuments
 import com.pritam.liquidchat.data.PreparedPdf
+import com.pritam.liquidchat.data.PreparedChatVideo
+import com.pritam.liquidchat.data.ChatVideo
+import com.pritam.liquidchat.data.StoryVideo
 import com.pritam.liquidchat.data.SavedMedia
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
@@ -745,6 +748,33 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
         }
     }
+    var videoPickerOwner by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
+    var selectedVideo by remember(cid,session?.userId) {
+        mutableStateOf<android.net.Uri?>(null)
+    }
+    var selectedVideoLength by remember(cid,session?.userId) {mutableLongStateOf(0L)}
+    var videoStartMs by remember(cid,session?.userId) {mutableFloatStateOf(0f)}
+    var preparingVideo by remember(cid,session?.userId) {mutableStateOf(false)}
+    var preparedChatVideo by remember(cid,session?.userId) {
+        mutableStateOf<PreparedChatVideo?>(null)
+    }
+    var videoCaption by remember(cid,session?.userId) {mutableStateOf("")}
+    val videoPicker=rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()) {uri->
+        val requestedOwner=videoPickerOwner
+        videoPickerOwner=null
+        if(uri!=null && requestedOwner!=null &&
+            model.backend.session.value?.userId==requestedOwner) model.action {
+            val length=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                StoryVideo.durationMs(context,uri)
+            }
+            if(model.backend.session.value?.userId==requestedOwner) {
+                selectedVideo=uri
+                selectedVideoLength=length
+                videoStartMs=0f
+            }
+        }
+    }
     var preparedPdf by remember(cid,session?.userId) {mutableStateOf<PreparedPdf?>(null)}
     val documentPicker=rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()) {uri->
@@ -1249,6 +1279,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Select multiple photos",Icons.Outlined.PhotoLibrary,
             onClick={attachments=false;albumPicker.launch("image/*")})
+        GlassActionRow("Video (30 seconds)",Icons.Outlined.Videocam,
+            onClick={
+                attachments=false
+                videoPickerOwner=session?.userId
+                if(videoPickerOwner!=null)videoPicker.launch("video/*")
+            })
         GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
             onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
         GlassActionRow("Combine photos into PDF",Icons.Outlined.Description,
@@ -1816,6 +1852,69 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
     var photoEditBusy by remember(cid,session?.userId) {mutableStateOf(false)}
+    selectedVideo?.let {uri->
+        LiquidAlertDialog(
+            onDismissRequest={if(!preparingVideo)selectedVideo=null},
+            title={Text("Trim & prepare video")},
+            text={Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                Text("The video is compressed on this phone to a private H.264 MP4 (maximum 30 seconds, 720p, 8 MB).")
+                Text("Source: ${selectedVideoLength/1000}s. Clip starts at ${(videoStartMs/1000f).toInt()}s.")
+                if(selectedVideoLength>30_000L) Slider(
+                    value=videoStartMs,
+                    onValueChange={videoStartMs=it},
+                    valueRange=0f..(selectedVideoLength-500L).coerceAtLeast(0L).toFloat(),
+                    enabled=!preparingVideo)
+                if(preparingVideo) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text("Preparing video locally…")
+                }
+            }},
+            confirmButton={TextButton(onClick={
+                val account=session?.userId ?: return@TextButton
+                val start=videoStartMs.toLong()
+                preparingVideo=true
+                model.action {
+                    try {
+                        val staged=ChatVideo.prepare(context,uri,account,start)
+                        if(model.backend.session.value?.userId==account && selectedVideo==uri) {
+                            preparedChatVideo?.file?.delete()
+                            preparedChatVideo=staged
+                            selectedVideo=null
+                            videoCaption=""
+                        } else staged.file.delete()
+                    } finally {preparingVideo=false}
+                }
+            },enabled=!preparingVideo&&session!=null) {Text("Prepare clip")}},
+            dismissButton={TextButton(onClick={selectedVideo=null},
+                enabled=!preparingVideo) {Text("Cancel")}})
+    }
+    preparedChatVideo?.let {clip->
+        LiquidAlertDialog(
+            onDismissRequest={if(!busy) {clip.file.delete();preparedChatVideo=null}},
+            title={Text("Send private video")},
+            text={Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Outlined.Videocam,null,Modifier.size(40.dp))
+                Text("${clip.durationMs/1000f}s · ${clip.width}×${clip.height} · ${clip.file.length()/1024} KB")
+                OutlinedTextField(videoCaption,{if(it.length<=1000)videoCaption=it},
+                    label={Text("Caption (optional)")},modifier=Modifier.fillMaxWidth(),
+                    maxLines=3,enabled=!busy)
+                Text("The video is available only to this chat's participants through short-lived access URLs.",
+                    style=MaterialTheme.typography.bodySmall)
+            }},
+            confirmButton={TextButton(onClick={
+                val text=videoCaption
+                model.action {
+                    model.repository.sendChatVideo(cid,clip,text)
+                    preparedChatVideo=null
+                    videoCaption=""
+                }
+            },enabled=!busy&&session!=null) {Text("Send video")}},
+            dismissButton={TextButton(onClick={
+                clip.file.delete()
+                preparedChatVideo=null
+                videoCaption=""
+            },enabled=!busy) {Text("Cancel")}})
+    }
     preparedPdf?.let {pdf->
         LiquidAlertDialog(
             onDismissRequest={if(!busy){pdf.file.delete();preparedPdf=null}},
@@ -2280,11 +2379,14 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     when(message.mediaKind) {
                         "voice"->VoicePlayer(model,message)
                         "document"->PdfMessageAttachment(model,message)
+                        "chat_video"->ChatVideoAttachment(model,message)
                         else->SharedImagePreview(model,message)
                     }
                     Spacer(Modifier.height(8.dp))
                 }
-                if(message.mediaKind !in listOf("voice","document") && !(message.mediaKind=="sticker" && message.body=="Sticker"))MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
+                if(message.mediaKind !in listOf("voice","document") &&
+                    !(message.mediaKind=="chat_video" && message.body=="Video") &&
+                    !(message.mediaKind=="sticker" && message.body=="Sticker"))MessageBodyText(message.body,bubbleDisplay.messageFontSize,expanded,
                     linksEnabled=!selectionMode,
                     textColor=conversationInkColor(if(mine)bubbleDisplay.outgoingInk else bubbleDisplay.incomingInk,
                         LocalGlassDark.current,resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),
