@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.request.ImageRequest
@@ -151,7 +152,9 @@ import androidx.compose.ui.platform.LocalContext
                     contentDescription="Liquid Chat",modifier=Modifier.size(22.dp),tint=Color.Unspecified)
                 Spacer(Modifier.width(10.dp))
             }
-            Text(title,Modifier.weight(1f),fontSize=LocalDisplayOptions.current.headerTitleSize.sp,fontWeight=FontWeight.SemiBold,color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            Text(title,Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis,
+                fontSize=LocalDisplayOptions.current.headerTitleSize.sp,fontWeight=FontWeight.SemiBold,
+                color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             trailing()
         }
     }
