@@ -977,6 +977,22 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 quoted=messages.firstOrNull {it.id==m.replyTo},
                 onQuoteClick={if(m.replyTo.isNotEmpty())model.focusMessage.value=m.replyTo},
                 selectionMode=selectedIds.isNotEmpty(),
+                onDoubleTap={
+                    if(canDoubleTapReact(m,display.doubleTapReactionEnabled,
+                            selectedIds.isNotEmpty(),session?.userId))model.action {
+                        val current=model.messages.value.firstOrNull {
+                            it.id==m.id && it.conversation==cid && it.account==m.account
+                        }
+                        if(current!=null && canDoubleTapReact(current,
+                                model.display.value.doubleTapReactionEnabled,
+                                selectedIds.isNotEmpty(),model.session.value?.userId)) {
+                            val emoji=normalizedDoubleTapReaction(model.display.value.doubleTapReactionEmoji)
+                            val previous=runCatching {org.json.JSONObject(current.reactions)
+                                .optString(current.account)}.getOrDefault("")
+                            model.repository.messageAction(current.id,"react",if(previous==emoji)"" else emoji)
+                        }
+                    }
+                },
                 onSelect={if(canForwardTextMessage(m,session?.userId))
                     selectedIds=toggleTextSelection(selectedIds,m.id)})
         }
@@ -1009,7 +1025,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
         }
         val matchingQuickReplies=MbQuickReplies.matches(quickReplies,body)
-        if(matchingQuickReplies.isNotEmpty() && draftReady) {
+        if(matchingQuickReplies.isNotEmpty() && draftReady && !display.hideQuickReplySuggestions) {
             GlassSurface(Modifier.fillMaxWidth().padding(horizontal=10.dp),Glass.compact) {
                 Column(Modifier.fillMaxWidth().padding(8.dp),
                     verticalArrangement=Arrangement.spacedBy(2.dp)) {
@@ -1863,7 +1879,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
 }
 @OptIn(ExperimentalFoundationApi::class)
-@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={},selectionMode:Boolean=false,onSelect:()->Unit={}) {
+@Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={},selectionMode:Boolean=false,onSelect:()->Unit={},onDoubleTap:()->Unit={}) {
     val uploadFlow=remember(model,message.account,message.id) {model.repository.uploadProgress(message.account,message.id)}
     val uploadPercent by uploadFlow.collectAsStateWithLifecycle(initialValue=null)
     val mine=message.sender==message.account
@@ -1894,6 +1910,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             shadowElevation=if(isSticker)0.dp else 2.dp,
             modifier=Modifier.widthIn(max=bubbleWidth).then(if(isSticker)Modifier else Modifier.glassSource())
                 .combinedClickable(onClick={if(selectionMode)onSelect()},
+                    onDoubleClick=if(canDoubleTapReact(message,bubbleDisplay.doubleTapReactionEnabled,
+                        selectionMode,model.session.value?.userId))onDoubleTap else null,
                     onLongClick={if(selectionMode)onSelect() else onLongClick()})
         ) {
             Column(Modifier.padding(horizontal=if(isSticker)0.dp else 11.dp,vertical=if(isSticker)2.dp else 9.dp)) {
@@ -1931,7 +1949,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 val time=remember(message.localTime) {java.time.Instant.ofEpochMilli(message.localTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}
                 Row(Modifier.align(Alignment.End),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                     if(message.starred&&message.deletedAt.isEmpty())Icon(Icons.Outlined.Star,"Starred",Modifier.size(12.dp))
-                    if(message.editedAt.isNotEmpty()&&message.deletedAt.isEmpty())Text("edited",style=MaterialTheme.typography.labelSmall)
+                    if(message.deletedAt.isEmpty())editedMessageMarker(
+                        message.editedAt,bubbleDisplay.showEditedLabel,bubbleDisplay.showEditedTime
+                    )?.let {label->Text(label,style=MaterialTheme.typography.labelSmall)}
                     Text(time,style=MaterialTheme.typography.labelSmall,
                         color=conversationInkColor(bubbleDisplay.timestampInk,LocalGlassDark.current,
                             resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurfaceVariant),bubbleDisplay.timestampInkHex))
