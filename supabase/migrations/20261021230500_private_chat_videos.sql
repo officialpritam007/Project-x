@@ -130,3 +130,60 @@ revoke all on function private.send_chat_video(uuid,uuid,text),
   public.send_chat_video(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function private.send_chat_video(uuid,uuid,text),
   public.send_chat_video(uuid,uuid,text) to authenticated;
+
+
+-- Renew private image access/cleanup classifications without weakening their
+-- existing member, block, tombstone, owner or deleted-seq authorization rules.
+create or replace function private.image_access(p_id uuid)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare u uuid:=private.require_user();i private.images;
+begin
+  select * into i from private.images where id=p_id and ready and not destroyed;
+  if i.id is null then raise exception 'Unavailable' using errcode='42501';end if;
+  if i.conversation_id is not null and i.published
+    and not exists(select 1 from public.messages m where m.media_id=i.id
+      and m.deleted_at is null and private.message_visible(m.id))
+  then raise exception 'Unavailable' using errcode='42501';end if;
+  if i.owner_id<>u then
+    if private.is_blocked(i.owner_id) then raise exception 'Unavailable' using errcode='42501';end if;
+    if i.conversation_id is null then
+      if not exists(select 1 from public.profiles p
+        where p.id=i.owner_id and p.avatar_id=i.id::text
+          and (exists(select 1 from public.conversations c
+            where u in(c.user_a,c.user_b) and p.id in(c.user_a,c.user_b))
+            or exists(select 1 from public.contacts where owner_id=u and target_id=p.id)))
+        and not exists(select 1 from private.moments m where m.media_id=i.id
+          and not m.archived and (m.expires_at is null or m.expires_at>now())
+          and private.moment_visible(m.owner_id))
+      then raise exception 'Unavailable' using errcode='42501';end if;
+    else
+      if not private.is_member(i.conversation_id) or
+        not exists(select 1 from public.messages m
+          join public.conversation_state s on s.conversation_id=m.conversation_id and s.user_id=u
+          where m.media_id=i.id and m.seq>s.deleted_seq)
+      then raise exception 'Unavailable' using errcode='42501';end if;
+    end if;
+  end if;
+  return jsonb_build_object('public_id',i.public_id,'format',i.format,'width',i.width,
+    'height',i.height,'provider',i.provider,'kind',i.kind,'duration_ms',i.duration_ms,
+    'resource_type',case when i.kind in('voice','story_video','chat_video') then 'video' else 'image' end);
+end $$;
+
+create or replace function private.garbage_images()
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare r jsonb;
+begin
+  with expired as (delete from private.moments where expires_at<=now() returning media_id)
+    update private.images set published=false where id in(select media_id from expired);
+  with candidates as (
+    select id from private.images where not published and not destroyed
+      and created_at<now()-interval '1 hour'
+    order by created_at for update skip locked limit 20
+  ), claimed as (
+    update private.images i set ready=false from candidates c
+    where i.id=c.id and not i.published
+    returning i.id,i.public_id,i.provider,i.format,
+      case when i.kind in('voice','story_video','chat_video') then 'video' else 'image' end as resource_type
+  ) select coalesce(jsonb_agg(row_to_json(claimed)),'[]') into r from claimed;
+  return r;
+end $$;
