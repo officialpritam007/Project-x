@@ -556,6 +556,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     var historyLoading by remember(cid,session?.userId) {mutableStateOf(false)}
     var historyError by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
+    // Never keep a prior version on screen after the source message becomes
+    // hidden, deleted, or disappears on an account/active-chat change.
+    LaunchedEffect(messages,historyMessage?.id,session?.userId) {
+        val visibleId=historyMessage?.id
+        if(visibleId!=null && messages.none {
+            it.id==visibleId && it.account==session?.userId &&
+                it.status=="SENT" && it.deletedAt.isEmpty()
+        }) {
+            historyMessage=null
+            historyRevisions=emptyList()
+            historyLoading=false
+            historyError=null
+        }
+    }
     var forwardMessages by remember(cid,session?.userId) {mutableStateOf<List<Message>>(emptyList())}
     var selectedIds by remember(cid,session?.userId) {mutableStateOf<Set<String>>(emptySet())}
     var forwardSearch by remember(cid,session?.userId) {mutableStateOf("")}
