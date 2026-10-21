@@ -778,6 +778,35 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
     }
     var preparedPdf by remember(cid,session?.userId) {mutableStateOf<PreparedPdf?>(null)}
+    var selectedPdfBatch by remember(cid,session?.userId) {
+        mutableStateOf<List<PreparedPdf>>(emptyList())
+    }
+    var sendingPdfBatch by remember(cid,session?.userId) {mutableStateOf(false)}
+    val pdfBatchPicker=rememberLauncherForActivityResult(
+        ActivityResultContracts.GetMultipleContents()) {uris->
+        if(uris.isNotEmpty())model.action {
+            val owner=model.backend.session.value?.userId ?: return@action
+            require(uris.size<=5 && uris.distinct().size==uris.size) {
+                "Choose up to five different PDF documents."
+            }
+            val staged=mutableListOf<PreparedPdf>()
+            try {
+                uris.forEach {uri->
+                    check(model.backend.session.value?.userId==owner) {
+                        "The account changed during document preparation."
+                    }
+                    staged+=PdfDocuments.prepare(context,uri,owner)
+                }
+                if(model.backend.session.value?.userId==owner) {
+                    selectedPdfBatch.forEach {it.file.delete()}
+                    selectedPdfBatch=staged.toList()
+                } else throw java.io.IOException("The account changed.")
+            } catch(e:Exception) {
+                staged.forEach {it.file.delete()}
+                throw e
+            }
+        }
+    }
     val documentPicker=rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()) {uri->
         if(uri!=null)model.action {
@@ -1289,6 +1318,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             })
         GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
             onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
+        GlassActionRow("Select multiple PDFs",Icons.Outlined.Description,
+            onClick={attachments=false;pdfBatchPicker.launch("application/pdf")})
         GlassActionRow("Combine photos into PDF",Icons.Outlined.Description,
             onClick={attachments=false;galleryDocumentScanner.launch("image/*")})
         GlassActionRow("Scan document",Icons.Outlined.PhotoCamera,onClick={
@@ -1930,6 +1961,60 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 videoCaption=""
             },enabled=!busy&&!videoSending) {Text("Cancel")}})
     }
+    if(selectedPdfBatch.isNotEmpty()) LiquidAlertDialog(
+        onDismissRequest={
+            if(!busy&&!sendingPdfBatch) {
+                selectedPdfBatch.forEach {it.file.delete()}
+                selectedPdfBatch=emptyList()
+            }
+        },
+        title={Text("Share ${selectedPdfBatch.size} documents")},
+        text={Column(Modifier.fillMaxWidth().heightIn(max=380.dp)
+            .verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Text("Each PDF is shared privately as an independent, retryable attachment.",
+                style=MaterialTheme.typography.bodySmall)
+            selectedPdfBatch.forEachIndexed {index,document->
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Description,null,Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(document.name,maxLines=2,
+                            overflow=TextOverflow.Ellipsis,
+                            style=MaterialTheme.typography.bodyMedium)
+                        Text("${document.file.length()/1024} KB",
+                            style=MaterialTheme.typography.labelSmall)
+                    }
+                    IconButton(enabled=!busy&&!sendingPdfBatch,onClick={
+                        selectedPdfBatch=selectedPdfBatch.filterIndexed {i,_->i!=index}
+                        document.file.delete()
+                    }) {Icon(Icons.Outlined.Close,"Remove document ${index+1}")}
+                }
+            }
+            if(sendingPdfBatch)LinearProgressIndicator(Modifier.fillMaxWidth())
+        }},
+        confirmButton={TextButton(enabled=!busy&&!sendingPdfBatch && session!=null,
+            onClick={
+                val owner=session?.userId ?: return@TextButton
+                val chosen=selectedPdfBatch.toList()
+                sendingPdfBatch=true
+                model.action {
+                    try {
+                        check(model.backend.session.value?.userId==owner) {
+                            "Account changed before documents were queued."
+                        }
+                        model.repository.sendDocuments(cid,chosen)
+                        if(model.backend.session.value?.userId==owner) {
+                            selectedPdfBatch=emptyList()
+                        }
+                    } finally {sendingPdfBatch=false}
+                }
+            }) {Text("Send PDFs")}},
+        dismissButton={TextButton(enabled=!busy&&!sendingPdfBatch,onClick={
+            selectedPdfBatch.forEach {it.file.delete()}
+            selectedPdfBatch=emptyList()
+        }) {Text("Cancel")}}
+    )
     preparedPdf?.let {pdf->
         LiquidAlertDialog(
             onDismissRequest={if(!busy){pdf.file.delete();preparedPdf=null}},
