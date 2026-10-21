@@ -50,6 +50,7 @@ data class DisplayOptions(
     val hideHomeFilters:Boolean=false,
     val hideStoriesCarousel:Boolean=false,
     val randomAccentOnLaunch:Boolean=false,
-    val notificationIconStyle:String="Classic"
+    val notificationIconStyle:String="Classic",
+    val bubbleOpacity:Int=100
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
