@@ -68,6 +68,8 @@ data class DisplayOptions(
     val hideQuickReplySuggestions:Boolean=false,
     val confirmSavedStickerSend:Boolean=true,
     val showEditedLabel:Boolean=true,
-    val showEditedTime:Boolean=false
+    val showEditedTime:Boolean=false,
+    val showLongPressPreview:Boolean=true,
+    val hideHomeFloatingButtons:Boolean=false
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
