@@ -339,7 +339,13 @@ import kotlinx.coroutines.launch
             else preview.forEach {m->
                 Text(if(m.sender==m.account)"You" else c.name,
                     style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
-                Text(if(m.mediaKind=="voice")"Voice message" else if(m.mediaId.isNotEmpty() || m.localImage.isNotEmpty())"Photo message" else m.body,
+                Text(when {
+                    m.mediaKind=="voice"->"Voice message"
+                    m.mediaKind=="sticker"->"Sticker"
+                    m.mediaKind=="document"->m.body
+                    m.mediaId.isNotEmpty() || m.localImage.isNotEmpty()->"Photo message"
+                    else->m.body
+                },
                     maxLines=2,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
             }
         }
