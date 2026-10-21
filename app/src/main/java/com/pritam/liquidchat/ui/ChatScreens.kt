@@ -1893,10 +1893,23 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             verticalArrangement=Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                preparedAlbum.forEach {image->
-                    coil.compose.AsyncImage(model=image.file,
-                        contentDescription="Selected photo",
-                        modifier=Modifier.size(114.dp))
+                preparedAlbum.forEachIndexed {index,image->
+                    Box(Modifier.size(120.dp)) {
+                        coil.compose.AsyncImage(model=image.file,
+                            contentDescription="Photo ${index+1} of ${preparedAlbum.size}",
+                            contentScale=ContentScale.Crop,
+                            modifier=Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)))
+                        IconButton(onClick={
+                            if(!albumSending&&!busy) {
+                                preparedAlbum=preparedAlbum.filterIndexed {i,_->i!=index}
+                                image.file.delete()
+                            }
+                        },enabled=!albumSending&&!busy,
+                            modifier=Modifier.align(Alignment.TopEnd).size(32.dp)) {
+                            Icon(Icons.Outlined.Close,"Remove photo ${index+1}",
+                                tint=MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
             }
             Text("Up to 10 private photos. Each is queued as an individual message, so delivery and retry are independent.",
