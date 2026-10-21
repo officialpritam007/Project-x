@@ -717,6 +717,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     var albumSending by remember(cid,session?.userId) {mutableStateOf(false)}
     var albumCaption by remember(cid,session?.userId) {mutableStateOf("")}
+    var albumEditIndex by remember(cid,session?.userId) {mutableIntStateOf(0)}
+    var albumEditing by remember(cid,session?.userId) {mutableStateOf(false)}
     val albumPicker=rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()) {uris->
         if(uris.isNotEmpty())model.action {
@@ -735,6 +737,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     preparedAlbum.forEach {it.file.delete()}
                     preparedAlbum=staged.toList()
                     albumCaption=""
+                    albumEditIndex=0
                 } else error("The signed-in account changed.")
             } catch(error:Exception) {
                 staged.forEach {it.file.delete()}
@@ -1957,10 +1960,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     if(preparedAlbum.isNotEmpty()) LiquidAlertDialog(
         onDismissRequest={
-            if(!albumSending&&!busy) {
+            if(!albumSending&&!albumEditing&&!busy) {
                 preparedAlbum.forEach {it.file.delete()}
                 preparedAlbum=emptyList()
                 albumCaption=""
+                albumEditIndex=0
             }
         },
         title={Text("Send ${preparedAlbum.size} photos")},
@@ -1970,22 +1974,91 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 preparedAlbum.forEachIndexed {index,image->
-                    Box(Modifier.size(120.dp)) {
-                        coil.compose.AsyncImage(model=image.file,
-                            contentDescription="Photo ${index+1} of ${preparedAlbum.size}",
-                            contentScale=ContentScale.Crop,
-                            modifier=Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)))
-                        IconButton(onClick={
-                            if(!albumSending&&!busy) {
-                                preparedAlbum=preparedAlbum.filterIndexed {i,_->i!=index}
-                                image.file.delete()
+                    Column(Modifier.width(136.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                        Box(Modifier.size(120.dp).clip(RoundedCornerShape(12.dp))
+                            .clickable(enabled=!albumSending&&!albumEditing&&!busy) {
+                                albumEditIndex=index
+                            }) {
+                            coil.compose.AsyncImage(model=image.file,
+                                contentDescription="Select photo ${index+1} of ${preparedAlbum.size}",
+                                contentScale=ContentScale.Crop,
+                                modifier=Modifier.fillMaxSize())
+                            if(index==albumEditIndex)Icon(Icons.Outlined.CheckCircle,
+                                "Selected for editing",
+                                modifier=Modifier.align(Alignment.BottomStart).padding(6.dp),
+                                tint=MaterialTheme.colorScheme.primary)
+                            IconButton(onClick={
+                                if(!albumSending&&!albumEditing&&!busy) {
+                                    preparedAlbum=preparedAlbum.filterIndexed {i,_->i!=index}
+                                    albumEditIndex=albumEditIndex.coerceAtMost(
+                                        (preparedAlbum.size-1).coerceAtLeast(0))
+                                    image.file.delete()
+                                }
+                            },enabled=!albumSending&&!albumEditing&&!busy,
+                                modifier=Modifier.align(Alignment.TopEnd).size(32.dp)) {
+                                Icon(Icons.Outlined.Close,"Remove photo ${index+1}",
+                                    tint=MaterialTheme.colorScheme.error)
                             }
-                        },enabled=!albumSending&&!busy,
-                            modifier=Modifier.align(Alignment.TopEnd).size(32.dp)) {
-                            Icon(Icons.Outlined.Close,"Remove photo ${index+1}",
-                                tint=MaterialTheme.colorScheme.error)
+                        }
+                        Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                            IconButton(onClick={
+                                preparedAlbum=preparedAlbum.toMutableList().apply {
+                                    add(index-1,removeAt(index))
+                                }
+                                albumEditIndex=index-1
+                            },enabled=!albumSending&&!albumEditing&&!busy&&index>0,
+                                modifier=Modifier.size(30.dp)) {
+                                Icon(Icons.Outlined.ArrowBack,"Move photo left",Modifier.size(18.dp))
+                            }
+                            IconButton(onClick={
+                                preparedAlbum=preparedAlbum.toMutableList().apply {
+                                    add(index+1,removeAt(index))
+                                }
+                                albumEditIndex=index+1
+                            },enabled=!albumSending&&!albumEditing&&!busy&&
+                                index<preparedAlbum.lastIndex,
+                                modifier=Modifier.size(30.dp)) {
+                                Icon(Icons.Outlined.ArrowForward,"Move photo right",Modifier.size(18.dp))
+                            }
                         }
                     }
+                }
+            }
+            Text("Edit selected photo ${albumEditIndex+1}",
+                style=MaterialTheme.typography.labelMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    Images.Edit.CROP_SQUARE to "1:1",
+                    Images.Edit.CROP_PORTRAIT to "4:5",
+                    Images.Edit.CROP_WIDE to "16:9",
+                    Images.Edit.ROTATE_LEFT to "Rotate left",
+                    Images.Edit.ROTATE_RIGHT to "Rotate right",
+                    Images.Edit.FLIP_HORIZONTAL to "Flip",
+                    Images.Edit.GRAYSCALE to "B&W"
+                ).forEach {(operation,label)->
+                    FilterChip(selected=false,enabled=!albumSending&&!albumEditing&&!busy,
+                        onClick={
+                            val owner=session?.userId
+                            val selectedIndex=albumEditIndex
+                            val original=preparedAlbum.getOrNull(selectedIndex)
+                            if(owner!=null&&original!=null) {
+                                albumEditing=true
+                                model.action {
+                                    try {
+                                        val edited=Images.edit(context,owner,original,operation)
+                                        val valid=model.backend.session.value?.userId==owner &&
+                                            !albumSending&&preparedAlbum.getOrNull(selectedIndex)===original
+                                        if(valid) {
+                                            preparedAlbum=preparedAlbum.toMutableList().apply {
+                                                set(selectedIndex,edited)
+                                            }
+                                            original.file.delete()
+                                        } else edited.file.delete()
+                                    } finally {albumEditing=false}
+                                }
+                            }
+                        },label={Text(label)})
                 }
             }
             OutlinedTextField(value=albumCaption,
@@ -1999,7 +2072,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             if(albumSending)Text("Queuing photos…",
                 style=MaterialTheme.typography.bodySmall)
         }},
-        confirmButton={TextButton(enabled=!albumSending&&!busy&&session!=null,
+        confirmButton={TextButton(enabled=!albumSending&&!albumEditing&&!busy&&session!=null,
             onClick={
                 val owner=session?.userId ?: return@TextButton
                 val selected=preparedAlbum.toList()
@@ -2020,10 +2093,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     } finally {albumSending=false}
                 }
             }) {Text("Send photos")}},
-        dismissButton={TextButton(enabled=!albumSending&&!busy,onClick={
+        dismissButton={TextButton(enabled=!albumSending&&!albumEditing&&!busy,onClick={
             preparedAlbum.forEach {it.file.delete()}
             preparedAlbum=emptyList()
             albumCaption=""
+            albumEditIndex=0
         }) {Text("Cancel")}}
     )
     prepared?.let {image->
