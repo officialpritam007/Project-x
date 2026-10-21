@@ -175,7 +175,11 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
                 raw(path,method,body,renewed.access)
             }.also { checkSession(original) }
         } catch(e:ApiException) {
-            if(e.status==401||e.status==403) {
+            // 403/42501 can mean an authenticated user was denied by RLS,
+            // membership, a block, or a restricted RPC. That must not rotate
+            // the authentication cache or invalidate visible conversations.
+            // A true 401 after token refresh is the only rejection here.
+            if(e.status==401) {
                 discardRejectedReads(SessionSnapshot(attempted,original.generation))
             }
             throw e
