@@ -24,12 +24,18 @@ import com.pritam.liquidchat.data.Message
 @Composable
 fun ChatVideoAttachment(model:AppViewModel,message:Message) {
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
+    val activeCall by model.calls.view.collectAsStateWithLifecycle()
     var playing by remember(message.account,message.id,message.mediaId) {mutableStateOf(false)}
+    // Calling takes priority over media audio/video, and leaving the foreground
+    // disposes the video player rather than holding an active signed stream.
+    LaunchedEffect(foreground,activeCall) {
+        if(!foreground || activeCall!=null)playing=false
+    }
     var muted by remember(message.account,message.id,message.mediaId) {mutableStateOf(true)}
     val active=message.status=="SENT" && message.mediaId.isNotEmpty() &&
         message.deletedAt.isEmpty()
     Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-        if(playing&&active) {
+        if(playing&&active&&foreground&&activeCall==null) {
             StoryVideoPlayer(
                 backend=model.backend,media=message.mediaId,
                 paused=!foreground,muted=muted,onProgress={},
@@ -50,7 +56,8 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
         }
         Row(verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            TextButton(enabled=active,onClick={playing=!playing}) {
+            TextButton(enabled=active&&foreground&&activeCall==null,
+                onClick={playing=!playing}) {
                 Icon(if(playing)Icons.Outlined.Stop else Icons.Outlined.PlayArrow,null,
                     Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
