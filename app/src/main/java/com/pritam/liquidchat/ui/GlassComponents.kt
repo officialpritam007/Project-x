@@ -84,7 +84,8 @@ import androidx.compose.ui.platform.LocalContext
 @Composable fun DesignIcon(asset:String,description:String?,size:Int=24) {
     val context=LocalContext.current
     val request=remember(context,asset) {ImageRequest.Builder(context).data("file:///android_asset/figma/$asset.svg").decoderFactory(SvgDecoder.Factory()).build()}
-    AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp))
+    AsyncImage(model=request,contentDescription=description,modifier=Modifier.size(size.dp),
+        colorFilter=LocalAppChromeInk.current?.let {androidx.compose.ui.graphics.ColorFilter.tint(it)})
 }
 /** Never allow a fully blank navigation button when icons are hidden. */
 internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
@@ -101,7 +102,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
-    GlassSurface(
+    GlassChromeSurface(
         Modifier.fillMaxWidth()
             .padding(horizontal=if(referenceBar)8.dp else 22.dp,vertical=if(referenceBar)4.dp else 9.dp)
             .navigationBarsPadding(),
@@ -166,7 +167,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     }
 }
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
-    GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
+    GlassChromeSurface(Modifier.fillMaxWidth(),Glass.hero) {
         Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(start=20.dp,end=8.dp),verticalAlignment=Alignment.CenterVertically) {
             if(brand) {
                 Icon(painter=androidx.compose.ui.res.painterResource(com.pritam.liquidchat.R.drawable.ic_liquid),
