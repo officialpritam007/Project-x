@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Message
 
@@ -22,6 +23,7 @@ import com.pritam.liquidchat.data.Message
  */
 @Composable
 fun ChatVideoAttachment(model:AppViewModel,message:Message) {
+    val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     var playing by remember(message.account,message.id,message.mediaId) {mutableStateOf(false)}
     var muted by remember(message.account,message.id,message.mediaId) {mutableStateOf(true)}
     val active=message.status=="SENT" && message.mediaId.isNotEmpty() &&
@@ -30,7 +32,7 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
         if(playing&&active) {
             StoryVideoPlayer(
                 backend=model.backend,media=message.mediaId,
-                paused=false,muted=muted,onProgress={},
+                paused=!foreground,muted=muted,onProgress={},
                 onFinished={playing=false},
                 modifier=Modifier.fillMaxWidth().height(220.dp))
         } else {
