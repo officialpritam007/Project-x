@@ -1,20 +1,25 @@
 package com.pritam.liquidchat.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Message
+import com.pritam.liquidchat.data.ChatVideo
 
 /**
  * A video is fetched only after a user taps Play. Every playback session must
@@ -23,6 +28,16 @@ import com.pritam.liquidchat.data.Message
  */
 @Composable
 fun ChatVideoAttachment(model:AppViewModel,message:Message) {
+    val context=LocalContext.current
+    val session by model.session.collectAsStateWithLifecycle()
+    var exportNotice by remember(message.account,message.id) {mutableStateOf<String?>(null)}
+    val saveVideo=rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("video/mp4")) {target->
+        if(target!=null)model.action {
+            ChatVideo.saveReceived(context,model.repository,message,target)
+            exportNotice="Saved video to your selected location."
+        }
+    }
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val activeCall by model.calls.view.collectAsStateWithLifecycle()
     var playing by remember(message.account,message.id,message.mediaId) {mutableStateOf(false)}
@@ -69,6 +84,17 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
                 Spacer(Modifier.width(4.dp))
                 Text(if(muted)"Unmute" else "Mute")
             }
+            if(active&&session?.userId==message.account)TextButton(onClick={
+                saveVideo.launch("LiquidChat_Video_${message.id}.mp4")
+            }) {
+                Icon(Icons.Outlined.FileDownload,null,Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Save")
+            }
+        }
+        exportNotice?.let {
+            Text(it,style=MaterialTheme.typography.labelSmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
