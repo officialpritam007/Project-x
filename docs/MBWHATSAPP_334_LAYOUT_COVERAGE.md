@@ -21,7 +21,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_dialog_alert_ios.xml` | Partial | LiquidAlertDialog | Exact blur, transitions and button order unverified |
 | `mb_dialog_color_picker.xml` | Partial | Theme/color editor | Full reference dialog not matched |
 | `mb_dialog_launcher.xml` | Partial | Classic/Night Glass Activity aliases + Appearance selector | Full reference icon pack and launcher-specific visual verification remain |
-| `mb_dialog_media.xml` | Partial | Attachment sheet; individual and 10-photo atomic gallery; stickers and PDF; 30-second compressed chat-video picker, private outbox and signed playback | GIF animation and non-MP4/long-form videos unsupported; new media migrations/Edge deployment and grouped-album/pixel verification pending |
+| `mb_dialog_media.xml` | Partial | Attachment sheet; individual/10-photo atomic gallery, one or five PDFs with atomic outbox, stickers, 30-second private compressed chat video and signed playback | GIF animations, longer videos, true grouped-album backend, deployed SQL/Edge, UI screenshots and phone verification pending |
 | `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
 | `mb_edittext_box.xml` | Partial | Compose conversation composer | Reference animations and accessories unverified |
 | `mb_edittext_layout.xml` | Partial | Compose text field/selection | Reference geometry not matched |
@@ -69,6 +69,12 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 - **Caption/profile copy:** one-tap copy for authorized Story/Post descriptions (including full-screen viewers), plus copy of the signed-in account's own username and bio. Android clipboard is written only on user action; no third-party service is called.
 - **Offline Text tools:** in-chat draft transformations (capitalization, whitespace cleanup, uppercase/lowercase) include before-apply preview, explicit user action and stale-draft protection. These do not contact an AI model, transmit content or claim reference AI parity.
 - **Still missing/blocked:** GIF animation and longer videos (30s clips are source-implemented but not deployed), pixel-perfect APK dialog art and animated transitions, fully verified private media SQL/Edge deployment, advanced contact-specific status alerts, third-party AI/VIP integrations and WhatsApp-specific groups/channels. User explicitly defers build, lint, CI, SQL/Edge deployments and device tests until later.
+
+## 2026-10-21 continuation — PDFs and account-safe search
+
+- PDF picker additionally supports selecting up to **five different files**. Each is copied into the signed-in account's private directory with bounded 8 MiB validation; the preview allows removing a document; `ChatRepository.sendDocuments` inserts all chosen independent PDF messages in a single Room transaction, then schedules one existing outbox drain. No server album grouping or deployed backend support is claimed.
+- Global downloaded-history search now intersects results with active account, its currently known conversation IDs, non-deleted and sent-only state. Plain-text type filter no longer includes unsent/unqueued attachments that have not yet been assigned media IDs.
+- These are source-only direct-main changes with `[skip ci]`; no CI, tests, migrations, Edge deployments or APK verification have been executed per user instruction.
 
 ## Backend and release dependencies
 
