@@ -1221,9 +1221,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         Surface(
             shape=conversationBubbleShape(bubbleDisplay.bubbleStyle,mine),
             color=if(highlight)MaterialTheme.colorScheme.tertiaryContainer
-                else resolvedBubbleColor(bubbleDisplay,mine,LocalGlassDark.current)
-                    ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
-                    else if(mine)Color(0xFFD0EDFB).copy(alpha=.96f) else Color(0xFFFAFDFF).copy(alpha=.93f),
+                else bubbleSurfaceColor(bubbleDisplay,mine,LocalGlassDark.current,
+                    if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                    else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)),
             border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
             shadowElevation=2.dp,
             modifier=Modifier.widthIn(max=bubbleWidth).glassSource()
@@ -1688,6 +1688,10 @@ if(section=="Liquid Chat Home Screen") {
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Message bubbles",style=MaterialTheme.typography.titleMedium)
+            Text("Bubble opacity · ${display.bubbleOpacity}%",style=MaterialTheme.typography.titleSmall)
+            Slider(value=display.bubbleOpacity.toFloat(),
+                onValueChange={model.setDisplay(display.copy(bubbleOpacity=it.toInt()))},
+                valueRange=45f..100f,steps=54,modifier=Modifier.fillMaxWidth())
                 Text("Message bubble style",style=MaterialTheme.typography.titleSmall)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("Tail","Rounded","Compact").forEach {style ->
@@ -1811,9 +1815,9 @@ if(section=="Liquid Chat Home Screen") {
             listOf(false,true).forEach {mine ->
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start) {
                     Surface(shape=conversationBubbleShape(display.bubbleStyle,mine),
-                        color=resolvedBubbleColor(display,mine,LocalGlassDark.current)
-                            ?: if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
-                            else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)) {
+                        color=bubbleSurfaceColor(display,mine,LocalGlassDark.current,
+                            if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
+                            else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF))) {
                         Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                             Text("↪ Original message",
                                 style=MaterialTheme.typography.labelSmall,
