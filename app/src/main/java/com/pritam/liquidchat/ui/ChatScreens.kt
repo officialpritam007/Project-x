@@ -1925,6 +1925,21 @@ if(section=="Liquid Chat Home Screen") {
 
             }
         }
+        if(section=="Notifications" || section=="Liquid Chat Notifications") GlassCard(
+            Modifier.fillMaxWidth(),Glass.hero
+        ) {
+            Text("Notification icon",style=MaterialTheme.typography.titleMedium)
+            Text("Changes the icon on future Liquid Chat message and call notifications.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Classic","Outline").forEach {style->
+                    FilterChip(selected=display.notificationIconStyle==style,
+                        onClick={model.setDisplay(display.copy(notificationIconStyle=style))},
+                        label={Text(style)})
+                }
+            }
+        }
         if(section=="Notifications" || section=="Liquid Chat Notifications") NotificationSystemSettings()
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
