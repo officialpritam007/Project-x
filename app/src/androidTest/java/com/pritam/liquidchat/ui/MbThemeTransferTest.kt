@@ -11,7 +11,7 @@ class MbThemeTransferTest {
         val expected=DisplayOptions(
             appearance="Dark",blurIntensity=81,bubbleStyle="Compact",
             bubbleColor="Rose",messageFontSize=20,navIconSize=27,
-            showNavLabels=true,accentColor="Purple",showProfileAsTitle=true,fontPreset="Mono",homeAvatarSize=64,homeRowPadding=18,hideHomeSearch=true,showHomeDividers=true,navBarStyle="Liquid",
+            showNavLabels=true,accentColor="Purple",showProfileAsTitle=true,fontPreset="Mono",homeAvatarSize=64,homeRowPadding=18,hideHomeSearch=true,showHomeDividers=true,navBarStyle="Liquid",hidePhotoShortcut=true,showPinBadges=false,
             homeWallpaperDim=15,chatWallpaperDim=87,quickReactions="👏,👍,❤️",navigationOrder="0,2,1,4,3"
         )
         val encoded=MbThemeTransfer.export(expected)
