@@ -736,6 +736,31 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             } finally {file.delete();cameraPath=""}
         } else {file.delete();cameraPath=""}
     }
+    var scannerPath by rememberSaveable(cid) {mutableStateOf("")}
+    var scannerAccount by rememberSaveable(cid) {mutableStateOf("")}
+    val scanner=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {success->
+        val photo=java.io.File(scannerPath)
+        if(success)model.action {
+            try {
+                val owner=scannerAccount
+                if(owner.isNotBlank() && model.backend.session.value?.userId==owner) {
+                    val pdf=PdfDocuments.scanPhoto(context,photo,owner)
+                    if(model.backend.session.value?.userId==owner) {
+                        preparedPdf?.file?.delete()
+                        preparedPdf=pdf
+                    } else pdf.file.delete()
+                }
+            } finally {
+                photo.delete()
+                scannerPath=""
+                scannerAccount=""
+            }
+        } else {
+            photo.delete()
+            scannerPath=""
+            scannerAccount=""
+        }
+    }
     val display=LocalDisplayOptions.current
     var quickRepliesOpen by remember(cid,session?.userId) {mutableStateOf(false)}
     var quickReplyShortcut by remember(cid,session?.userId) {mutableStateOf("")}
@@ -1029,6 +1054,26 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
             onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
+        GlassActionRow("Scan document",Icons.Outlined.PhotoCamera,onClick={
+            attachments=false
+            val owner=model.backend.session.value?.userId
+            if(owner!=null) {
+                scannerAccount=owner
+                val file=java.io.File(context.cacheDir,
+                    "camera/${java.util.UUID.randomUUID()}.jpg")
+                file.parentFile?.mkdirs()
+                scannerPath=file.absolutePath
+                runCatching {
+                    scanner.launch(androidx.core.content.FileProvider.getUriForFile(
+                        context,context.packageName+".files",file))
+                }.onFailure {
+                    file.delete()
+                    scannerPath=""
+                    scannerAccount=""
+                    model.action {throw java.io.IOException("Camera unavailable for document scanning.")}
+                }
+            }
+        })
         GlassActionRow("Create sticker",Icons.Outlined.AutoAwesome,
             onClick={attachments=false;stickerPicker.launch("image/*")})
         GlassActionRow("My stickers",Icons.Outlined.Collections,
