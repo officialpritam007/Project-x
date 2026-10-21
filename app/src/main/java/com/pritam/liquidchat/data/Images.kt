@@ -13,7 +13,24 @@ import java.util.UUID
 object Images {
     data class Prepared(val file:File,val width:Int,val height:Int)
 
-    enum class Edit { CROP_SQUARE, ROTATE_RIGHT, FLIP_HORIZONTAL, GRAYSCALE }
+    enum class Edit {
+        CROP_SQUARE, CROP_PORTRAIT, CROP_WIDE,
+        ROTATE_LEFT, ROTATE_RIGHT, FLIP_HORIZONTAL, FLIP_VERTICAL, GRAYSCALE
+    }
+
+    /** Preserve a centered crop using integer aspect arithmetic (no stretching). */
+    private fun centeredCrop(source:Bitmap,aspectWidth:Int,aspectHeight:Int):Bitmap {
+        require(aspectWidth>0 && aspectHeight>0)
+        val wide=source.width.toLong()*aspectHeight>=
+            source.height.toLong()*aspectWidth
+        val width=if(wide)
+            (source.height.toLong()*aspectWidth/aspectHeight).toInt().coerceIn(1,source.width)
+            else source.width
+        val height=if(wide)source.height
+            else (source.width.toLong()*aspectHeight/aspectWidth).toInt().coerceIn(1,source.height)
+        return Bitmap.createBitmap(source,(source.width-width)/2,
+            (source.height-height)/2,width,height)
+    }
 
     /**
      * Apply a local edit to a previously prepared JPEG without altering its
@@ -37,14 +54,18 @@ object Images {
                     ?: throw IOException("Could not open the selected photo.")
                 val source=original ?: throw IOException("Could not decode the selected photo.")
                 transformed=when(edit) {
-                    Edit.CROP_SQUARE -> {
-                        val size=minOf(source.width,source.height)
-                        Bitmap.createBitmap(source,(source.width-size)/2,(source.height-size)/2,size,size)
-                    }
+                    Edit.CROP_SQUARE -> centeredCrop(source,1,1)
+                    Edit.CROP_PORTRAIT -> centeredCrop(source,4,5)
+                    Edit.CROP_WIDE -> centeredCrop(source,16,9)
+                    Edit.ROTATE_LEFT -> Bitmap.createBitmap(
+                        source,0,0,source.width,source.height,
+                        android.graphics.Matrix().apply {postRotate(-90f)},true)
                     Edit.ROTATE_RIGHT -> Bitmap.createBitmap(source,0,0,source.width,source.height,
                         android.graphics.Matrix().apply {postRotate(90f)},true)
                     Edit.FLIP_HORIZONTAL -> Bitmap.createBitmap(source,0,0,source.width,source.height,
                         android.graphics.Matrix().apply {postScale(-1f,1f)},true)
+                    Edit.FLIP_VERTICAL -> Bitmap.createBitmap(source,0,0,source.width,source.height,
+                        android.graphics.Matrix().apply {postScale(1f,-1f)},true)
                     Edit.GRAYSCALE -> {
                         val destination=Bitmap.createBitmap(source.width,source.height,Bitmap.Config.ARGB_8888)
                         val matrix=android.graphics.ColorMatrix().apply {setSaturation(0f)}
