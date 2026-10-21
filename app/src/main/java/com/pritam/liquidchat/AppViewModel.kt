@@ -245,7 +245,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun start(peer:String)=action {open(repository.start(peer))}
     fun updateChat(chat:Chat,favorite:Boolean=chat.favorite,archived:Boolean=chat.archived,muted:Boolean=chat.muted,delete:Boolean=false)=action {
         repository.setChat(chat,favorite,archived,muted,delete)
-        if(delete)closeChat()
+        if(delete) {
+            com.pritam.liquidchat.ui.MbConversationAccent.clearConversation(
+                getApplication(),chat.account,chat.id)
+            closeChat()
+        }
     }
     fun block(peer:String,blocked:Boolean)=action {repository.block(peer,blocked);_notice.value=if(blocked)"Contact blocked" else "Contact unblocked"}
     fun search(query:String) {
@@ -285,6 +289,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val result=JSONObject(backend.request("/functions/v1/account","POST",JSONObject().put("action","delete")))
         backend.forgetLocal();repository.clearAccount(current.userId)
         com.pritam.liquidchat.ui.MbQuickReplies.clear(getApplication(),current.userId)
+        com.pritam.liquidchat.ui.MbConversationAccent.clearAccount(getApplication(),current.userId)
         com.pritam.liquidchat.data.MessageNotificationDedupe.clearAccount(getApplication(),current.userId)
         policyPrefs.edit().remove("accepted_${current.userId}").apply();policyEpoch.value++
         getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()
@@ -307,6 +312,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if(id!=null){
                 repository.clearAccount(id)
                 com.pritam.liquidchat.ui.MbQuickReplies.clear(getApplication(),id)
+                com.pritam.liquidchat.ui.MbConversationAccent.clearAccount(getApplication(),id)
                 com.pritam.liquidchat.data.MessageNotificationDedupe.clearAccount(getApplication(),id)
                 policyPrefs.edit().remove("accepted_$id").apply();policyEpoch.value++
             }
