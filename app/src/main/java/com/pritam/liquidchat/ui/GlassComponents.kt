@@ -2,10 +2,15 @@ package com.pritam.liquidchat.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -284,7 +289,23 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     text: @Composable (() -> Unit)? = null
 ) {
     val dark=LocalGlassDark.current
-    val reduced=LocalDisplayOptions.current.reducedTransparency
+    val display=LocalDisplayOptions.current
+    val reduced=display.reducedTransparency
+    val reference=display.navBarStyle=="Reference"
+    val shape=if(reference)androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
+        else Glass.dialog
+    var shown by remember {mutableStateOf(false)}
+    LaunchedEffect(Unit) {shown=true}
+    val entranceScale by animateFloatAsState(
+        targetValue=if(shown)1f else .94f,
+        animationSpec=if(display.reducedMotion) snap() else spring(
+            dampingRatio=Spring.DampingRatioNoBouncy,
+            stiffness=Spring.StiffnessMedium),
+        label="reference alert entrance")
+    val entranceAlpha by animateFloatAsState(
+        targetValue=if(shown)1f else 0f,
+        animationSpec=tween(durationMillis=if(display.reducedMotion)0 else 180),
+        label="reference alert fade")
     AlertDialog(
         onDismissRequest=onDismissRequest,
         confirmButton=confirmButton,
@@ -292,17 +313,22 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
         title=title,
         text=text,
         modifier=modifier
-            .shadow(18.dp,Glass.dialog)
-            .clip(Glass.dialog)
+            .graphicsLayer {
+                scaleX=entranceScale
+                scaleY=entranceScale
+                alpha=entranceAlpha
+            }
+            .shadow(18.dp,shape)
+            .clip(shape)
             .then(Modifier.background(
                 Brush.linearGradient(listOf(
                     Color.White.copy(alpha=if(dark).10f else .28f),
                     Color.Transparent,
                     Color.White.copy(alpha=if(dark).05f else .12f)
-                )),Glass.dialog
+                )),shape
             ))
             .then(Modifier),
-        shape=Glass.dialog,
+        shape=shape,
         containerColor=if(dark)Color(0xFF22364B).copy(alpha=if(reduced)1f else .97f)
             else Color(0xFFF8FCFF).copy(alpha=if(reduced)1f else .96f),
         tonalElevation=0.dp,
