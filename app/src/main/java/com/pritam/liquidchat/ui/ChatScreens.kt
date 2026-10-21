@@ -1627,6 +1627,14 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             themeFeedback="Theme imported and applied."
         }
     }
+    val photoThemePicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        if(uri!=null)model.action {
+            val accent=PhotoAccentSampler.extract(context,uri)
+            model.setDisplay(model.display.value.copy(accentColor="Custom",
+                customAccentHex=accent))
+            themeFeedback="Photo theme color applied: $accent"
+        }
+    }
     if(resetThemeDialog) LiquidAlertDialog(
         onDismissRequest={resetThemeDialog=false},
         title={Text("Restore default appearance?")},
@@ -1659,6 +1667,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Save your current Liquid Chat appearance to a JSON theme, or import a saved theme.",style=MaterialTheme.typography.bodyMedium)
             Text("Imported themes change only this device's colors, navigation and chat appearance. No messages, accounts or contacts are exported.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider()
+            FilledTonalButton(onClick={photoThemePicker.launch("image/*")},
+                enabled=!busy,modifier=Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.AddPhotoAlternate,null)
+                Spacer(Modifier.width(8.dp))
+                Text("Create accent from photo")
+            }
+            Text("Choose a photo on this device to pick its dominant color. No photo is uploaded or stored.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
             FilledTonalButton(onClick={exportTheme.launch("LiquidChat-Theme.json")},modifier=Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.FileUpload,null)
                 Spacer(Modifier.width(8.dp))
