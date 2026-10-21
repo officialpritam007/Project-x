@@ -686,16 +686,23 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var photoUndo by remember(cid,session?.userId) {
         mutableStateOf<List<Images.Prepared>>(emptyList())
     }
+    var photoRedo by remember(cid,session?.userId) {
+        mutableStateOf<List<Images.Prepared>>(emptyList())
+    }
     fun replacePhotoDraft(next:Images.Prepared) {
         prepared?.file?.delete()
         photoUndo.forEach {it.file.delete()}
         photoUndo=emptyList()
+        photoRedo.forEach {it.file.delete()}
+        photoRedo=emptyList()
         prepared=next
     }
     fun clearPhotoDraft() {
         prepared?.file?.delete()
         photoUndo.forEach {it.file.delete()}
         photoUndo=emptyList()
+        photoRedo.forEach {it.file.delete()}
+        photoRedo=emptyList()
         prepared=null
     }
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->if(uri!=null)model.action {
@@ -2058,6 +2065,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                             try {
                                                 val next=Images.edit(context,owner,image,operation)
                                                 if(model.session.value?.userId==owner && prepared===image) {
+                                                    photoRedo.forEach {it.file.delete()}
+                                                    photoRedo=emptyList()
                                                     val revisions=photoUndo+image
                                                     photoUndo=revisions.takeLast(5)
                                                     revisions.dropLast(5).forEach {it.file.delete()}
@@ -2078,14 +2087,28 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 val previous=photoUndo.lastOrNull()
                                 if(previous!=null&&prepared===image) {
                                     photoUndo=photoUndo.dropLast(1)
+                                    val nextRedo=photoRedo+image
+                                    photoRedo=nextRedo.takeLast(5)
+                                    nextRedo.dropLast(5).forEach {it.file.delete()}
                                     prepared=previous
-                                    image.file.delete()
                                 }
                             }) {
                             Icon(Icons.Outlined.Undo,null,Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Undo")
                         }
+                        OutlinedButton(
+                            enabled=editingAllowed&&photoRedo.isNotEmpty(),
+                            onClick={
+                                val next=photoRedo.lastOrNull()
+                                if(next!=null&&prepared===image) {
+                                    photoRedo=photoRedo.dropLast(1)
+                                    val revisions=photoUndo+image
+                                    photoUndo=revisions.takeLast(5)
+                                    revisions.dropLast(5).forEach {it.file.delete()}
+                                    prepared=next
+                                }
+                            }) {Text("Redo")}
                         Text("${photoUndo.size} / 5 saved steps",
                             style=MaterialTheme.typography.bodySmall,
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2108,6 +2131,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     // Only the selected edit is sent; discard private revisions.
                     photoUndo.forEach {it.file.delete()}
                     photoUndo=emptyList()
+                    photoRedo.forEach {it.file.delete()}
+                    photoRedo=emptyList()
                     prepared=null
                     if(draftVersion==version){input=TextFieldValue("");replyTo=""}
                 }
