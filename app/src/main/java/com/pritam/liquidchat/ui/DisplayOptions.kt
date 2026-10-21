@@ -58,6 +58,7 @@ data class DisplayOptions(
     val timestampInkHex:String="#536B7D",
     val chatHeaderIconColor:String="Theme",
     val chatHeaderNameSize:Int=16,
-    val copySenderAndTime:Boolean=false
+    val copySenderAndTime:Boolean=false,
+    val photoQuality:String="Standard"
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
