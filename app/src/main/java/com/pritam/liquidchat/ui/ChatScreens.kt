@@ -2358,7 +2358,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             MbFontImportSettings(
                 onChooseBody={model.setDisplay(display.copy(fontPreset="Imported"))},
-                onChooseTitle={model.setDisplay(display.copy(titleFontPreset="Imported"))}
+                onChooseTitle={model.setDisplay(display.copy(titleFontPreset="Imported"))},
+                onRemoveBody={
+                    if(model.display.value.fontPreset=="Imported")
+                        model.setDisplay(model.display.value.copy(fontPreset="System"))
+                },
+                onRemoveTitle={
+                    if(model.display.value.titleFontPreset=="Imported")
+                        model.setDisplay(model.display.value.copy(titleFontPreset="Follow"))
+                }
             )
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
