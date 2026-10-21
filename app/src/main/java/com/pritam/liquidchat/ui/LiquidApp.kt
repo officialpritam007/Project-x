@@ -70,7 +70,8 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
                     currentCall?.let {MinimizedCallPill(model.calls,it,caller?.name)}
                 }
             }, bottomBar={
-            if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null) GlassNavigation(tab) {tab=it}
+            if(session!=null && acceptedPolicy && loaded && profile!=null && !recovery && active==null)
+                GlassNavigation(tab,unreadChats=chats.count {it.unread>0 || it.manualUnread}) {tab=it}
         }) { padding ->
             if(!ready) { Box(Modifier.fillMaxSize().padding(padding)) {CircularProgressIndicator()} }
             else if(session==null) { Box(Modifier.padding(padding)) {AuthScreen(model,busy)} }
