@@ -35,6 +35,12 @@ internal object MbThemeTransfer {
         put("messageFontSize",options.messageFontSize)
         put("showNavLabels",options.showNavLabels)
         put("hideNavIcons",options.hideNavIcons)
+        put("outgoingBubblePreset",options.outgoingBubblePreset)
+        put("incomingBubblePreset",options.incomingBubblePreset)
+        put("outgoingInk",options.outgoingInk)
+        put("incomingInk",options.incomingInk)
+        put("quotedInk",options.quotedInk)
+        put("timestampInk",options.timestampInk)
         put("navIconSize",options.navIconSize)
         put("navLabelSize",options.navLabelSize)
         put("headerTitleSize",options.headerTitleSize)
@@ -88,6 +94,12 @@ internal object MbThemeTransfer {
             messageFontSize=number("messageFontSize",current.messageFontSize,10,30),
             showNavLabels=bool("showNavLabels",current.showNavLabels),
             hideNavIcons=bool("hideNavIcons",current.hideNavIcons),
+            outgoingBubblePreset=choice("outgoingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night"),current.outgoingBubblePreset),
+            incomingBubblePreset=choice("incomingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night"),current.incomingBubblePreset),
+            outgoingInk=choice("outgoingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.outgoingInk),
+            incomingInk=choice("incomingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.incomingInk),
+            quotedInk=choice("quotedInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.quotedInk),
+            timestampInk=choice("timestampInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.timestampInk),
             navIconSize=number("navIconSize",current.navIconSize,20,50),
             navLabelSize=number("navLabelSize",current.navLabelSize,8,20),
             headerTitleSize=number("headerTitleSize",current.headerTitleSize,20,30),
