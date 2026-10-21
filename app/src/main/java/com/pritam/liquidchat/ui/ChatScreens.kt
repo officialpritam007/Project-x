@@ -1931,20 +1931,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         confirmButton={TextButton(enabled=!albumSending&&!busy&&session!=null,
             onClick={
                 val owner=session?.userId ?: return@TextButton
+                val selected=preparedAlbum.toList()
+                val firstCaption=albumCaption
                 albumSending=true
                 model.action {
                     try {
-                        while(preparedAlbum.isNotEmpty()) {
-                            check(model.backend.session.value?.userId==owner) {
-                                "Account changed before all selected photos were queued."
-                            }
-                            val image=preparedAlbum.first()
-                            model.repository.sendImage(cid,image,albumCaption)
-                            // Ownership of the local file has moved to the durable
-                            // outbox. Never delete already queued photos on cancel.
-                            preparedAlbum=preparedAlbum.drop(1)
-                            // A batch caption belongs only to the first photo,
-                            // including when sending the remaining photos is retried.
+                        check(model.backend.session.value?.userId==owner) {
+                            "Account changed before selected photos were queued."
+                        }
+                        // All prepared photos enter the account-scoped Room outbox
+                        // atomically before a single WorkManager schedule attempt.
+                        model.repository.sendImages(cid,selected,firstCaption)
+                        if(model.backend.session.value?.userId==owner) {
+                            preparedAlbum=emptyList()
                             albumCaption=""
                         }
                     } finally {albumSending=false}
