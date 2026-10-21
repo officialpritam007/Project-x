@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
+import com.pritam.liquidchat.data.StickerFactory
 import com.pritam.liquidchat.data.SavedMedia
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
@@ -578,6 +579,21 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val image=Images.prepare(context,uri,account,hd=model.display.value.photoQuality=="HD")
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    var preparedSticker by remember(cid,session?.userId) {mutableStateOf<Images.Prepared?>(null)}
+    var stickerSourceUri by remember(cid,session?.userId) {mutableStateOf<android.net.Uri?>(null)}
+    var removeStickerWhite by remember(cid,session?.userId) {mutableStateOf(false)}
+    val stickerPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
+        if(uri!=null)model.action {
+            val account=model.backend.session.value?.userId ?: return@action
+            val created=StickerFactory.prepare(context,uri,account)
+            if(model.backend.session.value?.userId==account) {
+                preparedSticker?.file?.delete()
+                preparedSticker=created
+                stickerSourceUri=uri
+                removeStickerWhite=false
+            } else created.file.delete()
+        }
+    }
     var contactPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
     val phonePicker=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {result->
         val selectedAccount=contactPickerAccount
@@ -912,6 +928,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     photoQuality=if(it)"HD" else "Standard"))})
         }
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
+        GlassActionRow("Create sticker",Icons.Outlined.AutoAwesome,
+            onClick={attachments=false;stickerPicker.launch("image/*")})
         GlassActionRow("Share contact as text",Icons.Outlined.PersonOutline,
             onClick={
                 attachments=false
@@ -1393,6 +1411,57 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
     var photoEditBusy by remember(cid,session?.userId) {mutableStateOf(false)}
+    preparedSticker?.let {sticker->
+        LiquidAlertDialog(
+            onDismissRequest={
+                if(!busy){sticker.file.delete();preparedSticker=null;stickerSourceUri=null}
+            },
+            title={Text("Create & send sticker")},
+            text={Column(Modifier.fillMaxWidth(),
+                verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Text("512 × 512 transparent PNG · private conversation",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+                coil.compose.AsyncImage(
+                    model=coil.request.ImageRequest.Builder(context).data(sticker.file)
+                        .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                        .diskCachePolicy(coil.request.CachePolicy.DISABLED).build(),
+                    contentDescription="Sticker preview",
+                    modifier=Modifier.fillMaxWidth().height(240.dp))
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    Text("Remove near-white background",
+                        modifier=Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
+                    Switch(checked=removeStickerWhite,enabled=!busy && stickerSourceUri!=null,
+                        onCheckedChange={checked->
+                            val source=stickerSourceUri
+                            val owner=session?.userId
+                            if(source!=null && owner!=null)model.action {
+                                val next=StickerFactory.prepare(context,source,owner,checked)
+                                if(model.backend.session.value?.userId==owner &&
+                                    preparedSticker===sticker) {
+                                    preparedSticker=next
+                                    removeStickerWhite=checked
+                                    sticker.file.delete()
+                                } else next.file.delete()
+                            }
+                        })
+                }
+                Text("Background removal affects light pixels throughout the image. Review the preview before sending.",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }},
+            confirmButton={TextButton(onClick={
+                model.action {
+                    model.repository.sendSticker(cid,sticker)
+                    preparedSticker=null
+                    stickerSourceUri=null
+                }
+            },enabled=!busy) {Text("Send sticker")}},
+            dismissButton={TextButton(onClick={
+                sticker.file.delete();preparedSticker=null;stickerSourceUri=null
+            },enabled=!busy) {Text("Cancel")}}
+        )
+    }
     prepared?.let {image->
         val editingAllowed=!photoEditBusy&&!busy
         LiquidAlertDialog(
