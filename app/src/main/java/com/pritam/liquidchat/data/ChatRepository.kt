@@ -566,6 +566,30 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
     suspend fun chatAction(cid:String,action:String,enabled:Boolean) {
         backend.rpc("chat_action",JSONObject().put("p_conversation",cid).put("p_action",action).put("p_enabled",enabled));sync()
     }
+
+    /**
+     * Explicit "Mark as read" from the inbox applies the highest authenticated
+     * server conversation sequence, even if older unread messages are not cached
+     * on this device. Opening a chat still uses acknowledge() with receivedSeq.
+     */
+    suspend fun markChatRead(cid:String) {
+        val id=account()
+        val chat=dao.chat(id,cid) ?: return
+        checkAccount(id)
+        if(chat.manualUnread) {
+            backend.rpc("chat_action",JSONObject()
+                .put("p_conversation",cid).put("p_action","unread")
+                .put("p_enabled",false))
+            checkAccount(id)
+        }
+        if(chat.lastSeq>0L) {
+            backend.rpc("acknowledge",JSONObject()
+                .put("p_conversation",cid).put("p_seq",chat.lastSeq)
+                .put("p_read",true))
+            checkAccount(id)
+        }
+        sync()
+    }
     suspend fun starred(cid:String,before:Long=Long.MAX_VALUE):List<Message> {
         val id=account();val a=JSONArray(backend.rpc("starred_messages",JSONObject().put("p_conversation",cid).put("p_before",before)))
         checkAccount(id);return (0 until a.length()).map {parseMessage(a.getJSONObject(it),id)}
