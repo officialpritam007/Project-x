@@ -8,14 +8,14 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 |---|---|---|---|
 | `mb_activity_image_crop.xml` | Partial | Photo editor with 1:1, 4:5 and 16:9 centered crop, ±90° rotate, two-axis flip, B&W and five-step Undo/Redo; PDF scanner | Reference freehand crop gestures, exact toolbar, unlimited history, pixel comparison and real-device proof missing |
 | `mb_alert_sticker.xml` | Partial | Sticker creator + saved shelf | Animated packs, exact dialog and segmentation missing |
-| `mb_animations.xml` | Partial | DisplayOptions animation settings | Touch and snow overlays not verified |
-| `mb_bomb_dialog.xml` | Unmapped | No confirmed safe counterpart | Decode actual dialog interaction before claiming feature |
+| `mb_animations.xml` | Partial | Device-local passive touch glyph with emoji/color setting, initially off, plus current motion controls | Other custom overlays and reference animation curves not established |
+| `mb_bomb_dialog.xml` | Blocked | APK has two text inputs, a switch and a 1–20 count field | Bulk flooding/repeated-send behavior not ported; no unsolicited message-bombing tool |
 | `mb_bottom_iosv2.xml` | Partial | Reference-mode GlassNavigation: 56dp five-slot footer, 30dp reference icons and eight owner-supplied selected/unselected icon files, 11sp labels, 90dp selection line, account-scoped unread badge | Correct reference destination mapping, font/pixel states, alternate navigation and emulator verification remain unproven |
 | `mb_bottom_iosv2_ot.xml` | Partial | GlassNavigation variants | Alternate reference layout not matched |
 | `mb_box_item.xml` | Partial | GlassCard | Exact spacing and hierarchy unverified |
 | `mb_colorpicker_layout.xml` | Partial | Custom hex and photo-accent settings | Exact color-picker palette unverified |
 | `mb_convo_settings.xml` | Partial | Conversation Screen Settings with five animated, accessible expandable groups; existing privacy/media controls preserved | Other reference sections, precise icons, nested layout and visual acceptance still unverified |
-| `mb_custom_cm.xml` | Unmapped | No confirmed native counterpart | Inspect original hierarchy and control semantics |
+| `mb_custom_cm.xml` | Unmapped | ScrollView, RowBackground, several labels and divider views identified in binary XML | String resource meanings and source button behavior remain unresolved |
 | `mb_custom_color_picker_dialog.xml` | Partial | Native HSV sliders, hex input, 18 swatches and explicit photo-based dominant accent sampler | Reference exact pixel palette and manual photo pixel eyedropper remain missing |
 | `mb_custom_webview.xml` | Partial | MessageInAppBrowser | Website behavior and navigation tests pending |
 | `mb_dialog_alert_ios.xml` | Partial | Reference-mode 22dp rounded dialogs with fade/spring entry and reduced-motion support | Exact reference backdrop blur, button order and exit transition unverified |
@@ -41,7 +41,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_list_layout_dialog.xml` | Partial | LiquidActionSheet | Reference scrolling/scrim unverified |
 | `mb_list_layout_item.xml` | Partial | Settings list entries | Exact row semantics unverified |
 | `mb_list_tips_item.xml` | Partial | MbTipsAndHelp | All tips and content not yet ported |
-| `mb_mes_reg.xml` | Unmapped | No confirmed native counterpart | Identify exact underlying screen before implementation |
+| `mb_mes_reg.xml` | Blocked | APK embeds MBWhatsApp registration/info screen | Supabase Auth and Liquid Chat branding replace the proprietary mod registration flow |
 | `mb_new_dialog_bottom.xml` | Partial | Reference-mode 22dp upper corners, 48dp menu actions and Material sheet presentation | Motion curve, scrim, exact icon art and device verification unproven |
 | `mb_notify_settings.xml` | Partial | Notification Settings + DND/landscape quiet mode | Contact-specific status notification options missing |
 | `mb_pop_view_layout.xml` | Partial | Long-press popup with 3 account-scoped sender-aware incoming/outgoing bubble previews, timestamps and private-media placeholders | Exact reference gesture radius and visual geometry unverified |
@@ -51,7 +51,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_search_view.xml` | Partial | GlassSearch + message search filters | Full reference global search UI missing |
 | `mb_seekbar_dialog.xml` | Partial | Material3 sliders | Reference custom dialog unverified |
 | `mb_seekbar_layout.xml` | Partial | Display sliders | Exact gradient/animation missing |
-| `mb_service_ui.xml` | Unmapped | No confirmed safe counterpart | Investigate service UI without copying WhatsApp protocol |
+| `mb_service_ui.xml` | Unmapped | Service heading, description and three labeled action controls identified | Source service behavior is not known; no misleading mock buttons or foreign protocol integration |
 | `mb_settings.xml` | Partial | SettingsScreen | Full feature list and reference layout not matched |
 | `mb_switch_layout.xml` | Partial | Material3 switches | Reference track/thumb behavior unverified |
 | `mb_themes_settings.xml` | Partial | Theme JSON/library, user-confirmed saved-theme preview, local accent photo extraction, HSV/swatches | Proprietary reference theme files, external fonts/assets, exact package previews unimplemented |
@@ -60,7 +60,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_tips_help.xml` | Partial | MbTipsAndHelp | Original page content not fully ported |
 | `mb_toast_no.xml` | Partial | App notices + FCM notifications | Reference toast and suppression semantics unverified |
 | `mb_update.xml` | Partial | Liquid Chat App Updates panel / update information | Signed release distribution/verification and exact reference layout remain unverified |
-| `mb_vip_settings.xml` | Unmapped | No verified equivalent paid entitlement | Do not import another service's subscription or licensing logic |
+| `mb_vip_settings.xml` | Partial | Device-local iOS-style contact info switch controlling actual Liquid Chat contact/Shared Media hero layout | Foreign VIP paywall not imported; exact reference contact visual still needs screenshot parity |
 
 ## 21 October 2026 — reference APK follow-up (committed source only)
 
@@ -110,3 +110,12 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - **Long-press chat preview:** Sender-aligned metadata-only text bubbles, time labels, and strict active-account/conversation/sent/deletion gates; only the last three downloaded messages are exposed. No signed attachment URLs or third-party reference account data are rendered.
 - **Source-level maintenance:** Fixed selection underline's invalid `ColumnScope.align(Alignment.BottomCenter)` usage by retaining underline in `BoxScope` and using a bounded relative width.
 - **Owner's release gate remains unchanged:** These commits are `[skip ci]` source changes. Do not assert MB 3.3.4 pixel equivalence or call/sticker/PDF/video end-to-end operation. CI, builds, unit tests, emulator tests, Supabase migrations, Edge Function deployment, screenshot comparisons and two-phone testing have not been run and remain explicitly deferred.
+
+## 2026-10-22 — decoded APK controls, choice dialogs and touch visuals
+
+- **Actual compiled layouts examined:** `mb_dialog_alert_ios` uses a title, text and divided choice rows; `mb_animations` has an initially disabled touch animation switch, an emoji default ❤️ and a separate color chooser; `mb_item_expandable` contains title, secondary label and arrow. These now have functioning native Compose counterparts.
+- **Choice popups:** Bubble style, default bubble palette, call/video/header icon colors and media upload quality now use a row-and-divider selection dialog matching the reference structure, wired to the existing persisted DisplayOptions.
+- **Contact information:** Reference iOS-style contact information is a functional local preference in Conversation Settings, affecting avatar scale/card arrangement in Contact Details and Shared Media. No external VIP licensing/paywall is copied.
+- **Touch effects:** Nonconsuming root pointer observer, optional local glyph/color, disabled by default. At most eight fading particles for ~700ms, suppressed under Reduce Motion; no remote service or input interception.
+- **Limits:** `mb_bomb_dialog` appears related to repeated message flooding (two inputs, 1–20 hint, switch), deliberately not implemented. The branded registration and proprietary service panels are not Liquid Chat equivalents. `mb_custom_cm` still needs semantic source string mapping. No native APK pixel fidelity has been verified.
+- **Release gate:** All commits are source-only `[skip ci]`. No build, CI, lint, live SQL/Edge deployment, screenshots, emulator, phone verification or APK generated; the owner decides when final testing starts.
