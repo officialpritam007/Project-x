@@ -424,6 +424,26 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }}
         enqueue(account)
     }
+    suspend fun sendDocument(cid:String,pdf:PreparedPdf) {
+        val account=account()
+        val name=PdfDocuments.safeName(pdf.name)
+        require(pdf.file.isFile && pdf.file.extension.lowercase()=="pdf"
+            && pdf.file.length() in 100..PdfDocuments.MAX_BYTES.toLong())
+        val root=java.io.File(context.filesDir,"media/$account").canonicalFile
+        require(pdf.file.canonicalFile.parentFile==root) {
+            "Document belongs to a different account."
+        }
+        val body="Document: $name"
+        val message=Message(account,UUID.randomUUID().toString(),cid,account,
+            body,localImage=pdf.file.absolutePath,mediaKind="document")
+        db.withTransaction {
+            checkAccount(account)
+            putVisible(message)
+            dao.pendingPreview(account,cid,"Queued: $body",message.localTime)
+        }
+        enqueue(account)
+    }
+
     suspend fun sendSticker(cid:String,sticker:Images.Prepared) {
         val account=account()
         require(sticker.width==512 && sticker.height==512 &&
@@ -501,7 +521,8 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                         val key=expected to m.id
                         val upload=try {
                             backend.uploadImage(java.io.File(sending.localImage),m.conversation,
-                                voice=sending.mediaKind=="voice",sticker=sending.mediaKind=="sticker") {percent->
+                                voice=sending.mediaKind=="voice",sticker=sending.mediaKind=="sticker",
+                                document=sending.mediaKind=="document") {percent->
                                 if(backend.session.value?.userId==expected)
                                     _uploadProgress.update {it+(key to percent)}
                             }
@@ -512,6 +533,10 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
                     val raw=if(sending.mediaKind=="voice" && sending.mediaId.isNotEmpty()) backend.rpc("send_voice",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
                         else if(sending.mediaKind=="sticker" && sending.mediaId.isNotEmpty())
                             backend.rpc("send_sticker",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId))
+                        else if(sending.mediaKind=="document" && sending.mediaId.isNotEmpty())
+                            backend.rpc("send_document",JSONObject()
+                                .put("p_id",m.id).put("p_media",sending.mediaId)
+                                .put("p_name",m.body.removePrefix("Document: ")))
                         else if(sending.mediaId.isNotEmpty()) backend.rpc("send_image",JSONObject().put("p_id",m.id).put("p_media",sending.mediaId).put("p_caption",m.body))
                         else if(sending.replyTo.isNotEmpty())backend.rpc("send_reply",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body).put("p_reply",sending.replyTo))
                         else backend.rpc("send_text",JSONObject().put("p_id",m.id).put("p_conversation",m.conversation).put("p_body",m.body))
