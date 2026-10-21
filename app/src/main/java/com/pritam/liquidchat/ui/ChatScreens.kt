@@ -3190,6 +3190,7 @@ if(section=="Liquid Chat Home Screen") {
                 Text("Customize private chats without changing messages, delivery or call behavior.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            MbContactInfoStyleSettingsCard()
             MbExpandableSettingsCard("Conversation header") {
                 Text("Contact name size · ${display.chatHeaderNameSize} sp",style=MaterialTheme.typography.titleSmall)
                 Slider(value=display.chatHeaderNameSize.toFloat(),
