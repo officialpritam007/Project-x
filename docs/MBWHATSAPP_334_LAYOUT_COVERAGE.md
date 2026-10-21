@@ -64,8 +64,8 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 
 ## 21 October 2026 — reference APK follow-up (committed source only)
 
-- **Batch gallery images:** real Android multi-image picker, bounded to 10 selected images, previews with remove-one controls, account-scoped JPEG processing, user-confirmed sequential durable image outbox; partial failures preserve unqueued photos for explicit retry. No fake group album or server data rewrite.
-- **Caption copy:** one-tap copy for authorized Story and Post descriptions, including full-screen viewers. This uses Android clipboard on direct user action and does not transmit captions to a new service.
+- **Batch gallery images:** real Android multi-image picker, bounded to 10 selected images, previews with remove-one controls and optional first-photo caption, account-scoped JPEG processing, and a single Room transaction that queues all selected independent messages or none. WorkManager reuses the existing private media upload/delivery/retry flow. This is not a WhatsApp-protocol grouped album.
+- **Caption/profile copy:** one-tap copy for authorized Story/Post descriptions (including full-screen viewers), plus copy of the signed-in account's own username and bio. Android clipboard is written only on user action; no third-party service is called.
 - **Still missing/blocked:** GIF/video attachment transport, pixel-perfect APK dialog art and animated transitions, fully verified private media SQL/Edge deployment, advanced contact-specific status alerts, third-party AI/VIP integrations and WhatsApp-specific groups/channels. User explicitly defers build, lint, CI, SQL/Edge deployments and device tests until later.
 
 ## Backend and release dependencies
