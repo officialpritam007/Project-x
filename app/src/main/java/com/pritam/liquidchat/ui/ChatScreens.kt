@@ -2527,7 +2527,45 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 if(message.reactions!="{}"&&message.deletedAt.isEmpty()) {
                     val reactions=remember(message.reactions) {runCatching {val j=org.json.JSONObject(message.reactions);j.keys().asSequence().map {j.getString(it)}.groupingBy {it}.eachCount()}.getOrDefault(emptyMap())}
                     val own=remember(message.reactions,message.account) {runCatching {org.json.JSONObject(message.reactions).optString(message.account)}.getOrDefault("")}
-                    Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {reactions.forEach {(emoji,count)->Surface(shape=Glass.capsule,border=if(emoji==own)androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.primary) else null,color=MaterialTheme.colorScheme.primaryContainer) {Text("$emoji $count",Modifier.padding(horizontal=8.dp,vertical=3.dp),style=MaterialTheme.typography.labelMedium)}}}
+                    Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                        reactions.forEach {(emoji,count)->
+                            val allowed=message.status=="SENT" &&
+                                model.session.value?.userId==message.account &&
+                                !selectionMode && message.deletedAt.isEmpty()
+                            Surface(
+                                onClick={
+                                    model.action {
+                                        // A stale bubble cannot react after a deletion,
+                                        // account change, or a superseding message update.
+                                        val latest=model.messages.value.firstOrNull {
+                                            it.id==message.id && it.account==message.account &&
+                                                it.conversation==message.conversation
+                                        }
+                                        if(latest!=null && latest.status=="SENT" &&
+                                            latest.deletedAt.isEmpty() &&
+                                            model.session.value?.userId==message.account) {
+                                            val previous=runCatching {
+                                                org.json.JSONObject(latest.reactions)
+                                                    .optString(message.account)
+                                            }.getOrDefault("")
+                                            model.repository.messageAction(
+                                                latest.id,"react",
+                                                if(previous==emoji)"" else emoji)
+                                        }
+                                    }
+                                },
+                                enabled=allowed,
+                                shape=Glass.capsule,
+                                border=if(emoji==own)androidx.compose.foundation.BorderStroke(
+                                    1.dp,MaterialTheme.colorScheme.primary) else null,
+                                color=MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text("$emoji $count",
+                                    Modifier.padding(horizontal=8.dp,vertical=3.dp),
+                                    style=MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
                 }
                 if(message.status=="FAILED") {Text(message.error,style=MaterialTheme.typography.bodySmall);TextButton(onClick=onRetry) {Text("Retry")}}
             }
