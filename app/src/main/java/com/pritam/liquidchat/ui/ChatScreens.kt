@@ -519,6 +519,28 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
+    var exportOwner by remember(cid) {mutableStateOf<String?>(null)}
+    var exportFeedback by remember(cid) {mutableStateOf<String?>(null)}
+    val exportChatText=rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")) {uri->
+        val owner=exportOwner
+        exportOwner=null
+        if(uri!=null && owner!=null && model.backend.session.value?.userId==owner)
+            model.action {
+                val content=ChatTextExport.render(model.messages.value,owner,cid,
+                    chat?.name.orEmpty())
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    require(model.backend.session.value?.userId==owner) {
+                        "Account changed before exporting."
+                    }
+                    context.contentResolver.openOutputStream(uri)?.use {
+                        it.write(content.toByteArray(Charsets.UTF_8))
+                        it.flush()
+                    } ?: error("Cannot write selected document.")
+                }
+                exportFeedback="Downloaded chat text exported."
+            }
+    }
     var wallpaperPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
     var videoWallpaperPickerAccount by remember(cid) {mutableStateOf<String?>(null)}
     val wallpaperPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
@@ -774,6 +796,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             })
                         GlassActionRow("Scheduled messages (${scheduledTexts.size})",Icons.Outlined.Event,
                             onClick={menu=false;schedulesOpen=true})
+                        GlassActionRow("Export chat text",Icons.Outlined.FileUpload,
+                            onClick={
+                                menu=false
+                                exportOwner=session?.userId
+                                if(exportOwner!=null)exportChatText.launch("LiquidChat-Chat.txt")
+                            })
                         GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
                             onClick={menu=false;starsOpen=true})
                         GlassActionRow("Custom notifications",Icons.Outlined.Notifications,
@@ -1436,6 +1464,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val age=runCatching {java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds}.getOrDefault(Long.MAX_VALUE)
         if(m.sender==m.account&&age<=172800&&m.deletedAt.isEmpty())TextButton(onClick={model.action {model.repository.messageAction(m.id,"delete");deleteMessage=null}},enabled=!busy) {Text("Delete for everyone")}
     }},confirmButton={TextButton(onClick={model.action {if(m.status=="SENT")model.repository.messageAction(m.id,"hide") else model.repository.discardUnsent(m.id);deleteMessage=null}},enabled=!busy) {Text(if(m.status=="SENT")"Delete for me" else "Remove unsent")}},dismissButton={TextButton(onClick={deleteMessage=null}) {Text("Cancel")}})}
+    exportFeedback?.let {notice->
+        LiquidAlertDialog(onDismissRequest={exportFeedback=null},
+            text={Text(notice)},
+            confirmButton={TextButton(onClick={exportFeedback=null}) {Text("OK")}})
+    }
     if(starsOpen&&chat!=null)ContactMediaDialog(model,chat,messages,initialKind="star") {starsOpen=false}
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
