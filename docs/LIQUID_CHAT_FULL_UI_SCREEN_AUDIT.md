@@ -30,3 +30,14 @@ All commits in this pass use `[skip ci]`. The owner explicitly requested **no CI
 - **No backend mutation**: Existing Supabase messages, Cloudinary media, FCM token routing, WebRTC calling, account privacy, delivery state, Room migrations and registered application package remain unchanged.
 
 **Unimplemented / non-equivalent**: original third-party custom fonts/emoji packs, full proprietary sticker builder/export and document editing/transfer, full original WhatsApp group/channel/Meta service flows, device-wide stealth/anti-revoke/receipt bypass, all screenshot-precise pixels/icons/animations, carrier/TURN two-phone media validation, and irreversible read receipts semantics. Do not expose fictional working controls. Resolve only with real compatible product implementations and the owner's later explicit verification permission.
+
+
+### Further direct-main UI additions (still unverified)
+
+- Full left/right independent custom bubble colors and four HEX ink roles; actual quote, message text, timestamp and Settings preview now use selected colors. Theme is validated and round-trippable.
+- Adjustable message-bubble opacity with safe 45–100% bounds, applied to actual and preview message cards.
+- Offline named theme library: create, apply and delete up to 24 local appearance presets without remote data, account IDs or media.
+- Nine actual Liquid Chat Preferences routes (General, Home, Conversation, Themes, Privacy, Notifications, Account, Data & Storage, Power Saving), with navigation Back behavior that preserves the original parent.
+- Stage-related Android UI inventory assertions updated **in source only**, never executed.
+
+**Owner-controlled verification:** Stop here without running CI, lint, a build, emulator or device tests. These commits intentionally carry `[skip ci]`. The source is **not yet build-verified**, and the full original 3.3.4 proprietary UI/feature parity remains incomplete as detailed above.
