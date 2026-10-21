@@ -1419,9 +1419,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         // MB General's cache control reuses the already-safe Coil-only cleanup.
         // Never expose "clear all" actions that would erase the durable Room outbox.
         if(section=="MB General Settings") DataStorage(model)
-        if(section=="MB Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-            Text("Home Screen",style=MaterialTheme.typography.titleLarge)
-            Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
+        
+if(section=="MB Home Screen") {
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Home Screen",style=MaterialTheme.typography.titleLarge)
+                Text("MB Home customization · every setting updates the existing Liquid Chat inbox.", 
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Bottom navigation & tabs",style=MaterialTheme.typography.titleMedium)
+                Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
             Text("Reorder tabs · all five destinations remain accessible",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             MbNavigationOrder.parse(display.navigationOrder).forEachIndexed {position,destination ->
@@ -1462,8 +1469,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
                 valueRange=9f..15f,steps=5,enabled=display.showNavLabels,modifier=Modifier.fillMaxWidth())
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                 Text("Show my profile name as title",Modifier.weight(1f))
                 Switch(display.showProfileAsTitle,{model.setDisplay(display.copy(showProfileAsTitle=it))})
             }
@@ -1488,14 +1497,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Header title size · ${display.headerTitleSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.headerTitleSize.toFloat(),onValueChange={model.setDisplay(display.copy(headerTitleSize=it.toInt()))},
                 valueRange=20f..30f,steps=9,modifier=Modifier.fillMaxWidth())
-            HorizontalDivider()
-            Text("Photo wallpaper dimming · ${display.homeWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Home wallpaper",style=MaterialTheme.typography.titleMedium)
+                Text("Photo wallpaper dimming · ${display.homeWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(homeWallpaperDim=it.toInt()))},
                 valueRange=0f..100f,modifier=Modifier.fillMaxWidth())
             Text("50% keeps the previous Home wallpaper appearance. Changes apply to locally selected photos.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider()
-            Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Chat list & typography",style=MaterialTheme.typography.titleMedium)
+                Text("Chat avatar size · ${display.homeAvatarSize} dp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeAvatarSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeAvatarSize=it.toInt()))},
                 valueRange=40f..68f,steps=27,modifier=Modifier.fillMaxWidth())
             Text("Conversation row spacing · ${display.homeRowPadding} dp",style=MaterialTheme.typography.titleSmall)
@@ -1510,8 +1523,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Conversation preview size · ${display.homeChatPreviewSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.homeChatPreviewSize.toFloat(),onValueChange={model.setDisplay(display.copy(homeChatPreviewSize=it.toInt()))},
                 valueRange=12f..18f,steps=5,modifier=Modifier.fillMaxWidth())
+
+            }
         }
-        if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                if(section=="MB Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
             Text("Photo wallpaper dimming · ${display.chatWallpaperDim}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.chatWallpaperDim.toFloat(),onValueChange={model.setDisplay(display.copy(chatWallpaperDim=it.toInt()))},
