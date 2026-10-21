@@ -48,6 +48,8 @@ internal object MbThemeTransfer {
         put("homeChatPreviewSize",options.homeChatPreviewSize)
         put("accentColor",options.accentColor)
         put("customAccentHex",options.customAccentHex)
+        put("outgoingBubbleHex",options.outgoingBubbleHex)
+        put("incomingBubbleHex",options.incomingBubbleHex)
         put("showProfileAsTitle",options.showProfileAsTitle)
         put("hideArchiveAccess",options.hideArchiveAccess)
         put("fontPreset",options.fontPreset)
@@ -95,8 +97,8 @@ internal object MbThemeTransfer {
             messageFontSize=number("messageFontSize",current.messageFontSize,10,30),
             showNavLabels=bool("showNavLabels",current.showNavLabels),
             hideNavIcons=bool("hideNavIcons",current.hideNavIcons),
-            outgoingBubblePreset=choice("outgoingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night"),current.outgoingBubblePreset),
-            incomingBubblePreset=choice("incomingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night"),current.incomingBubblePreset),
+            outgoingBubblePreset=choice("outgoingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night","Custom"),current.outgoingBubblePreset),
+            incomingBubblePreset=choice("incomingBubblePreset",setOf("Follow","Original","Green","Lavender","Rose","Night","Custom"),current.incomingBubblePreset),
             outgoingInk=choice("outgoingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.outgoingInk),
             incomingInk=choice("incomingInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.incomingInk),
             quotedInk=choice("quotedInk",setOf("Theme","Blue","Green","Purple","Rose","Amber"),current.quotedInk),
@@ -108,6 +110,8 @@ internal object MbThemeTransfer {
             homeChatPreviewSize=number("homeChatPreviewSize",current.homeChatPreviewSize,12,18),
             accentColor=choice("accentColor",setOf("Cyan","Blue","Green","Purple","Rose","Amber","Custom"),current.accentColor),
             customAccentHex=normalizedAccentHex(j.optString("customAccentHex",current.customAccentHex)) ?: current.customAccentHex,
+            outgoingBubbleHex=normalizedAccentHex(j.optString("outgoingBubbleHex",current.outgoingBubbleHex)) ?: current.outgoingBubbleHex,
+            incomingBubbleHex=normalizedAccentHex(j.optString("incomingBubbleHex",current.incomingBubbleHex)) ?: current.incomingBubbleHex,
             showProfileAsTitle=bool("showProfileAsTitle",current.showProfileAsTitle),
             hideArchiveAccess=bool("hideArchiveAccess",current.hideArchiveAccess),
             fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset),
