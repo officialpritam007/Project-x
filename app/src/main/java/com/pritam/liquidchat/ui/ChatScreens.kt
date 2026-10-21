@@ -2342,8 +2342,23 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         onClick={model.setDisplay(display.copy(fontPreset=value))},label={Text(value)})
                 }
             }
-            Text("Uses Android's built-in fonts; imports no private font files.",
+            Text("Preset choices use Android's built-in fonts. Imported fonts stay on this device.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Bold title font family",style=MaterialTheme.typography.labelLarge)
+            Row(Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Follow","System","Serif","Mono","Cursive").forEach {value->
+                    FilterChip(selected=display.titleFontPreset==value,
+                        onClick={model.setDisplay(display.copy(titleFontPreset=value))},
+                        label={Text(if(value=="Follow")"Follow app font" else value)})
+                }
+            }
+            Text("Headings and titles can use a separate font without changing message text.",
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            MbFontImportSettings(
+                onChooseBody={model.setDisplay(display.copy(fontPreset="Imported"))},
+                onChooseTitle={model.setDisplay(display.copy(titleFontPreset="Imported"))}
+            )
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Motion & accessibility",style=MaterialTheme.typography.titleMedium)
