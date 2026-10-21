@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.ui.platform.LocalContext
 import com.pritam.liquidchat.data.Images
 import com.pritam.liquidchat.data.StickerFactory
+import com.pritam.liquidchat.data.StickerLibrary
 import com.pritam.liquidchat.data.SavedMedia
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
@@ -579,6 +580,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val image=Images.prepare(context,uri,account,hd=model.display.value.photoQuality=="HD")
         if(model.backend.session.value?.userId==account)prepared=image else image.file.delete()
     }}
+    var stickerLibraryOpen by remember(cid,session?.userId) {mutableStateOf(false)}
+    var savedStickers by remember(cid,session?.userId) {
+        mutableStateOf(StickerLibrary.list(context,session?.userId))
+    }
+    var stickerNotice by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     var preparedSticker by remember(cid,session?.userId) {mutableStateOf<Images.Prepared?>(null)}
     var stickerSourceUri by remember(cid,session?.userId) {mutableStateOf<android.net.Uri?>(null)}
     var removeStickerWhite by remember(cid,session?.userId) {mutableStateOf(false)}
@@ -930,6 +936,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Create sticker",Icons.Outlined.AutoAwesome,
             onClick={attachments=false;stickerPicker.launch("image/*")})
+        GlassActionRow("My stickers",Icons.Outlined.Collections,
+            onClick={
+                attachments=false
+                savedStickers=StickerLibrary.list(context,session?.userId)
+                stickerNotice=null
+                stickerLibraryOpen=true
+            })
         GlassActionRow("Share contact as text",Icons.Outlined.PersonOutline,
             onClick={
                 attachments=false
@@ -1411,6 +1424,54 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(details&&chat!=null) ContactMediaDialog(model,chat,messages) {details=false}
     if(report&&chat!=null)ReportContentDialog(if(reportMessage==null)"Report contact" else "Report message",if(reportMessage==null)"Your explanation will be sent privately for review." else "Your explanation and this message's reference will be sent privately for review.",onSubmit={reason->model.report(chat.peer,reason,reportMessage?.let {listOf(it.id)} ?: emptyList());report=false;reportMessage=null},onDismiss={report=false;reportMessage=null})
     var photoEditBusy by remember(cid,session?.userId) {mutableStateOf(false)}
+    if(stickerLibraryOpen) LiquidAlertDialog(
+        onDismissRequest={stickerLibraryOpen=false},
+        title={Text("My stickers")},
+        text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp)
+            .verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text("Saved stickers are private to this account on this phone. Select Send to share one.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            if(savedStickers.isEmpty())
+                Text("No saved stickers. Choose Create sticker to make one.")
+            savedStickers.forEach {file->
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    coil.compose.AsyncImage(model=file,
+                        contentDescription="Saved sticker",
+                        modifier=Modifier.size(76.dp))
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick={
+                        val owner=session?.userId
+                        if(owner!=null)model.action {
+                            val outgoing=StickerLibrary.prepareForSend(context,owner,file)
+                            try {
+                                model.repository.sendSticker(cid,outgoing)
+                                stickerLibraryOpen=false
+                            } catch(e:Exception) {
+                                outgoing.file.delete()
+                                throw e
+                            }
+                        }
+                    },enabled=!busy) {Text("Send")}
+                    IconButton(onClick={
+                        val owner=session?.userId
+                        if(owner!=null)runCatching {
+                            StickerLibrary.remove(context,owner,file)
+                            savedStickers=StickerLibrary.list(context,owner)
+                        }.onFailure {stickerNotice=it.message ?: "Could not remove sticker."}
+                    },enabled=!busy) {
+                        Icon(Icons.Outlined.DeleteOutline,"Delete saved sticker")
+                    }
+                }
+                HorizontalDivider()
+            }
+            stickerNotice?.let {Text(it,style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)}
+        }},
+        confirmButton={TextButton(onClick={stickerLibraryOpen=false}) {Text("Done")}}
+    )
     preparedSticker?.let {sticker->
         LiquidAlertDialog(
             onDismissRequest={
@@ -1449,6 +1510,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 Text("Background removal affects light pixels throughout the image. Review the preview before sending.",
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick={
+                    val owner=session?.userId
+                    if(owner!=null)model.action {
+                        StickerLibrary.save(context,owner,sticker)
+                        savedStickers=StickerLibrary.list(context,owner)
+                        stickerNotice="Saved to My stickers"
+                    }
+                },enabled=!busy && session?.userId!=null,
+                    modifier=Modifier.fillMaxWidth()) {
+                    Text("Save to My stickers")
+                }
+                if(stickerNotice=="Saved to My stickers")
+                    Text("Saved to My stickers",style=MaterialTheme.typography.bodySmall)
             }},
             confirmButton={TextButton(onClick={
                 model.action {
