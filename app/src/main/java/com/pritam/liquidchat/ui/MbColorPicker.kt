@@ -1,6 +1,11 @@
 package com.pritam.liquidchat.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,6 +13,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -65,8 +72,28 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
     val initial=normalizedAccentHex(initialHex)?:"#2563EB"
     var hsv by remember(initial) {mutableStateOf(MbHsvColor.fromHex(initial)!!)}
     var input by remember(initial) {mutableStateOf(initial)}
+    var photoError by remember(initial) {mutableStateOf<String?>(null)}
+    var photoLoading by remember(initial) {mutableStateOf(false)}
+    val scope=rememberCoroutineScope()
+    val context=LocalContext.current
+    val photoPicker=rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()) {uri->
+        if(uri!=null && !photoLoading) {
+            photoLoading=true
+            scope.launch {
+                try {
+                    val color=PhotoAccentSampler.extract(context,uri)
+                    MbHsvColor.fromHex(color)?.let {hsv=it;input=it.toHex()}
+                    photoError=null
+                } catch(e:kotlinx.coroutines.CancellationException) {throw e}
+                catch(e:Exception) {
+                    photoError=e.message ?: "Could not identify a usable color."
+                } finally {photoLoading=false}
+            }
+        }
+    }
     val valid=normalizedAccentHex(input)
-    fun update(value:MbHsvColor) {hsv=value;input=value.toHex()}
+    fun update(value:MbHsvColor) {hsv=value;input=value.toHex();photoError=null}
     LiquidAlertDialog(
         onDismissRequest=onDismiss,
         title={Text(title)},
@@ -81,6 +108,40 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
                             .semantics {contentDescription="$label color $hex"})
                     }
                 }
+            }
+            Text("Quick palette",style=MaterialTheme.typography.titleSmall)
+            val swatches=listOf(
+                "#0B86AE","#3182CE","#2F5FB4","#6346BF","#A3439A","#CC467B",
+                "#D65353","#D18332","#B4992C","#438E56","#249C8F","#334155",
+                "#E5A9C9","#C5B2EA","#9BC2F5","#9ED8C2","#EDCDA4","#E6E9EF"
+            )
+            swatches.chunked(6).forEach {group->
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement=Arrangement.SpaceEvenly) {
+                    group.forEach {hex->
+                        val color=Color(hex.substring(1).toLong(16) or 0xFF000000L)
+                        Box(Modifier.size(38.dp)
+                            .border(if(input.equals(hex,true))3.dp else 1.dp,
+                                if(input.equals(hex,true))
+                                    MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.outlineVariant,CircleShape)
+                            .padding(3.dp)
+                            .background(color,CircleShape)
+                            .clickable {MbHsvColor.fromHex(hex)?.let(::update)}
+                            .semantics {contentDescription="Choose palette color $hex"})
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
+                verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                Text("Sample from a photo",style=MaterialTheme.typography.bodySmall)
+                TextButton(enabled=!photoLoading,onClick={photoPicker.launch("image/*")}) {
+                    Text(if(photoLoading)"Reading photo…" else "Choose photo")
+                }
+            }
+            photoError?.let {
+                Text(it,color=MaterialTheme.colorScheme.error,
+                    style=MaterialTheme.typography.bodySmall)
             }
             Text("Hue · ${hsv.hue.roundToInt()}°",style=MaterialTheme.typography.labelLarge)
             Slider(hsv.hue,{update(hsv.copy(hue=it))},valueRange=0f..360f,
