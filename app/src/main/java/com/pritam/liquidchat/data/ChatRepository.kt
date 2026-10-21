@@ -563,6 +563,28 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         }
         sync()
     }
+
+    /**
+     * Bulk starring uses the same server-authorized message_action RPC as a
+     * single star, but applies snapshots without restarting the entire
+     * conversation sync after every selected message.
+     */
+    suspend fun starMessages(ids:List<String>,star:Boolean) {
+        val unique=ids.distinct()
+        require(unique.isNotEmpty() && unique.size<=30) {"Select 1–30 messages."}
+        val account=account()
+        syncMutex.withLock {
+            unique.forEach {id->
+                checkAccount(account)
+                val result=JSONObject(backend.rpc("message_action",JSONObject()
+                    .put("p_id",id).put("p_action","star")
+                    .put("p_value",star.toString())))
+                checkAccount(account)
+                db.withTransaction {applySnapshot(result,account)}
+            }
+        }
+        sync()
+    }
     suspend fun chatAction(cid:String,action:String,enabled:Boolean) {
         backend.rpc("chat_action",JSONObject().put("p_conversation",cid).put("p_action",action).put("p_enabled",enabled));sync()
     }
