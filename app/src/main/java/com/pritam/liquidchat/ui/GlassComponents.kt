@@ -181,15 +181,25 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     }
 }
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
-    GlassChromeSurface(Modifier.fillMaxWidth(),Glass.hero) {
-        Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(start=20.dp,end=8.dp),verticalAlignment=Alignment.CenterVertically) {
+    val display=LocalDisplayOptions.current
+    // Reference res/layout-v1/mb_home_toolbar.xml specifies a 47dp home
+    // toolbar, a 17sp title and 28dp action icons. Preserve the explicit
+    // typography adjustment when the owner has customized headerTitleSize.
+    val referenceHeader=brand&&display.navBarStyle=="Reference"
+    val titleSize=if(referenceHeader&&display.headerTitleSize==25)17
+        else display.headerTitleSize
+    GlassChromeSurface(Modifier.fillMaxWidth(),if(referenceHeader)Glass.compact else Glass.hero) {
+        Row(Modifier.fillMaxWidth().heightIn(min=if(referenceHeader)47.dp else 56.dp)
+            .padding(start=if(referenceHeader)16.dp else 20.dp,
+                end=if(referenceHeader)12.dp else 8.dp),
+            verticalAlignment=Alignment.CenterVertically) {
             if(brand) {
                 Icon(painter=androidx.compose.ui.res.painterResource(com.pritam.liquidchat.R.drawable.ic_liquid),
-                    contentDescription="Liquid Chat",modifier=Modifier.size(22.dp),tint=Color.Unspecified)
-                Spacer(Modifier.width(10.dp))
+                    contentDescription="Liquid Chat",modifier=Modifier.size(if(referenceHeader)28.dp else 22.dp),tint=Color.Unspecified)
+                Spacer(Modifier.width(if(referenceHeader)8.dp else 10.dp))
             }
             Text(title,Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis,
-                fontSize=LocalDisplayOptions.current.headerTitleSize.sp,fontWeight=FontWeight.SemiBold,
+                fontSize=titleSize.sp,fontWeight=FontWeight.SemiBold,
                 color=if(brand)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
             trailing()
         }
