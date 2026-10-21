@@ -448,7 +448,7 @@ internal fun messageActionCategories(message:Message):List<String> {
 }
 
 internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
-    if(id in ids) ids-id else ids+id
+    if(id in ids) ids-id else if(ids.size<30) ids+id else ids
 
 @Composable fun ConversationScreen(model:AppViewModel,cid:String,chats:List<Chat>,busy:Boolean) {
     val chat=chats.firstOrNull {it.id==cid}
@@ -833,11 +833,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 TextButton(onClick={
                     val toChange=starCandidates.filter {it.starred==!shouldStar}
                     selectedIds=emptySet()
-                    model.action {
-                        toChange.forEach {message->
-                            model.repository.messageAction(message.id,"star",shouldStar.toString())
-                        }
-                    }
+                    model.action {model.repository.starMessages(toChange.map {it.id},shouldStar)}
                 },enabled=starCandidates.isNotEmpty()) {
                     Text(if(shouldStar)"Star" else "Unstar")
                 }
