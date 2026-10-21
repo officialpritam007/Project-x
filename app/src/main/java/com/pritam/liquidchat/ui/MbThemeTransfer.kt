@@ -64,6 +64,7 @@ internal object MbThemeTransfer {
         put("hideStoriesCarousel",options.hideStoriesCarousel)
         put("randomAccentOnLaunch",options.randomAccentOnLaunch)
         put("notificationIconStyle",options.notificationIconStyle)
+        put("bubbleOpacity",options.bubbleOpacity)
         put("showHomeDividers",options.showHomeDividers)
         put("navBarStyle",options.navBarStyle)
         put("hidePhotoShortcut",options.hidePhotoShortcut)
@@ -132,6 +133,7 @@ internal object MbThemeTransfer {
             hideStoriesCarousel=bool("hideStoriesCarousel",current.hideStoriesCarousel),
             randomAccentOnLaunch=bool("randomAccentOnLaunch",current.randomAccentOnLaunch),
             notificationIconStyle=choice("notificationIconStyle",setOf("Classic","Outline"),current.notificationIconStyle),
+            bubbleOpacity=number("bubbleOpacity",current.bubbleOpacity,45,100),
             showHomeDividers=bool("showHomeDividers",current.showHomeDividers),
             navBarStyle=choice("navBarStyle",setOf("Reference","Liquid"),current.navBarStyle),
             hidePhotoShortcut=bool("hidePhotoShortcut",current.hidePhotoShortcut),
