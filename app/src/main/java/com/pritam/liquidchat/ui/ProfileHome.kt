@@ -136,14 +136,19 @@ import com.pritam.liquidchat.data.Images
     icon:androidx.compose.ui.graphics.vector.ImageVector,
     onClick:()->Unit
 ) {
+    val reference=LocalDisplayOptions.current.navBarStyle=="Reference"
     Row(
-        Modifier.fillMaxWidth().heightIn(min=61.dp)
+        Modifier.fillMaxWidth().heightIn(min=if(reference)48.dp else 61.dp)
             .clip(Glass.compact).clickable(onClick=onClick)
-            .padding(horizontal=8.dp,vertical=7.dp),
+            .padding(horizontal=if(reference)12.dp else 8.dp,
+                vertical=if(reference)8.dp else 7.dp),
         verticalAlignment=Alignment.CenterVertically,
-        horizontalArrangement=Arrangement.spacedBy(12.dp)
+        horizontalArrangement=Arrangement.spacedBy(if(reference)16.dp else 12.dp)
     ) {
-        Box(
+        if(reference) {
+            Icon(icon,null,Modifier.size(24.dp),
+                tint=MaterialTheme.colorScheme.primary)
+        } else Box(
             Modifier.size(38.dp).background(
                 MaterialTheme.colorScheme.primary.copy(alpha=.11f),Glass.compact
             ),contentAlignment=Alignment.Center
@@ -152,10 +157,10 @@ import com.pritam.liquidchat.data.Images
         }
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)) {
             Text(title,style=MaterialTheme.typography.titleSmall,maxLines=1)
-            Text(subtitle,style=MaterialTheme.typography.bodySmall,
+            if(!reference)Text(subtitle,style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2)
         }
-        Icon(Icons.Outlined.ChevronRight,null,Modifier.size(19.dp),
+        Icon(Icons.Outlined.ChevronRight,null,Modifier.size(if(reference)24.dp else 19.dp),
             tint=MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=.7f))
     }
 }
@@ -164,9 +169,10 @@ import com.pritam.liquidchat.data.Images
     val profile by model.profile.collectAsStateWithLifecycle()
     val name=profile?.optString("display_name").orEmpty().ifBlank {"My account"}
     val avatar=profile?.optString("avatar_id").orEmpty().takeIf {it!="null"}.orEmpty()
+    val reference=LocalDisplayOptions.current.navBarStyle=="Reference"
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal=16.dp)
+            .padding(horizontal=if(reference)20.dp else 16.dp)
             .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         verticalArrangement=Arrangement.spacedBy(14.dp)
     ) {
@@ -175,7 +181,26 @@ import com.pritam.liquidchat.data.Images
             color=MaterialTheme.colorScheme.onSurfaceVariant,
             modifier=Modifier.padding(start=10.dp,top=3.dp))
         GlassSurface(Modifier.fillMaxWidth().clickable {onSection("Account")},Glass.hero) {
-            Row(
+            if(reference) {
+                Column(Modifier.fillMaxWidth().padding(bottom=15.dp),
+                    horizontalAlignment=Alignment.CenterHorizontally,
+                    verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                    // Reference mb_settings.xml: a 150dp visual hero with a
+                    // centered 120dp avatar, followed by account text rows.
+                    Box(Modifier.fillMaxWidth().height(150.dp),
+                        contentAlignment=Alignment.Center) {
+                        Avatar(name,avatar,model.backend,self=true,size=120.dp)
+                    }
+                    Text(name,style=MaterialTheme.typography.titleLarge,maxLines=2)
+                    Text("@"+profile?.optString("username").orEmpty(),
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines=1)
+                    Text("Tap to edit Liquid Chat profile",
+                        style=MaterialTheme.typography.labelSmall,
+                        color=MaterialTheme.colorScheme.primary)
+                }
+            } else Row(
                 Modifier.fillMaxWidth().heightIn(min=95.dp).padding(16.dp),
                 verticalAlignment=Alignment.CenterVertically,
                 horizontalArrangement=Arrangement.spacedBy(14.dp)
