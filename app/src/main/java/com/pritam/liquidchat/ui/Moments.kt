@@ -3,6 +3,9 @@ package com.pritam.liquidchat.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
@@ -541,7 +544,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
         onDismissRequest={if(!busy)onDismiss()},
         title={Text(if(kind=="story")"New story" else "New post")},
         text={
-            Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth().heightIn(max=530.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Text("Visible only to your saved contacts. Blocked contacts cannot view it.",
                     style=MaterialTheme.typography.bodySmall)
                 if(kind=="story")Text("Stories disappear after 24 hours.",
@@ -681,7 +684,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                             .put("p_id",publishId).put("p_media",media)
                             .put("p_kind",kind).put("p_caption",
                                 if(selectedText.isNotEmpty())(selectedText+
-                                    if(caption.isBlank())"" else "\\n"+caption.trim()).take(1000)
+                                    if(caption.isBlank())"" else "\n"+caption.trim()).take(1000)
                                 else caption.trim()))
                         onPublished()
                     } catch(e:CancellationException) {throw e}
