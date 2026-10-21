@@ -18,10 +18,16 @@ internal object MbThemeTransfer {
             reducedMotion=current.reducedMotion,
             reducedTransparency=current.reducedTransparency,
             hideOutgoingTyping=current.hideOutgoingTyping,
+            incognitoKeyboard=current.incognitoKeyboard,
             hideHomePreviews=current.hideHomePreviews,
+            showLongPressPreview=current.showLongPressPreview,
             preventScreenshots=current.preventScreenshots,
             copySenderAndTime=current.copySenderAndTime,
-            photoQuality=current.photoQuality
+            photoQuality=current.photoQuality,
+            doubleTapReactionEnabled=current.doubleTapReactionEnabled,
+            doubleTapReactionEmoji=current.doubleTapReactionEmoji,
+            hideQuickReplySuggestions=current.hideQuickReplySuggestions,
+            confirmSavedStickerSend=current.confirmSavedStickerSend
         )
 
     fun export(options:DisplayOptions):String = JSONObject().apply {
@@ -55,6 +61,12 @@ internal object MbThemeTransfer {
         put("showProfileAsTitle",options.showProfileAsTitle)
         put("hideArchiveAccess",options.hideArchiveAccess)
         put("fontPreset",options.fontPreset)
+        put("titleFontPreset",normalizedTitleFontPreset(options.titleFontPreset))
+        put("appTextHex",normalizedAppColor(options.appTextHex))
+        put("appBackgroundHex",normalizedAppColor(options.appBackgroundHex))
+        put("appChromeHex",normalizedAppColor(options.appChromeHex))
+        put("appUiScale",options.appUiScale.coerceIn(85,120))
+        put("appTextScale",options.appTextScale.coerceIn(90,130))
         put("navigationOrder",MbNavigationOrder.normalize(options.navigationOrder))
         put("quickReactions",MbQuickReactions.normalize(options.quickReactions))
         put("homeWallpaperDim",options.homeWallpaperDim)
@@ -74,11 +86,16 @@ internal object MbThemeTransfer {
         put("showHomeDividers",options.showHomeDividers)
         put("navBarStyle",options.navBarStyle)
         put("hidePhotoShortcut",options.hidePhotoShortcut)
+        put("hideHomeFloatingButtons",options.hideHomeFloatingButtons)
         put("showPinBadges",options.showPinBadges)
         put("emojiPickerSize",options.emojiPickerSize)
+        put("customStickerSize",options.customStickerSize)
+        put("stickerSize",options.stickerSize.coerceIn(96,256))
         put("linkColor",options.linkColor)
         put("chatHeaderIconColor",options.chatHeaderIconColor)
         put("chatHeaderNameSize",options.chatHeaderNameSize)
+        put("showEditedLabel",options.showEditedLabel)
+        put("showEditedTime",options.showEditedTime)
     }.toString(2)
 
     /**
@@ -99,6 +116,10 @@ internal object MbThemeTransfer {
             else currentValue
         fun bool(key:String,previous:Boolean):Boolean =
             if(j.opt(key) is Boolean)j.getBoolean(key) else previous
+        fun optionalColor(key:String,previous:String):String {
+            val raw=j.opt(key) as? String ?: return previous
+            return if(raw.isEmpty())"" else normalizedAccentHex(raw) ?: previous
+        }
         return current.copy(
             appearance=choice("appearance",setOf("System","Light","Dark"),current.appearance),
             animation=choice("animation",setOf("Normal","Balanced","Extra"),current.animation),
@@ -127,7 +148,13 @@ internal object MbThemeTransfer {
             incomingBubbleHex=normalizedAccentHex(j.optString("incomingBubbleHex",current.incomingBubbleHex)) ?: current.incomingBubbleHex,
             showProfileAsTitle=bool("showProfileAsTitle",current.showProfileAsTitle),
             hideArchiveAccess=bool("hideArchiveAccess",current.hideArchiveAccess),
-            fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive"),current.fontPreset),
+            fontPreset=choice("fontPreset",setOf("System","Serif","Mono","Cursive","Imported"),current.fontPreset),
+            titleFontPreset=choice("titleFontPreset",setOf("Follow","System","Serif","Mono","Cursive","Imported"),current.titleFontPreset),
+            appTextHex=optionalColor("appTextHex",current.appTextHex),
+            appBackgroundHex=optionalColor("appBackgroundHex",current.appBackgroundHex),
+            appChromeHex=optionalColor("appChromeHex",current.appChromeHex),
+            appUiScale=number("appUiScale",current.appUiScale,85,120),
+            appTextScale=number("appTextScale",current.appTextScale,90,130),
             navigationOrder=if(j.has("navigationOrder") && j.opt("navigationOrder") is String)
                 MbNavigationOrder.normalize(j.optString("navigationOrder")) else current.navigationOrder,
             quickReactions=if(j.has("quickReactions") && j.opt("quickReactions") is String)
@@ -149,11 +176,16 @@ internal object MbThemeTransfer {
             showHomeDividers=bool("showHomeDividers",current.showHomeDividers),
             navBarStyle=choice("navBarStyle",setOf("Reference","Liquid"),current.navBarStyle),
             hidePhotoShortcut=bool("hidePhotoShortcut",current.hidePhotoShortcut),
+            hideHomeFloatingButtons=bool("hideHomeFloatingButtons",current.hideHomeFloatingButtons),
             showPinBadges=bool("showPinBadges",current.showPinBadges),
             emojiPickerSize=number("emojiPickerSize",current.emojiPickerSize,18,32),
+            customStickerSize=bool("customStickerSize",current.customStickerSize),
+            stickerSize=number("stickerSize",current.stickerSize,96,256),
             linkColor=choice("linkColor",setOf("Theme","Blue","Green","Purple","Rose","Amber","Custom"),current.linkColor),
             chatHeaderIconColor=choice("chatHeaderIconColor",setOf("Theme","Accent","Text"),current.chatHeaderIconColor),
-            chatHeaderNameSize=number("chatHeaderNameSize",current.chatHeaderNameSize,12,24)
+            chatHeaderNameSize=number("chatHeaderNameSize",current.chatHeaderNameSize,12,24),
+            showEditedLabel=bool("showEditedLabel",current.showEditedLabel),
+            showEditedTime=bool("showEditedTime",current.showEditedTime)
         )
     }
 }
