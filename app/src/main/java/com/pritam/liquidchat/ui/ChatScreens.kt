@@ -1464,6 +1464,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.primary
             )
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Random accent on next launch")
+                    Text("Choose a different Liquid Chat color on each new app session.",
+                        style=MaterialTheme.typography.bodySmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked=display.randomAccentOnLaunch,
+                    onCheckedChange={model.setDisplay(display.copy(randomAccentOnLaunch=it))})
+            }
             Text("App font family",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 listOf("System","Serif","Mono","Cursive").forEach {value ->
