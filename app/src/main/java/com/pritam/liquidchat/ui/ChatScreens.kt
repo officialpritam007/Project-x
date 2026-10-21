@@ -652,16 +652,22 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }
     }
     Column(Modifier.fillMaxSize().imePadding()) {
+        // Visual-only presentation choice; keep the existing actions and call state intact.
+        val headerIconTint=when(display.chatHeaderIconColor) {
+            "Accent"->MaterialTheme.colorScheme.primary
+            "Text"->MaterialTheme.colorScheme.onSurface
+            else->LocalContentColor.current
+        }
         GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
         Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
-            IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats")}
+            IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats",tint=headerIconTint)}
             if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
-            Column(Modifier.weight(1f).padding(horizontal=8.dp).clickable {details=true}) {Text(chat?.name ?: "Conversation",maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleMedium);Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis)}
+            Column(Modifier.weight(1f).padding(horizontal=8.dp).clickable {details=true}) {Text(chat?.name ?: "Conversation",maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleMedium.copy(fontSize=display.chatHeaderNameSize.sp));Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis)}
             if(chat!=null && com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) {
-                IconButton(onClick={requestCall("audio")}) {Icon(Icons.Outlined.Call,"Start voice call")}
-                IconButton(onClick={requestCall("video")}) {Icon(Icons.Outlined.Videocam,"Start video call")}
+                IconButton(onClick={requestCall("audio")}) {Icon(Icons.Outlined.Call,"Start voice call",tint=headerIconTint)}
+                IconButton(onClick={requestCall("video")}) {Icon(Icons.Outlined.Videocam,"Start video call",tint=headerIconTint)}
             }
-            Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options")}
+            Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options",tint=headerIconTint)}
                 if(menu)LiquidActionSheet(title=chat?.name ?: "Conversation",onDismiss={menu=false}) {
                     chat?.let { c->
                         GlassActionRow("Contact details & shared media",Icons.Outlined.Person,
@@ -1738,6 +1744,24 @@ if(section=="Liquid Chat Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Conversation Screen",style=MaterialTheme.typography.titleLarge)
                 Text("Customize private chats without changing messages, delivery or call behavior.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Conversation header",style=MaterialTheme.typography.titleMedium)
+                Text("Contact name size · ${display.chatHeaderNameSize} sp",style=MaterialTheme.typography.titleSmall)
+                Slider(value=display.chatHeaderNameSize.toFloat(),
+                    onValueChange={model.setDisplay(display.copy(chatHeaderNameSize=it.toInt()))},
+                    valueRange=12f..24f,steps=11,modifier=Modifier.fillMaxWidth())
+                Text("Call, video and menu icon colors",style=MaterialTheme.typography.titleSmall)
+                Row(Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    listOf("Theme","Accent","Text").forEach {mode->
+                        FilterChip(selected=display.chatHeaderIconColor==mode,
+                            onClick={model.setDisplay(display.copy(chatHeaderIconColor=mode))},
+                            label={Text(mode)})
+                    }
+                }
+                Text("Changing icon colors never changes contact actions or calling availability.",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
