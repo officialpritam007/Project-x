@@ -52,6 +52,7 @@ internal fun sharedMediaRefreshKeys(messages:List<Message>,kind:String):List<Str
             "voice"->message.mediaKind=="voice" && message.mediaId.isNotEmpty()
             "sticker"->message.mediaKind=="sticker" && message.mediaId.isNotEmpty()
             "document"->message.mediaKind=="document" && message.mediaId.isNotEmpty()
+            "chat_video"->message.mediaKind=="chat_video" && message.mediaId.isNotEmpty()
             else->message.mediaKind=="image" && message.mediaId.isNotEmpty()
         }
     }.map {message->
@@ -68,6 +69,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
     message.mediaKind=="image" && message.mediaId.isNotEmpty() -> "image"
     message.mediaKind=="sticker" && message.mediaId.isNotEmpty() -> "sticker"
     message.mediaKind=="document" && message.mediaId.isNotEmpty() -> "document"
+    message.mediaKind=="chat_video" && message.mediaId.isNotEmpty() -> "chat_video"
     else -> "text"
 }
 
@@ -139,6 +141,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
             media={m->
                 if(kind=="image" || kind=="sticker")SharedImagePreview(model,m,thumbnail=true)
                 else if(kind=="document")PdfMessageAttachment(model,m)
+                else if(kind=="chat_video")ChatVideoAttachment(model,m)
                 else GlassCard(Modifier.fillMaxWidth()) {
                     if(kind=="voice")VoicePlayer(model,m)
                     else {
@@ -147,6 +150,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
                             "image"->SharedImagePreview(model,m)
                             "sticker"->SharedImagePreview(model,m)
                             "document"->PdfMessageAttachment(model,m)
+                            "chat_video"->ChatVideoAttachment(model,m)
                             "text"->Text(m.body,maxLines=6,overflow=TextOverflow.Ellipsis)
                         }
                         TextButton(onClick={model.open(chat.id,m.id);onDismiss()}) {Text("Go to message")}
@@ -193,7 +197,8 @@ internal fun starredMediaPresentation(message:Message):String = when {
                     FlowRow(Modifier.fillMaxWidth(),
                         horizontalArrangement=Arrangement.spacedBy(8.dp),
                         verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                        listOf("image" to "Media","sticker" to "Stickers","voice" to "Voice",
+                        listOf("image" to "Photos","chat_video" to "Videos",
+                            "sticker" to "Stickers","voice" to "Voice",
                             "document" to "Documents","star" to "Starred").forEach {(value,label)->
                             FilterChip(selected=kind==value,onClick={onKind(value)},
                                 label={Text(label)},shape=Glass.capsule)
@@ -207,11 +212,11 @@ internal fun starredMediaPresentation(message:Message):String = when {
                 items(rows,key={it.id},span={GridItemSpan(if(kind in listOf("image","sticker"))1 else maxLineSpan)}) {media(it)}
                 if(rows.isEmpty()&&!loading&&!failed) item(key="empty",span={GridItemSpan(maxLineSpan)}) {
                     GlassCard(Modifier.fillMaxWidth()) {
-                        Icon(when(kind){"voice"->Icons.Outlined.MicNone;"sticker"->Icons.Outlined.AutoAwesome;"document"->Icons.Outlined.Description;"star"->Icons.Outlined.StarOutline;else->Icons.Outlined.PhotoLibrary},
+                        Icon(when(kind){"voice"->Icons.Outlined.MicNone;"sticker"->Icons.Outlined.AutoAwesome;"document"->Icons.Outlined.Description;"chat_video"->Icons.Outlined.Videocam;"star"->Icons.Outlined.StarOutline;else->Icons.Outlined.PhotoLibrary},
                             null,Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
-                        Text("No shared ${when(kind){"voice"->"voice messages";"sticker"->"stickers";"document"->"documents";"star"->"starred messages";else->"photos"}} yet",
+                        Text("No shared ${when(kind){"voice"->"voice messages";"sticker"->"stickers";"document"->"documents";"chat_video"->"videos";"star"->"starred messages";else->"photos"}} yet",
                             style=MaterialTheme.typography.titleMedium)
-                        Text(when(kind){"star"->"Star a message to find it here.";"voice"->"Voice messages you exchange appear here.";"sticker"->"Stickers you exchange appear here.";"document"->"PDF files you exchange appear here.";else->"Photos you exchange appear here."},
+                        Text(when(kind){"star"->"Star a message to find it here.";"voice"->"Voice messages you exchange appear here.";"sticker"->"Stickers you exchange appear here.";"document"->"PDF files you exchange appear here.";"chat_video"->"Private videos you exchange appear here.";else->"Photos you exchange appear here."},
                             style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
