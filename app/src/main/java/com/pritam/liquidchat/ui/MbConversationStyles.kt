@@ -41,3 +41,19 @@ internal fun conversationBubbleColor(palette:String,mine:Boolean,dark:Boolean):C
     }
     else -> null
 }
+
+/** Reference conversation XML exposes separate left/right bubble palettes. */
+internal fun resolvedBubblePalette(options:DisplayOptions,mine:Boolean):String {
+    val local=if(mine)options.outgoingBubblePreset else options.incomingBubblePreset
+    return if(local=="Follow")options.bubbleColor else local
+}
+
+/** Color overrides never alter serialized messages or their decrypted/plain text. */
+internal fun conversationInkColor(preset:String,dark:Boolean,default:Color):Color=when(preset) {
+    "Blue" -> if(dark)Color(0xFFB9DBFF) else Color(0xFF1456A0)
+    "Green" -> if(dark)Color(0xFFB4F1CB) else Color(0xFF176044)
+    "Purple" -> if(dark)Color(0xFFE0C7FF) else Color(0xFF6C3E9F)
+    "Rose" -> if(dark)Color(0xFFFFCBDE) else Color(0xFF9C2D62)
+    "Amber" -> if(dark)Color(0xFFFFE0A0) else Color(0xFF86500F)
+    else -> default
+}
