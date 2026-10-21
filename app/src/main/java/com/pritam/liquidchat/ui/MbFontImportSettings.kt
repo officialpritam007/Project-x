@@ -11,7 +11,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
-@Composable internal fun MbFontImportSettings(onChooseBody:()->Unit,onChooseTitle:()->Unit) {
+@Composable internal fun MbFontImportSettings(onChooseBody:()->Unit,onChooseTitle:()->Unit,
+    onRemoveBody:()->Unit,onRemoveTitle:()->Unit) {
     val context=LocalContext.current
     val scope=rememberCoroutineScope()
     var selected by remember {mutableStateOf(MbFontSlot.BODY)}
@@ -19,6 +20,8 @@ import kotlinx.coroutines.launch
     var notice by remember {mutableStateOf<String?>(null)}
     val bodyCallback by rememberUpdatedState(onChooseBody)
     val titleCallback by rememberUpdatedState(onChooseTitle)
+    val bodyRemoval by rememberUpdatedState(onRemoveBody)
+    val titleRemoval by rememberUpdatedState(onRemoveTitle)
     val families=rememberImportedFonts()
     val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {uri->
         if(uri!=null && !busy) {
@@ -45,6 +48,16 @@ import kotlinx.coroutines.launch
             enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Import title font")}
         if(families.body!=null)TextButton(onClick=bodyCallback,enabled=!busy) {Text("Use imported app font")}
         if(families.title!=null)TextButton(onClick=titleCallback,enabled=!busy) {Text("Use imported title font")}
+        if(families.body!=null)OutlinedButton(onClick={
+            runCatching {MbImportedFonts.remove(context,MbFontSlot.BODY);bodyRemoval()}
+                .onSuccess {notice="Imported app font deleted from this device."}
+                .onFailure {notice="Could not delete the imported app font."}
+        },enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Remove imported app font")}
+        if(families.title!=null)OutlinedButton(onClick={
+            runCatching {MbImportedFonts.remove(context,MbFontSlot.TITLE);titleRemoval()}
+                .onSuccess {notice="Imported title font deleted from this device."}
+                .onFailure {notice="Could not delete the imported title font."}
+        },enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Remove imported title font")}
         Text("Choose System or Follow to return to built-in fonts. If an imported font is unavailable, Liquid Chat uses its original typography.",
             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
