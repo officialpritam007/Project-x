@@ -270,8 +270,12 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         persist(j); store.write("pkce",null); _recovery.value=pending.getString("purpose")=="recovery"
     } }
     suspend fun updatePassword(password: String) { request("/auth/v1/user","PUT",JSONObject().put("password",password)); _recovery.value=false }
-    suspend fun uploadImage(file:java.io.File,cid:String?,voice:Boolean=false,sticker:Boolean=false,document:Boolean=false,onProgress:(Int)->Unit={}):JSONObject = withContext(Dispatchers.IO) {
-        require(listOf(voice,sticker,document).count {it}<=1) {"Use one media kind per upload."}
+    suspend fun uploadImage(file:java.io.File,cid:String?,voice:Boolean=false,sticker:Boolean=false,document:Boolean=false,chatVideo:Boolean=false,onProgress:(Int)->Unit={}):JSONObject = withContext(Dispatchers.IO) {
+        require(listOf(voice,sticker,document,chatVideo).count {it}<=1) {"Use one media kind per upload."}
+        if(chatVideo)require(cid!=null && file.isFile && file.extension.lowercase()=="mp4"
+            && file.length() in 100..8_388_608L) {
+            "Chat video must be an MP4 no larger than 8 MB."
+        }
         if(document)require(cid!=null && file.isFile && file.length() in 100..8388608) {
             "Document must be a PDF under 8 MB."
         }
@@ -281,12 +285,13 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         val original=snapshot()
         val current=validSession(original)
         val form=okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
-            .addFormDataPart("file",if(voice)"voice.m4a" else if(sticker)"sticker.png" else if(document)"document.pdf" else "photo.jpg",
+            .addFormDataPart("file",if(voice)"voice.m4a" else if(sticker)"sticker.png" else if(document)"document.pdf" else if(chatVideo)"chat-video.mp4" else "photo.jpg",
                 UploadProgressBody(file.asRequestBody(
-                    (if(voice)"audio/mp4" else if(sticker)"image/png" else if(document)"application/pdf" else "image/jpeg").toMediaType()),onProgress))
+                    (if(voice)"audio/mp4" else if(sticker)"image/png" else if(document)"application/pdf" else if(chatVideo)"video/mp4" else "image/jpeg").toMediaType()),onProgress))
         if(voice)form.addFormDataPart("kind","voice")
         if(sticker)form.addFormDataPart("kind","sticker")
         if(document)form.addFormDataPart("kind","document")
+        if(chatVideo)form.addFormDataPart("kind","chat_video")
         if(cid!=null)form.addFormDataPart("conversation_id",cid)
         val req=Request.Builder().url(URL+"/functions/v1/media").header("apikey",PUBLIC_KEY).header("Authorization","Bearer ${current.access}").post(form.build()).build()
         http.newCall(req).execute().use {res->
