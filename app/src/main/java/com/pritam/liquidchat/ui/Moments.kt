@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Images
+import com.pritam.liquidchat.data.SavedMedia
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -368,6 +369,10 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     var currentId by remember(initialId) {mutableStateOf(initialId)}
     val index=stories.indexOfFirst {it.id==currentId}.coerceAtLeast(0)
     val current=stories[index]
+    val context=LocalContext.current
+    val saveScope=rememberCoroutineScope()
+    var savingStory by remember(current.id) {mutableStateOf(false)}
+    var saveStatus by remember(current.id) {mutableStateOf<String?>(null)}
     var paused by remember(current.id) {mutableStateOf(false)}
     var muted by remember {mutableStateOf(true)}
     var progress by remember(current.id) {mutableFloatStateOf(0f)}
@@ -375,7 +380,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     var replay by remember(current.id) {mutableIntStateOf(0)}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
-    val effectivePause=paused||!foreground||currentCall!=null
+    val effectivePause=paused||savingStory||!foreground||currentCall!=null
     // Photos advance after five seconds; MP4 progress is driven by the actual player.
     LaunchedEffect(current.id,effectivePause,imageReady,stories.size,current.mediaKind) {
         if(current.mediaKind!="story_video") {
@@ -446,8 +451,33 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                                     if(muted)"Unmute story" else "Mute story",tint=Color.White)
                             }
                         }
+                        if(current.mediaKind=="image") {
+                            IconButton(onClick={
+                                if(!savingStory) {
+                                    savingStory=true
+                                    saveStatus=null
+                                    val story=current
+                                    saveScope.launch {
+                                        try {
+                                            SavedMedia.saveStoryPhoto(context,model.backend,
+                                                story.id,story.media,story.expires)
+                                            saveStatus="Saved to Pictures/Liquid Chat"
+                                        } catch(e:CancellationException) {throw e}
+                                          catch(e:Exception) {
+                                            saveStatus=e.message ?: "Could not save story."
+                                        } finally {savingStory=false}
+                                    }
+                                }
+                            },enabled=!savingStory) {
+                                Icon(Icons.Outlined.Download,"Save photo story",tint=Color.White)
+                            }
+                        }
                         IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close story",tint=Color.White)}
                     }
+                }
+                saveStatus?.let {status->
+                    Text(status,Modifier.align(Alignment.Center).padding(16.dp),
+                        color=Color.White,style=MaterialTheme.typography.bodyMedium)
                 }
                 if(current.caption.isNotBlank())
                     Text(current.caption,Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
