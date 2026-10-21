@@ -88,11 +88,19 @@ import androidx.compose.ui.platform.LocalContext
 @Composable fun GlassNavigation(tab:Int,onTab:(Int)->Unit) {
     val display=LocalDisplayOptions.current
     val titles=MbNavigationOrder.titles
+    // The reference mb_bottom_iosv2.xml uses five equal icon-and-label slots.
+    // Preserve the original Liquid capsule as a selectable alternative.
+    val referenceBar=display.navBarStyle=="Reference"
     // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
-    GlassSurface(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=9.dp).navigationBarsPadding(),Glass.capsule) {
-        Row(Modifier.padding(6.dp).selectableGroup()) {
+    GlassSurface(
+        Modifier.fillMaxWidth()
+            .padding(horizontal=if(referenceBar)8.dp else 22.dp,vertical=if(referenceBar)4.dp else 9.dp)
+            .navigationBarsPadding(),
+        if(referenceBar)Glass.card else Glass.capsule
+    ) {
+        Row(Modifier.padding(if(referenceBar)4.dp else 6.dp).selectableGroup()) {
             MbNavigationOrder.parse(display.navigationOrder).forEach {i->
                 val title=titles[i]
                 val selected=tab==i
@@ -103,8 +111,8 @@ import androidx.compose.ui.platform.LocalContext
                     label="navigation selection"
                 )
                 Box(
-                    Modifier.weight(1f).heightIn(min=54.dp)
-                        .clip(Glass.capsule)
+                    Modifier.weight(1f).heightIn(min=if(referenceBar)60.dp else 54.dp)
+                        .clip(if(referenceBar)Glass.compact else Glass.capsule)
                         .background(selection)
                         .clickable(role=Role.Tab) {onTab(i)}
                         .semantics {this.selected=selected;contentDescription=title},
