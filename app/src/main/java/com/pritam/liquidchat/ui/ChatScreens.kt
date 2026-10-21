@@ -2055,6 +2055,34 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={section=if(section in listOf("Liquid Chat General Settings","Liquid Chat Conversation Screen","Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy","Liquid Chat Notifications","Liquid Chat Help","Liquid Chat Updates"))"Liquid Chat Preferences" else null}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("Liquid Chat "),style=MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Liquid Chat Updates") MbAppUpdates()
+        if(section=="Liquid Chat Conversation Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+            Text("Keyboard privacy and stickers",style=MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Incognito keyboard")
+                    Text("Ask your keyboard not to learn the text you type in chats. Android keyboards may ignore this request.",
+                        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked=display.incognitoKeyboard,
+                    onCheckedChange={model.setDisplay(display.copy(incognitoKeyboard=it))})
+            }
+            HorizontalDivider()
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Custom sticker display size")
+                    Text("Resize stickers in this app only; the original file and recipient experience are unchanged.",
+                        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked=display.customStickerSize,
+                    onCheckedChange={model.setDisplay(display.copy(customStickerSize=it))})
+            }
+            if(display.customStickerSize) {
+                Text("Sticker size: ${display.stickerSize} dp",style=MaterialTheme.typography.labelLarge)
+                Slider(value=display.stickerSize.toFloat(),
+                    onValueChange={model.setDisplay(display.copy(stickerSize=it.toInt().coerceIn(96,256)))},
+                    valueRange=96f..256f)
+            }
+        }
         if(section=="Liquid Chat General Settings" || section=="Appearance") LauncherIconSettings()
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Chat Folders") MbChatFoldersSettings(model)
@@ -2801,7 +2829,7 @@ if(section=="Liquid Chat Home Screen") {
 
 @Composable internal fun SharedImagePreview(model:AppViewModel,message:Message,thumbnail:Boolean=false) {
     var open by remember(message.id) {mutableStateOf(false)}
-    ProtectedImage(model.backend,message.mediaId,message.localImage,if(message.mediaKind=="sticker")"Shared sticker" else "Shared photo",(if(message.mediaKind=="sticker")Modifier.width(192.dp) else Modifier.fillMaxWidth()).aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
+    ProtectedImage(model.backend,message.mediaId,message.localImage,if(message.mediaKind=="sticker")"Shared sticker" else "Shared photo",(if(message.mediaKind=="sticker")Modifier.width(conversationStickerSize(LocalDisplayOptions.current).dp) else Modifier.fillMaxWidth()).aspectRatio(if(thumbnail)1f else (if(message.imageHeight>0&&message.imageWidth>0)message.imageWidth.toFloat()/message.imageHeight else 1f).coerceIn(.5f,2f)).clip(Glass.compact).clickable {open=true},scale=if(thumbnail)androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit)
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
