@@ -576,6 +576,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         } else {file.delete();cameraPath=""}
     }
     val display=LocalDisplayOptions.current
+    var chatAccent by remember(cid,session?.userId) {
+        mutableStateOf(session?.userId?.let {MbConversationAccent.read(context,it,cid)} ?: "Follow")
+    }
+    val chatAccentColor=conversationInkColor(chatAccent,LocalGlassDark.current,
+        MaterialTheme.colorScheme.primary)
     val sendScale by androidx.compose.animation.core.animateFloatAsState(if(body.isNotBlank())1.04f else 1f,animationSpec=if(display.reducedMotion)androidx.compose.animation.core.tween(0) else androidx.compose.animation.core.spring(stiffness=when(display.animation){"Normal"->400f;"Extra"->250f;else->650f}),label="Send readiness")
     var menu by remember {mutableStateOf(false)}
     var ownedBlock by remember(cid,session?.userId) {mutableStateOf<Boolean?>(null)}
@@ -653,7 +658,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     }
     Column(Modifier.fillMaxSize().imePadding()) {
         // Visual-only presentation choice; keep the existing actions and call state intact.
-        val headerIconTint=when(display.chatHeaderIconColor) {
+        val headerIconTint=if(chatAccent!="Follow")chatAccentColor else when(display.chatHeaderIconColor) {
             "Accent"->MaterialTheme.colorScheme.primary
             "Text"->MaterialTheme.colorScheme.onSurface
             else->LocalContentColor.current
@@ -789,7 +794,13 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         // Preserve any new draft typed while the previous message was being queued.
                         if(draftVersion==submittedVersion&&input.text==submittedBody&&replyTo==submittedReply){input=TextFieldValue("");replyTo=""}
                     }.invokeOnCompletion {queueing=false}
-                }},enabled=body.isNotBlank()&&!queueing&&draftReady,modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {Icon(Icons.AutoMirrored.Outlined.Send,"Send message")}
+                }},enabled=body.isNotBlank()&&!queueing&&draftReady,
+                    colors=IconButtonDefaults.filledIconButtonColors(containerColor=chatAccentColor),
+                    modifier=Modifier.size(48.dp).graphicsLayer {scaleX=sendScale;scaleY=sendScale}) {
+                    Icon(Icons.AutoMirrored.Outlined.Send,"Send message",
+                        tint=if(chatAccent=="Follow")MaterialTheme.colorScheme.onPrimary
+                             else if(LocalGlassDark.current)Color.Black else Color.White)
+                }
             }
         }
     }
@@ -993,6 +1004,24 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()),
             verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Text("Choose a built-in palette, private photo or muted MP4 video from this phone.",
+                style=MaterialTheme.typography.bodySmall,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Chat accent · header actions and send button",
+                style=MaterialTheme.typography.titleSmall)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                MbConversationAccent.choices.forEach {choice->
+                    FilterChip(selected=chatAccent==choice,
+                        onClick={
+                            session?.userId?.let {account->
+                                MbConversationAccent.save(context,account,cid,choice)
+                                chatAccent=choice
+                            }
+                        },
+                        label={Text(choice)})
+                }
+            }
+            Text("Stored only on this device and isolated by account. Messages and calls are unchanged.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             listOf("Ice","Lilac","Mint","Sand").forEach {choice->
