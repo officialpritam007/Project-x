@@ -76,6 +76,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun ContactMediaDialog(model:AppViewModel,chat:Chat,sourceVersion:List<Message>,initialKind:String="image",onDismiss:()->Unit) {
     val session by model.session.collectAsStateWithLifecycle()
+    val iosStyle=rememberIosContactInfoStyle()
     val account=session?.userId
     // Observe auth-scope changes even if the user ID stays the same.
     val sessionEpoch by model.backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
@@ -134,10 +135,12 @@ internal fun starredMediaPresentation(message:Message):String = when {
         containerColor=glassPopupColor(),tonalElevation=0.dp,
         shape=androidx.compose.foundation.shape.RoundedCornerShape(topStart=30.dp,topEnd=30.dp)) {
         ContactMediaContent(chat,kind,rows,loading,failed,more,
+            iosStyle=iosStyle,
             onKind={kind=it},onDismiss=onDismiss,
             onSave={model.action {model.repository.saveContact(chat.peer,true)}},
             onPage={scope.launch {page(rows.isEmpty())}},
-            avatar={Avatar(chat.name,chat.avatarId,model.backend,size=76.dp)},
+            avatar={Avatar(chat.name,chat.avatarId,model.backend,
+                size=if(iosStyle)92.dp else 76.dp)},
             media={m->
                 if(kind=="image" || kind=="sticker")SharedImagePreview(model,m,thumbnail=true)
                 else if(kind=="document")PdfMessageAttachment(model,m)
@@ -164,6 +167,7 @@ internal fun starredMediaPresentation(message:Message):String = when {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun ContactMediaContent(
     chat:Chat,kind:String,rows:List<Message>,loading:Boolean,failed:Boolean,more:Boolean,
+    iosStyle:Boolean=false,
     onKind:(String)->Unit,onDismiss:()->Unit,onSave:()->Unit,onPage:()->Unit,
     avatar:@Composable ()->Unit,media:@Composable (Message)->Unit
 ) {
@@ -180,16 +184,29 @@ internal fun starredMediaPresentation(message:Message):String = when {
                 horizontalArrangement=Arrangement.spacedBy(8.dp),
                 verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 item(key="contact",span={GridItemSpan(maxLineSpan)}) {
-                    GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
-                        Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,
-                            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    GlassCard(Modifier.fillMaxWidth(),
+                        if(iosStyle)Glass.hero else Glass.card) {
+                        Column(Modifier.fillMaxWidth(),
+                            horizontalAlignment=Alignment.CenterHorizontally,
+                            verticalArrangement=Arrangement.spacedBy(if(iosStyle)12.dp else 8.dp)) {
+                            if(iosStyle) Text("LIQUID CHAT CONTACT",
+                                style=MaterialTheme.typography.labelSmall,
+                                color=MaterialTheme.colorScheme.primary)
                             avatar()
-                            Text(chat.name,style=MaterialTheme.typography.headlineSmall)
-                            Text("@${chat.username}",color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(chat.name,style=if(iosStyle)
+                                MaterialTheme.typography.headlineMedium
+                                else MaterialTheme.typography.headlineSmall)
+                            Text("@${chat.username}",
+                                color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            if(iosStyle) HorizontalDivider(Modifier.fillMaxWidth(.8f),
+                                color=MaterialTheme.colorScheme.outlineVariant)
                             OutlinedButton(onClick=onSave,modifier=Modifier.heightIn(min=48.dp)) {
                                 Icon(Icons.Outlined.PersonAdd,null,Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp));Text("Save contact")
                             }
+                            if(iosStyle) Text("Private Liquid Chat conversation",
+                                style=MaterialTheme.typography.bodySmall,
+                                color=MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
