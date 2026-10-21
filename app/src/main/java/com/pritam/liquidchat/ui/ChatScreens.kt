@@ -2757,6 +2757,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
         }
         if(section=="Liquid Chat General Settings" || section=="Appearance") LauncherIconSettings()
+        if(section=="Liquid Chat General Settings") MbTouchEffectsSettingsCard()
         if(section=="Data and Storage") DataStorage(model)
         if(section=="Chat Folders") MbChatFoldersSettings(model)
         if(section=="Liquid Chat Themes") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
