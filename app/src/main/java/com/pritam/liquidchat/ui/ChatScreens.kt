@@ -1370,8 +1370,15 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             ) {Text("Remove photo")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
-        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) GlassCard(Modifier.fillMaxWidth()) {
-            Text("Appearance",style=MaterialTheme.typography.titleMedium)
+        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) {
+            if(section=="MB General Settings") GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("General settings",style=MaterialTheme.typography.titleLarge)
+                Text("Customize the app's appearance, motion and storage. Every control below updates your existing Liquid Chat settings.",
+                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text(if(section=="MB General Settings")"Theme & typography" else "Appearance",
+                    style=MaterialTheme.typography.titleMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("System","Light","Dark").forEach {value->FilterChip(selected=display.appearance==value,onClick={model.setDisplay(display.copy(appearance=value))},label={Text(value)})}}
             Text("Main theme color",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -1388,15 +1395,22 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
             Text("Uses Android's built-in fonts; imports no private font files.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Motion & accessibility",style=MaterialTheme.typography.titleMedium)
             Text("Animation level",style=MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {listOf("Normal","Balanced","Extra").forEach {value->FilterChip(selected=display.animation==value,onClick={model.setDisplay(display.copy(animation=value))},enabled=!display.reducedMotion,label={Text(value)})}}
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced motion",Modifier.weight(1f));Switch(display.reducedMotion,{model.setDisplay(display.copy(reducedMotion=it))})}
+            }
+            GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+                Text("Liquid Glass effects",style=MaterialTheme.typography.titleMedium)
             Row(verticalAlignment=Alignment.CenterVertically) {Text("Reduced transparency",Modifier.weight(1f));Switch(display.reducedTransparency,{model.setDisplay(display.copy(reducedTransparency=it))})}
             HorizontalDivider()
             Text("Liquid Glass blur intensity",style=MaterialTheme.typography.titleSmall)
             Text("${display.blurIntensity}%",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.blurIntensity.toFloat(),onValueChange={value->model.setDisplay(display.copy(blurIntensity=value.toInt()))},valueRange=0f..100f,enabled=!display.reducedTransparency,modifier=Modifier.fillMaxWidth())
             Text("Lower values reduce blur; Reduced transparency overrides this setting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         }
         // MB General's cache control reuses the already-safe Coil-only cleanup.
         // Never expose "clear all" actions that would erase the durable Room outbox.
