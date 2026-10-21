@@ -63,6 +63,66 @@ internal object StickerLibrary {
             return Images.Prepared(copied,512,512)
         } catch(e:Exception) {copied.delete();throw e}
     }
+    /** Save an authenticated sticker from an undeleted, locally visible message. */
+    suspend fun saveReceived(context:Context,repository:ChatRepository,message:Message):File =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val backend=repository.backend
+            val account=backend.session.value?.userId
+                ?: throw IOException("Please sign in.")
+            val epoch=backend.uiReads.epoch(account)
+            require(message.account==account && message.status=="SENT" &&
+                message.deletedAt.isEmpty() && message.mediaKind=="sticker" &&
+                message.mediaId.isNotBlank()) {"Sticker unavailable."}
+            suspend fun allowed():Boolean {
+                if(backend.session.value?.userId!=account ||
+                    backend.uiReads.epoch(account)!=epoch)return false
+                val current=repository.dao.message(account,message.id) ?: return false
+                return current.mediaId==message.mediaId && current.mediaKind=="sticker" &&
+                    current.deletedAt.isEmpty() && current.status=="SENT" &&
+                    !repository.dao.hidden(account,message.id)
+            }
+            check(allowed()) {"Sticker no longer visible."}
+            val signed=backend.imageUrl(account,message.mediaId,force=true)
+            require(signed.startsWith("https://",ignoreCase=true)) {"Invalid sticker URL."}
+            val connection=java.net.URL(signed).openConnection() as java.net.HttpURLConnection
+            val bytes=try {
+                connection.connectTimeout=15_000
+                connection.readTimeout=30_000
+                connection.useCaches=false
+                connection.inputStream.use {source->
+                    val data=java.io.ByteArrayOutputStream()
+                    val buffer=ByteArray(4096)
+                    var count=0
+                    while(true) {
+                        val n=source.read(buffer)
+                        if(n<0)break
+                        count+=n
+                        if(count>524288)throw IOException("Sticker exceeds 512 KB.")
+                        data.write(buffer,0,n)
+                    }
+                    data.toByteArray()
+                }
+            } finally {connection.disconnect()}
+            val magic=byteArrayOf(137.toByte(),80,78,71,13,10,26,10)
+            require(bytes.size in 100..524288 && bytes.copyOfRange(0,8).contentEquals(magic)
+                && java.nio.ByteBuffer.wrap(bytes,16,4).int==512
+                && java.nio.ByteBuffer.wrap(bytes,20,4).int==512
+                && bytes[24]==8.toByte() && bytes[25]==6.toByte()) {
+                "Invalid sticker PNG."
+            }
+            check(allowed()) {"Sticker access changed."}
+            backend.imageUrl(account,message.mediaId,force=true)
+            check(allowed()) {"Sticker access changed."}
+            val folder=root(context,account).apply {mkdirs()}
+            require(list(context,account).size<LIMIT) {"Sticker shelf is full."}
+            val destination=File(folder,"${UUID.randomUUID()}.png")
+            try {
+                destination.outputStream().use {it.write(bytes)}
+                if(!allowed())throw IOException("Sticker access changed while saving.")
+                destination
+            } catch(e:Exception) {destination.delete();throw e}
+        }
+
     fun clearAccount(context:Context,account:String) {
         if(account.isNotBlank())root(context,account).deleteRecursively()
     }
