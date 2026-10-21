@@ -319,8 +319,16 @@ import kotlinx.coroutines.flow.drop
         HorizontalDivider(Modifier.padding(vertical=8.dp))
         GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
             onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
-        GlassActionRow("Mark unread",Icons.Outlined.MarkChatUnread,
-            onClick={selectedChat=null;model.action {model.repository.chatAction(c.id,"unread",true)}})
+        val unreadNow=c.unread>0 || c.manualUnread
+        GlassActionRow(if(unreadNow)"Mark as read" else "Mark unread",
+            if(unreadNow)Icons.Outlined.DoneAll else Icons.Outlined.MarkChatUnread,
+            onClick={
+                selectedChat=null
+                model.action {
+                    if(unreadNow)model.repository.markChatRead(c.id)
+                    else model.repository.chatAction(c.id,"unread",true)
+                }
+            })
         GlassActionRow(if(c.favorite)"Remove favorite" else "Favorite",Icons.Outlined.StarOutline,
             onClick={selectedChat=null;model.updateChat(c,favorite=!c.favorite)})
         GlassActionRow(if(c.archived)"Unarchive" else "Archive",Icons.Outlined.Archive,
