@@ -230,7 +230,7 @@ private val referenceEmojiCategoryIcons=mapOf(
     // Session-only recents: do not persist message-writing habits across logouts.
     var recent by remember {mutableStateOf<List<String>>(emptyList())}
     fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
-    val displayed=findEmojis(category,query)
+    val emojiRows=remember(category,query) {findEmojis(category,query).chunked(5)}
     val emojiSize=LocalDisplayOptions.current.emojiPickerSize.coerceIn(18,32).sp
     ModalBottomSheet(
         onDismissRequest=onDismiss,
@@ -238,78 +238,84 @@ private val referenceEmojiCategoryIcons=mapOf(
         containerColor=MaterialTheme.colorScheme.surface,
         dragHandle={BottomSheetDefaults.DragHandle()}
     ) {
-        Text("Emoji",style=MaterialTheme.typography.titleMedium,
-            modifier=Modifier.padding(horizontal=20.dp,vertical=8.dp))
-        Column(
-            Modifier.fillMaxWidth().heightIn(max=510.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal=16.dp),
-            verticalArrangement=Arrangement.spacedBy(8.dp)
-        ) {
-                OutlinedTextField(
-                    value=query,onValueChange={query=it.take(32)},singleLine=true,
-                    label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
-                    leadingIcon={Icon(Icons.Outlined.Search,null)},
-                    trailingIcon={
-                        if(query.isNotBlank())
-                            IconButton(onClick={query=""}) {Icon(Icons.Outlined.Close,"Clear emoji search")}
+        Column(Modifier.fillMaxWidth().padding(horizontal=16.dp),
+            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text("Emoji",style=MaterialTheme.typography.titleMedium,
+                modifier=Modifier.padding(horizontal=4.dp,vertical=4.dp))
+            OutlinedTextField(
+                value=query,onValueChange={query=it.take(32)},singleLine=true,
+                label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
+                leadingIcon={Icon(Icons.Outlined.Search,null)},
+                trailingIcon={
+                    if(query.isNotBlank()) IconButton(onClick={query=""}) {
+                        Icon(Icons.Outlined.Close,"Clear emoji search")
                     }
-                )
+                }
+            )
+            // Categories remain reachable while a large emoji list is scrolled.
+            if(query.isBlank()) LazyRow(
+                horizontalArrangement=Arrangement.spacedBy(8.dp),
+                contentPadding=PaddingValues(vertical=2.dp)
+            ) {
+                items(referenceEmojiCategoryNames,key={it}) {name->
+                    FilterChip(
+                        selected=category==name,
+                        onClick={category=name},
+                        label={Text("${referenceEmojiCategoryIcons[name].orEmpty()} $name")}
+                    )
+                }
+            }
+            // Lazy rows avoid composing every emoji as the keyboard opens.
+            LazyColumn(
+                modifier=Modifier.fillMaxWidth().heightIn(max=430.dp),
+                verticalArrangement=Arrangement.spacedBy(4.dp),
+                contentPadding=PaddingValues(bottom=6.dp)
+            ) {
                 if(query.isBlank()) {
-                    // Two full-width rows avoid the clipped/offscreen fourth category.
-                    referenceEmojiCategoryNames.chunked(2).forEach {names->
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                            names.forEach {name->
-                                FilterChip(
-                                    selected=category==name,onClick={category=name},
-                                    label={Text("${referenceEmojiCategoryIcons[name].orEmpty()} $name")},
-                                    modifier=Modifier.weight(1f)
-                                )
+                    item(key="quick-reactions") {
+                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                            Text("Quick reactions",style=MaterialTheme.typography.labelMedium)
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(1.dp)) {
+                                MbQuickReactions.defaults.forEach {emoji->
+                                    TextButton(onClick={choose(emoji)},
+                                        modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                        contentPadding=PaddingValues(0.dp)) {Text(emoji,fontSize=emojiSize)}
+                                }
                             }
                         }
                     }
-                    Text("Quick reactions",style=MaterialTheme.typography.labelMedium)
-                    Row(Modifier.fillMaxWidth(),
-                        horizontalArrangement=Arrangement.spacedBy(1.dp)) {
-                        MbQuickReactions.defaults.forEach {emoji->
-                            TextButton(onClick={choose(emoji)},
-                                modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                contentPadding=PaddingValues(0.dp)) {
-                                Text(emoji,fontSize=emojiSize)
-                            }
-                        }
-                    }
-                    if(recent.isNotEmpty()) {
-                        Text("Recently picked",style=MaterialTheme.typography.labelMedium)
-                        Row(Modifier.fillMaxWidth()) {
-                            recent.forEach {emoji->
-                                TextButton(onClick={choose(emoji)},
-                                    modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                    contentPadding=PaddingValues(0.dp)) {
-                                    Text(emoji,fontSize=emojiSize)
+                    if(recent.isNotEmpty()) item(key="recent-emoji") {
+                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                            Text("Recently picked",style=MaterialTheme.typography.labelMedium)
+                            Row(Modifier.fillMaxWidth()) {
+                                recent.forEach {emoji->
+                                    TextButton(onClick={choose(emoji)},
+                                        modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                        contentPadding=PaddingValues(0.dp)) {Text(emoji,fontSize=emojiSize)}
                                 }
                             }
                         }
                     }
                 }
-                if(displayed.isEmpty())Text("No matching emoji",style=MaterialTheme.typography.bodyMedium)
-                displayed.chunked(5).forEach {row->
+                if(emojiRows.isEmpty())item(key="no-emojis") {
+                    Text("No matching emoji",style=MaterialTheme.typography.bodyMedium,
+                        modifier=Modifier.padding(vertical=12.dp))
+                }
+                itemsIndexed(emojiRows,key={index,_->"emoji-row-$index"}) {_,row->
                     Row(Modifier.fillMaxWidth()) {
                         repeat(5) {index->
-                            if(index<row.size)
-                                TextButton(
-                                    onClick={choose(row[index])},
-                                    modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                    contentPadding=PaddingValues(0.dp)
-                                ) {Text(row[index],fontSize=emojiSize)}
+                            if(index<row.size) TextButton(
+                                onClick={choose(row[index])},
+                                modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                contentPadding=PaddingValues(0.dp)
+                            ) {Text(row[index],fontSize=emojiSize)}
                             else Spacer(Modifier.weight(1f))
                         }
                     }
                 }
-        }
-        TextButton(onClick=onDismiss,
-            modifier=Modifier.align(Alignment.End).padding(horizontal=16.dp)) {
-            Text("Done")
+            }
+            TextButton(onClick=onDismiss,
+                modifier=Modifier.align(Alignment.End)) {Text("Done")}
         }
         Spacer(Modifier.height(8.dp))
     }
