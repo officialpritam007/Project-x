@@ -1,4 +1,10 @@
 # Liquid Chat
+
+## Owner PDF upgrade — 4 phases
+
+The [PDF four-phase execution tracker](docs/PDF_FOUR_PHASE_TRACKER.md) records all 12 supplied PDF sections as **243 individual requirements** and cross-lists all **346 original engineering acceptance items**. Phase 1 (UI, navigation, Settings, General configuration) is in source implementation; Phases 2–4 remain open. Unchecked means not accepted/verified, even when supporting code exists.
+
+**Current owner instruction:** source changes go directly to `main`, without a pull request. No automated tests, Android builds, CI dispatches, or Supabase deployments are performed during this implementation pass. Commits use `[skip ci]`. No unverified production or complete-parity claims.
 Current Codex ZIP source-level port: [MBWhatsApp reference transfer](docs/MB_TRANSFER_IMPLEMENTATION.md).
 **Code only:** owner has deferred all automated tests/CI, Supabase deployment and APK builds until a final explicit instruction.
 Native Android one-to-one messaging by Pritam Pal. Kotlin + Compose, Supabase Free, FCM and protected media fallback/optional authenticated Cloudinary. The test candidate enables experimental one-to-one voice/video calls and photo/video Stories. No groups or E2EE claim.
