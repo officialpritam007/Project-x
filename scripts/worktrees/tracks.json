@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "repository": "officialpritam007/Project-x",
+  "baseSha": "02f0293f74a60d39602a88dd8f63d16a0c778704",
+  "items": 346,
+  "tracks": [
+    {
+      "id": "00",
+      "slug": "foundation",
+      "title": "Build, architecture and design system",
+      "priority": "P0",
+      "scope": "KSP/Compose memory, modularization, CI prereqs, stable shared component contracts",
+      "branch": "parity/00-foundation",
+      "folder": "00-foundation"
+    },
+    {
+      "id": "01",
+      "slug": "shell-home",
+      "title": "App navigation and Chats home",
+      "priority": "P1",
+      "scope": "Tabs, badges, chat list/filter, search toolbar, home wallpaper and controls",
+      "branch": "parity/01-shell-home",
+      "folder": "01-shell-home"
+    },
+    {
+      "id": "02",
+      "slug": "settings-appearance",
+      "title": "Settings, Themes, General and Home customization",
+      "priority": "P1",
+      "scope": "MB Preferences, color/fonts/DPI, wallpaper, animations, launcher icons",
+      "branch": "parity/02-settings-appearance",
+      "folder": "02-settings-appearance"
+    },
+    {
+      "id": "03",
+      "slug": "settings-privacy",
+      "title": "Privacy and Notifications settings",
+      "priority": "P0",
+      "scope": "Per-contact options, real preferences, FCM quiet/disable, safe privacy",
+      "branch": "parity/03-settings-privacy",
+      "folder": "03-settings-privacy"
+    },
+    {
+      "id": "04",
+      "slug": "chat-actions",
+      "title": "Conversation bubbles, message actions and history",
+      "priority": "P0",
+      "scope": "Reply/delete/forward/star/pin, reactions, search and delivery states",
+      "branch": "parity/04-chat-actions",
+      "folder": "04-chat-actions"
+    },
+    {
+      "id": "05",
+      "slug": "composer-emoji",
+      "title": "Composer, Emoji/GIF/Sticker picker and voice capture UI",
+      "priority": "P1",
+      "scope": "IME, emoji grids, GIF, pack picker, voice pause/resume/lock",
+      "branch": "parity/05-composer-emoji",
+      "folder": "05-composer-emoji"
+    },
+    {
+      "id": "06",
+      "slug": "media-editor",
+      "title": "Media, stickers, documents and editing",
+      "priority": "P1",
+      "scope": "Photo/video/PDF processing, sticker cutout and packs, safe upload",
+      "branch": "parity/06-media-editor",
+      "folder": "06-media-editor"
+    },
+    {
+      "id": "07",
+      "slug": "calls-audio",
+      "title": "Voice/video calling and call history",
+      "priority": "P0",
+      "scope": "WebRTC signaling, route, active calling, call logs and visual parity",
+      "branch": "parity/07-calls-audio",
+      "folder": "07-calls-audio"
+    },
+    {
+      "id": "08",
+      "slug": "moments-social",
+      "title": "Stories, Posts, Updates, Groups, Channels and Communities",
+      "priority": "P1",
+      "scope": "Story UI and privacy, group/channel backend scope and access control",
+      "branch": "parity/08-moments-social",
+      "folder": "08-moments-social"
+    },
+    {
+      "id": "09",
+      "slug": "profile-contact-search",
+      "title": "Profiles, contacts, global search and accessibility",
+      "priority": "P1",
+      "scope": "Profile cards, contact controls, global/media search, translation and a11y",
+      "branch": "parity/09-profile-contact-search",
+      "folder": "09-profile-contact-search"
+    },
+    {
+      "id": "10",
+      "slug": "backend-security",
+      "title": "Supabase, FCM, security and sync",
+      "priority": "P0",
+      "scope": "RLS, account isolation, deletion, presence, media privacy, API migration",
+      "branch": "parity/10-backend-security",
+      "folder": "10-backend-security"
+    },
+    {
+      "id": "11",
+      "slug": "qa-release",
+      "title": "Integration QA, visual comparison and final APK",
+      "priority": "P0",
+      "scope": "Source inventory, screenshot baselines, CI and one two-phone verification",
+      "branch": "parity/11-qa-release",
+      "folder": "11-qa-release"
+    }
+  ]
+}
