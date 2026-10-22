@@ -135,7 +135,13 @@ private data class MbTouchParticle(val id:Long,val point:Offset)
         Text("Optional visual touch feedback. No touch is intercepted and no chat data is collected.",
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(),
+        if(LocalDisplayOptions.current.navBarStyle=="Reference")
+            MbReferenceSwitchRow(
+                title="Touch animation",
+                subtitle="Show floating character when the screen is tapped",
+                checked=config.enabled,
+                onCheckedChange={MbTouchEffects.save(context,config.copy(enabled=it))})
+        else Row(Modifier.fillMaxWidth(),
             verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
             Text("Show floating character on touch",Modifier.weight(1f))
             Switch(checked=config.enabled,onCheckedChange={
