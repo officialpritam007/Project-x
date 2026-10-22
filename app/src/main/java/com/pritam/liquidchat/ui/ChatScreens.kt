@@ -2241,7 +2241,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     contentDescription="Sticker preview",
                     modifier=Modifier.fillMaxWidth().height(240.dp))
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    Text("Remove near-white background",
+                    Text("Remove connected white background",
                         modifier=Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
                     Switch(checked=removeStickerWhite,enabled=!busy && stickerSourceUri!=null,
                         onCheckedChange={checked->
@@ -2258,7 +2258,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             }
                         })
                 }
-                Text("Background removal affects light pixels throughout the image. Review the preview before sending.",
+                Text("Only connected background near the image edges is removed; enclosed white details remain. Review the preview before sending.",
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick={

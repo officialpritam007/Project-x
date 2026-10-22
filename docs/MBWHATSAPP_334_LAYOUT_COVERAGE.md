@@ -225,3 +225,8 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 
 - Each selected private photo in the up-to-10 image batch now offers actual touch freeform crop using the same account-local `Images.cropSelection` operation. Selection and crop mode reset as the user changes which photo is edited. It replaces **only** the selected batch image after auth and revision guards; the prior file is deleted only after a successful replacement, with no changes to other images, caption, order or atomic enqueue.
 - Native album edit operations had no per-photo undo stack previously; this stage does not falsely claim that newly added album crop supports Undo/Redo. Single-photo freeform crop retains the five-step history.
+
+## 2026-10-22 — native still-sticker background cleanup
+
+- Upgraded the genuine 512×512 account-local PNG sticker creator: optional near-white removal now runs a bounded O(width × height) **4-neighbor flood-fill from image borders** so isolated white details enclosed by a foreground silhouette are not stripped. Existing feathering, RGBA transparency and 512 KB file cap are preserved. UI copy explains the behavior; local-only preview and private Send/Save actions unchanged.
+- Added pure background-mask regression source covering edge-connected white, enclosed white and invalid dimensions. This is not neural segmentation, animated pack import or 100% MB original segmentation equivalence. No build/device tests have run yet.

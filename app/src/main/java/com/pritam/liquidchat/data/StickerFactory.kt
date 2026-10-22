@@ -20,6 +20,53 @@ import java.util.UUID
  * This keeps the sticker distinct from JPEG photo messages in the backend.
  * No remote cutout API, SDK account or paid image service is used.
  */
+/** Remove only near-white pixels connected to the image edge.
+ * Disconnected white details inside a character remain opaque. The flood-fill
+ * is strictly linear in image pixels and runs in the existing IO job.
+ */
+internal fun borderConnectedNearWhiteMask(
+    pixels:IntArray,width:Int,height:Int
+):BooleanArray {
+    require(width>0 && height>0 && width.toLong()*height==pixels.size.toLong())
+    val seen=BooleanArray(pixels.size)
+    val queue=IntArray(pixels.size)
+    var head=0
+    var tail=0
+    fun candidate(index:Int):Boolean {
+        val argb=pixels[index]
+        val alpha=(argb ushr 24) and 255
+        if(alpha<16)return true
+        val red=(argb ushr 16) and 255
+        val green=(argb ushr 8) and 255
+        val blue=argb and 255
+        return minOf(red,green,blue)>230 && maxOf(red,green,blue)-minOf(red,green,blue)<18
+    }
+    fun enqueue(index:Int) {
+        if(!seen[index]&&candidate(index)) {
+            seen[index]=true
+            queue[tail++]=index
+        }
+    }
+    for(x in 0 until width) {
+        enqueue(x)
+        enqueue((height-1)*width+x)
+    }
+    for(y in 0 until height) {
+        enqueue(y*width)
+        enqueue(y*width+width-1)
+    }
+    while(head<tail) {
+        val index=queue[head++]
+        val x=index%width
+        val y=index/width
+        if(x>0)enqueue(index-1)
+        if(x+1<width)enqueue(index+1)
+        if(y>0)enqueue(index-width)
+        if(y+1<height)enqueue(index+width)
+    }
+    return seen
+}
+
 internal object StickerFactory {
     suspend fun prepare(
         context:Context,uri:Uri,account:String,removeWhite:Boolean=false
@@ -46,18 +93,19 @@ internal object StickerFactory {
                 val content=if(removeWhite) {
                     val pixels=IntArray(bitmap.width*bitmap.height)
                     bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+                    val background=borderConnectedNearWhiteMask(
+                        pixels,bitmap.width,bitmap.height)
                     for(i in pixels.indices) {
+                        if(!background[i])continue
                         val rgb=pixels[i]
                         val red=Color.red(rgb)
                         val green=Color.green(rgb)
                         val blue=Color.blue(rgb)
-                        // Feather only near-white pixels; preserve black outlines.
+                        // Feather only the contiguous boundary background.
+                        // White details enclosed by a non-white subject stay visible.
                         val minimum=minOf(red,green,blue)
-                        val maximum=maxOf(red,green,blue)
-                        if(minimum>230 && maximum-minimum<18) {
-                            val opacity=((255-minimum)*255/25).coerceIn(0,255)
-                            pixels[i]=Color.argb(Color.alpha(rgb)*opacity/255,red,green,blue)
-                        }
+                        val opacity=((255-minimum)*255/25).coerceIn(0,255)
+                        pixels[i]=Color.argb(Color.alpha(rgb)*opacity/255,red,green,blue)
                     }
                     Bitmap.createBitmap(pixels,bitmap.width,bitmap.height,
                         Bitmap.Config.ARGB_8888)
