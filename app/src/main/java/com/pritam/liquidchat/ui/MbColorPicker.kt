@@ -84,9 +84,11 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
     var photoError by remember(initial) {mutableStateOf<String?>(null)}
     var photoLoading by remember(initial) {mutableStateOf(false)}
     var photoPreview by remember(initial) {mutableStateOf<android.graphics.Bitmap?>(null)}
-    DisposableEffect(photoPreview) {
-        // No selected theme image survives closing the dialog or changing photos.
-        onDispose {photoPreview?.recycle()}
+    val previewToRelease=photoPreview
+    DisposableEffect(previewToRelease) {
+        // Release only the image owned by this effect; selecting another photo
+        // must not recycle the newer preview before Compose has displayed it.
+        onDispose {previewToRelease?.recycle()}
     }
     val scope=rememberCoroutineScope()
     val context=LocalContext.current
