@@ -66,8 +66,12 @@ object StoryVideo {
      */
     @OptIn(UnstableApi::class)
     suspend fun export(
-        context:Context,source:Uri,startMs:Long,onProgress:(Int)->Unit={}
+        context:Context,source:Uri,startMs:Long,onProgress:(Int)->Unit={},
+        targetShortSide:Int=720
     ):File=withContext(Dispatchers.Main) {
+        require(targetShortSide==480 || targetShortSide==720) {
+            "Video target must be 480p or 720p."
+        }
         val (duration,canvas)=withContext(Dispatchers.IO) {
             val metadata=MediaMetadataRetriever()
             try {
@@ -79,6 +83,13 @@ object StoryVideo {
                 val rotation=metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
                 duration to storyCanvasSize(width,height,rotation)
             } finally {metadata.release()}
+        }
+        // Photo and chat-video quality can be chosen independently of Story
+        // quality. Keep the story default at 720p for existing callers.
+        val renderCanvas=if(targetShortSide==720)canvas else when {
+            canvas.first>canvas.second -> 854 to 480
+            canvas.first<canvas.second -> 480 to 854
+            else -> 480 to 480
         }
         val start=startMs.coerceIn(0L,(duration-500L).coerceAtLeast(0L))
         val end=(start+MAX_DURATION_MS).coerceAtMost(duration)
@@ -94,11 +105,11 @@ object StoryVideo {
                     .build()
                 val edited=EditedMediaItem.Builder(clip)
                     .setEffects(Effects(emptyList(),listOf(Presentation.createForWidthAndHeight(
-                        canvas.first,canvas.second,Presentation.LAYOUT_SCALE_TO_FIT))))
+                        renderCanvas.first,renderCanvas.second,Presentation.LAYOUT_SCALE_TO_FIT))))
                     .build()
                 val encoder=DefaultEncoderFactory.Builder(context)
                     .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder()
-                        .setBitrate(1_450_000).build())
+                        .setBitrate(if(targetShortSide==720)1_450_000 else 850_000).build())
                     .build()
                 val transformer=Transformer.Builder(context)
                     .setVideoMimeType(MimeTypes.VIDEO_H264)
