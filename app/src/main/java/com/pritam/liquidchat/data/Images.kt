@@ -18,6 +18,57 @@ object Images {
         ROTATE_LEFT, ROTATE_RIGHT, FLIP_HORIZONTAL, FLIP_VERTICAL, GRAYSCALE
     }
 
+    /** Normalized crop is independent of device pixel density and zoom. */
+    data class CropBounds(val left:Float,val top:Float,val right:Float,val bottom:Float) {
+        fun valid():Boolean = left.isFinite()&&top.isFinite()&&right.isFinite()&&bottom.isFinite() &&
+            left>=0f&&top>=0f&&right<=1f&&bottom<=1f &&
+            right-left>=.03f&&bottom-top>=.03f
+    }
+
+    /** Keep edits sandboxed to the same authenticated account's prepared image.
+     * The source is never overwritten, which makes Undo and retry lossless.
+     */
+    suspend fun cropSelection(context:Context,account:String,prepared:Prepared,bounds:CropBounds):Prepared =
+        withContext(Dispatchers.IO) {
+            require(account.isNotBlank())
+            require(bounds.valid()) {"Drag to select a larger crop area."}
+            val directory=File(context.filesDir,"media/$account").canonicalFile
+            require(prepared.file.isFile && prepared.file.canonicalFile.parentFile==directory) {
+                "The photo is not available for this account."
+            }
+            val output=File(directory,"${UUID.randomUUID()}.jpg")
+            var original:Bitmap?=null
+            var cropped:Bitmap?=null
+            try {
+                original=android.graphics.BitmapFactory.decodeFile(prepared.file.absolutePath)
+                    ?: throw IOException("Could not decode selected photo.")
+                val source=original ?: throw IOException("Photo is unavailable.")
+                val left=(bounds.left*source.width).toInt().coerceIn(0,source.width-1)
+                val top=(bounds.top*source.height).toInt().coerceIn(0,source.height-1)
+                val right=kotlin.math.ceil(bounds.right*source.width.toDouble()).toInt()
+                    .coerceIn(left+1,source.width)
+                val bottom=kotlin.math.ceil(bounds.bottom*source.height.toDouble()).toInt()
+                    .coerceIn(top+1,source.height)
+                cropped=Bitmap.createBitmap(source,left,top,right-left,bottom-top)
+                val result=cropped ?: throw IOException("Crop failed.")
+                output.outputStream().use {
+                    check(result.compress(Bitmap.CompressFormat.JPEG,88,it))
+                }
+                if(output.length()>9_500_000L)output.outputStream().use {
+                    check(result.compress(Bitmap.CompressFormat.JPEG,70,it))
+                }
+                if(output.length() !in 1..9_500_000L)
+                    throw IOException("Cropped photo exceeds the upload limit.")
+                Prepared(output,result.width,result.height)
+            } catch(e:Exception) {
+                output.delete()
+                throw e
+            } finally {
+                if(cropped!==original)cropped?.recycle()
+                original?.recycle()
+            }
+        }
+
     /** Preserve a centered crop using integer aspect arithmetic (no stretching). */
     private fun centeredCrop(source:Bitmap,aspectWidth:Int,aspectHeight:Int):Bitmap {
         require(aspectWidth>0 && aspectHeight>0)
