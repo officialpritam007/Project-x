@@ -2355,6 +2355,51 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
             Text("Edit selected photo ${albumEditIndex+1}",
                 style=MaterialTheme.typography.labelMedium)
+            val albumCropPhoto=preparedAlbum.getOrNull(albumEditIndex)
+            var albumFreeCrop by remember(albumCropPhoto?.file?.absolutePath) {
+                mutableStateOf(false)
+            }
+            var albumCropBounds by remember(albumCropPhoto?.file?.absolutePath) {
+                mutableStateOf<Images.CropBounds?>(null)
+            }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                TextButton(enabled=!albumSending&&!albumEditing&&!busy&&albumCropPhoto!=null,
+                    onClick={albumFreeCrop=!albumFreeCrop;albumCropBounds=null}) {
+                    Icon(Icons.Outlined.Crop,null,Modifier.size(18.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(if(albumFreeCrop)"Close crop" else "Free crop")
+                }
+                if(albumFreeCrop) TextButton(
+                    enabled=!albumSending&&!albumEditing&&!busy&&albumCropBounds?.valid()==true,
+                    onClick={
+                        val owner=session?.userId
+                        val selectedIndex=albumEditIndex
+                        val source=albumCropPhoto
+                        val bounds=albumCropBounds
+                        if(owner!=null&&source!=null&&bounds?.valid()==true) {
+                            albumEditing=true
+                            model.action {
+                                try {
+                                    val edited=Images.cropSelection(context,owner,source,bounds)
+                                    val valid=model.backend.session.value?.userId==owner &&
+                                        !albumSending && preparedAlbum.getOrNull(selectedIndex)===source
+                                    if(valid) {
+                                        preparedAlbum=preparedAlbum.toMutableList().apply {
+                                            set(selectedIndex,edited)
+                                        }
+                                        source.file.delete()
+                                    } else edited.file.delete()
+                                } finally {albumEditing=false}
+                            }
+                        }
+                    }) {Text("Apply Crop")}
+            }
+            if(albumFreeCrop&&albumCropPhoto!=null) {
+                MbGestureCropEditor(albumCropPhoto,enabled=!albumSending&&!albumEditing&&!busy,
+                    onSelection={albumCropBounds=it})
+                Text("Drag over the selected album photo to crop only that photo.",
+                    style=MaterialTheme.typography.bodySmall)
+            }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 listOf(

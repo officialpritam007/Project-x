@@ -220,3 +220,8 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Added a genuine touch drag-to-select freeform crop viewport to the single-photo editor. Selection maps to normalized **intrinsic image** coordinates without letterbox mismatch and calls a new local-only `Images.cropSelection` operation; no network image processing or new permissions. Bounds are finite, clamped and must span at least 3% per axis. JPEG output is unique, in the same account-private media folder, <= 9.5 MB and never overwrites the source.
 - Crop participates in the existing **5-level Undo/Redo history**, cleanup, existing authenticated private message outbox, and editing busy/revision guards. Preset crops/rotations/flips/B&W, captions, send and cancel remain intact.
 - Compiled APK's exact gesture art/pixel parity is not established; functionality and build have not been verified on a device.
+
+## 2026-10-22 — freeform crop in multi-image album editor
+
+- Each selected private photo in the up-to-10 image batch now offers actual touch freeform crop using the same account-local `Images.cropSelection` operation. Selection and crop mode reset as the user changes which photo is edited. It replaces **only** the selected batch image after auth and revision guards; the prior file is deleted only after a successful replacement, with no changes to other images, caption, order or atomic enqueue.
+- Native album edit operations had no per-photo undo stack previously; this stage does not falsely claim that newly added album crop supports Undo/Redo. Single-photo freeform crop retains the five-step history.
