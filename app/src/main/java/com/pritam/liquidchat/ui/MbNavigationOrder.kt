@@ -16,15 +16,19 @@ internal object MbNavigationOrder {
     fun normalize(raw:String?):String=parse(raw).joinToString(",")
 
     fun move(raw:String?,destination:Int,direction:Int):String {
-        require(destination in 0..4) {"Unknown navigation tab"}
         require(direction==1 || direction == -1) {"Only adjacent moves are supported"}
+        return moveBy(raw,destination,direction)
+    }
+
+    /** Reorder a stable route ID by the number of full rows crossed by a drag. */
+    fun moveBy(raw:String?,destination:Int,slots:Int):String {
+        require(destination in 0..4) {"Unknown navigation tab"}
         val order=parse(raw).toMutableList()
         val from=order.indexOf(destination)
-        val to=from+direction
-        if(to in order.indices) {
-            val other=order[to]
-            order[to]=destination
-            order[from]=other
+        val to=(from.toLong()+slots.toLong()).coerceIn(0L,order.lastIndex.toLong()).toInt()
+        if(from!=to) {
+            order.removeAt(from)
+            order.add(to,destination)
         }
         return order.joinToString(",")
     }
