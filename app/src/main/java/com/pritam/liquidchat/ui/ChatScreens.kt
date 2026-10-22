@@ -1570,7 +1570,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
         val text=body.replaceRange(start,end,emoji)
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
-    },onDismiss={emojiPicker=false})
+    },onDismiss={emojiPicker=false},onSavedStickers={
+        emojiPicker=false
+        savedStickers=StickerLibrary.list(context,session?.userId)
+        stickerNotice=null
+        stickerLibraryOpen=true
+    })
     if(scheduleOpen) LiquidAlertDialog(
         onDismissRequest={scheduleOpen=false;scheduleEditingId=null},
         title={Text(if(scheduleEditingId==null)"Schedule a message" else "Edit scheduled message")},
