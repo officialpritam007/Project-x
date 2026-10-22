@@ -1,5 +1,8 @@
 package com.pritam.liquidchat.ui
 
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.dp
     onSignOut:()->Unit,
     modifier:Modifier=Modifier
 ) {
+    val context=LocalContext.current
     Box(modifier.fillMaxSize().padding(horizontal=24.dp),contentAlignment=Alignment.Center) {
         Column(Modifier.widthIn(max=480.dp).fillMaxWidth()
             .verticalScroll(rememberScrollState()).padding(vertical=24.dp),
@@ -54,6 +58,25 @@ import androidx.compose.ui.unit.dp
             Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 Button(onClick=onRetry,enabled=!busy,
                     modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Retry")}
+                if(!loading) OutlinedButton(onClick={
+                    // No raw exception, account, contact, access token, message
+                    // or media path is ever included in the report body.
+                    val body="Liquid Chat problem report\\n" +
+                        "Issue: Unable to load profile\\n" +
+                        "App version: ${com.pritam.liquidchat.BuildConfig.VERSION_NAME}\\n" +
+                        "Android API: ${android.os.Build.VERSION.SDK_INT}\\n\\n" +
+                        "Please describe what happened:\\n"
+                    val share=Intent(Intent.ACTION_SEND).apply {
+                        type="text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT,"Liquid Chat problem report")
+                        putExtra(Intent.EXTRA_TEXT,body)
+                    }
+                    runCatching {
+                        context.startActivity(Intent.createChooser(share,"Send report"))
+                    }
+                },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                    Text("Send report")
+                }
                 TextButton(onClick=onSignOut,
                     modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
             }
