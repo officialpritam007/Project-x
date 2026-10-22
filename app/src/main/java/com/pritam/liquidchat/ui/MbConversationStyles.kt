@@ -8,6 +8,10 @@ import androidx.compose.ui.unit.dp
  * MB reference conversation customization, kept independent of message delivery.
  * Legacy "Tail" + "Original" reproduces the pre-customization Liquid Chat bubble.
  */
+/** Styling-only reference switch; conversation state never depends on presentation. */
+internal fun referenceMessageChrome(display:DisplayOptions):Boolean =
+    referenceListUsesFlatRows(display)
+
 internal fun conversationBubbleShape(style:String,mine:Boolean):RoundedCornerShape = when(style) {
     "Rounded" -> RoundedCornerShape(22.dp)
     "Compact" -> RoundedCornerShape(11.dp)

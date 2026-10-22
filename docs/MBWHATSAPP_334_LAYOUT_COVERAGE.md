@@ -162,3 +162,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Reconstructed a 3-column reference-style **attachment action grid** with those item measurements. Gallery, multi-photo, 30-second private video, single/batch PDFs, image-to-PDF, scan, sticker creation/library, contact share and camera retain their original **11 functioning callbacks**. A non-reference Liquid option still shows the existing accessible action list.
 - Android UI regression source covers independently clickable grid actions; no action stubs. Authorization, media size/format limits, private upload, source media, device state and privacy remain untouched.
 - **NOT TESTED YET**: source-only commit per owner; no compiler/lint, CI, emulator, screenshot, Supabase Edge/SQL, device or APK verification. Do not assert pixel-perfect or complete MB attachment parity.
+
+## 2026-10-22 — Reference-mode message bubble visual chrome
+
+- Reference conversation messages now use flat bubble surfaces (without forced white glass border or elevation), narrower 84%-of-screen wrapping, 9dp/6dp content padding and a compact quoted-message card. Liquid mode retains its old haze-backed elevated bubble and 11dp/9dp padding. Existing user-configurable tails, left/right palette, custom text colors, message font sizes, opacity, stickers and delivery receipts remain independently configurable.
+- Swipe reply, double-tap reactions, long-press selection, edited labels, read-more, upload progression and Failed/Retry retain the prior event/data logic, unchanged.
+- Included JVM source checks that presentation-mode switching does not overwrite persisted bubble text/reaction settings. Visual geometry is a reconstruction, not demonstrated pixel accuracy, and final device/build tests remain deferred.

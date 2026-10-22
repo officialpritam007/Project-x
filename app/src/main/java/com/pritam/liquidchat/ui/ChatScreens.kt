@@ -2561,6 +2561,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val mine=message.sender==message.account
     val isSticker=message.mediaKind=="sticker"&&message.deletedAt.isEmpty()
     val bubbleDisplay=LocalDisplayOptions.current
+    val referenceBubble=referenceMessageChrome(bubbleDisplay)
     var swipe by remember(message.id) {mutableFloatStateOf(0f)}
     val threshold=with(LocalDensity.current) {72.dp.toPx()}
     val replyCallback by rememberUpdatedState(onReply)
@@ -2580,7 +2581,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var expanded by remember(message.id) {mutableStateOf(false)}
     var truncated by remember(message.id) {mutableStateOf(false)}
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-    val bubbleWidth=minOf(maxWidth*.86f,480.dp)
+    val bubbleWidth=minOf(maxWidth*(if(referenceBubble).84f else .86f),480.dp)
     if(message.status=="SENT" && message.deletedAt.isEmpty() &&
         replySwipeOffset>3f) {
         Icon(Icons.Outlined.Reply,contentDescription="Swipe to reply",
@@ -2610,21 +2611,28 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 else if(isSticker)Color.Transparent else bubbleSurfaceColor(bubbleDisplay,mine,LocalGlassDark.current,
                     if(LocalGlassDark.current) {if(mine)Color(0xFF1F5268) else Color(0xFF293F53)}
                     else if(mine)Color(0xFFD0EDFB) else Color(0xFFFAFDFF)),
-            border=if(isSticker)null else androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
-            shadowElevation=if(isSticker)0.dp else 2.dp,
-            modifier=Modifier.widthIn(max=bubbleWidth).then(if(isSticker)Modifier else Modifier.glassSource())
+            border=if(isSticker||referenceBubble)null else androidx.compose.foundation.BorderStroke(
+                1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).19f else .8f)),
+            shadowElevation=if(isSticker||referenceBubble)0.dp else 2.dp,
+            modifier=Modifier.widthIn(max=bubbleWidth)
+                .then(if(isSticker||referenceBubble)Modifier else Modifier.glassSource())
                 .combinedClickable(onClick={if(selectionMode)onSelect()},
                     onDoubleClick=if(canDoubleTapReact(message,bubbleDisplay.doubleTapReactionEnabled,
                         selectionMode,model.session.value?.userId))onDoubleTap else null,
                     onLongClick={if(selectionMode)onSelect() else onLongClick()})
         ) {
-            Column(Modifier.padding(horizontal=if(isSticker)0.dp else 11.dp,vertical=if(isSticker)2.dp else 9.dp)) {
+            Column(Modifier.padding(
+                horizontal=if(isSticker)0.dp else if(referenceBubble)9.dp else 11.dp,
+                vertical=if(isSticker)2.dp else if(referenceBubble)6.dp else 9.dp)) {
                 if(message.deletedAt.isNotEmpty()) {
                     Text("This message was deleted",
                         style=MaterialTheme.typography.bodyMedium,
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                if(message.replyTo.isNotEmpty()) Surface(shape=Glass.compact,color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
+                if(message.replyTo.isNotEmpty()) Surface(
+                    shape=if(referenceBubble)androidx.compose.foundation.shape.RoundedCornerShape(8.dp) else Glass.compact,
+                    color=MaterialTheme.colorScheme.primary.copy(alpha=.1f),
+                    modifier=Modifier.fillMaxWidth().clickable(onClick=onQuoteClick)) {
                     Column(Modifier.padding(8.dp)) {Text("Reply",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(quoted?.takeIf {it.deletedAt.isEmpty()}?.body ?: "Original message unavailable",maxLines=2,overflow=TextOverflow.Ellipsis,
                         color=conversationInkColor(bubbleDisplay.quotedInk,LocalGlassDark.current,
                             resolvedBubbleTextColor(bubbleDisplay,mine,LocalGlassDark.current,MaterialTheme.colorScheme.onSurface),bubbleDisplay.quotedInkHex),
