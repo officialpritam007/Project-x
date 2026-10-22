@@ -1,0 +1,357 @@
+{
+  "schema": 1,
+  "referenceDate": "2026-10-22",
+  "references": {
+    "R1": "Screenrecording_20261022_155911.mp4",
+    "R2": "Screenrecording_20261022_164540.mp4"
+  },
+  "rows": [
+    {
+      "id": "V01",
+      "source": "R1",
+      "time": "00:00–00:11",
+      "observation": "Profile Settings dashboard and grouped options",
+      "featureIds": [
+        "P02-001",
+        "P02-002",
+        "P09-001",
+        "P09-003",
+        "P02-012"
+      ]
+    },
+    {
+      "id": "V02",
+      "source": "R1",
+      "time": "00:12–00:25",
+      "observation": "Preferences sections and entry navigation",
+      "featureIds": [
+        "P02-002",
+        "P02-003",
+        "P02-004",
+        "P02-005",
+        "P02-006",
+        "P02-007",
+        "P02-008",
+        "P02-009",
+        "P02-010",
+        "P02-011"
+      ]
+    },
+    {
+      "id": "V03",
+      "source": "R1",
+      "time": "00:26–00:33",
+      "observation": "General font DPI blur colors wallpaper launcher and cache",
+      "featureIds": [
+        "P02-015",
+        "P02-016",
+        "P02-017",
+        "P02-018",
+        "P02-019",
+        "P02-020",
+        "P02-021",
+        "P02-023",
+        "P02-026",
+        "P02-027",
+        "P02-028",
+        "P02-030",
+        "P02-031"
+      ]
+    },
+    {
+      "id": "V04",
+      "source": "R1",
+      "time": "00:33–00:47",
+      "observation": "Home tabs glass layout and row settings",
+      "featureIds": [
+        "P01-016",
+        "P01-017",
+        "P01-018",
+        "P01-019",
+        "P01-020",
+        "P01-021",
+        "P01-022",
+        "P01-025",
+        "P01-027",
+        "P01-028",
+        "P01-030",
+        "P02-032",
+        "P02-033",
+        "P02-034"
+      ]
+    },
+    {
+      "id": "V05",
+      "source": "R1",
+      "time": "00:50–00:53",
+      "observation": "Multimedia Photo HD Video HD",
+      "featureIds": [
+        "P02-009",
+        "P06-004",
+        "P06-005",
+        "P06-006"
+      ]
+    },
+    {
+      "id": "V06",
+      "source": "R1",
+      "time": "00:54–01:15",
+      "observation": "Conversation bubble styles colors fonts stickers and reactions",
+      "featureIds": [
+        "P04-005",
+        "P04-006",
+        "P04-007",
+        "P04-008",
+        "P04-015",
+        "P04-016",
+        "P05-025",
+        "P05-026",
+        "P05-027",
+        "P04-025"
+      ]
+    },
+    {
+      "id": "V07",
+      "source": "R1",
+      "time": "01:18–01:30",
+      "observation": "Privacy online read receipts typing status/view-once and contact controls",
+      "featureIds": [
+        "P03-001",
+        "P03-002",
+        "P03-003",
+        "P03-004",
+        "P03-006",
+        "P03-008",
+        "P03-009",
+        "P03-011",
+        "P03-012",
+        "P03-031"
+      ]
+    },
+    {
+      "id": "V08",
+      "source": "R1",
+      "time": "01:31–01:39",
+      "observation": "Notifications disable auto-hide DND landscape per-contact alerts",
+      "featureIds": [
+        "P03-015",
+        "P03-016",
+        "P03-017",
+        "P03-018",
+        "P03-021",
+        "P03-024",
+        "P03-025",
+        "P03-026",
+        "P03-029"
+      ]
+    },
+    {
+      "id": "V09",
+      "source": "R1",
+      "time": "01:39–01:47",
+      "observation": "Chat list filters unread counts and footer",
+      "featureIds": [
+        "P01-001",
+        "P01-003",
+        "P01-004",
+        "P01-005",
+        "P01-006",
+        "P01-008",
+        "P01-009",
+        "P01-010",
+        "P01-011"
+      ]
+    },
+    {
+      "id": "V10",
+      "source": "R1",
+      "time": "01:48–02:10",
+      "observation": "Conversation message selection and reaction context actions",
+      "featureIds": [
+        "P04-001",
+        "P04-004",
+        "P04-005",
+        "P04-009",
+        "P04-011",
+        "P04-014",
+        "P04-015",
+        "P04-017",
+        "P04-018",
+        "P04-020",
+        "P04-021",
+        "P04-023",
+        "P04-024"
+      ]
+    },
+    {
+      "id": "V11",
+      "source": "R1",
+      "time": "02:10–02:15",
+      "observation": "Calls tabs history favorites and keypad",
+      "featureIds": [
+        "P07-011",
+        "P07-012",
+        "P07-013",
+        "P07-014",
+        "P07-015",
+        "P07-016"
+      ]
+    },
+    {
+      "id": "V12",
+      "source": "R1",
+      "time": "02:15–02:30",
+      "observation": "Updates status channel and community screens",
+      "featureIds": [
+        "P08-001",
+        "P08-002",
+        "P08-005",
+        "P08-006",
+        "P08-007",
+        "P08-013",
+        "P08-014",
+        "P08-015",
+        "P08-016",
+        "P08-017"
+      ]
+    },
+    {
+      "id": "V13",
+      "source": "R1",
+      "time": "02:30–02:43",
+      "observation": "Contact details and calling/privacy actions",
+      "featureIds": [
+        "P09-004",
+        "P09-005",
+        "P09-006",
+        "P09-007",
+        "P09-008",
+        "P09-009",
+        "P09-024"
+      ]
+    },
+    {
+      "id": "V14",
+      "source": "R2",
+      "time": "00:00–00:10",
+      "observation": "Composer keyboard and emoji tray",
+      "featureIds": [
+        "P05-001",
+        "P05-002",
+        "P05-003",
+        "P05-028",
+        "P04-035"
+      ]
+    },
+    {
+      "id": "V15",
+      "source": "R2",
+      "time": "00:03–00:19",
+      "observation": "Emoji search recent categories and suggestions",
+      "featureIds": [
+        "P05-004",
+        "P05-005",
+        "P05-006",
+        "P05-007",
+        "P05-008",
+        "P05-009",
+        "P05-010",
+        "P05-011",
+        "P05-012",
+        "P05-013",
+        "P05-014",
+        "P05-015"
+      ]
+    },
+    {
+      "id": "V16",
+      "source": "R2",
+      "time": "00:18–00:30",
+      "observation": "GIF and sticker tabs packs previews and create",
+      "featureIds": [
+        "P05-016",
+        "P05-017",
+        "P05-018",
+        "P05-019",
+        "P05-020",
+        "P05-021",
+        "P05-022",
+        "P05-023",
+        "P05-024",
+        "P06-014",
+        "P06-018"
+      ]
+    },
+    {
+      "id": "V17",
+      "source": "R2",
+      "time": "00:30–00:53",
+      "observation": "Voice record hold cancel lock pause waveform and send",
+      "featureIds": [
+        "P05-029",
+        "P05-030",
+        "P05-031",
+        "P05-032",
+        "P05-033",
+        "P05-034",
+        "P05-035",
+        "P05-036",
+        "P05-037",
+        "P05-038"
+      ]
+    },
+    {
+      "id": "V18",
+      "source": "R2",
+      "time": "00:53–01:12",
+      "observation": "Message selection actions including reactions reply forward copy star delete",
+      "featureIds": [
+        "P04-014",
+        "P04-015",
+        "P04-016",
+        "P04-017",
+        "P04-018",
+        "P04-019",
+        "P04-022",
+        "P04-023",
+        "P04-024",
+        "P04-026",
+        "P04-027",
+        "P04-028"
+      ]
+    },
+    {
+      "id": "V19",
+      "source": "R2",
+      "time": "01:12–01:21",
+      "observation": "Contact details and call actions",
+      "featureIds": [
+        "P09-004",
+        "P09-005",
+        "P09-006",
+        "P09-007",
+        "P09-009",
+        "P03-006",
+        "P07-004",
+        "P07-005"
+      ]
+    },
+    {
+      "id": "V20",
+      "source": "R2",
+      "time": "01:24–01:33",
+      "observation": "Full search and media filters with jump-to-message",
+      "featureIds": [
+        "P01-015",
+        "P04-029",
+        "P04-030",
+        "P04-031",
+        "P04-032",
+        "P09-015",
+        "P09-016",
+        "P09-017",
+        "P09-018"
+      ]
+    }
+  ]
+}
