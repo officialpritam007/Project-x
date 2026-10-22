@@ -4,7 +4,7 @@
 
 **Status:** baseline source audit in progress. Unchecked = not accepted/verified; existing implementation may already exist. Never check a box based on UI labels alone. Do not claim exact visual parity, working backend, passing builds or completed releases without evidence.
 
-**Owner's execution rules:** commit source updates directly to **`main`**; no pull requests; do not run tests, CI, APK builds or deploy backend. Include **`[skip ci]`** on code commits. Never silently delete work, data, encrypted assets or the author's screen captures. No unauthorized privacy bypasses, impersonated services, or fake group/channel/paid features.
+**Owner's revised execution rules (23 October 2026):** commit source directly to **`main`**; no pull requests. **Run real unit tests, lint, emulator checks, Edge source tests and a candidate APK build.** Record the exact tested commit and artifact before sharing. Production signing, provider credentials, physical two-phone testing and backend deployment are separate gates; do not claim those occurred. Intermediate `[skip ci]` commits are source-only; an integrated current-main CI must run. Never silently delete work, data, encrypted assets or the author's screen captures. No privacy bypasses or fake Groups/Communities/Channels.
 
 **4 phases / 12 PDF sections**; each specific PDF item has a unique `PDF-Sxx-nnn` ID. Original engineering items retain their `Pxx-nnn` IDs at the bottom; these are a separate complementary set and are intentionally not conflated. Both inventories must be reviewed during implementation.
 
@@ -706,3 +706,18 @@ These are **unverified source edits**, not checked acceptance criteria:
 | 4 | `P03-032`, `P04-028` | `8e65575` | Stops ongoing manual message speech when Android app leaves foreground or the conversation/account is disposed; device behavior not validated |
 
 The speech feature invokes the installed Android TTS engine; it does **not** claim offline/private processing by the vendor, and is not used for unsolicited spoken push alerts.
+
+
+## 23 October 2026 — Source implementation and new full candidate validation
+
+A new `rc12` candidate (version code 19) contains the direct-`main` source commits below. **These are code changes, not acceptance certification.** A fresh current-main Android candidate workflow will build and test the exact integrated commit; check its result before any install or release claim.
+
+| Phase | Requirement IDs touched | Commits | Actual change / limitation |
+| --- | --- | --- | --- |
+| 3 | `P05-002`, `P05-020`, `PDF-S12-006`, `PDF-S12-022` | `3757132`, `b11e164`, `a1f9236` | Emoji picker opens the existing private saved-sticker library; navigation test asserts no automatic send. This does not provide a licensed GIF backend or complete emoji/GIF/sticker provider parity |
+| 3 | `P05-020`, `P05-021`, `P05-022`, `PDF-S12-020`, `PDF-S12-023`, `PDF-S12-024` | `5c87250`, `e5a263`, `f9760fc`, `8a4a0f4`, `555336e`, `d36f55b` | Account-scoped saved sticker favorites, sent-recents history, creator launch and Android device isolation coverage. No animated sticker/GIF ingestion implied |
+| 2 | `P04-029`, `P04-030` | `fb31bfd` | JVM privacy regressions for locally downloaded link searches; deleted/foreign-account rows excluded |
+| 1/11 | `P00-008`, `P11-019` | `3c20ab7` | Incremented Android candidate version to 1.0.0-rc12-liquid-preview (19), no change to application ID or owner signing credentials |
+| 11 | `P11-001`–`P11-024` | CI candidate run (pending) | Automated checks authorized; no checkbox closes until actual check evidence exists, and real two-phone/provider acceptance is still required |
+
+**Explicitly unfinished:** the remainder of all 346 engineering acceptance items, screenshot/pixel parity, real Groups/Communities/Channels backend and RLS, GIF provider and animated stickers, per-contact server-enforced privacy exceptions, real two-phone call/FCM/OEM tests, production signing, and provider acceptance. Tests may reveal additional bugs to repair.
