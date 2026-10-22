@@ -60,6 +60,7 @@ data class DisplayOptions(
     val chatHeaderNameSize:Int=16,
     val copySenderAndTime:Boolean=false,
     val photoQuality:String="Standard",
+    val videoQuality:String="HD",
     val incognitoKeyboard:Boolean=false,
     val titleFontPreset:String="Follow",
     val customStickerSize:Boolean=false,
