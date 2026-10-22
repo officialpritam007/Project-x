@@ -27,6 +27,7 @@ import com.pritam.liquidchat.AppViewModel
     var feedback by remember(account) {mutableStateOf<String?>(null)}
     var renamingId by remember(account) {mutableStateOf<String?>(null)}
     var renameText by remember(account) {mutableStateOf("")}
+    var pendingRemoval by remember(account) {mutableStateOf<MbChatFolder?>(null)}
     var contactQuery by remember(account) {mutableStateOf("")}
     val ownedChats=chats.filter {it.account==account}
     val matchingChats=ownedChats.filter {chat->
@@ -105,6 +106,24 @@ import com.pritam.liquidchat.AppViewModel
         },
         dismissButton={TextButton(onClick={renamingId=null}) {Text("Cancel")}}
     )
+    pendingRemoval?.let {folder->
+        AlertDialog(
+            onDismissRequest={pendingRemoval=null},
+            title={Text("Remove ${folder.name}?")},
+            text={Text("This only removes the custom list from this phone. " +
+                "Its ${folder.members.size} selected chats and all messages stay intact.")},
+            confirmButton={
+                TextButton(onClick={
+                    val owner=account
+                    if(owner!=null)runCatching {
+                        MbChatFolders.remove(context,owner,folder.id)
+                    }.onSuccess {folders=it;feedback=null;pendingRemoval=null}
+                        .onFailure {feedback=it.message ?: "Could not remove this list."}
+                },enabled=account!=null) {Text("Remove list")}
+            },
+            dismissButton={TextButton(onClick={pendingRemoval=null}) {Text("Keep list")}}
+        )
+    }
     folders.forEach {folder->
         GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -117,10 +136,7 @@ import com.pritam.liquidchat.AppViewModel
                     enabled=account!=null) {
                     Icon(Icons.Outlined.Edit,"Rename folder")
                 }
-                IconButton(onClick={
-                    val owner=account
-                    if(owner!=null)folders=MbChatFolders.remove(context,owner,folder.id)
-                },enabled=account!=null) {
+                IconButton(onClick={pendingRemoval=folder},enabled=account!=null) {
                     Icon(Icons.Outlined.DeleteOutline,"Remove folder")
                 }
             }
