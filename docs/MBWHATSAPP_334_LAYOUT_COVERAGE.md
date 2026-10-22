@@ -209,3 +209,8 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Protected Contact Details/Shared Media bottom sheet now shares the reference **22dp top corners** and hidden drag handle with other dialogs; Liquid mode continues with its original 30dp shape and drag affordance.
 - Contact hero, Save Contact and existing participant-scoped signed media paging, revocation/deletion safeguards and filters remain untouched.
 - No original screenshot or runtime test was performed.
+
+## 2026-10-22 — reference settings sub-screen typography/spacing
+
+- All real Preferences sub-screen routes now use the established 20dp reference horizontal insets, compact 47dp header and 12dp between-group spacing in Reference mode, while keeping existing Liquid spacing and exact working controls unchanged.
+- Existing account, theme import/export, notifications, privacy and server settings operations are preserved. No pixel claim without screenshot pairs; build/CI remain deferred.

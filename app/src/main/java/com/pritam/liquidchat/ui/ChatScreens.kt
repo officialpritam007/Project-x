@@ -2825,12 +2825,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var showPolicy by remember {mutableStateOf(false)}
     var password by remember {mutableStateOf("")}
     if(edit) {BackHandler {edit=false};Column {TextButton(onClick={edit=false}) {Text("Back to Settings")};ProfileScreen(model,busy)};return}
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp,vertical=12.dp)
-        .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={
+    val referenceSection=referenceListUsesFlatRows(display)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        .padding(horizontal=if(referenceSection)20.dp else 16.dp,
+            vertical=if(referenceSection)8.dp else 12.dp)
+        .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        verticalArrangement=Arrangement.spacedBy(if(referenceSection)12.dp else 20.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min=if(referenceSection)47.dp else 0.dp),
+            verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={
             section=referenceSettingsBackTarget(section,fromPreferences)
             if(section==null)fromPreferences=false
-        }){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};Text(section.orEmpty().removePrefix("Liquid Chat "),style=MaterialTheme.typography.headlineSmall)}
+        }){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};
+            Text(section.orEmpty().removePrefix("Liquid Chat "),
+                style=if(referenceSection)MaterialTheme.typography.titleLarge
+                    else MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Liquid Chat Updates") MbAppUpdates()
         if(section=="Liquid Chat General Settings") MbGeneralAppearanceSettings(display,model::setDisplay)
