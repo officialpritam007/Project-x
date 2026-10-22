@@ -572,7 +572,16 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val chatResults=remember(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod) {
         filterMessageHistory(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod)
     }
-    var actionMessage by remember(cid) {mutableStateOf<Message?>(null)}
+    var actionMessage by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    // Long-press menus must close as soon as a message is revoked, hidden,
+    // deleted, or an active account switches; never preserve stale payloads.
+    LaunchedEffect(messages,actionMessage?.id,session?.userId) {
+        val opened=actionMessage
+        if(opened!=null && messages.none {
+            it.account==session?.userId && it.id==opened.id &&
+                it.deletedAt.isEmpty()
+        }) actionMessage=null
+    }
     var historyMessage by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
     var historyRevisions by remember(cid,session?.userId) {
         mutableStateOf(emptyList<MessageEditVersion>())
