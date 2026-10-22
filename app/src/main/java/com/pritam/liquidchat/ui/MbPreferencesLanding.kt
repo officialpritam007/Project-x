@@ -10,7 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -117,6 +118,7 @@ internal object MbReferencePreferenceSections {
 @Composable internal fun MbPreferencesLanding(
     onBack:()->Unit,onNavigate:(String)->Unit
 ) {
+    var preferenceSearch by rememberSaveable { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         .padding(horizontal=16.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
@@ -139,14 +141,44 @@ internal object MbReferencePreferenceSections {
                 modifier=Modifier.size(106.dp).padding(10.dp),
                 tint=Color.Unspecified)
         }
-        MbVideoReferenceGroup(MbReferencePreferenceSections.controls,onNavigate)
-        MbVideoReferenceGroup(MbReferencePreferenceSections.premium,onNavigate)
-        MbVideoReferenceGroup(MbReferencePreferenceSections.themes+
-            MbReferencePreferenceSections.visual,onNavigate)
-        Text("ACCOUNT & SUPPORT",modifier=Modifier.padding(start=10.dp),
-            fontSize=12.sp,fontWeight=FontWeight.SemiBold,
-            color=MaterialTheme.colorScheme.onSurfaceVariant)
-        MbVideoReferenceGroup(MbReferencePreferenceSections.utility,onNavigate)
+        OutlinedTextField(
+            value=preferenceSearch,
+            onValueChange={preferenceSearch=it},
+            modifier=Modifier.fillMaxWidth(),
+            placeholder={Text("Search preferences")},
+            leadingIcon={Icon(Icons.Outlined.Search,contentDescription=null)},
+            trailingIcon={
+                if(preferenceSearch.isNotEmpty()) IconButton(onClick={preferenceSearch=""}) {
+                    Icon(Icons.Outlined.Close,contentDescription="Clear preference search")
+                }
+            },
+            singleLine=true,
+            shape=RoundedCornerShape(20.dp)
+        )
+        if(preferenceSearch.isBlank()) {
+            MbVideoReferenceGroup(MbReferencePreferenceSections.controls,onNavigate)
+            MbVideoReferenceGroup(MbReferencePreferenceSections.premium,onNavigate)
+            MbVideoReferenceGroup(MbReferencePreferenceSections.themes+
+                MbReferencePreferenceSections.visual,onNavigate)
+            Text("ACCOUNT & SUPPORT",modifier=Modifier.padding(start=10.dp),
+                fontSize=12.sp,fontWeight=FontWeight.SemiBold,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+            MbVideoReferenceGroup(MbReferencePreferenceSections.utility,onNavigate)
+        } else {
+            val matches=MbReferencePreferenceSections.all.filter {
+                it.label.contains(preferenceSearch.trim(),ignoreCase=true) ||
+                    it.target.contains(preferenceSearch.trim(),ignoreCase=true)
+            }
+            if(matches.isEmpty()) {
+                Text("No matching preferences",modifier=Modifier.fillMaxWidth()
+                    .padding(vertical=20.dp),
+                    style=MaterialTheme.typography.bodyMedium,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+            } else {
+                MbVideoReferenceGroup(matches,onNavigate)
+            }
+        }
         Text("Liquid Chat · Working settings for your own account and device.",
             modifier=Modifier.fillMaxWidth().padding(bottom=4.dp),
             style=MaterialTheme.typography.labelSmall,
