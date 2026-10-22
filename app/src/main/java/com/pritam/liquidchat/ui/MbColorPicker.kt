@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
@@ -13,12 +14,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -172,5 +176,43 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
     }
     if(open)MbColorPickerDialog(title,currentHex,onDismiss={open=false},onApply={hex->
         onApply(hex);open=false
+    })
+}
+
+
+/**
+ * MB 3.3.4 mb_colorpicker_layout.xml is a 45dp settings row with
+ * 15sp / 13sp labels and a 30dp value swatch. Keep the actual validated
+ * Liquid Chat RGB editor and its photo sampler as the action behind the row.
+ */
+@Composable internal fun MbReferenceColorRow(
+    title:String,subtitle:String,value:String,
+    onApply:(String)->Unit,modifier:Modifier=Modifier
+) {
+    val safe=normalizedAccentHex(value) ?: "#2563EB"
+    val swatch=Color(safe.substring(1).toLong(16) or 0xFF000000L)
+    var open by remember(title) {mutableStateOf(false)}
+    Row(modifier.fillMaxWidth().heightIn(min=45.dp)
+        .clip(Glass.compact)
+        .clickable {open=true}
+        .padding(horizontal=6.dp,vertical=6.dp),
+        verticalAlignment=Alignment.CenterVertically,
+        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f).padding(start=6.dp)) {
+            Text(title,fontSize=15.sp,maxLines=1,
+                color=MaterialTheme.colorScheme.onSurface)
+            Text(subtitle,fontSize=13.sp,maxLines=1,
+                color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Box(Modifier.size(30.dp)
+            .border(1.dp,MaterialTheme.colorScheme.outlineVariant,
+                RoundedCornerShape(6.dp))
+            .padding(2.dp)
+            .background(swatch,RoundedCornerShape(4.dp))
+            .semantics {contentDescription="Edit $title color: $safe"})
+    }
+    if(open) MbColorPickerDialog(title,safe,onDismiss={open=false},onApply={hex->
+        onApply(hex)
+        open=false
     })
 }
