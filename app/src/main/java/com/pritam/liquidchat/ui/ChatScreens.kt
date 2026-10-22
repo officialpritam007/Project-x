@@ -138,6 +138,7 @@ import kotlinx.coroutines.launch
     val homePrivacy by model.repository.privateSettings.collectAsStateWithLifecycle()
     val signedInAccount by model.session.collectAsStateWithLifecycle()
     val homeOwner=signedInAccount?.userId
+    var allStarsOpen by remember(homeOwner) {mutableStateOf(false)}
     val context=LocalContext.current
     var customFolders by remember(homeOwner) {
         mutableStateOf(MbChatFolders.list(context,homeOwner))
@@ -230,6 +231,9 @@ import kotlinx.coroutines.launch
                     // The four filters already have visible, accessible chips below.
                     // Keep overflow for an action rather than duplicating navigation.
                     DropdownMenuItem(text={Text("Refresh conversations")},onClick={model.repository.refresh();menu=false})
+                    DropdownMenuItem(text={Text("Starred messages")},onClick={
+                        allStarsOpen=true;menu=false
+                    },enabled=homeOwner!=null)
                     if(inboxDisplay.hideStoriesCarousel) {
                         DropdownMenuItem(text={Text("View stories")},onClick={stories=true;menu=false})
                         DropdownMenuItem(text={Text("Add my story")},onClick={addStoryImmediately=true;ownStories=true;menu=false})
@@ -361,6 +365,8 @@ import kotlinx.coroutines.launch
             modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
     }
     }
+    if(allStarsOpen && homeOwner!=null) MbAllStarredMessages(
+        model,chats,homeOwner,onDismiss={allStarsOpen=false})
     selectedChat?.let {c->
         val previewFlow=remember(model,c.id) {model.repository.messages(c.id)}
         val previewMessages by previewFlow.collectAsStateWithLifecycle(initialValue=emptyList())
