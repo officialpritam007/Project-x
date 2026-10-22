@@ -69,6 +69,73 @@ object Images {
             }
         }
 
+    /** User-added photo artwork is rendered into the private local draft, never a public URL. */
+    fun normalizedOverlayText(text:String):String =
+        text.replace(Regex("\\s+")," ").trim().take(64)
+
+    suspend fun addTextOverlay(context:Context,account:String,prepared:Prepared,text:String):Prepared =
+        withContext(Dispatchers.IO) {
+            require(account.isNotBlank())
+            val label=normalizedOverlayText(text)
+            require(label.isNotBlank()) {"Enter text to place on the photo."}
+            val directory=File(context.filesDir,"media/$account").canonicalFile
+            require(prepared.file.isFile&&prepared.file.canonicalFile.parentFile==directory) {
+                "The photo does not belong to this account."
+            }
+            val output=File(directory,"${UUID.randomUUID()}.jpg")
+            var original:Bitmap?=null
+            var annotated:Bitmap?=null
+            try {
+                original=android.graphics.BitmapFactory.decodeFile(prepared.file.absolutePath)
+                    ?: throw IOException("Cannot open the selected photo.")
+                val source=original ?: throw IOException("Cannot decode the photo.")
+                annotated=source.copy(Bitmap.Config.ARGB_8888,true)
+                    ?: throw IOException("Cannot create an editable photo.")
+                val canvas=android.graphics.Canvas(annotated!!)
+                val lineLength=if(annotated!!.width>=650)28 else 18
+                val lines=label.chunked(lineLength).take(4)
+                val fill=android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    color=android.graphics.Color.WHITE
+                    textAlign=android.graphics.Paint.Align.CENTER
+                    typeface=android.graphics.Typeface.create(
+                        android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD)
+                    textSize=(annotated!!.width*.061f).coerceIn(12f,68f)
+                }
+                while(lines.any {fill.measureText(it)>annotated!!.width*.90f} &&
+                    fill.textSize>12f)fill.textSize-=1f
+                val outline=android.graphics.Paint(fill).apply {
+                    color=android.graphics.Color.BLACK
+                    style=android.graphics.Paint.Style.STROKE
+                    strokeWidth=(fill.textSize*.14f).coerceAtLeast(3f)
+                    strokeJoin=android.graphics.Paint.Join.ROUND
+                }
+                val lineHeight=fill.textSize*1.18f
+                val firstY=(annotated!!.height*.78f).coerceAtMost(
+                    annotated!!.height-lineHeight*lines.size).coerceAtLeast(fill.textSize)
+                lines.forEachIndexed {index,line->
+                    val y=firstY+index*lineHeight
+                    canvas.drawText(line,annotated!!.width/2f,y,outline)
+                    canvas.drawText(line,annotated!!.width/2f,y,fill)
+                }
+                val result=annotated ?: throw IOException("Text overlay failed.")
+                output.outputStream().use {
+                    check(result.compress(Bitmap.CompressFormat.JPEG,88,it))
+                }
+                if(output.length()>9_500_000L)output.outputStream().use {
+                    check(result.compress(Bitmap.CompressFormat.JPEG,70,it))
+                }
+                if(output.length() !in 1..9_500_000L)
+                    throw IOException("Edited photo exceeds the upload limit.")
+                Prepared(output,result.width,result.height)
+            } catch(e:Exception) {
+                output.delete()
+                throw e
+            } finally {
+                if(annotated!==original)annotated?.recycle()
+                original?.recycle()
+            }
+        }
+
     /** Preserve a centered crop using integer aspect arithmetic (no stretching). */
     private fun centeredCrop(source:Bitmap,aspectWidth:Int,aspectHeight:Int):Bitmap {
         require(aspectWidth>0 && aspectHeight>0)
