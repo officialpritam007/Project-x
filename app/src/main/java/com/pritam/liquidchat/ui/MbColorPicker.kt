@@ -2,9 +2,14 @@ package com.pritam.liquidchat.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
@@ -78,6 +83,11 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
     var input by remember(initial) {mutableStateOf(initial)}
     var photoError by remember(initial) {mutableStateOf<String?>(null)}
     var photoLoading by remember(initial) {mutableStateOf(false)}
+    var photoPreview by remember(initial) {mutableStateOf<android.graphics.Bitmap?>(null)}
+    DisposableEffect(photoPreview) {
+        // No selected theme image survives closing the dialog or changing photos.
+        onDispose {photoPreview?.recycle()}
+    }
     val scope=rememberCoroutineScope()
     val context=LocalContext.current
     val photoPicker=rememberLauncherForActivityResult(
@@ -86,9 +96,17 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
             photoLoading=true
             scope.launch {
                 try {
-                    val color=PhotoAccentSampler.extract(context,uri)
-                    MbHsvColor.fromHex(color)?.let {hsv=it;input=it.toHex()}
-                    photoError=null
+                    photoPreview=PhotoAccentSampler.preview(context,uri)
+                    try {
+                        val color=PhotoAccentSampler.extract(context,uri)
+                        MbHsvColor.fromHex(color)?.let {hsv=it;input=it.toHex()}
+                        photoError=null
+                    } catch(e:kotlinx.coroutines.CancellationException) {throw e}
+                    catch(_:Exception) {
+                        // Photos with no dominant saturated color are still
+                        // fully usable through precise manual pixel selection.
+                        photoError="Tap any opaque point in the photo to choose its color."
+                    }
                 } catch(e:kotlinx.coroutines.CancellationException) {throw e}
                 catch(e:Exception) {
                     photoError=e.message ?: "Could not identify a usable color."
@@ -142,6 +160,30 @@ internal data class MbHsvColor(val hue:Float,val saturation:Float,val brightness
                 TextButton(enabled=!photoLoading,onClick={photoPicker.launch("image/*")}) {
                     Text(if(photoLoading)"Reading photo…" else "Choose photo")
                 }
+            }
+            photoPreview?.let { bitmap->
+                Text("Tap an exact color from the photo",
+                    style=MaterialTheme.typography.labelLarge)
+                Image(bitmap=bitmap.asImageBitmap(),
+                    contentDescription="Tap a pixel to use this photo color",
+                    contentScale=ContentScale.Fit,
+                    modifier=Modifier.fillMaxWidth().height(198.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .pointerInput(bitmap) {
+                            detectTapGestures {tap->
+                                val hex=PhotoAccentSampler.pixelAt(bitmap,
+                                    tap.x,tap.y,
+                                    size.width.toFloat(),size.height.toFloat())
+                                if(hex!=null) {
+                                    MbHsvColor.fromHex(hex)?.let(::update)
+                                    photoError=null
+                                } else {
+                                    photoError="Tap a visible, non-transparent part of the photo."
+                                }
+                            }
+                        })
+                TextButton(onClick={photoPreview=null}) {Text("Remove photo preview")}
             }
             photoError?.let {
                 Text(it,color=MaterialTheme.colorScheme.error,
