@@ -2993,6 +2993,22 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         )
         return
     }
+    if(section=="Starred Messages") {
+        val activeSession by model.session.collectAsStateWithLifecycle()
+        val availableChats by model.chats.collectAsStateWithLifecycle()
+        val owner=activeSession?.userId
+        if(owner!=null) {
+            MbAllStarredMessages(model,availableChats,owner,onDismiss={
+                section=null
+                fromPreferences=false
+            })
+        } else {
+            Text("Sign in to view starred messages.",
+                modifier=Modifier.padding(24.dp),
+                style=MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
 
     val profile by model.profile.collectAsStateWithLifecycle()
     val settings by model.repository.privateSettings.collectAsStateWithLifecycle()
