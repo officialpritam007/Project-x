@@ -141,8 +141,9 @@ internal object StickerFactory {
                         strokeWidth=6f
                         strokeJoin=Paint.Join.ROUND
                     }
-                    canvas.drawText(text,256f,473f,outline)
-                    canvas.drawText(text,256f,473f,fill)
+                    val labelCanvas=Canvas(sticker)
+                    labelCanvas.drawText(text,256f,473f,outline)
+                    labelCanvas.drawText(text,256f,473f,fill)
                 }
                 // A simple 512px image may be larger than the 512 KB sticker
                 // quota. Reduce drawn pixel density within the same RGBA
