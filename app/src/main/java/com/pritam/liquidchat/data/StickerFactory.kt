@@ -67,9 +67,13 @@ internal fun borderConnectedNearWhiteMask(
     return seen
 }
 
+/** No arbitrary text injection into files or backend fields: only local flattened pixels. */
+internal fun normalizedStickerLabel(text:String):String =
+    text.replace(Regex("\\s+")," ").trim().take(32)
+
 internal object StickerFactory {
     suspend fun prepare(
-        context:Context,uri:Uri,account:String,removeWhite:Boolean=false
+        context:Context,uri:Uri,account:String,removeWhite:Boolean=false,label:String=""
     ):Images.Prepared=withContext(Dispatchers.IO) {
         require(account.isNotBlank()) {"Sign in before creating a sticker."}
         val directory=File(context.filesDir,"media/$account").apply {mkdirs()}
@@ -120,6 +124,26 @@ internal object StickerFactory {
                         RectF((512f-w)/2,(512f-h)/2,(512f+w)/2,(512f+h)/2),
                         Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
                 } finally {if(content!==bitmap)content.recycle()}
+                val text=normalizedStickerLabel(label)
+                if(text.isNotEmpty()) {
+                    val fill=Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color=Color.WHITE
+                        textAlign=Paint.Align.CENTER
+                        typeface=android.graphics.Typeface.create(
+                            android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD)
+                        textSize=42f
+                    }
+                    while(fill.measureText(text)>456f&&fill.textSize>17f)
+                        fill.textSize-=1f
+                    val outline=Paint(fill).apply {
+                        color=Color.BLACK
+                        style=Paint.Style.STROKE
+                        strokeWidth=6f
+                        strokeJoin=Paint.Join.ROUND
+                    }
+                    canvas.drawText(text,256f,473f,outline)
+                    canvas.drawText(text,256f,473f,fill)
+                }
                 // A simple 512px image may be larger than the 512 KB sticker
                 // quota. Reduce drawn pixel density within the same RGBA
                 // canvas, leaving an honest transparent border.
