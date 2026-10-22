@@ -61,11 +61,11 @@ import androidx.compose.ui.unit.dp
                 if(!loading) OutlinedButton(onClick={
                     // No raw exception, account, contact, access token, message
                     // or media path is ever included in the report body.
-                    val body="Liquid Chat problem report\\n" +
-                        "Issue: Unable to load profile\\n" +
-                        "App version: ${com.pritam.liquidchat.BuildConfig.VERSION_NAME}\\n" +
-                        "Android API: ${android.os.Build.VERSION.SDK_INT}\\n\\n" +
-                        "Please describe what happened:\\n"
+                    val body="Liquid Chat problem report\n" +
+                        "Issue: Unable to load profile\n" +
+                        "App version: ${com.pritam.liquidchat.BuildConfig.VERSION_NAME}\n" +
+                        "Android API: ${android.os.Build.VERSION.SDK_INT}\n\n" +
+                        "Please describe what happened:\n"
                     val share=Intent(Intent.ACTION_SEND).apply {
                         type="text/plain"
                         putExtra(Intent.EXTRA_SUBJECT,"Liquid Chat problem report")
