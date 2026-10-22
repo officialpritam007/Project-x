@@ -2171,37 +2171,27 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(stickerLibraryOpen) LiquidAlertDialog(
         onDismissRequest={stickerLibraryOpen=false},
         title={Text("My stickers")},
-        text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp)
-            .verticalScroll(rememberScrollState()),
+        text={Column(Modifier.fillMaxWidth(),
             verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Text("Saved stickers are private to this account on this phone. Select Send to share one.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(savedStickers.isEmpty())
                 Text("No saved stickers. Choose Create sticker to make one.")
-            savedStickers.forEach {file->
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
-                    horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    coil.compose.AsyncImage(model=file,
-                        contentDescription="Saved sticker",
-                        modifier=Modifier.size(76.dp))
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick={
-                        if(display.confirmSavedStickerSend)confirmSavedSticker=file
-                        else sendSavedSticker(file)
-                    },enabled=!busy&&!sendingSavedSticker) {Text("Send")}
-                    IconButton(onClick={
-                        val owner=session?.userId
-                        if(owner!=null)runCatching {
-                            StickerLibrary.remove(context,owner,file)
-                            savedStickers=StickerLibrary.list(context,owner)
-                        }.onFailure {stickerNotice=it.message ?: "Could not remove sticker."}
-                    },enabled=!busy) {
-                        Icon(Icons.Outlined.DeleteOutline,"Delete saved sticker")
-                    }
+            MbSavedStickerShelf(
+                stickers=savedStickers,enabled=!busy&&!sendingSavedSticker,
+                onSend={file->
+                    if(display.confirmSavedStickerSend)confirmSavedSticker=file
+                    else sendSavedSticker(file)
+                },
+                onDelete={file->
+                    val owner=session?.userId
+                    if(owner!=null)runCatching {
+                        StickerLibrary.remove(context,owner,file)
+                        savedStickers=StickerLibrary.list(context,owner)
+                    }.onFailure {stickerNotice=it.message ?: "Could not remove sticker."}
                 }
-                HorizontalDivider()
-            }
+            )
             stickerNotice?.let {Text(it,style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)}
         }},

@@ -180,3 +180,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Call History reference rows have 60dp minimum height. The original call screen, audio/video redial, microphone/camera permissions and in-flight call checks remain intact.
 - My Profile reference hero uses the 120dp avatar and compact hero card; the action menu is now the shared reference sheet instead of a differently styled dropdown, with actual Edit/Remove Photo behaviors preserved.
 - Source stage only; exact original pixel match and runtime/CI verification not claimed.
+
+## 2026-10-22 — working account-local sticker shelf (source-only)
+
+- Reference-mode **My stickers** now shows a 3-column lazy thumbnail shelf with real account-scoped Send/Confirm Send and Delete controls on each sticker; Liquid-mode retains the original vertical list. The same existing on-device sticker files and `StickerLibrary` removal/refresh calls are preserved without additional backend scopes or public media URLs.
+- Nested list layout now has a maximum 360dp scroll viewport, with unique file-based keys; sticker send/delete busy guards unchanged. Original MB animated sticker pack segmentation/geometry is still unverified.
+- Only source changes; device behavior and original pixel parity are not certified.
