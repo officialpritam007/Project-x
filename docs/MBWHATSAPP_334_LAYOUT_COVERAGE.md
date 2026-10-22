@@ -13,7 +13,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_bottom_iosv2.xml` | Partial | Reference-mode GlassNavigation: 56dp five-slot footer, 30dp reference icons and eight owner-supplied selected/unselected icon files, 11sp labels, 90dp selection line, account-scoped unread badge | Correct reference destination mapping, font/pixel states, alternate navigation and emulator verification remain unproven |
 | `mb_bottom_iosv2_ot.xml` | Partial | GlassNavigation variants | Alternate reference layout not matched |
 | `mb_box_item.xml` | Partial | GlassCard | Exact spacing and hierarchy unverified |
-| `mb_colorpicker_layout.xml` | Partial | Custom hex and photo-accent settings | Exact color-picker palette unverified |
+| `mb_colorpicker_layout.xml` | Partial | Original 45dp color-picker settings row with 15sp/13sp labels and a real 30dp swatch; used for app ink/background/chrome with persistent RGB color picker and Reset | More exact embedded picker art/transparency color-wheel gestures unverified |
 | `mb_convo_settings.xml` | Partial | Conversation Screen Settings with five animated, accessible expandable groups; existing privacy/media controls preserved | Other reference sections, precise icons, nested layout and visual acceptance still unverified |
 | `mb_custom_cm.xml` | Unmapped | ScrollView, RowBackground, several labels and divider views identified in binary XML | String resource meanings and source button behavior remain unresolved |
 | `mb_custom_color_picker_dialog.xml` | Partial | Native HSV sliders, hex input, 18 swatches and explicit photo-based dominant accent sampler | Reference exact pixel palette and manual photo pixel eyedropper remain missing |
@@ -24,7 +24,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_dialog_media.xml` | Partial | **Corrected binary XML mapping:** its layout is the Photo HD / Video HD / view-once-check settings group, not an attachment chooser. Liquid Chat has genuine Photo HD and 480p/720p Video HD toggles wired to its picker/transcoder. | The original view-once-check bypass is not copied for recipient privacy; native media delivery and visual matching still require verification |
 | `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
 | `mb_edittext_box.xml` | Partial | Compose conversation composer | Reference animations and accessories unverified |
-| `mb_edittext_layout.xml` | Partial | **Corrected binary mapping:** 45dp settings input row with 24dp leading icon, 15sp main and 13sp secondary text; Liquid Chat has editable corresponding settings. | Native reusable reference-sized settings editor row is not installed consistently |
+| `mb_edittext_layout.xml` | Partial | Native 45dp editable settings row with 24dp icon, 15sp main/13sp secondary label; touch-character option saves via 18sp/14sp input dialog | More instances in source settings and precise Android view-font metrics unverified |
 | `mb_error_activity.xml` | Partial | Existing errors/retry dialogs | Dedicated reference-style error screen absent |
 | `mb_general_settings.xml` | Partial | General Settings | All source sliders/switches not enumerated yet |
 | `mb_home_settings.xml` | Partial | Home Screen Settings | Full reference tab and wallpaper options unverified |
@@ -49,11 +49,11 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_privacy_settings.xml` | Partial | Server-backed Ghost Mode + privacy settings | Per-contact exceptions not implemented |
 | `mb_prof_d.xml` | Partial | Liquid Chat profile card | Exact arrangement and edit screen unverified |
 | `mb_search_view.xml` | Partial | Real reference 35dp search row with 12dp inset, 24dp icon and 16sp hint implemented for Chats/Contacts, including clear and focus | Full reference global-search results and animated transitions unverified |
-| `mb_seekbar_dialog.xml` | Partial | Material3 sliders | Reference custom dialog unverified |
-| `mb_seekbar_layout.xml` | Partial | Display sliders | Exact gradient/animation missing |
+| `mb_seekbar_dialog.xml` | Partial | 17sp reference title, Preview label, 18sp value and Save/Cancel slider dialog wired to real message font/emoji size and bubble opacity | Exact reference slider tint, thumb, gesture curves and screenshot match unverified |
+| `mb_seekbar_layout.xml` | Partial | Reference conversation sliders now appear in 45dp selectable rows that open a staged value dialog instead of immediately mutating the setting | Original per-row artwork, panel spacing and full dialog parity unverified |
 | `mb_service_ui.xml` | Unmapped | Service heading, description and three labeled action controls identified | Source service behavior is not known; no misleading mock buttons or foreign protocol integration |
 | `mb_settings.xml` | Partial | SettingsScreen | Full feature list and reference layout not matched |
-| `mb_switch_layout.xml` | Partial | Material3 switches | Reference track/thumb behavior unverified |
+| `mb_switch_layout.xml` | Partial | 45dp accessible native switch row with 24dp leading icon and 15sp/12sp labels; active Photo HD, Video HD and touch-animation controls | Native reference switch-thumb animation and pixel comparison unverified |
 | `mb_themes_settings.xml` | Partial | Theme JSON/library, user-confirmed saved-theme preview, local accent photo extraction, HSV/swatches | Proprietary reference theme files, external fonts/assets, exact package previews unimplemented |
 | `mb_tip_aitools.xml` | Partial | Offline draft Text tools: clean spacing, capitalization and case changes with preview/Apply | No remote AI rewrite, translation, hallucination-prone suggestions or external AI service configured |
 | `mb_tip_logout.xml` | Partial | Liquid Chat sign-out confirmation | Exact layout/animation unverified |
@@ -126,3 +126,11 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Search/Reference bottom sheets now use those measurements and true clear/close actions. Reference conversation message actions reuse their existing server-checked callbacks but appear in a bottom sheet, with icon-bearing rows and destructive action styling. A hidden/revoked message dismisses its action menu on the active session.
 - Genuine Video HD toggle added with persistent 480p Standard / 720p HD H.264/AAC export. Story exports still default to 720p; authenticated private chat video remains capped at 30 seconds and 8 MB. Do not reproduce a third-party view-once bypass that contradicts media privacy.
 - Owner explicitly deferred builds, lint, CI, Supabase migrations/Edge deployments and device verification. Do not claim parity or production readiness yet.
+
+## 22 October 2026 — reference input/control layouts
+
+- `mb_colorpicker_layout.xml`: original 45dp color row, 15sp/13sp labels, 30dp preview swatch rebuilt and wired to genuine device-local app text/background/chrome colors (native themes unchanged unless chosen).
+- `mb_switch_layout.xml`: original 45dp control row, leading 24dp icon and 15sp/12sp labels rebuilt with a single TalkBack-accessible switch action; Photo HD, Video HD and touch animation use real saved settings.
+- `mb_edittext_layout.xml` and `mb_edittext_box.xml`: editable 45dp touch-character row and 18sp input title, 14sp hint and Save/Cancel actions; changes commit only on Save.
+- `mb_seekbar_dialog.xml`: 17sp title, Preview, 18sp value and staged Save/Cancel used for message font size (10–30 sp), emoji picker (18–32 sp) and bubble opacity (45–100%). No settings change occurs on Cancel.
+- These are **unbuilt source commits**. Owner asked to defer CI/lint/build tests until all implementation work is over. No device screenshots or verified APK are available yet.
