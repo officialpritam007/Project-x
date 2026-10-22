@@ -37,33 +37,34 @@ internal fun referenceSettingsBackTarget(section:String?,enteredFromReference:Bo
 }
 
 internal data class MbReferencePreference(
-    val label:String,val target:String,val icon:ImageVector
+    val label:String,val target:String,val icon:ImageVector,
+    val keywords:String=""
 )
 
 internal object MbReferencePreferenceSections {
     val controls=listOf(
-        MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.LockOutline),
-        MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.NotificationsNone)
+        MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.LockOutline,keywords="online last seen read receipts hide typing recording block contacts security"),
+        MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.NotificationsNone,keywords="disable alerts auto hide five seconds dnd do not disturb bubbles vibration ringtone")
     )
     val premium=listOf(
-        MbReferencePreference("Extra features","Liquid Chat VIP Features",Icons.Outlined.AutoAwesome)
+        MbReferencePreference("Extra features","Liquid Chat VIP Features",Icons.Outlined.AutoAwesome,keywords="contact info extras customization local preferences")
     )
     val themes=listOf(
-        MbReferencePreference("Themes","Liquid Chat Themes",Icons.Outlined.Palette)
+        MbReferencePreference("Themes","Liquid Chat Themes",Icons.Outlined.Palette,keywords="light dark color palette accent white import export appearance")
     )
     val visual=listOf(
-        MbReferencePreference("General configuration","Liquid Chat General Settings",Icons.Outlined.Settings),
-        MbReferencePreference("Home Screen","Liquid Chat Home Screen",Icons.Outlined.Home),
-        MbReferencePreference("Multimedia","Liquid Chat Multimedia",Icons.Outlined.HighQuality),
-        MbReferencePreference("Conversation Screen","Liquid Chat Conversation Screen",Icons.Outlined.ChatBubbleOutline),
-        MbReferencePreference("Animations","Liquid Chat Animations",Icons.Outlined.Animation)
+        MbReferencePreference("General configuration","Liquid Chat General Settings",Icons.Outlined.Settings,keywords="font text size screen dpi scale blur cache clean notification icon app background launcher"),
+        MbReferencePreference("Home Screen","Liquid Chat Home Screen",Icons.Outlined.Home,keywords="navigation tab reordering visibility chats archive list dividers stories glass"),
+        MbReferencePreference("Multimedia","Liquid Chat Multimedia",Icons.Outlined.HighQuality,keywords="HD quality photos images videos 720p 480p compression"),
+        MbReferencePreference("Conversation Screen","Liquid Chat Conversation Screen",Icons.Outlined.ChatBubbleOutline,keywords="message bubbles emojis reactions stickers keyboard font reply colors"),
+        MbReferencePreference("Animations","Liquid Chat Animations",Icons.Outlined.Animation,keywords="reduce motion transparency visual effects blur")
     )
     val utility=listOf(
         MbReferencePreference("My account","Account",Icons.Outlined.PersonOutline),
-        MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage),
-        MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull),
-        MbReferencePreference("Tips and help","Liquid Chat Help",Icons.Outlined.HelpOutline),
-        MbReferencePreference("App updates","Liquid Chat Updates",Icons.Outlined.SystemUpdate)
+        MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage,keywords="cache usage files media cleanup download storage"),
+        MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull,keywords="battery energy performance"),
+        MbReferencePreference("Tips and help","Liquid Chat Help",Icons.Outlined.HelpOutline,keywords="guide support developer questions"),
+        MbReferencePreference("App updates","Liquid Chat Updates",Icons.Outlined.SystemUpdate,keywords="version changelog whats new release")
     )
     val all=controls+premium+themes+visual+utility
 }
@@ -167,7 +168,8 @@ internal object MbReferencePreferenceSections {
         } else {
             val matches=MbReferencePreferenceSections.all.filter {
                 it.label.contains(preferenceSearch.trim(),ignoreCase=true) ||
-                    it.target.contains(preferenceSearch.trim(),ignoreCase=true)
+                    it.target.contains(preferenceSearch.trim(),ignoreCase=true) ||
+                    it.keywords.contains(preferenceSearch.trim(),ignoreCase=true)
             }
             if(matches.isEmpty()) {
                 Text("No matching preferences",modifier=Modifier.fillMaxWidth()
