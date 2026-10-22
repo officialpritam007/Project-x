@@ -59,6 +59,11 @@ class MbDisplayOptionsTest {
         assertEquals(liquidAccentScheme(false,"Cyan"),liquidAccentScheme(false,"unknown"))
         org.junit.Assert.assertNotEquals(liquidAccentScheme(false,"Cyan").primary,liquidAccentScheme(false,"Rose").primary)
     }
+    @Test fun referenceModeUsesConsistentFlatRowsAcrossChatsCallsAndContacts() {
+        assertEquals(true,referenceListUsesFlatRows(DisplayOptions()))
+        assertEquals(false,referenceListUsesFlatRows(DisplayOptions(navBarStyle="Liquid")))
+    }
+
     @Test fun bubblePalettesAreAppliedWithoutChangingLegacyDefault() {
         assertEquals(null,conversationBubbleColor("Original",true,false))
         assertEquals(androidx.compose.ui.graphics.Color(0xFFD9FDD3),conversationBubbleColor("Green",true,false))

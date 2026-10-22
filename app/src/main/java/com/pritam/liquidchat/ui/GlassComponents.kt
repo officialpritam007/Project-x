@@ -301,12 +301,30 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
         }
     }
 }
+/** Reference mode uses flat conversation/contact/call lists, preserving actions and accessibility. */
+internal fun referenceListUsesFlatRows(display:DisplayOptions):Boolean =
+    display.navBarStyle=="Reference"
+
+@Composable internal fun ReferenceListRow(
+    modifier:Modifier=Modifier,
+    content:@Composable ()->Unit
+) {
+    if(referenceListUsesFlatRows(LocalDisplayOptions.current)) {
+        Surface(modifier=modifier,
+            shape=androidx.compose.ui.graphics.RectangleShape,
+            color=MaterialTheme.colorScheme.surface.copy(
+                alpha=if(LocalGlassDark.current).72f else .86f),
+            tonalElevation=0.dp,
+            content=content)
+    } else GlassSurface(modifier,content=content)
+}
+
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
     val display=LocalDisplayOptions.current
     // Reference res/layout-v1/mb_home_toolbar.xml specifies a 47dp home
     // toolbar, a 17sp title and 28dp action icons. Preserve the explicit
     // typography adjustment when the owner has customized headerTitleSize.
-    val referenceHeader=brand&&display.navBarStyle=="Reference"
+    val referenceHeader=display.navBarStyle=="Reference"
     val titleSize=if(referenceHeader&&display.headerTitleSize==25)17
         else display.headerTitleSize
     GlassChromeSurface(Modifier.fillMaxWidth(),if(referenceHeader)Glass.compact else Glass.hero) {

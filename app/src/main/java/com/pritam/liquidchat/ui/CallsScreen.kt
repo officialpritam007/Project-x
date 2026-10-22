@@ -246,7 +246,8 @@ private fun elapsedLabel(seconds:Long):String {
         }
         LazyColumn(
             modifier=Modifier.fillMaxSize(),
-            verticalArrangement=Arrangement.spacedBy(8.dp),
+            verticalArrangement=Arrangement.spacedBy(
+                if(referenceListUsesFlatRows(LocalDisplayOptions.current))0.dp else 8.dp),
             contentPadding=PaddingValues(bottom=120.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
         ) {
             if(loading&&!loadedOnce&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-history-loading"))}
@@ -258,7 +259,7 @@ private fun elapsedLabel(seconds:Long):String {
             }
             items(visible,key={it.id}) {call->
                 val peerChat=chats.firstOrNull {it.account==account&&it.id==call.conversation}
-                GlassSurface(Modifier.fillMaxWidth()) {
+                ReferenceListRow(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier.fillMaxWidth().heightIn(min=70.dp).clickable {details=call}.padding(horizontal=12.dp,vertical=10.dp),
                         verticalAlignment=Alignment.CenterVertically,

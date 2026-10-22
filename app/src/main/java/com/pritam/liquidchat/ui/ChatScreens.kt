@@ -90,11 +90,18 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class)
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
     val homeDisplay=LocalDisplayOptions.current
+    val reference=referenceListUsesFlatRows(homeDisplay)
     Surface(
-        shape=Glass.card,
-        color=if(LocalGlassDark.current)Color(0xFF20384D).copy(alpha=.62f) else Color.White.copy(alpha=.56f),
-        border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).17f else .72f)),
-        modifier=Modifier.fillMaxWidth().glassSource().combinedClickable(onClick=onClick,onLongClick=onLongClick)
+        shape=if(reference)androidx.compose.ui.graphics.RectangleShape else Glass.card,
+        color=if(reference)MaterialTheme.colorScheme.surface.copy(
+            alpha=if(LocalGlassDark.current).72f else .86f)
+            else if(LocalGlassDark.current)Color(0xFF20384D).copy(alpha=.62f)
+            else Color.White.copy(alpha=.56f),
+        border=if(reference)null else androidx.compose.foundation.BorderStroke(
+            1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).17f else .72f)),
+        modifier=Modifier.fillMaxWidth()
+            .then(if(reference)Modifier else Modifier.glassSource())
+            .combinedClickable(onClick=onClick,onLongClick=onLongClick)
     ) {
         Row(Modifier.fillMaxWidth().padding(vertical=homeDisplay.homeRowPadding.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=homeDisplay.homeAvatarSize.dp)
@@ -310,7 +317,11 @@ import kotlinx.coroutines.launch
             Text("${visible.size} shown",style=MaterialTheme.typography.labelMedium,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=132.dp)) {
+        LazyColumn(
+            verticalArrangement=Arrangement.spacedBy(
+                if(referenceListUsesFlatRows(inboxDisplay))0.dp else 8.dp),
+            contentPadding=PaddingValues(bottom=132.dp)
+        ) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
             items(visible,key={"chat-${it.id}"}) {chat->
                 // ChatRow already provides the full combined clickable surface.
@@ -476,11 +487,15 @@ import kotlinx.coroutines.launch
                 Text("Find Friends",fontSize=18.sp,fontWeight=FontWeight.Bold)
             }
         }
-        LazyColumn(contentPadding=PaddingValues(bottom=140.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        LazyColumn(
+            contentPadding=PaddingValues(bottom=140.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+            verticalArrangement=Arrangement.spacedBy(
+                if(referenceListUsesFlatRows(LocalDisplayOptions.current))0.dp else 8.dp)
+        ) {
             item {Text(if(alphabetical)"Sorted by name" else "Reverse name order",Modifier.padding(horizontal=16.dp),color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,fontSize=15.sp)}
             if(filtered.isEmpty()) item {GlassCard(Modifier.fillMaxWidth()){Text(if(username.isBlank())"Find someone by username and save them here." else "No saved contacts match.")}}
             items(filtered,key={"contact-${it.id}"}) {contact->
-                GlassSurface(Modifier.fillMaxWidth()) {
+                ReferenceListRow(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
                         Row(Modifier.weight(1f).clickable {val chat=chats.firstOrNull {it.peer==contact.id};if(chat!=null)model.open(chat.id) else model.start(contact.id)},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                             Avatar(contact.name,contact.avatarId,model.backend,size=43.dp)
