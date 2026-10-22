@@ -2438,14 +2438,58 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 Column(Modifier.fillMaxWidth().heightIn(max=500.dp)
                     .verticalScroll(rememberScrollState()),
                     verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    // Cache-keyed preview ensures old edits do not linger after a swap.
-                    coil.compose.AsyncImage(
-                        model=coil.request.ImageRequest.Builder(context)
-                            .data(image.file).memoryCachePolicy(coil.request.CachePolicy.DISABLED)
-                            .diskCachePolicy(coil.request.CachePolicy.DISABLED).build(),
-                        contentDescription="Edited photo preview",
-                        modifier=Modifier.fillMaxWidth().heightIn(max=240.dp)
-                            .aspectRatio(image.width.toFloat()/image.height.coerceAtLeast(1)))
+                    // Keep the crop viewport tied to the exact local edit revision.
+                    var freeCropOpen by remember(image.file.absolutePath) {mutableStateOf(false)}
+                    var freeCropBounds by remember(image.file.absolutePath) {
+                        mutableStateOf<Images.CropBounds?>(null)
+                    }
+                    if(freeCropOpen) {
+                        MbGestureCropEditor(image,enabled=editingAllowed,
+                            onSelection={freeCropBounds=it})
+                        Text("Drag diagonally to select the area. Apply Crop preserves Undo history.",
+                            style=MaterialTheme.typography.bodySmall)
+                    } else {
+                        coil.compose.AsyncImage(
+                            model=coil.request.ImageRequest.Builder(context)
+                                .data(image.file).memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                                .diskCachePolicy(coil.request.CachePolicy.DISABLED).build(),
+                            contentDescription="Edited photo preview",
+                            modifier=Modifier.fillMaxWidth().heightIn(max=240.dp)
+                                .aspectRatio(image.width.toFloat()/image.height.coerceAtLeast(1)))
+                    }
+                    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick={
+                            freeCropOpen=!freeCropOpen
+                            freeCropBounds=null
+                        },enabled=editingAllowed) {
+                            Icon(Icons.Outlined.Crop,null,Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(if(freeCropOpen)"Close crop" else "Free crop")
+                        }
+                        if(freeCropOpen) TextButton(
+                            enabled=editingAllowed&&freeCropBounds?.valid()==true,
+                            onClick={
+                                val owner=session?.userId
+                                val bounds=freeCropBounds
+                                if(owner!=null&&bounds?.valid()==true&&!photoEditBusy) {
+                                    photoEditBusy=true
+                                    model.action {
+                                        try {
+                                            val next=Images.cropSelection(context,owner,image,bounds)
+                                            if(model.session.value?.userId==owner&&prepared===image) {
+                                                photoRedo.forEach {it.file.delete()}
+                                                photoRedo=emptyList()
+                                                val revisions=photoUndo+image
+                                                photoUndo=revisions.takeLast(5)
+                                                revisions.dropLast(5).forEach {it.file.delete()}
+                                                prepared=next
+                                            } else next.file.delete()
+                                        } finally {photoEditBusy=false}
+                                    }
+                                }
+                            }) {Text("Apply Crop")}
+                    }
                     Text("Photo editor",style=MaterialTheme.typography.titleSmall)
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement=Arrangement.spacedBy(6.dp)) {

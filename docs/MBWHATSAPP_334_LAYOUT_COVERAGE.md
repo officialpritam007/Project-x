@@ -214,3 +214,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 
 - All real Preferences sub-screen routes now use the established 20dp reference horizontal insets, compact 47dp header and 12dp between-group spacing in Reference mode, while keeping existing Liquid spacing and exact working controls unchanged.
 - Existing account, theme import/export, notifications, privacy and server settings operations are preserved. No pixel claim without screenshot pairs; build/CI remain deferred.
+
+## 2026-10-22 — real gesture crop for photo editor
+
+- Added a genuine touch drag-to-select freeform crop viewport to the single-photo editor. Selection maps to normalized **intrinsic image** coordinates without letterbox mismatch and calls a new local-only `Images.cropSelection` operation; no network image processing or new permissions. Bounds are finite, clamped and must span at least 3% per axis. JPEG output is unique, in the same account-private media folder, <= 9.5 MB and never overwrites the source.
+- Crop participates in the existing **5-level Undo/Redo history**, cleanup, existing authenticated private message outbox, and editing busy/revision guards. Preset crops/rotations/flips/B&W, captions, send and cancel remain intact.
+- Compiled APK's exact gesture art/pixel parity is not established; functionality and build have not been verified on a device.
