@@ -135,7 +135,55 @@ internal val emojiCategories:Map<String,List<String>> = linkedMapOf(
     "Faces" to listOf("😀","😃","😄","😁","😊","🥰","😍","😘","😎","🥹","😂","🤣","😭","😅","😉","🤔","😴","😢","😡","🤗"),
     "Hearts" to listOf("❤️","🩷","🧡","💛","💚","🩵","💙","💜","🤍","🖤","💖","💕","💗","💞","💘"),
     "Gestures" to listOf("👍","👎","👏","🙌","🙏","🤝","👋","👌","✌️","🤞","🫶","💪","🤙","👀","✨"),
-    "More" to listOf("🎉","🎂","🎁","🌹","🌸","🌻","☀️","🌙","⭐","🔥","💯","✅","⚽","🏆","🎵","☕","🍰","🐱","🐶","🦋")
+    "More" to listOf("🎉","🎂","🎁","🌹","🌸","🌻","☀️","🌙","⭐","🔥","💯","✅","⚽","🏆","🎵","☕","🍰","🐱","🐶","🦋"),
+    // The eight visible reference categories use device-rendered Unicode glyphs.
+    // Legacy category keys above remain supported for existing saved/test callers.
+    "Smileys & People" to listOf(
+        "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂","😉","🥲","🥹",
+        "😍","🥰","😘","😗","😙","😚","😋","😜","🤪","😎","🥳","🤔",
+        "😴","😢","😭","😮","😱","😡","🥺","🤗","😷","👍","👎","👏",
+        "🙌","🙏","👋","👌","✌️","🤞","🫶","💪","👨","👩","👶","👵"
+    ),
+    "Animals & Nature" to listOf(
+        "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮",
+        "🐷","🐸","🐵","🐔","🐧","🐦","🦆","🦅","🦉","🦋","🐝","🐢",
+        "🐍","🐬","🐳","🐟","🌹","🌻","🌷","🌸","🌺","🌲","🌴","🍁",
+        "🌈","☀️","🌙","⭐","🔥","❄️"
+    ),
+    "Food" to listOf(
+        "🍎","🍌","🍇","🍉","🍓","🍒","🥭","🍍","🥥","🥝","🍋","🍑",
+        "🥑","🥕","🌽","🥦","🍞","🥐","🧀","🥚","🍔","🍟","🍕","🌮",
+        "🍣","🍜","🍝","🍛","🍚","🥘","🍰","🎂","🍪","🍩","🍫","🍿",
+        "☕","🍵","🧃","🥛","🥤"
+    ),
+    "Activities" to listOf(
+        "⚽","🏀","🏈","⚾","🎾","🏐","🏉","🥏","🎱","🏓","🏸","🥊",
+        "🥋","🎯","🎮","🕹️","🎲","♟️","🎳","🏆","🥇","🎖️","🎉",
+        "🎊","🎁","🎈","🎤","🎧","🎸","🎹","🥁","🎬","🎨","📷"
+    ),
+    "Travel & Places" to listOf(
+        "🚗","🚕","🚌","🚎","🏎️","🚓","🚑","🚒","🚚","🚲","🏍️",
+        "🚂","🚆","🚇","🚉","✈️","🚀","🚁","🚢","⛵","🚦","🚧",
+        "⛽","🗺️","🧭","🏖️","🏝️","🏔️","🏕️","🏠","🏡","🏢",
+        "🏥","🏫","🏛️","🗼","🌉","🌆","🌇","🌃"
+    ),
+    "Objects" to listOf(
+        "📱","💻","⌨️","🖥️","🖨️","📷","📸","📺","📻","🎙️",
+        "⏰","⌚","🔋","💡","🔦","🕯️","💰","💳","💎","🔑",
+        "🔒","🔓","🔨","🪛","⚙️","🧰","🧲","📦","📚","📖",
+        "✏️","🖊️","📝","📌","📎","✂️","🧹","🛒","🎒"
+    ),
+    "Symbols" to listOf(
+        "❤️","🩷","🧡","💛","💚","🩵","💙","💜","🤍","🖤",
+        "💖","💕","💗","💞","💘","✅","❌","❗","❓","⚠️",
+        "💯","♻️","🔔","🔕","🔗","➕","➖","➡️","⬅️","⬆️",
+        "⬇️","▶️","⏸️","⏹️","🔁","🔄","✔️"
+    ),
+    "Flags" to listOf(
+        "🏳️","🏴","🏁","🚩","🏳️‍🌈","🇮🇳","🇧🇩","🇳🇵","🇧🇹",
+        "🇱🇰","🇵🇰","🇺🇸","🇬🇧","🇨🇦","🇦🇺","🇯🇵","🇰🇷",
+        "🇨🇳","🇩🇪","🇫🇷","🇮🇹","🇪🇸","🇧🇷","🇦🇷","🇿🇦"
+    )
 )
 
 private val emojiSearchTerms=mapOf(
@@ -166,8 +214,18 @@ internal fun findEmojis(category:String,query:String):List<String> {
 internal fun recentEmojiChoices(previous:List<String>,selected:String):List<String> =
     (listOf(selected)+previous.filterNot {it==selected}).take(5)
 
+private val referenceEmojiCategoryNames=listOf(
+    "Smileys & People","Animals & Nature","Food","Activities",
+    "Travel & Places","Objects","Symbols","Flags"
+)
+private val referenceEmojiCategoryIcons=mapOf(
+    "Smileys & People" to "😀","Animals & Nature" to "🐻","Food" to "🍎",
+    "Activities" to "⚽","Travel & Places" to "🚗","Objects" to "💡",
+    "Symbols" to "❤️","Flags" to "🏳️"
+)
+
 @Composable internal fun EmojiPicker(onEmoji:(String)->Unit,onDismiss:()->Unit) {
-    var category by remember {mutableStateOf("Faces")}
+    var category by remember {mutableStateOf("Smileys & People")}
     var query by remember {mutableStateOf("")}
     // Session-only recents: do not persist message-writing habits across logouts.
     var recent by remember {mutableStateOf<List<String>>(emptyList())}
@@ -193,13 +251,25 @@ internal fun recentEmojiChoices(previous:List<String>,selected:String):List<Stri
                 )
                 if(query.isBlank()) {
                     // Two full-width rows avoid the clipped/offscreen fourth category.
-                    emojiCategories.keys.toList().chunked(2).forEach {names->
+                    referenceEmojiCategoryNames.chunked(2).forEach {names->
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                             names.forEach {name->
                                 FilterChip(
                                     selected=category==name,onClick={category=name},
-                                    label={Text(name)},modifier=Modifier.weight(1f)
+                                    label={Text("${referenceEmojiCategoryIcons[name].orEmpty()} $name")},
+                                    modifier=Modifier.weight(1f)
                                 )
+                            }
+                        }
+                    }
+                    Text("Quick reactions",style=MaterialTheme.typography.labelMedium)
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement=Arrangement.spacedBy(1.dp)) {
+                        MbQuickReactions.defaults.forEach {emoji->
+                            TextButton(onClick={choose(emoji)},
+                                modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                contentPadding=PaddingValues(0.dp)) {
+                                Text(emoji,fontSize=emojiSize)
                             }
                         }
                     }
