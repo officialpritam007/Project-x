@@ -29,8 +29,9 @@ import com.pritam.liquidchat.data.Images
     val profile by model.profile.collectAsStateWithLifecycle()
     val name=profile?.optString("display_name").orEmpty()
     val avatar=profile?.optString("avatar_id").orEmpty()
+    val reference=referenceListUsesFlatRows(LocalDisplayOptions.current)
     Column(Modifier.fillMaxWidth().padding(vertical=6.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.size(if(large)103.dp else 96.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF18C5DA),Color(0xFF008CB9)))).border(2.dp,Color.White.copy(alpha=.9f),CircleShape),contentAlignment=Alignment.Center) {
+        Box(Modifier.size(if(large && reference)120.dp else if(large)103.dp else 96.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF18C5DA),Color(0xFF008CB9)))).border(2.dp,Color.White.copy(alpha=.9f),CircleShape),contentAlignment=Alignment.Center) {
             if(avatar.isNotEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
             else Text(name.split(" ").filter {it.isNotBlank()}.take(2).joinToString("") {it.take(1)}.uppercase(),fontSize=39.sp,color=Color.White)
         }
@@ -65,20 +66,39 @@ import com.pritam.liquidchat.data.Images
             Text("My Profile",style=MaterialTheme.typography.titleLarge,
                 fontWeight=FontWeight.SemiBold)
             Box {IconButton(onClick={menu=true}){Icon(Icons.Outlined.MoreVert,"Profile options")}
-                LiquidDropdownMenu(menu,{menu=false}) {
-                    DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
-                    val avatarId=profile?.optString("avatar_id").orEmpty()
-                    if(avatarId.isNotEmpty()&&avatarId!="null")
-                        DropdownMenuItem(text={Text("Remove photo")},onClick={menu=false;model.action {model.setAvatar()}},enabled=!busy)
+                if(referenceListUsesFlatRows(LocalDisplayOptions.current)) {
+                    if(menu)LiquidActionSheet("Profile options",onDismiss={menu=false}) {
+                        GlassActionRow("Edit profile",Icons.Outlined.Edit,onClick={
+                            menu=false;edit=true
+                        })
+                        val avatarId=profile?.optString("avatar_id").orEmpty()
+                        if(avatarId.isNotEmpty()&&avatarId!="null") {
+                            GlassActionRow("Remove photo",Icons.Outlined.DeleteOutline,
+                                destructive=true,enabled=!busy,onClick={
+                                    menu=false;model.action {model.setAvatar()}
+                                })
+                        }
+                    }
+                } else {
+                    LiquidDropdownMenu(menu,{menu=false}) {
+                        DropdownMenuItem(text={Text("Edit profile")},onClick={edit=true;menu=false})
+                        val avatarId=profile?.optString("avatar_id").orEmpty()
+                        if(avatarId.isNotEmpty()&&avatarId!="null")
+                            DropdownMenuItem(text={Text("Remove photo")},
+                                onClick={menu=false;model.action {model.setAvatar()}},enabled=!busy)
+                    }
                 }
             }
         }
-        GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+        GlassCard(Modifier.fillMaxWidth(),
+            if(referenceListUsesFlatRows(LocalDisplayOptions.current))Glass.compact else Glass.hero) {
             ProfileHero(model,large=true)
-            Text("Liquid Chat profile",Modifier.fillMaxWidth(),
-                style=MaterialTheme.typography.labelMedium,
-                color=MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+            if(!referenceListUsesFlatRows(LocalDisplayOptions.current)) {
+                Text("Liquid Chat profile",Modifier.fillMaxWidth(),
+                    style=MaterialTheme.typography.labelMedium,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+            }
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             val actions=listOf(
@@ -122,10 +142,12 @@ import com.pritam.liquidchat.data.Images
                 }
             }
         }
-        GlassSurface(shape=Glass.capsule) {
-            Row(Modifier.padding(5.dp)) {listOf("Posts","Archived").forEachIndexed {i,title->
-                Text(title,Modifier.clip(Glass.capsule).background(if(archived==(i==1))MaterialTheme.colorScheme.primaryContainer else Color.Transparent).clickable {archived=i==1}.padding(horizontal=17.dp,vertical=8.dp),fontSize=14.sp,fontWeight=FontWeight.Bold,color=if(archived==(i==1))MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            }}
+        Row(Modifier.fillMaxWidth().padding(5.dp),
+            horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+            listOf("Posts","Archived").forEachIndexed {i,title->
+                MbReferenceFilterTab(label=title,selected=archived==(i==1),
+                    onClick={archived=i==1},modifier=Modifier.weight(1f))
+            }
         }
     }
     })

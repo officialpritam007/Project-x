@@ -221,8 +221,8 @@ internal fun starredMediaPresentation(message:Message):String = when {
                         listOf("image" to "Photos","chat_video" to "Videos",
                             "sticker" to "Stickers","voice" to "Voice",
                             "document" to "Documents","star" to "Starred").forEach {(value,label)->
-                            FilterChip(selected=kind==value,onClick={onKind(value)},
-                                label={Text(label)},shape=Glass.capsule)
+                            MbReferenceFilterTab(label=label,selected=kind==value,
+                                onClick={onKind(value)})
                         }
                     }
                 }

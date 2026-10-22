@@ -555,7 +555,9 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().systemBarsPadding().padding(12.dp)) {
                 Row {TextButton(onClick=onDismiss){Text("Back")};Text(if(mine)"My stories" else "Contacts",style=MaterialTheme.typography.titleLarge,modifier=Modifier.padding(12.dp))}
-                Row {listOf("Stories","Posts").forEachIndexed {i,label->FilterChip(tab==i,{tab=i},label={Text(label)})}}
+                Row {listOf("Stories","Posts").forEachIndexed {i,label->
+                    MbReferenceFilterTab(label=label,selected=tab==i,onClick={tab=i})
+                }}
                 MomentsPanel(model,if(tab==0)"story" else "post",mine,
                     modifier=Modifier.weight(1f),initialStoryId=initialStoryId,
                     openEditorInitially=openEditorInitially&&mine&&tab==0)

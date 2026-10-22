@@ -223,7 +223,7 @@ private fun elapsedLabel(seconds:Long):String {
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             listOf("All","Missed","Voice","Video").forEach {choice->
-                FilterChip(selected=filter==choice,onClick={filter=choice},label={Text(choice)},shape=Glass.capsule)
+                MbReferenceFilterTab(label=choice,selected=filter==choice,onClick={filter=choice})
             }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),
@@ -261,7 +261,11 @@ private fun elapsedLabel(seconds:Long):String {
                 val peerChat=chats.firstOrNull {it.account==account&&it.id==call.conversation}
                 ReferenceListRow(Modifier.fillMaxWidth()) {
                     Row(
-                        Modifier.fillMaxWidth().heightIn(min=70.dp).clickable {details=call}.padding(horizontal=12.dp,vertical=10.dp),
+                        Modifier.fillMaxWidth().heightIn(
+                            min=if(referenceListUsesFlatRows(LocalDisplayOptions.current))60.dp else 70.dp)
+                            .clickable {details=call}
+                            .padding(horizontal=12.dp,
+                                vertical=if(referenceListUsesFlatRows(LocalDisplayOptions.current))6.dp else 10.dp),
                         verticalAlignment=Alignment.CenterVertically,
                         horizontalArrangement=Arrangement.spacedBy(12.dp)
                     ) {

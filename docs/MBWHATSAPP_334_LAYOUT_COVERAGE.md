@@ -173,3 +173,10 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 
 - Reference navigation now renders **82dp round story cards** with a ring only when an actual unexpired story exists, while the Liquid variant retains the tall card. No synthetic seen/unseen receipts are implied. Existing authenticated private media preview, 24-hour expiry, story upload, video trim, mute, tap navigation, hold-to-pause, save, report and post functionality remain unchanged.
 - The chosen 82dp circular visual is a reconstructed chat-style treatment, **not established as the exact MB APK pixel value**. Animated/functional playback parity is not yet device verified.
+
+## 2026-10-22 — Calls, Profile, Story/Post and protected-media tabs (source-only)
+
+- Reusable accessible 42dp-minimum Reference-mode underline tabs replace the extra Material chips in Call History, full-screen Stories/Posts, Profile Posts/Archived and Shared Media categories; Liquid-style alternative remains unchanged. Every existing filter, page cursor, authenticated RPC and tab click callback is retained.
+- Call History reference rows have 60dp minimum height. The original call screen, audio/video redial, microphone/camera permissions and in-flight call checks remain intact.
+- My Profile reference hero uses the 120dp avatar and compact hero card; the action menu is now the shared reference sheet instead of a differently styled dropdown, with actual Edit/Remove Photo behaviors preserved.
+- Source stage only; exact original pixel match and runtime/CI verification not claimed.
