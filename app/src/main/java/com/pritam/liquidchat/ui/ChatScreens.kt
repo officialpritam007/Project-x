@@ -2303,6 +2303,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Saved stickers are private to this account on this phone. Select Send to share one.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                onClick={
+                    stickerLibraryOpen=false
+                    stickerPicker.launch("image/*")
+                },
+                enabled=!busy&&!sendingSavedSticker,
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)
+            ) {
+                Icon(Icons.Outlined.AddPhotoAlternate,contentDescription=null)
+                Spacer(Modifier.width(8.dp))
+                Text("Create sticker from photo")
+            }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 listOf("All","Recent","Favorites").forEach {tab->
                     FilterChip(
