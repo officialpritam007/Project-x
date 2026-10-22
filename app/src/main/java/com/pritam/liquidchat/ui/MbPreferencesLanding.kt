@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,7 +73,7 @@ internal object MbReferencePreferenceSections {
     route:MbReferencePreference,onNavigate:(String)->Unit
 ) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min=46.dp)
+        Modifier.fillMaxWidth().heightIn(min=48.dp)
             .clickable(role=Role.Button,onClick={onNavigate(route.target)})
             .padding(start=14.dp,end=12.dp,top=9.dp,bottom=9.dp),
         verticalAlignment=Alignment.CenterVertically,
@@ -128,6 +130,7 @@ internal object MbReferencePreferenceSections {
                     contentDescription="Back to Settings")
             }
             Text("Liquid Chat Preferences",
+                modifier=Modifier.semantics {heading()},
                 style=MaterialTheme.typography.titleLarge,
                 fontWeight=FontWeight.SemiBold)
         }
@@ -143,7 +146,7 @@ internal object MbReferencePreferenceSections {
         MbVideoReferenceGroup(MbReferencePreferenceSections.premium,onNavigate)
         MbVideoReferenceGroup(MbReferencePreferenceSections.themes+
             MbReferencePreferenceSections.visual,onNavigate)
-        Text("ACCOUNT & SUPPORT",modifier=Modifier.padding(start=10.dp),
+        Text("ACCOUNT & SUPPORT",modifier=Modifier.padding(start=10.dp).semantics {heading()},
             fontSize=12.sp,fontWeight=FontWeight.SemiBold,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
         MbVideoReferenceGroup(MbReferencePreferenceSections.utility,onNavigate)
