@@ -3284,10 +3284,17 @@ if(section=="Liquid Chat Home Screen") {
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             MbExpandableSettingsCard("Message bubbles") {
+            if(display.navBarStyle=="Reference")
+                MbReferenceSeekbarRow("Bubble transparency",display.bubbleOpacity,
+                    45..100,"%",onApply={opacity->
+                        model.setDisplay(display.copy(bubbleOpacity=opacity))
+                    })
+            else {
             Text("Bubble opacity · ${display.bubbleOpacity}%",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.bubbleOpacity.toFloat(),
                 onValueChange={model.setDisplay(display.copy(bubbleOpacity=it.toInt()))},
                 valueRange=45f..100f,steps=54,modifier=Modifier.fillMaxWidth())
+            }
                 MbReferenceChoicePicker(title="Message bubble style",
                     choices=listOf("Tail","Rounded","Compact"),
                     selected=display.bubbleStyle,
@@ -3441,6 +3448,17 @@ if(section=="Liquid Chat Home Screen") {
             }
             Text("Applies to real HTTPS/HTTP links in message text without changing the link or browser action.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            if(display.navBarStyle=="Reference") {
+                MbReferenceSeekbarRow("Message font size",display.messageFontSize,
+                    10..30,"sp",onApply={size->
+                        model.setDisplay(display.copy(messageFontSize=size))
+                    })
+                // Reference's emoji scale controls this device's real picker.
+                MbReferenceSeekbarRow("Emoji picker size",display.emojiPickerSize,
+                    18..32,"sp",onApply={size->
+                        model.setDisplay(display.copy(emojiPickerSize=size))
+                    })
+            } else {
             Text("Message font size",style=MaterialTheme.typography.titleSmall)
             Text("${display.messageFontSize} sp",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value=display.messageFontSize.toFloat(),onValueChange={value->model.setDisplay(display.copy(messageFontSize=value.toInt()))},
@@ -3449,7 +3467,7 @@ if(section=="Liquid Chat Home Screen") {
             Text("Emoji picker size · ${display.emojiPickerSize} sp",style=MaterialTheme.typography.titleSmall)
             Slider(value=display.emojiPickerSize.toFloat(),
                 onValueChange={value->model.setDisplay(display.copy(emojiPickerSize=value.toInt()))},
-                valueRange=18f..32f,steps=13,modifier=Modifier.fillMaxWidth())
+                valueRange=18f..32f,steps=13,modifier=Modifier.fillMaxWidth())            }
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Live message preview",style=MaterialTheme.typography.titleMedium)
