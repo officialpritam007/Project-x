@@ -59,7 +59,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             timestampInkHex=com.pritam.liquidchat.ui.normalizedAccentHex(options.timestampInkHex) ?: "#536B7D",
             outgoingBubbleHex=com.pritam.liquidchat.ui.normalizedAccentHex(options.outgoingBubbleHex) ?: "#D0EDFB",
             incomingBubbleHex=com.pritam.liquidchat.ui.normalizedAccentHex(options.incomingBubbleHex) ?: "#FAFDFF",
-            fontPreset=options.fontPreset.takeIf {it in setOf("System","Serif","Mono","Cursive")} ?: "System",
+            // Imported is a valid private on-device font family selected in Settings.
+            // The renderer already falls back safely when no file is present.
+            fontPreset=options.fontPreset.takeIf {it in setOf("System","Serif","Mono","Cursive","Imported")} ?: "System",
             homeWallpaperDim=options.homeWallpaperDim.coerceIn(0,100),
             chatWallpaperDim=options.chatWallpaperDim.coerceIn(0,100),
             quickReactions=com.pritam.liquidchat.ui.MbQuickReactions.normalize(options.quickReactions),
