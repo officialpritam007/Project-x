@@ -74,6 +74,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
@@ -669,8 +672,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     val messageSpeaker=remember(context.applicationContext,cid,session?.userId) {
         MbMessageReadAloud(context.applicationContext)
     }
-    DisposableEffect(messageSpeaker) {
-        onDispose {messageSpeaker.close()}
+    val speechLifecycleOwner=LocalLifecycleOwner.current
+    DisposableEffect(messageSpeaker,speechLifecycleOwner) {
+        val observer=LifecycleEventObserver {_,event->
+            if(event==Lifecycle.Event.ON_STOP) {
+                messageSpeaker.stop()
+                spokenMessageId=null
+            }
+        }
+        speechLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            speechLifecycleOwner.lifecycle.removeObserver(observer)
+            messageSpeaker.close()
+        }
     }
     LaunchedEffect(messages,speechCandidate?.id,spokenMessageId,session?.userId) {
         val requested=speechCandidate?.id
