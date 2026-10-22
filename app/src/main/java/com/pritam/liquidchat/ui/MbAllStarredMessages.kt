@@ -2,6 +2,9 @@ package com.pritam.liquidchat.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -31,6 +34,16 @@ import java.time.format.DateTimeFormatter
                 it.starred && it.status=="SENT" && it.deletedAt.isEmpty()
         }
     }
+    var search by remember(account) {mutableStateOf("")}
+    val found=remember(visible,availableChats,search) {
+        val term=search.trim()
+        if(term.isEmpty())visible else visible.filter {message->
+            val chat=availableChats[message.conversation]
+            chat!=null && (chat.name.contains(term,ignoreCase=true) ||
+                chat.username.contains(term,ignoreCase=true) ||
+                starredMessagePreview(message).contains(term,ignoreCase=true))
+        }
+    }
     val format=remember {
         DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")
     }
@@ -39,12 +52,29 @@ import java.time.format.DateTimeFormatter
             "may not appear until their conversations have been loaded.",
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
-        if(visible.isEmpty()) {
-            Text("No downloaded starred messages.",
+        OutlinedTextField(
+            value=search,
+            onValueChange={search=it.take(100)},
+            label={Text("Find starred messages")},
+            leadingIcon={Icon(Icons.Outlined.Search,contentDescription=null)},
+            trailingIcon={
+                if(search.isNotEmpty())IconButton(onClick={search=""}) {
+                    Icon(Icons.Outlined.Close,"Clear starred search")
+                }
+            },
+            singleLine=true,
+            modifier=Modifier.fillMaxWidth()
+        )
+        Text("${found.size} of ${visible.size} downloaded starred messages",
+            style=MaterialTheme.typography.labelSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        if(found.isEmpty()) {
+            Text(if(search.isBlank())"No downloaded starred messages."
+                else "No starred messages match this search.",
                 style=MaterialTheme.typography.bodyMedium,
                 modifier=Modifier.padding(vertical=16.dp))
         }
-        visible.forEach {message->
+        found.forEach {message->
             val chat=availableChats[message.conversation] ?: return@forEach
             Column(Modifier.fillMaxWidth()
                 .clickable(role=Role.Button) {
