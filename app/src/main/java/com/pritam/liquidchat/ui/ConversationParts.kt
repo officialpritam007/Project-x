@@ -271,6 +271,7 @@ private val referenceEmojiCategoryIcons=mapOf(
             )
             // Categories remain reachable while a large emoji list is scrolled.
             if(query.isBlank()) LazyRow(
+                modifier=Modifier.testTag("emoji-categories"),
                 horizontalArrangement=Arrangement.spacedBy(8.dp),
                 contentPadding=PaddingValues(vertical=2.dp)
             ) {
@@ -295,7 +296,7 @@ private val referenceEmojiCategoryIcons=mapOf(
                                 selected=skinTone==tone,
                                 onClick={skinTone=tone},
                                 label={Text(sample)},
-                                modifier=Modifier.weight(1f)
+                                modifier=Modifier.weight(1f).testTag("emoji-tone-$tone")
                             )
                         }
                     }
