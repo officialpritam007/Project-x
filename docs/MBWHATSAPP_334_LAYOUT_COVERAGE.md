@@ -155,3 +155,10 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - The original `mb_edittext_box` is a **settings input dialog**, not evidence for pixel-identical chat composer dimensions; do not conflate these in parity reports.
 - Prior stage changed Reference-mode Chats, Calls and Contacts to flat list presentation and made Preferences primary, retaining all actual routes.
 - **Verification**: only source commits. Per owner instruction, no Gradle build, CI, lint, emulator screenshot/pixel comparison, backend deployment, APK install or two-phone acceptance. Visual parity and runtime behavior are unverified.
+
+## 2026-10-22 — reference grid actions in conversation media sheet (source-only)
+
+- Inspected owner-supplied compiled `mb_list_layout_item.xml`: **8dp** tile inset, **42dp** icon and **15sp** title. The companion `mb_list_layout_dialog.xml` contains a centered **17sp** title and grid host; these are real APK layout values. This does not establish that the original MB attachment picker uses that exact layout.
+- Reconstructed a 3-column reference-style **attachment action grid** with those item measurements. Gallery, multi-photo, 30-second private video, single/batch PDFs, image-to-PDF, scan, sticker creation/library, contact share and camera retain their original **11 functioning callbacks**. A non-reference Liquid option still shows the existing accessible action list.
+- Android UI regression source covers independently clickable grid actions; no action stubs. Authorization, media size/format limits, private upload, source media, device state and privacy remain untouched.
+- **NOT TESTED YET**: source-only commit per owner; no compiler/lint, CI, emulator, screenshot, Supabase Edge/SQL, device or APK verification. Do not assert pixel-perfect or complete MB attachment parity.

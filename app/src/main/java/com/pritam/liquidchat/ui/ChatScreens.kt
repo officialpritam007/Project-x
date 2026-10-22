@@ -1413,52 +1413,57 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     videoQuality=if(it)"HD" else "Standard"))})
         }
         }
-        GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
-        GlassActionRow("Select multiple photos",Icons.Outlined.PhotoLibrary,
-            onClick={attachments=false;albumPicker.launch("image/*")})
-        GlassActionRow("Video (30 seconds)",Icons.Outlined.Videocam,
-            onClick={
+        MbReferenceAttachmentGrid(listOf(
+            MbAttachmentChoice("Gallery",Icons.Outlined.PhotoLibrary) {
+                attachments=false;picker.launch("image/*")
+            },
+            MbAttachmentChoice("Select multiple photos",Icons.Outlined.PhotoLibrary) {
+                attachments=false;albumPicker.launch("image/*")
+            },
+            MbAttachmentChoice("Video (30 seconds)",Icons.Outlined.Videocam) {
                 attachments=false
                 videoPickerOwner=session?.userId
                 if(videoPickerOwner!=null)videoPicker.launch("video/*")
-            })
-        GlassActionRow("Documents (PDF)",Icons.Outlined.Description,
-            onClick={attachments=false;documentPicker.launch(arrayOf("application/pdf"))})
-        GlassActionRow("Select multiple PDFs",Icons.Outlined.Description,
-            onClick={attachments=false;pdfBatchPicker.launch("application/pdf")})
-        GlassActionRow("Combine photos into PDF",Icons.Outlined.Description,
-            onClick={attachments=false;galleryDocumentScanner.launch("image/*")})
-        GlassActionRow("Scan document",Icons.Outlined.PhotoCamera,onClick={
-            attachments=false
-            val owner=model.backend.session.value?.userId
-            if(owner!=null) {
-                scannerAccount=owner
-                val file=java.io.File(context.cacheDir,
-                    "camera/${java.util.UUID.randomUUID()}.jpg")
-                file.parentFile?.mkdirs()
-                scannerPath=file.absolutePath
-                runCatching {
-                    scanner.launch(androidx.core.content.FileProvider.getUriForFile(
-                        context,context.packageName+".files",file))
-                }.onFailure {
-                    file.delete()
-                    scannerPath=""
-                    scannerAccount=""
-                    model.action {throw java.io.IOException("Camera unavailable for document scanning.")}
+            },
+            MbAttachmentChoice("Documents (PDF)",Icons.Outlined.Description) {
+                attachments=false;documentPicker.launch(arrayOf("application/pdf"))
+            },
+            MbAttachmentChoice("Select multiple PDFs",Icons.Outlined.Description) {
+                attachments=false;pdfBatchPicker.launch("application/pdf")
+            },
+            MbAttachmentChoice("Combine photos into PDF",Icons.Outlined.Description) {
+                attachments=false;galleryDocumentScanner.launch("image/*")
+            },
+            MbAttachmentChoice("Scan document",Icons.Outlined.PhotoCamera) {
+                attachments=false
+                val owner=model.backend.session.value?.userId
+                if(owner!=null) {
+                    scannerAccount=owner
+                    val file=java.io.File(context.cacheDir,
+                        "camera/${java.util.UUID.randomUUID()}.jpg")
+                    file.parentFile?.mkdirs()
+                    scannerPath=file.absolutePath
+                    runCatching {
+                        scanner.launch(androidx.core.content.FileProvider.getUriForFile(
+                            context,context.packageName+".files",file))
+                    }.onFailure {
+                        file.delete()
+                        scannerPath=""
+                        scannerAccount=""
+                        model.action {throw java.io.IOException("Camera unavailable for document scanning.")}
+                    }
                 }
-            }
-        })
-        GlassActionRow("Create sticker",Icons.Outlined.AutoAwesome,
-            onClick={attachments=false;stickerPicker.launch("image/*")})
-        GlassActionRow("My stickers",Icons.Outlined.Collections,
-            onClick={
+            },
+            MbAttachmentChoice("Create sticker",Icons.Outlined.AutoAwesome) {
+                attachments=false;stickerPicker.launch("image/*")
+            },
+            MbAttachmentChoice("My stickers",Icons.Outlined.Collections) {
                 attachments=false
                 savedStickers=StickerLibrary.list(context,session?.userId)
                 stickerNotice=null
                 stickerLibraryOpen=true
-            })
-        GlassActionRow("Share contact as text",Icons.Outlined.PersonOutline,
-            onClick={
+            },
+            MbAttachmentChoice("Share contact as text",Icons.Outlined.PersonOutline) {
                 attachments=false
                 contactPickerAccount=session?.userId
                 val intent=android.content.Intent(android.content.Intent.ACTION_PICK,
@@ -1467,14 +1472,28 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     contactPickerAccount=null
                     model.action {throw java.io.IOException("No contact picker available.")}
                 }
-            })
-        GlassActionRow("Camera",Icons.Outlined.PhotoCamera,onClick={attachments=false
-            val account=model.backend.session.value?.userId
-            if(account!=null) {
-                cameraAccount=account
-                val file=java.io.File(context.cacheDir,"camera/${java.util.UUID.randomUUID()}.jpg");file.parentFile?.mkdirs();cameraPath=file.absolutePath
-                runCatching {camera.launch(androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".files",file))}.onFailure {file.delete();cameraPath="";model.action {throw java.io.IOException("No camera app is available. Choose Gallery.")}}
-            }})
+            },
+            MbAttachmentChoice("Camera",Icons.Outlined.PhotoCamera) {
+                attachments=false
+                val account=model.backend.session.value?.userId
+                if(account!=null) {
+                    cameraAccount=account
+                    val file=java.io.File(context.cacheDir,
+                        "camera/${java.util.UUID.randomUUID()}.jpg")
+                    file.parentFile?.mkdirs()
+                    cameraPath=file.absolutePath
+                    runCatching {
+                        camera.launch(androidx.core.content.FileProvider.getUriForFile(
+                            context,context.packageName+".files",file))
+                    }.onFailure {
+                        file.delete()
+                        cameraPath=""
+                        model.action {throw java.io.IOException("No camera app is available. Choose Gallery.")}
+                    }
+                }
+            }
+        ))
+
     }
     if(emojiPicker)EmojiPicker(onEmoji={emoji->
         val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
