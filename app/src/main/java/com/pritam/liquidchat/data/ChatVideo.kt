@@ -89,10 +89,13 @@ object ChatVideo {
         source:Uri,
         account:String,
         startMs:Long=0L,
-        onProgress:(Int)->Unit={}
+        onProgress:(Int)->Unit={},
+        quality:String="HD"
     ):PreparedChatVideo {
         require(account.matches(Regex("[a-fA-F0-9-]{36}")))
-        val exported=StoryVideo.export(context,source,startMs,onProgress)
+        require(quality=="Standard"||quality=="HD") {"Unknown chat video quality."}
+        val exported=StoryVideo.export(context,source,startMs,
+            onProgress=onProgress,targetShortSide=if(quality=="HD")720 else 480)
         try {
             return withContext(Dispatchers.IO) {
                 val directory=File(context.filesDir,"media/$account").canonicalFile
