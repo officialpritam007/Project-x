@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
@@ -140,7 +141,8 @@ internal fun starredMediaPresentation(message:Message):String = when {
             onSave={model.action {model.repository.saveContact(chat.peer,true)}},
             onPage={scope.launch {page(rows.isEmpty())}},
             avatar={Avatar(chat.name,chat.avatarId,model.backend,
-                size=if(iosStyle)92.dp else 76.dp)},
+                size=if(model.display.value.navBarStyle=="Reference")128.dp
+                    else if(iosStyle)92.dp else 76.dp)},
             media={m->
                 if(kind=="image" || kind=="sticker")SharedImagePreview(model,m,thumbnail=true)
                 else if(kind=="document")PdfMessageAttachment(model,m)
@@ -171,7 +173,9 @@ internal fun starredMediaPresentation(message:Message):String = when {
     onKind:(String)->Unit,onDismiss:()->Unit,onSave:()->Unit,onPage:()->Unit,
     avatar:@Composable ()->Unit,media:@Composable (Message)->Unit
 ) {
-    Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal=20.dp)) {
+    val referenceProfile=LocalDisplayOptions.current.navBarStyle=="Reference"
+    Column(Modifier.fillMaxWidth().fillMaxHeight(.9f)
+        .padding(horizontal=if(referenceProfile)12.dp else 20.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             Text("Contact details",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
             IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close contact details")}
@@ -189,14 +193,14 @@ internal fun starredMediaPresentation(message:Message):String = when {
                         Column(Modifier.fillMaxWidth(),
                             horizontalAlignment=Alignment.CenterHorizontally,
                             verticalArrangement=Arrangement.spacedBy(if(iosStyle)12.dp else 8.dp)) {
-                            if(iosStyle) Text("LIQUID CHAT CONTACT",
+                            if(referenceProfile)Spacer(Modifier.height(60.dp))
+                            if(iosStyle && !referenceProfile) Text("LIQUID CHAT CONTACT",
                                 style=MaterialTheme.typography.labelSmall,
                                 color=MaterialTheme.colorScheme.primary)
                             avatar()
-                            Text(chat.name,style=if(iosStyle)
-                                MaterialTheme.typography.headlineMedium
-                                else MaterialTheme.typography.headlineSmall)
-                            Text("@${chat.username}",
+                            Text(chat.name,fontSize=if(referenceProfile)23.sp
+                                else if(iosStyle)25.sp else 21.sp)
+                            Text("@${chat.username}",fontSize=if(referenceProfile)16.sp else 14.sp,
                                 color=MaterialTheme.colorScheme.onSurfaceVariant)
                             if(iosStyle) HorizontalDivider(Modifier.fillMaxWidth(.8f),
                                 color=MaterialTheme.colorScheme.outlineVariant)
