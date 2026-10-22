@@ -27,7 +27,13 @@ import com.pritam.liquidchat.AppViewModel
     var feedback by remember(account) {mutableStateOf<String?>(null)}
     var renamingId by remember(account) {mutableStateOf<String?>(null)}
     var renameText by remember(account) {mutableStateOf("")}
+    var contactQuery by remember(account) {mutableStateOf("")}
     val ownedChats=chats.filter {it.account==account}
+    val matchingChats=ownedChats.filter {chat->
+        val query=contactQuery.trim()
+        query.isEmpty() || chat.name.contains(query,ignoreCase=true) ||
+            chat.username.contains(query,ignoreCase=true)
+    }
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("Chat Folders",style=MaterialTheme.typography.titleLarge)
         Text("Keep selected one-to-one conversations together. Folder membership is private to this account on this phone; your Supabase chats are unchanged.",
@@ -53,6 +59,17 @@ import com.pritam.liquidchat.AppViewModel
             style=MaterialTheme.typography.labelMedium)
         feedback?.let {Text(it,color=MaterialTheme.colorScheme.error,
             style=MaterialTheme.typography.bodySmall)}
+    }
+    if(folders.isNotEmpty()) GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
+        OutlinedTextField(
+            value=contactQuery,
+            onValueChange={contactQuery=it.take(80)},
+            label={Text("Find chats to add to a list")},
+            modifier=Modifier.fillMaxWidth(),
+            singleLine=true)
+        Text("${matchingChats.size} of ${ownedChats.size} conversations",
+            style=MaterialTheme.typography.labelSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if(folders.isEmpty()) GlassCard(Modifier.fillMaxWidth()) {
         Text("No custom folders yet.")
@@ -109,7 +126,10 @@ import com.pritam.liquidchat.AppViewModel
             }
             if(ownedChats.isEmpty()) Text("Your conversations will appear here.",
                 style=MaterialTheme.typography.bodySmall)
-            ownedChats.forEach {chat->
+            if(contactQuery.isNotBlank() && matchingChats.isEmpty())
+                Text("No matching conversations on this account.",
+                    style=MaterialTheme.typography.bodySmall)
+            matchingChats.forEach {chat->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Checkbox(checked=chat.id in folder.members,
                         onCheckedChange={enabled->
