@@ -19,6 +19,20 @@ class MessageSearchFiltersTest {
         assertEquals(listOf(voice),filterMessageHistory(rows,"","owner",type=SearchMedia.VOICE))
         assertTrue(filterMessageHistory(rows,"hello",null).isEmpty())
     }
+    @Test fun linkSearchUsesOnlyDownloadedOwnedVisibleMessages() {
+        val linked=text.copy(id="linked",
+            body="See https://example.org/story",mediaKind="image")
+        val other=linked.copy(id="foreign-link",account="someone-else")
+        val deleted=linked.copy(id="deleted-link",deletedAt="2026-10-19T11:00:00Z")
+        val media=linked.copy(id="photo-link",mediaId="media-id")
+        val rows=listOf(linked,other,deleted,media,text)
+        assertEquals(listOf(linked),
+            filterMessageHistory(rows,"","owner",type=SearchMedia.LINK))
+        assertEquals(listOf(linked),
+            filterMessageHistory(rows,"EXAMPLE.ORG","owner",type=SearchMedia.LINK))
+        assertTrue(filterMessageHistory(rows,"","owner",type=SearchMedia.DOCUMENT).isEmpty())
+    }
+
     @Test fun datesRespectLocalMidnightAndRollingWindows() {
         val yesterday=text.copy(id="yesterday",localTime=now-86_400_000L)
         val old=text.copy(id="old",localTime=now-31*86_400_000L)
