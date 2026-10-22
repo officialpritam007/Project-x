@@ -22,17 +22,17 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_dialog_color_picker.xml` | Partial | 18-color swatch palette, three HSV sliders, hex input and local image sampling | Exact reference palette art and manual eyedropper gesture not yet matched |
 | `mb_dialog_launcher.xml` | Partial | Classic/Night Glass Activity aliases + Appearance selector | Full reference icon pack and launcher-specific visual verification remain |
 | `mb_dialog_media.xml` | Partial | **Corrected binary XML mapping:** its layout is the Photo HD / Video HD / view-once-check settings group, not an attachment chooser. Liquid Chat has genuine Photo HD and 480p/720p Video HD toggles wired to its picker/transcoder. | The original view-once-check bypass is not copied for recipient privacy; native media delivery and visual matching still require verification |
-| `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
+| `mb_download_dialog.xml` | Partial | Authenticated private photo/PDF/MP4 save uses SAF and bounded transfer, with native progress for some transfer modes | Source dialog's 15sp message, 14sp percentage and 15sp cancel progress layout not consistently implemented |
 | `mb_edittext_box.xml` | Partial | Compose conversation composer | Reference animations and accessories unverified |
 | `mb_edittext_layout.xml` | Partial | Native 45dp editable settings row with 24dp icon, 15sp main/13sp secondary label; touch-character option saves via 18sp/14sp input dialog | More instances in source settings and precise Android view-font metrics unverified |
-| `mb_error_activity.xml` | Partial | Existing errors/retry dialogs | Dedicated reference-style error screen absent |
+| `mb_error_activity.xml` | Partial | Recovery screen supports Retry, Sign out and user-initiated 48dp Send report through Android Sharesheet, without logs/tokens/messages | Reference error display's 16sp text and complete report UI not yet pixel matched |
 | `mb_general_settings.xml` | Partial | General Settings | All source sliders/switches not enumerated yet |
 | `mb_home_settings.xml` | Partial | Home Screen Settings | Full reference tab and wallpaper options unverified |
 | `mb_home_tab.xml` | Partial | Chats home tabs/custom folders, reference footer-adjacent 56dp New Chat action opening Contacts (no duplicate floating FAB) | Reference tab arrangement, alternate statuses, animations and screenshot match still unverified |
 | `mb_home_toolbar.xml` | Partial | Reference-mode 47dp header, default 17sp title, 28dp Liquid Chat logo and existing toolbar actions | Exact action icon sizes, colors, positioning and pixel parity remain unverified |
 | `mb_image_picker.xml` | Partial | Android picker, 10-photo selection, per-photo removal, reorder, individual crop/rotate/flip/B&W edit, first-photo caption, atomic private outbox; separate Undo/Redo photo editor | Original gallery selector geometry, group-send presentation and device proof missing |
 | `mb_info.xml` | Partial | ContactMediaDialog | Reference account/details UI unverified |
-| `mb_info_profile.xml` | Partial | Profile and contact information | Layout and gestures unverified |
+| `mb_info_profile.xml` | Partial | Contact detail and shared-media hero now uses the reference 128dp authenticated contact avatar, 60dp top spacing, 23sp contact name and 16sp username in Reference style, while preserving working Save contact and signed-media views | Reference action tiles, complete details hierarchy and actual display proof still missing |
 | `mb_info_row_text.xml` | Partial | Contact/profile information rows | Reference typography unverified |
 | `mb_item_expandable.xml` | Partial | MbExpandableSettingsCard with accessible header and animate/fade expand-collapse | Exact reference tint, padding and section hierarchy not visually verified |
 | `mb_item_settings.xml` | Partial | MB-style 48dp rows with 24dp leading/trailing icons, 15dp start and 10dp end insets; genuine Liquid Chat settings destinations | Some reference icons, control density and nested source destinations not matched |
@@ -56,7 +56,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_switch_layout.xml` | Partial | 45dp accessible native switch row with 24dp leading icon and 15sp/12sp labels; active Photo HD, Video HD and touch-animation controls | Native reference switch-thumb animation and pixel comparison unverified |
 | `mb_themes_settings.xml` | Partial | Theme JSON/library, user-confirmed saved-theme preview, local accent photo extraction, HSV/swatches | Proprietary reference theme files, external fonts/assets, exact package previews unimplemented |
 | `mb_tip_aitools.xml` | Partial | Offline draft Text tools: clean spacing, capitalization and case changes with preview/Apply | No remote AI rewrite, translation, hallucination-prone suggestions or external AI service configured |
-| `mb_tip_logout.xml` | Partial | Liquid Chat sign-out confirmation | Exact layout/animation unverified |
+| `mb_tip_logout.xml` | Partial | Authenticated Liquid Chat sign-out warning and unsent-message confirmation remain real | Reference 30sp title and explanatory 20sp full-page layout still missing |
 | `mb_tips_help.xml` | Partial | MbTipsAndHelp | Original page content not fully ported |
 | `mb_toast_no.xml` | Partial | App notices + FCM notifications | Reference toast and suppression semantics unverified |
 | `mb_update.xml` | Partial | Liquid Chat App Updates panel / update information | Signed release distribution/verification and exact reference layout remain unverified |
@@ -134,3 +134,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - `mb_edittext_layout.xml` and `mb_edittext_box.xml`: editable 45dp touch-character row and 18sp input title, 14sp hint and Save/Cancel actions; changes commit only on Save.
 - `mb_seekbar_dialog.xml`: 17sp title, Preview, 18sp value and staged Save/Cancel used for message font size (10–30 sp), emoji picker (18–32 sp) and bubble opacity (45–100%). No settings change occurs on Cancel.
 - These are **unbuilt source commits**. Owner asked to defer CI/lint/build tests until all implementation work is over. No device screenshots or verified APK are available yet.
+
+## 22 October 2026 — reference contact details and safe recovery controls
+
+- Parsed the owner's binary `mb_info_profile.xml`: 60dp top spacing before a 128dp avatar, 23sp name, 16sp details and 14sp secondary detail. Reference-mode Liquid Chat contact shared-media now renders the original spacing and avatar/name sizing, retaining actual private signed-media queries and real Save Contact callback.
+- Parsed `mb_error_activity.xml`: an error surface with 20dp padding and a 48dp Send report control. Liquid Chat recovery provides user-initiated Android share of only a generic profile-load issue, app version and Android API; no raw server error, credentials, account IDs, phone numbers or message content leave the app.
+- Remaining native UI/behavior gaps remain open. All changes **source-only and unverified**: no Gradle, lint, CI, emulator, database deployment or APK tested per owner's explicit workflow.
