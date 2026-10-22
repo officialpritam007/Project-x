@@ -214,6 +214,18 @@ internal fun findEmojis(category:String,query:String):List<String> {
 internal fun recentEmojiChoices(previous:List<String>,selected:String):List<String> =
     (listOf(selected)+previous.filterNot {it==selected}).take(5)
 
+/** Unicode skin-tone modifiers apply only to glyphs known to support Fitzpatrick tones.
+ * An unsupported emoji is returned verbatim, so no broken modifier sequence
+ * is inserted into a recipient's message.
+ */
+internal fun tonedEmoji(base:String,tone:Int):String {
+    if(tone !in 1..5 || base !in setOf(
+        "👍","👎","👏","🙌","🙏","👋","👌","✌️","🤞","🫶","💪",
+        "👨","👩","👶","👵"
+    ))return base
+    return base.replace("\uFE0F","") + String(Character.toChars(0x1F3FA+tone))
+}
+
 private val referenceEmojiCategoryNames=listOf(
     "Smileys & People","Animals & Nature","Food","Activities",
     "Travel & Places","Objects","Symbols","Flags"
@@ -227,9 +239,14 @@ private val referenceEmojiCategoryIcons=mapOf(
 @Composable internal fun EmojiPicker(onEmoji:(String)->Unit,onDismiss:()->Unit) {
     var category by remember {mutableStateOf("Smileys & People")}
     var query by remember {mutableStateOf("")}
+    var skinTone by remember {mutableIntStateOf(0)}
     // Session-only recents: do not persist message-writing habits across logouts.
     var recent by remember {mutableStateOf<List<String>>(emptyList())}
-    fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
+    fun choose(emoji:String) {
+        val chosen=tonedEmoji(emoji,skinTone)
+        recent=recentEmojiChoices(recent,chosen)
+        onEmoji(chosen)
+    }
     val emojiRows=remember(category,query) {findEmojis(category,query).chunked(5)}
     val emojiSize=LocalDisplayOptions.current.emojiPickerSize.coerceIn(18,32).sp
     ModalBottomSheet(
@@ -263,6 +280,25 @@ private val referenceEmojiCategoryIcons=mapOf(
                         onClick={category=name},
                         label={Text("${referenceEmojiCategoryIcons[name].orEmpty()} $name")}
                     )
+                }
+            }
+            if(query.isBlank() && category=="Smileys & People") {
+                Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                    Text("Skin tone for supported people and hand emojis",
+                        style=MaterialTheme.typography.labelSmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement=Arrangement.spacedBy(1.dp)) {
+                        (0..5).forEach {tone->
+                            val sample=if(tone==0)"👍" else tonedEmoji("👍",tone)
+                            FilterChip(
+                                selected=skinTone==tone,
+                                onClick={skinTone=tone},
+                                label={Text(sample)},
+                                modifier=Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
             // Lazy rows avoid composing every emoji as the keyboard opens.
