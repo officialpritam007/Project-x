@@ -310,9 +310,14 @@ import kotlinx.coroutines.launch
             if(homeOwner==null)emptySet() else chats.asSequence()
                 .filter {it.account==homeOwner}.map {it.id}.toSet()
         }
-        val visible=chats.filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
+        // The local inbox is always scoped to the active authenticated identity,
+        // including during session transitions and account switching.
+        val visible=chats.filter {it.account==homeOwner && homeOwner!=null}
+            .filter {when(activeFilter){1->it.favorite&&!it.archived;2->it.archived;3->(it.unread>0||it.manualUnread)&&!it.archived;else->!it.archived}}
             .filter {selectedFolder==null || it.id in selectedFolder.members}
-            .filter {query.isBlank()||it.name.contains(query,true)||it.username.contains(query,true)}
+            .filter {query.isBlank() ||
+                it.name.contains(query,true) || it.username.contains(query,true) ||
+                (!inboxDisplay.hideHomePreviews && it.preview.contains(query,true))}
         Row(Modifier.fillMaxWidth().padding(horizontal=7.dp,vertical=1.dp),
             verticalAlignment=Alignment.CenterVertically) {
             Text(selectedFolder?.name ?: when(activeFilter){1->"Favorites";2->"Archived chats";3->"Unread chats";else->"Conversations"},
@@ -327,6 +332,12 @@ import kotlinx.coroutines.launch
             contentPadding=PaddingValues(bottom=132.dp)
         ) {
             if(visible.isEmpty()&&query.isBlank()) item {GlassCard(Modifier.fillMaxWidth()) {Text("No conversations here yet.");Text("Open Contacts to find someone by username.",style=MaterialTheme.typography.bodyMedium)}}
+            if(visible.isEmpty()&&query.isNotBlank()) item {
+                Text("No matching downloaded conversations.",
+                    Modifier.fillMaxWidth().padding(20.dp),
+                    style=MaterialTheme.typography.bodyMedium,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             items(visible,key={"chat-${it.id}"}) {chat->
                 // ChatRow already provides the full combined clickable surface.
                 // Wrapping it in a second clickable creates overlapping semantics
