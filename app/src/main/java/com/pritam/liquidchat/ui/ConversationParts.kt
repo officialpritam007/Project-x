@@ -232,14 +232,20 @@ private val referenceEmojiCategoryIcons=mapOf(
     fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
     val displayed=findEmojis(category,query)
     val emojiSize=LocalDisplayOptions.current.emojiPickerSize.coerceIn(18,32).sp
-    LiquidAlertDialog(
+    ModalBottomSheet(
         onDismissRequest=onDismiss,
-        title={Text("Emoji")},
-        text={
-            Column(
-                Modifier.fillMaxWidth().heightIn(max=410.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(8.dp)
-            ) {
+        sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
+        containerColor=MaterialTheme.colorScheme.surface,
+        dragHandle={BottomSheetDefaults.DragHandle()}
+    ) {
+        Text("Emoji",style=MaterialTheme.typography.titleMedium,
+            modifier=Modifier.padding(horizontal=20.dp,vertical=8.dp))
+        Column(
+            Modifier.fillMaxWidth().heightIn(max=510.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal=16.dp),
+            verticalArrangement=Arrangement.spacedBy(8.dp)
+        ) {
                 OutlinedTextField(
                     value=query,onValueChange={query=it.take(32)},singleLine=true,
                     label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
@@ -300,9 +306,11 @@ private val referenceEmojiCategoryIcons=mapOf(
                         }
                     }
                 }
-            }
-        },
-        confirmButton={TextButton(onClick=onDismiss) {Text("Done")}}
-    )
+        }
+        TextButton(onClick=onDismiss,
+            modifier=Modifier.align(Alignment.End).padding(horizontal=16.dp)) {
+            Text("Done")
+        }
+        Spacer(Modifier.height(8.dp))
+    }
 }
-
