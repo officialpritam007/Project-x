@@ -21,10 +21,10 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_dialog_alert_ios.xml` | Partial | Reference-mode 22dp rounded dialogs with fade/spring entry and reduced-motion support | Exact reference backdrop blur, button order and exit transition unverified |
 | `mb_dialog_color_picker.xml` | Partial | 18-color swatch palette, three HSV sliders, hex input and local image sampling | Exact reference palette art and manual eyedropper gesture not yet matched |
 | `mb_dialog_launcher.xml` | Partial | Classic/Night Glass Activity aliases + Appearance selector | Full reference icon pack and launcher-specific visual verification remain |
-| `mb_dialog_media.xml` | Partial | Attachment sheet; individual/10-photo atomic gallery, one or five PDFs with atomic outbox, stickers, 30-second private compressed chat video and signed playback | GIF animations, longer videos, true grouped-album backend, deployed SQL/Edge, UI screenshots and phone verification pending |
+| `mb_dialog_media.xml` | Partial | **Corrected binary XML mapping:** its layout is the Photo HD / Video HD / view-once-check settings group, not an attachment chooser. Liquid Chat has genuine Photo HD and 480p/720p Video HD toggles wired to its picker/transcoder. | The original view-once-check bypass is not copied for recipient privacy; native media delivery and visual matching still require verification |
 | `mb_download_dialog.xml` | Partial | Media and story downloads | Reference export confirmation layout not matched |
 | `mb_edittext_box.xml` | Partial | Compose conversation composer | Reference animations and accessories unverified |
-| `mb_edittext_layout.xml` | Partial | Compose text field/selection | Reference geometry not matched |
+| `mb_edittext_layout.xml` | Partial | **Corrected binary mapping:** 45dp settings input row with 24dp leading icon, 15sp main and 13sp secondary text; Liquid Chat has editable corresponding settings. | Native reusable reference-sized settings editor row is not installed consistently |
 | `mb_error_activity.xml` | Partial | Existing errors/retry dialogs | Dedicated reference-style error screen absent |
 | `mb_general_settings.xml` | Partial | General Settings | All source sliders/switches not enumerated yet |
 | `mb_home_settings.xml` | Partial | Home Screen Settings | Full reference tab and wallpaper options unverified |
@@ -42,13 +42,13 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_list_layout_item.xml` | Partial | Settings list entries | Exact row semantics unverified |
 | `mb_list_tips_item.xml` | Partial | MbTipsAndHelp | All tips and content not yet ported |
 | `mb_mes_reg.xml` | Blocked | APK embeds MBWhatsApp registration/info screen | Supabase Auth and Liquid Chat branding replace the proprietary mod registration flow |
-| `mb_new_dialog_bottom.xml` | Partial | Reference-mode 22dp upper corners, 48dp menu actions and Material sheet presentation | Motion curve, scrim, exact icon art and device verification unproven |
+| `mb_new_dialog_bottom.xml` | Partial | Reference bottom sheet: 22dp top corners, 16dp outer padding, centered 17sp title, 12dp header gap, working close and existing action callbacks | Actual animation timing, artwork and device screenshot parity unverified |
 | `mb_notify_settings.xml` | Partial | Notification Settings + DND/landscape quiet mode | Contact-specific status notification options missing |
 | `mb_pop_view_layout.xml` | Partial | Long-press popup with 3 account-scoped sender-aware incoming/outgoing bubble previews, timestamps and private-media placeholders | Exact reference gesture radius and visual geometry unverified |
 | `mb_preferences.xml` | Partial | Centered 110dp Liquid Chat logo, 20dp margins, 14sp section labels, inset dividers, connected General/Home/Conversation/Themes/Privacy/Notifications routes | Full binary layout/animation parity and some original menu groupings not verified |
 | `mb_privacy_settings.xml` | Partial | Server-backed Ghost Mode + privacy settings | Per-contact exceptions not implemented |
 | `mb_prof_d.xml` | Partial | Liquid Chat profile card | Exact arrangement and edit screen unverified |
-| `mb_search_view.xml` | Partial | GlassSearch + message search filters | Full reference global search UI missing |
+| `mb_search_view.xml` | Partial | Real reference 35dp search row with 12dp inset, 24dp icon and 16sp hint implemented for Chats/Contacts, including clear and focus | Full reference global-search results and animated transitions unverified |
 | `mb_seekbar_dialog.xml` | Partial | Material3 sliders | Reference custom dialog unverified |
 | `mb_seekbar_layout.xml` | Partial | Display sliders | Exact gradient/animation missing |
 | `mb_service_ui.xml` | Unmapped | Service heading, description and three labeled action controls identified | Source service behavior is not known; no misleading mock buttons or foreign protocol integration |
@@ -119,3 +119,10 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - **Touch effects:** Nonconsuming root pointer observer, optional local glyph/color, disabled by default. At most eight fading particles for ~700ms, suppressed under Reduce Motion; no remote service or input interception.
 - **Limits:** `mb_bomb_dialog` appears related to repeated message flooding (two inputs, 1–20 hint, switch), deliberately not implemented. The branded registration and proprietary service panels are not Liquid Chat equivalents. `mb_custom_cm` still needs semantic source string mapping. No native APK pixel fidelity has been verified.
 - **Release gate:** All commits are source-only `[skip ci]`. No build, CI, lint, live SQL/Edge deployment, screenshots, emulator, phone verification or APK generated; the owner decides when final testing starts.
+
+## 22 October 2026 — corrected compiled APK layout mapping (source-only)
+
+- Parsed the binary XML in the supplied APK directly. `mb_dialog_media.xml` is the **Photo HD / Video HD / view-once-check settings group**, not the attachment sheet; `mb_edittext_layout.xml` is a **45dp settings input row**, not the conversation composer. The reference `mb_search_view.xml` is 35dp high with 24dp search icon and 12dp start margin. `mb_new_dialog_bottom.xml` has 16dp outer padding, a centered 17sp title and 12dp gap.
+- Search/Reference bottom sheets now use those measurements and true clear/close actions. Reference conversation message actions reuse their existing server-checked callbacks but appear in a bottom sheet, with icon-bearing rows and destructive action styling. A hidden/revoked message dismisses its action menu on the active session.
+- Genuine Video HD toggle added with persistent 480p Standard / 720p HD H.264/AAC export. Story exports still default to 720p; authenticated private chat video remains capped at 30 seconds and 8 MB. Do not reproduce a third-party view-once bypass that contradicts media privacy.
+- Owner explicitly deferred builds, lint, CI, Supabase migrations/Edge deployments and device verification. Do not claim parity or production readiness yet.
