@@ -68,7 +68,17 @@ internal fun scaledAppDensity(parent:Density,uiPercent:Int,textPercent:Int):Dens
     fallback:Color,
     onChange:(String)->Unit
 ) {
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+    if(LocalDisplayOptions.current.navBarStyle=="Reference") {
+        Column(Modifier.fillMaxWidth()) {
+            MbReferenceColorRow(
+                title=label,subtitle=if(value.isEmpty())"Follow theme" else value,
+                value=value.ifEmpty {appColorHex(fallback)},
+                onApply=onChange)
+            if(value.isNotEmpty())TextButton(onClick={onChange("")},
+                modifier=Modifier.align(Alignment.End)) {Text("Reset to theme")}
+        }
+    } else Row(Modifier.fillMaxWidth(),
+        verticalAlignment=Alignment.CenterVertically,
         horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         Column(Modifier.weight(1f)) {
             Text(label,style=MaterialTheme.typography.titleSmall)
