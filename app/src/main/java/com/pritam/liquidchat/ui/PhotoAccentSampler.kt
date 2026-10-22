@@ -15,6 +15,52 @@ import java.util.Locale
  * the original image is never copied, uploaded or included in theme exports.
  */
 internal object PhotoAccentSampler {
+    /**
+     * The MB photo eyedropper keeps only a downscaled, in-memory preview.
+     * The photo stays with Android's image provider and is never exported,
+     * written to preferences or sent to the Liquid Chat backend.
+     */
+    suspend fun preview(context:Context,uri:Uri):Bitmap = withContext(Dispatchers.IO) {
+        val source=ImageDecoder.createSource(context.contentResolver,uri)
+        ImageDecoder.decodeBitmap(source) { decoder,info,_->
+            val width=info.size.width
+            val height=info.size.height
+            require(width>0 && height>0 &&
+                width.toLong()*height.toLong()<=50_000_000L) {
+                "Choose a photo under 50 megapixels."
+            }
+            val scale=minOf(1.0,640.0/maxOf(width,height))
+            decoder.setTargetSize(maxOf(1,(width*scale).toInt()),
+                maxOf(1,(height*scale).toInt()))
+            decoder.allocator=ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+    }
+
+    /**
+     * The Compose Image uses ContentScale.Fit: account for blank margins
+     * before translating a tap to an actual pixel. A margin/transparent tap
+     * returns null instead of silently selecting a different color.
+     */
+    fun pixelAt(bitmap:Bitmap,x:Float,y:Float,viewWidth:Float,viewHeight:Float):String? {
+        if(bitmap.isRecycled || bitmap.width<=0 || bitmap.height<=0 ||
+            !x.isFinite() || !y.isFinite() || viewWidth<=0f || viewHeight<=0f)
+            return null
+        val ratio=minOf(viewWidth/bitmap.width,viewHeight/bitmap.height)
+        val drawWidth=bitmap.width*ratio
+        val drawHeight=bitmap.height*ratio
+        val imageLeft=(viewWidth-drawWidth)/2f
+        val imageTop=(viewHeight-drawHeight)/2f
+        if(x<imageLeft || y<imageTop ||
+            x>=imageLeft+drawWidth || y>=imageTop+drawHeight)
+            return null
+        val px=((x-imageLeft)/ratio).toInt().coerceIn(0,bitmap.width-1)
+        val py=((y-imageTop)/ratio).toInt().coerceIn(0,bitmap.height-1)
+        val color=bitmap.getPixel(px,py)
+        if(Color.alpha(color)<220)return null
+        return String.format(Locale.ROOT,"#%02X%02X%02X",
+            Color.red(color),Color.green(color),Color.blue(color))
+    }
+
     suspend fun extract(context:Context,uri:Uri):String = withContext(Dispatchers.IO) {
         val source=ImageDecoder.createSource(context.contentResolver,uri)
         val image=ImageDecoder.decodeBitmap(source) {decoder,info,_->
