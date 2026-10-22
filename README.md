@@ -16,7 +16,7 @@ JDK 17, Android SDK 36, Gradle 8.11.1. Run `./gradlew testDebugUnitTest lintDebu
 From a phone: open **Actions → Android debug APK → successful run → Artifacts → Liquid-Chat-debug**. Extract the ZIP and install `app-debug.apk`.
 
 ## Implementation
-Current `app/build.gradle.kts` version is **1.0.0-rc11-liquid-preview (18)**. Historical development notes: [modern messaging upgrade](docs/MODERN_UPGRADE.md).
+Current `app/build.gradle.kts` version is **1.0.0-rc12-liquid-preview (19)**, an **unverified debug candidate** containing new sticker navigation, favorites/recents and privacy regression tests. Historical development notes: [modern messaging upgrade](docs/MODERN_UPGRADE.md).
 
 See [backend setup and remaining release gates](docs/BACKEND_SETUP.md), [progress](docs/PROGRESS.md) and the [PRD](Liquid_Chat_PRD-1.md). Verified upgrades are merged to `main` after CI.
 
