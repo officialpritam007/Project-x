@@ -694,3 +694,15 @@ All entries below are **source changes only**, never acceptance certification. N
 | 4 | `PDF-S08-005`, `P03-013`, `P03-014` | `c502372` | Confirmation before loading an unencrypted HTTP chat link; ordinary HTTPS links open through existing isolated browser |
 
 These changes do **not** complete the PDF's 243 distinct requirements or the complementary 346-item engineering matrix. Group/channel backends, many media features, device/provider validation, and release verification remain outstanding.
+
+
+## Additional consent-based accessibility work — 22 October 2026
+
+These are **unverified source edits**, not checked acceptance criteria:
+
+| Phase | Requirement IDs | Commit | Scope and remaining limitations |
+| --- | --- | --- | --- |
+| 2 | `PDF-S11-024`, `P04-028` | `4a58e80`, `7e5263a` | Message long-press offers optional text-to-speech after an explicit engine/privacy confirmation; capped at 2,000 characters, user can stop reading |
+| 4 | `P03-032`, `P04-028` | `8e65575` | Stops ongoing manual message speech when Android app leaves foreground or the conversation/account is disposed; device behavior not validated |
+
+The speech feature invokes the installed Android TTS engine; it does **not** claim offline/private processing by the vendor, and is not used for unsolicited spoken push alerts.
