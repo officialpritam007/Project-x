@@ -660,3 +660,21 @@
 - Older source commits: `a3b5ce7`, `ba9ee9b`, `54b6771`, `3e444d9`, `05220d7` (preference search, invitation/version links).
 - **None of the 346 original items or the PDF checkboxes are automatically certified by creating this document.** Advance individual statuses with evidence and capture unresolved external/backend dependencies.
 - Phase 2 includes backend-only Groups/Channels/Communities requirements, not placeholder views. Phase 4 includes verification gates, which remain blocked while automated tests/builds are disallowed.
+
+
+## Incremental source implementation — 22 October 2026 continuation
+
+The following **direct-`main` source commits** correspond to existing checklist IDs. Their status is `SOURCE-CHANGED / UNVERIFIED`; no automated tests, Android builds, two-phone acceptance or Supabase deployments have been run. Leave acceptance checkboxes open until the owner authorizes evidence gathering.
+
+| Phase | PDF/engineering requirements touched | Commit(s) | Concrete source change and remaining limitation |
+| --- | --- | --- | --- |
+| 1 | `PDF-S02-009`, `P09-013` | `2c9e505`, `7d4f4ba` | Settings opens the already existing account-scoped downloaded-starred-message sheet; uncached history remains unlisted |
+| 1 | `PDF-S02-006`, `PDF-S02-015` | `b542b29`, `03e7688`, `3dfafc4` | Service Status screen shows current session/connection, explicit authorized refresh and Android notification permission controls; not a server restart toggle |
+| 2 | `P04-030`, `PDF-S11-024` | `e9f806c`, `991feef` | Conversation search filters already downloaded hyperlinks; regex repaired to stop on whitespace; no remote global-search claim |
+| 2 | `PDF-S10-009`, `P01-007` | `35a5eee`, `7767472`, `8fcc296` | Account-local folder rename preserving membership and a chat picker search; no server groups claimed |
+| 2/4 | `PDF-S10-022`, `P01-015`, `P10-002` | `21e2e42` | Inbox filters the active account and optionally searches existing visible last-message previews; privacy-hiding setting excludes previews |
+| 3 | `PDF-S12-001`, `PDF-S12-002`, `PDF-S12-008`–`PDF-S12-019`, `P05-006`–`P05-014` | `d00734d`, `4daffb8` | Native emoji bottom sheet, eight visible local Unicode categories and quick reactions; not a third-party GIF service or full OS emoji catalog |
+| 3 | `P05-032`, `PDF-S11-022` | `3490a86`, `6f9db57` | Android MediaRecorder pause/resume while voice recording is locked, timer excludes paused time; device audio acceptance remains open |
+| 4 | `P03-013`, `P03-014` | `f1191ab` | In-app browser refuses loopback/private IP/IPv6 literal and local hostname navigation; DNS rebinding and malicious public sites still need ordinary platform safeguards |
+
+**Unfinished scope:** authenticated Groups/Communities/Channels, backend privacy exceptions, real two-device calling and FCM acceptance, licensed GIF sources, advanced media editors, release signing, screenshot parity and the entire prescribed verification phase are **not complete**. No empty menu item or source checkbox represents such functionality as done.
