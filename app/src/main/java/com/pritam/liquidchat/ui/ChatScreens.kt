@@ -3081,6 +3081,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     else MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Liquid Chat Updates") MbAppUpdates()
+        if(section=="Liquid Chat Developer Information") MbDeveloperInformation()
         if(section=="Liquid Chat Multimedia")
             MbRecordedMultimediaSettings(display,model::setDisplay)
         if(section=="Liquid Chat Animations")
