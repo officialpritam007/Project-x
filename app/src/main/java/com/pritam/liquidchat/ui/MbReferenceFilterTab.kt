@@ -1,6 +1,6 @@
 package com.pritam.liquidchat.ui
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
         return
     }
     Column(modifier.defaultMinSize(minHeight=42.dp)
-        .clickable(role=Role.Tab,onClick=onClick)
+        .selectable(selected=selected,role=Role.Tab,onClick=onClick)
         .padding(horizontal=12.dp,vertical=5.dp),
         horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.Bottom) {
