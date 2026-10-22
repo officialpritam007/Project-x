@@ -236,3 +236,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Private sticker maker supports an optional **32-character white text overlay with rounded black outline**, flattened locally onto the 512×512 RGBA PNG via `android.graphics.Canvas` before size validation. Sticker preview has a real editable label and Apply/Remove text control; switching white-background removal regenerates the current applied overlay too.
 - Local-only; account/session/revision checks protect regeneration and old temporary sticker files are only removed after a successful replacement. Saved sticker shelf, confirmation, private send flow, quota and content authorization untouched.
 - The original APK's advanced segmentation, animated packs and pixel-accurate text editor styling remain unverified.
+
+## 2026-10-22 — image annotation / media editor
+
+- Added real **on-device image text annotation** in the single-photo editor. User enters up to 64 normalized characters; Apply text creates a new account-private edited JPEG with visible white text and black outline near the lower image area. Original source is kept for existing five-step Undo/Redo, deletion/cancel cleanup and private authorized send. This is not a server-side filter or a fake overlay which disappears after upload.
+- Existing caption stays a separate sent-message field. No photo editing service, new quota or nonprivate media URL is introduced.
+- This is a functional addition, not verification of original MB gesture timing, fonts or device screenshots.

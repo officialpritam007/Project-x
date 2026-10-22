@@ -2568,6 +2568,40 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             }) {Text("Apply Crop")}
                     }
                     Text("Photo editor",style=MaterialTheme.typography.titleSmall)
+                    var overlayPhotoText by remember(image.file.absolutePath) {mutableStateOf("")}
+                    OutlinedTextField(
+                        value=overlayPhotoText,
+                        onValueChange={overlayPhotoText=it.take(64)},
+                        label={Text("Add text on photo (optional)")},
+                        singleLine=true,maxLines=1,
+                        modifier=Modifier.fillMaxWidth(),enabled=editingAllowed)
+                    OutlinedButton(
+                        enabled=editingAllowed&&overlayPhotoText.isNotBlank(),
+                        modifier=Modifier.fillMaxWidth(),
+                        onClick={
+                            val owner=session?.userId
+                            val words=overlayPhotoText
+                            if(owner!=null&&!photoEditBusy) {
+                                photoEditBusy=true
+                                model.action {
+                                    try {
+                                        val next=Images.addTextOverlay(context,owner,image,words)
+                                        if(model.session.value?.userId==owner&&prepared===image) {
+                                            photoRedo.forEach {it.file.delete()}
+                                            photoRedo=emptyList()
+                                            val revisions=photoUndo+image
+                                            photoUndo=revisions.takeLast(5)
+                                            revisions.dropLast(5).forEach {it.file.delete()}
+                                            prepared=next
+                                        } else next.file.delete()
+                                    } finally {photoEditBusy=false}
+                                }
+                            }
+                        }) {
+                        Icon(Icons.Outlined.TextFields,null,Modifier.size(18.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Apply text to photo")
+                    }
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                         listOf(
