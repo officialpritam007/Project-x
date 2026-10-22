@@ -131,10 +131,14 @@ internal fun starredMediaPresentation(message:Message):String = when {
     LaunchedEffect(chat.id,account,epoch,kind,refreshKeys) {
         rows=emptyList();cursor=null;more=true;page(true)
     }
+    val referenceSheet=referenceListUsesFlatRows(LocalDisplayOptions.current)
     ModalBottomSheet(onDismissRequest=onDismiss,
         sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
         containerColor=glassPopupColor(),tonalElevation=0.dp,
-        shape=androidx.compose.foundation.shape.RoundedCornerShape(topStart=30.dp,topEnd=30.dp)) {
+        dragHandle={if(!referenceSheet)BottomSheetDefaults.DragHandle()},
+        shape=androidx.compose.foundation.shape.RoundedCornerShape(
+            topStart=if(referenceSheet)22.dp else 30.dp,
+            topEnd=if(referenceSheet)22.dp else 30.dp)) {
         ContactMediaContent(chat,kind,rows,loading,failed,more,
             iosStyle=iosStyle,
             onKind={kind=it},onDismiss=onDismiss,

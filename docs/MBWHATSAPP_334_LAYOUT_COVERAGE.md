@@ -203,3 +203,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Back now closes the active conversation search (clearing its query, result index and focus) before exiting; an active multi-message selection instead clears selection; only an ordinary conversation Back navigates to Chats. Native keyboard/sheet/dialog dismissal remains delegated to Android/Compose.
 - Added pure back-priority regression source, without modifying message transport, user state or calling.
 - Still awaits final compile/device validation per owner.
+
+## 2026-10-22 — reference Contact details and media sheet (source-only)
+
+- Protected Contact Details/Shared Media bottom sheet now shares the reference **22dp top corners** and hidden drag handle with other dialogs; Liquid mode continues with its original 30dp shape and drag affordance.
+- Contact hero, Save Contact and existing participant-scoped signed media paging, revocation/deletion safeguards and filters remain untouched.
+- No original screenshot or runtime test was performed.
