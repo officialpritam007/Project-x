@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +25,8 @@ import com.pritam.liquidchat.AppViewModel
     var folders by remember(account) {mutableStateOf(MbChatFolders.list(context,account))}
     var title by remember(account) {mutableStateOf("")}
     var feedback by remember(account) {mutableStateOf<String?>(null)}
+    var renamingId by remember(account) {mutableStateOf<String?>(null)}
+    var renameText by remember(account) {mutableStateOf("")}
     val ownedChats=chats.filter {it.account==account}
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("Chat Folders",style=MaterialTheme.typography.titleLarge)
@@ -56,6 +59,35 @@ import com.pritam.liquidchat.AppViewModel
         Text("Create a folder and select the contacts to show inside it. You can also add chats from a conversation's long-press menu.",
             style=MaterialTheme.typography.bodySmall)
     }
+    if(renamingId!=null) AlertDialog(
+        onDismissRequest={renamingId=null},
+        title={Text("Rename chat list")},
+        text={
+            Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value=renameText,
+                    onValueChange={renameText=it.take(24)},
+                    label={Text("List name")},
+                    singleLine=true,
+                    modifier=Modifier.fillMaxWidth())
+                Text("Renaming keeps all chats in this list.",
+                    style=MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton={
+            TextButton(
+                enabled=account!=null && renameText.isNotBlank(),
+                onClick={
+                    val owner=account
+                    val id=renamingId
+                    if(owner!=null && id!=null)runCatching {
+                        MbChatFolders.rename(context,owner,id,renameText)
+                    }.onSuccess {folders=it;feedback=null;renamingId=null}
+                        .onFailure {feedback=it.message ?: "Cannot rename list."}
+                }) {Text("Save")}
+        },
+        dismissButton={TextButton(onClick={renamingId=null}) {Text("Cancel")}}
+    )
     folders.forEach {folder->
         GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -63,6 +95,10 @@ import com.pritam.liquidchat.AppViewModel
                     Text(folder.name,style=MaterialTheme.typography.titleMedium)
                     Text("${folder.members.size} chats",
                         style=MaterialTheme.typography.labelSmall)
+                }
+                IconButton(onClick={renamingId=folder.id;renameText=folder.name},
+                    enabled=account!=null) {
+                    Icon(Icons.Outlined.Edit,"Rename folder")
                 }
                 IconButton(onClick={
                     val owner=account
