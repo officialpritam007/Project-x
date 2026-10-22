@@ -928,6 +928,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var savedStickers by remember(cid,session?.userId) {
         mutableStateOf(StickerLibrary.list(context,session?.userId))
     }
+    var favoriteStickers by remember(cid,session?.userId) {
+        mutableStateOf(StickerLibrary.favoriteNames(context,session?.userId))
+    }
+    var recentStickers by remember(cid,session?.userId) {
+        mutableStateOf(StickerLibrary.recent(context,session?.userId))
+    }
+    var stickerShelfFilter by remember(cid,session?.userId) {mutableStateOf("All")}
+    LaunchedEffect(stickerLibraryOpen,session?.userId) {
+        if(stickerLibraryOpen) {
+            savedStickers=StickerLibrary.list(context,session?.userId)
+            favoriteStickers=StickerLibrary.favoriteNames(context,session?.userId)
+            recentStickers=StickerLibrary.recent(context,session?.userId)
+        }
+    }
     var stickerNotice by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     var confirmSavedSticker by remember(cid,session?.userId) {mutableStateOf<java.io.File?>(null)}
     var sendingSavedSticker by remember(cid,session?.userId) {mutableStateOf(false)}
@@ -946,6 +960,11 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         "Conversation or account changed."
                     }
                     model.repository.sendSticker(cid,outgoing)
+                    // The send is already queued. A metadata storage error must
+                    // never report the actual message as unsent or retry it.
+                    runCatching {StickerLibrary.markUsed(context,owner,file)}
+                    if(model.session.value?.userId==owner)
+                        recentStickers=StickerLibrary.recent(context,owner)
                     confirmSavedSticker=null
                     stickerLibraryOpen=false
                 } catch(e:Exception) {
@@ -2284,10 +2303,39 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Text("Saved stickers are private to this account on this phone. Select Send to share one.",
                 style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
-            if(savedStickers.isEmpty())
-                Text("No saved stickers. Choose Create sticker to make one.")
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                listOf("All","Recent","Favorites").forEach {tab->
+                    FilterChip(
+                        selected=stickerShelfFilter==tab,
+                        onClick={stickerShelfFilter=tab},
+                        label={Text(tab)},
+                        modifier=Modifier.weight(1f)
+                    )
+                }
+            }
+            val visibleStickers=when(stickerShelfFilter) {
+                "Recent"->recentStickers
+                "Favorites"->savedStickers.filter {it.name in favoriteStickers}
+                else->savedStickers
+            }
+            if(visibleStickers.isEmpty())
+                Text(when(stickerShelfFilter) {
+                    "Recent"->"No recently sent stickers on this account."
+                    "Favorites"->"Tap the star on a saved sticker to add a favorite."
+                    else->"No saved stickers. Choose Create sticker to make one."
+                })
             MbSavedStickerShelf(
-                stickers=savedStickers,enabled=!busy&&!sendingSavedSticker,
+                stickers=visibleStickers,enabled=!busy&&!sendingSavedSticker,
+                favorites=favoriteStickers,
+                onToggleFavorite={file->
+                    val owner=session?.userId
+                    if(owner!=null)runCatching {
+                        StickerLibrary.setFavorite(context,owner,file,
+                            file.name !in favoriteStickers)
+                        StickerLibrary.favoriteNames(context,owner)
+                    }.onSuccess {favoriteStickers=it;stickerNotice=null}
+                        .onFailure {stickerNotice=it.message ?: "Cannot update favorite."}
+                },
                 onSend={file->
                     if(display.confirmSavedStickerSend)confirmSavedSticker=file
                     else sendSavedSticker(file)
@@ -2297,6 +2345,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     if(owner!=null)runCatching {
                         StickerLibrary.remove(context,owner,file)
                         savedStickers=StickerLibrary.list(context,owner)
+                        favoriteStickers=StickerLibrary.favoriteNames(context,owner)
+                        recentStickers=StickerLibrary.recent(context,owner)
                     }.onFailure {stickerNotice=it.message ?: "Could not remove sticker."}
                 }
             )
