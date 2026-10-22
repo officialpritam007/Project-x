@@ -63,7 +63,10 @@ jobs:
               env.write('LIQUID_DEBUG_KEYSTORE_PATH='+str(key)+'\n')
           PYKEY
       - name: Tests, lint and APK
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest testReleaseUnitTest lintRelease bundleRelease
+        # A hosted runner has limited RAM; running Debug and Release KAPT in parallel
+        # can start multiple Kotlin compiler heaps and exhaust the worker.
+        # Keep the same mandatory tasks; serialize workers and compile in-process.
+        run: ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest testReleaseUnitTest lintRelease bundleRelease
       - name: Inventory resolved release dependencies and declared licenses
         run: ./gradlew --no-daemon -I scripts/dependency_inventory.init.gradle :app:exportDependencyInventory
       - name: Validate APK signature, alignment and native page compatibility
