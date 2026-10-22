@@ -191,3 +191,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 
 - Both the **single-photo 5-step Undo/Redo editor** and the **multi-image album editor** now use the same 42dp-minimum outlined tool in Reference mode, keeping all existing 1:1/4:5/16:9 crops, left/right rotations, horizontal/vertical flips (where supported), grayscale and original account-scoped `Images.edit` actions. Liquid mode retains native chips.
 - This is a toolbar chrome change, **not** new non-destructive freeform crop or segmentation functionality. Original reference iconography/freeform gestures and visual screenshots remain to be proved.
+
+## 2026-10-22 — pixel-by-pixel visual acceptance harness
+
+- Added `scripts/compare_mb_screenshots.py` and `docs/MB_REFERENCE_SCREENSHOT_COMPARISON.md`, containing explicit 24+ paired screen states and reproducible **strict 0-tolerance** RGB pixel differences with refused resolution mismatch; outputs diff/overlay PNGs and JSON results.
+- SHA-256 of original owner-provided APK recorded and verified. **No original on-device screenshot or candidate APK screenshot was captured in this environment.** Resource XML, icon bytes and a recreated Compose UI are not valid substitutes. Measured visual parity is presently **unknown/unverified**. Avoid fabricating a similarity score or 100% completion statement.
+- The comparison tool is committed for the owner's final verification round, not executed against mock screenshots. No CI or APK build performed.

@@ -26,8 +26,7 @@ import androidx.compose.ui.unit.dp
         onClick=onClick,
         modifier=Modifier.heightIn(min=42.dp),
         shape=RoundedCornerShape(12.dp),
-        contentPadding=PaddingValues(horizontal=10.dp,vertical=6.dp),
-        border=ButtonDefaults.outlinedButtonBorder(enabled)
+        contentPadding=PaddingValues(horizontal=10.dp,vertical=6.dp)
     ) {
         Icon(Icons.Outlined.Tune,contentDescription=null,modifier=Modifier.size(16.dp))
         Spacer(Modifier.width(5.dp))
