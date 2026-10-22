@@ -1319,6 +1319,24 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         )
     }
     if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
+        if(display.navBarStyle=="Reference") {
+            MbReferenceSwitchRow(
+                title="Send image in HD quality",
+                subtitle="Higher-quality private JPEG messages",
+                checked=display.photoQuality=="HD",
+                icon=Icons.Outlined.PhotoLibrary,
+                onCheckedChange={model.setDisplay(display.copy(
+                    photoQuality=if(it)"HD" else "Standard"))})
+            HorizontalDivider()
+            MbReferenceSwitchRow(
+                title="Send video in HD quality",
+                subtitle="720p on · 480p off · maximum 30 seconds",
+                checked=display.videoQuality=="HD",
+                icon=Icons.Outlined.Videocam,
+                onCheckedChange={model.setDisplay(display.copy(
+                    videoQuality=if(it)"HD" else "Standard"))})
+            HorizontalDivider()
+        } else {
         Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp),
             verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -1342,6 +1360,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             Switch(checked=display.videoQuality=="HD",
                 onCheckedChange={model.setDisplay(display.copy(
                     videoQuality=if(it)"HD" else "Standard"))})
+        }
         }
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Select multiple photos",Icons.Outlined.PhotoLibrary,
