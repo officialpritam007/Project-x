@@ -35,6 +35,7 @@ import coil.request.ImageRequest
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.onFocusChanged
 
 /** Opaque fallback keeps separate popup windows readable without backdrop capture. */
 @Composable internal fun glassPopupColor():Color =
@@ -240,11 +241,43 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
         }
     }
 }
-@Composable fun GlassSearch(value:String,onValue:(String)->Unit,hint:String,modifier:Modifier=Modifier) {
-    GlassSurface(modifier.fillMaxWidth(),Glass.capsule) {
-        Row(Modifier.heightIn(min=48.dp).padding(horizontal=16.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            DesignIcon("icon_7_44",null,18)
-            BasicTextField(value,onValue,modifier=Modifier.weight(1f).semantics {contentDescription=hint},singleLine=true,textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface,fontWeight=FontWeight.Medium),cursorBrush=SolidColor(MaterialTheme.colorScheme.primary),decorationBox={inner->Box {if(value.isEmpty())Text(hint,color=MaterialTheme.colorScheme.onSurfaceVariant,fontSize=16.sp,fontWeight=FontWeight.Medium);inner()}})
+@Composable fun GlassSearch(
+    value:String,onValue:(String)->Unit,hint:String,modifier:Modifier=Modifier
+) {
+    val reference=LocalDisplayOptions.current.navBarStyle=="Reference"
+    val reduced=LocalDisplayOptions.current.reducedMotion
+    var focused by remember {mutableStateOf(false)}
+    val searchTint by animateColorAsState(
+        if(focused)MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec=tween(durationMillis=if(reduced)0 else 160),
+        label="reference search focus")
+    GlassSurface(modifier.fillMaxWidth(),if(reference)Glass.compact else Glass.capsule) {
+        Row(Modifier.fillMaxWidth().heightIn(min=if(reference)46.dp else 48.dp)
+            .padding(start=14.dp,end=if(value.isNotEmpty())4.dp else 14.dp),
+            verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            Icon(androidx.compose.material.icons.Icons.Outlined.Search,
+                contentDescription=null,modifier=Modifier.size(21.dp),tint=searchTint)
+            BasicTextField(value,onValue,
+                modifier=Modifier.weight(1f).onFocusChanged {focused=it.isFocused}
+                    .semantics {contentDescription=hint},
+                singleLine=true,
+                textStyle=MaterialTheme.typography.bodyLarge.copy(
+                    color=MaterialTheme.colorScheme.onSurface,fontWeight=FontWeight.Medium),
+                cursorBrush=SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox={inner->Box {
+                    if(value.isEmpty())Text(hint,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize=16.sp,fontWeight=FontWeight.Medium)
+                    inner()
+                }})
+            if(value.isNotEmpty()) IconButton(onClick={onValue("")},
+                modifier=Modifier.size(40.dp)) {
+                Icon(androidx.compose.material.icons.Icons.Outlined.Close,
+                    contentDescription="Clear $hint",modifier=Modifier.size(20.dp),
+                    tint=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
