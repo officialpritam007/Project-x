@@ -236,7 +236,11 @@ private val referenceEmojiCategoryIcons=mapOf(
     "Symbols" to "❤️","Flags" to "🏳️"
 )
 
-@Composable internal fun EmojiPicker(onEmoji:(String)->Unit,onDismiss:()->Unit) {
+@Composable internal fun EmojiPicker(
+    onEmoji:(String)->Unit,
+    onDismiss:()->Unit,
+    onSavedStickers:(()->Unit)?=null
+) {
     var category by remember {mutableStateOf("Smileys & People")}
     var query by remember {mutableStateOf("")}
     var skinTone by remember {mutableIntStateOf(0)}
@@ -257,8 +261,26 @@ private val referenceEmojiCategoryIcons=mapOf(
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal=16.dp),
             verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("Emoji",style=MaterialTheme.typography.titleMedium,
+            Text("Emoji & stickers",style=MaterialTheme.typography.titleMedium,
                 modifier=Modifier.padding(horizontal=4.dp,vertical=4.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement=Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected=true,
+                    onClick={},
+                    label={Text("Emoji")},
+                    modifier=Modifier.weight(1f).testTag("emoji-tab")
+                )
+                FilterChip(
+                    selected=false,
+                    onClick={onSavedStickers ?: {}},
+                    enabled=onSavedStickers!=null,
+                    label={Text("My stickers")},
+                    modifier=Modifier.weight(1f).testTag("stickers-tab")
+                )
+            }
             OutlinedTextField(
                 value=query,onValueChange={query=it.take(32)},singleLine=true,
                 label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
