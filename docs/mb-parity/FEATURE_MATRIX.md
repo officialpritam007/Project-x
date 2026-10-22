@@ -1,11 +1,13 @@
 # Liquid Chat — two-video and original APK parity inventory
 
-## Owner-directed implementation mode — 22 October 2026
+## Owner-directed implementation mode — revised 23 October 2026
 
-- Commit source changes **directly to `main`**, with no pull requests.
-- **Do not run tests, GitHub Actions workflows, APK builds, emulator checks or backend deployment** under this instruction. Commits include `[skip ci]` to avoid automatic push CI.
-- Keep all unverified acceptance checkboxes open. A source edit is not a verified feature or release.
+- Commit source changes **directly to `main`**, with no pull requests, as requested.
+- **Testing and APK delivery are now explicitly authorized**. Run candidate Android unit tests, lint, emulator instrumentation, CI artifact/signature checks and Edge Function source tests; do not quietly suppress failing gates.
+- Production signing, external provider credentials, physical two-phone checks and live database migrations remain separately gated. Never claim production approval without passing those.
+- Keep all unverified acceptance checkboxes open. A source edit, a green compile or an artifact alone is not a verified feature or full parity release.
 - Preserve existing users, data, messaging, calling, media privacy and working navigation. Never insert fake Groups/Communities/Channels or privacy-bypassing controls.
+- Interim source-only commits may retain `[skip ci]`; run an actual full current-main CI after integration for the candidate APK.
 
 ### Direct-to-main source progress (unverified)
 
