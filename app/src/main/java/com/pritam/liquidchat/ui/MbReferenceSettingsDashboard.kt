@@ -37,6 +37,8 @@ private val dashboardPrimary=listOf(
         Icons.Outlined.Campaign),
     MbSettingsDashboardRoute("Service status","Liquid Chat Service Status",
         Icons.Outlined.CloudSync),
+    MbSettingsDashboardRoute("Power Saving","Power Saving",
+        Icons.Outlined.BatteryFull),
     MbSettingsDashboardRoute("Notifications","Liquid Chat Notifications",
         Icons.Outlined.NotificationsNone),
     MbSettingsDashboardRoute("App information","Liquid Chat Updates",
