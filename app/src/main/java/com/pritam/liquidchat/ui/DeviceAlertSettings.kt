@@ -22,7 +22,44 @@ import com.pritam.liquidchat.data.DeviceAlertPreferences
             DeviceAlertPreferences.quietDuringLandscape(context,it)
         } ?: false)
     }
+    var disabled by remember(account) {
+        mutableStateOf(account?.let {DeviceAlertPreferences.disableAll(context,it)} ?: false)
+    }
+    var autoHide by remember(account) {
+        mutableStateOf(account?.let {DeviceAlertPreferences.autoHideMessages(context,it)} ?: false)
+    }
     var error by remember(account) {mutableStateOf<String?>(null)}
+    GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+        Text("Notifications",style=MaterialTheme.typography.titleMedium)
+        MbReferenceSwitchRow(
+            title="Disable all notifications",
+            subtitle="Hide new messages and incoming-call alerts on this phone; calls remain available inside the app",
+            checked=disabled,enabled=account!=null,
+            onCheckedChange={checked->
+                account?.let {owner->
+                    runCatching {DeviceAlertPreferences.update(
+                        context,owner,disabled=checked)}
+                    .onSuccess {disabled=checked;error=null}
+                    .onFailure {error=it.message ?: "Unable to save"}
+                }
+            })
+        HorizontalDivider()
+        MbReferenceSwitchRow(
+            title="Auto hide after 5 seconds",
+            subtitle="Automatically dismiss new message notifications, not incoming calls",
+            checked=autoHide,enabled=account!=null,
+            onCheckedChange={checked->
+                account?.let {owner->
+                    runCatching {DeviceAlertPreferences.update(
+                        context,owner,autoHide=checked)}
+                    .onSuccess {autoHide=checked;error=null}
+                    .onFailure {error=it.message ?: "Unable to save"}
+                }
+            })
+        Text("Android permissions and per-conversation notification channels remain authoritative.",
+            style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("Alert behavior",style=MaterialTheme.typography.titleMedium)
         Text("Control message notification sound and vibration on this phone. Incoming call alerts keep their normal Android channel behavior.",

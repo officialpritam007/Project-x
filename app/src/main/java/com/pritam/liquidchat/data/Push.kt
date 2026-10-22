@@ -159,6 +159,10 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
         } catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
     }
     private fun showIncoming(context:Context,callId:String,account:String,video:Boolean,remaining:Long,name:String) {
+        if(DeviceAlertPreferences.disableAll(context,account)) {
+            MessageNotificationDedupe.claim(context,account,"call-$callId")
+            return
+        }
         if(android.os.Build.VERSION.SDK_INT>=33 &&
            ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
         val manager=context.getSystemService(NotificationManager::class.java)
@@ -193,6 +197,12 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
     }
 
     private fun show(context:Context,cid:String,id:String,title:String,body:String,account:String,previews:Boolean) {
+        if(DeviceAlertPreferences.disableAll(context,account)) {
+            // Dedupe suppressed pushes so they do not surface after notifications
+            // are re-enabled. Message sync has already been handled above.
+            MessageNotificationDedupe.claim(context,account,id)
+            return
+        }
         if(android.os.Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
         val manager=context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("messages","Messages",NotificationManager.IMPORTANCE_HIGH))
@@ -216,6 +226,8 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             .setVisibility(if(showBody)NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_SECRET)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setSilent(DeviceAlertPreferences.shouldSilence(context,account))
+            .setTimeoutAfter(if(DeviceAlertPreferences.autoHideMessages(context,account))
+                5_000L else 0L)
             .build()
         // Commit before notifying: notifications dismissed by the user must never alert again.
         MessageNotificationDedupe.postOnce(context,account,id) {

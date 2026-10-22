@@ -17,11 +17,27 @@ internal object DeviceAlertPreferences {
         context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
             .getBoolean(key(account,"landscape"),false)
 
-    fun update(context:Context,account:String,dnd:Boolean?=null,landscape:Boolean?=null) {
+    /** These affect future account notifications on this phone, not Android's
+     * app-wide permission or another signed-in account's stored preference.
+     */
+    fun disableAll(context:Context,account:String):Boolean =
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+            .getBoolean(key(account,"disabled"),false)
+
+    fun autoHideMessages(context:Context,account:String):Boolean =
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+            .getBoolean(key(account,"autohide"),false)
+
+    fun update(context:Context,account:String,
+        dnd:Boolean?=null,landscape:Boolean?=null,
+        disabled:Boolean?=null,autoHide:Boolean?=null
+    ) {
         require(account.isNotBlank())
         val editor=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
         if(dnd!=null)editor.putBoolean(key(account,"dnd"),dnd)
         if(landscape!=null)editor.putBoolean(key(account,"landscape"),landscape)
+        if(disabled!=null)editor.putBoolean(key(account,"disabled"),disabled)
+        if(autoHide!=null)editor.putBoolean(key(account,"autohide"),autoHide)
         check(editor.commit()) {"Couldn't save notification alert preference."}
     }
 
@@ -40,6 +56,8 @@ internal object DeviceAlertPreferences {
         context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
             .remove(key(account,"dnd"))
             .remove(key(account,"landscape"))
+            .remove(key(account,"disabled"))
+            .remove(key(account,"autohide"))
             .apply()
     }
 }
