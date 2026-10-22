@@ -147,3 +147,11 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Fixed the real imported-font selection regression: `AppViewModel.setDisplay` previously accepted `Imported` when loading preferences but silently sanitized a freshly selected imported body font back to `System` when writing preferences. It now accepts `Imported`; the renderer keeps its safe fallback if the selected font file is no longer present.
 - New source-only commits: `7cc698b`, `6b008ea`, `ff51d80`, `0e28361`. No build, lint, CI, emulator, migration, deployment, screenshot, or two-phone test was run. **No pixel-equivalence or functionality certification is claimed.**
 
+
+## 2026-10-22 — conversation chrome/search/composer stage (source-only)
+
+- Reused the compiled APK's **35dp search / 24dp icon** reference structure through existing `GlassSearch` in conversation search instead of Material's tall outlined text field. Sender, type, date, next/previous-result navigation, query account scope and explicit close remain wired to their original callbacks.
+- Reference mode now uses a **compact, edge-aligned** conversation header and composer visual structure. These are **reconstructions**, not a claim that WhatsApp's actual chat XML or Dex was imported. The APK's `mb_home_toolbar` measures 47dp/17sp but this layout is a *home toolbar*, not proof of the complete private chat header's geometry. Liquid alternative styling is preserved. No message input, draft, voice capture, attachment, authorization or calling callbacks were changed.
+- The original `mb_edittext_box` is a **settings input dialog**, not evidence for pixel-identical chat composer dimensions; do not conflate these in parity reports.
+- Prior stage changed Reference-mode Chats, Calls and Contacts to flat list presentation and made Preferences primary, retaining all actual routes.
+- **Verification**: only source commits. Per owner instruction, no Gradle build, CI, lint, emulator screenshot/pixel comparison, backend deployment, APK install or two-phone acceptance. Visual parity and runtime behavior are unverified.

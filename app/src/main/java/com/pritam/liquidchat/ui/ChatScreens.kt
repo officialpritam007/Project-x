@@ -1090,8 +1090,21 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             "Text"->MaterialTheme.colorScheme.onSurface
             else->LocalContentColor.current
         }
-        GlassChromeSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp,vertical=3.dp),Glass.capsule) {
-        Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically) {
+        // Keep every existing authenticated action; reconstruct only visual chrome.
+        // The reference home toolbar has a compact 47dp content band, while
+        // the original Liquid alternative retains its capsule and margins.
+        val referenceChrome=referenceListUsesFlatRows(display)
+        GlassChromeSurface(
+            Modifier.fillMaxWidth().padding(
+                horizontal=if(referenceChrome)0.dp else 8.dp,
+                vertical=if(referenceChrome)0.dp else 3.dp),
+            if(referenceChrome)Glass.compact else Glass.capsule
+        ) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min=if(referenceChrome)47.dp else 0.dp)
+                .padding(horizontal=if(referenceChrome)0.dp else 4.dp,
+                    vertical=if(referenceChrome)0.dp else 2.dp),
+            verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats",tint=headerIconTint)}
             if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
             Column(Modifier.weight(1f).padding(horizontal=8.dp).clickable {details=true}) {Text(chat?.name ?: "Conversation",maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleMedium.copy(fontSize=display.chatHeaderNameSize.sp));Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis)}
@@ -1155,9 +1168,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
             }
         }
         }
-        if(searchOpen) GlassSurface(Modifier.fillMaxWidth().padding(horizontal=8.dp)) {
+        if(searchOpen) GlassSurface(
+            Modifier.fillMaxWidth().padding(horizontal=if(referenceListUsesFlatRows(display))0.dp else 8.dp),
+            if(referenceListUsesFlatRows(display))Glass.compact else Glass.card
+        ) {
             Column(Modifier.padding(8.dp)) {
-                OutlinedTextField(chatQuery,{chatQuery=it;searchIndex=0},placeholder={Text("Search this chat")},singleLine=true,modifier=Modifier.fillMaxWidth(),trailingIcon={IconButton(onClick={searchOpen=false;chatQuery=""}) {Icon(Icons.Outlined.Close,"Close search")}})
+                // The reference APK has a 35dp/24dp search row. Retain the
+                // real downloaded-message filters, query and explicit dismissal.
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                    GlassSearch(chatQuery,{chatQuery=it;searchIndex=0},
+                        "Search this chat",Modifier.weight(1f))
+                    IconButton(onClick={searchOpen=false;chatQuery=""}) {
+                        Icon(Icons.Outlined.Close,"Close search")
+                    }
+                }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                     SearchFilterMenu("Sender",searchSender.label,SearchSender.entries.map {it.label}) {
                         searchSender=SearchSender.entries[it];searchIndex=0
@@ -1262,8 +1286,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 IconButton(onClick={replyTo="";draftVersion=model.repository.saveDraft(cid,body)}) {Icon(Icons.Outlined.Close,"Cancel reply")}
             }
         }
-        GlassChromeSurface(Modifier.fillMaxWidth().padding(8.dp),Glass.capsule) {
-            Row(Modifier.fillMaxWidth().padding(4.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+        // Reference mode keeps the composer flush with the conversation edge.
+        // No changes to draft revisions, keyboard focus, voice lock or send state.
+        val referenceComposer=referenceListUsesFlatRows(display)
+        GlassChromeSurface(
+            Modifier.fillMaxWidth().padding(
+                horizontal=if(referenceComposer)0.dp else 8.dp,
+                vertical=if(referenceComposer)2.dp else 8.dp),
+            if(referenceComposer)Glass.compact else Glass.capsule
+        ) {
+            Row(Modifier.fillMaxWidth().padding(
+                horizontal=if(referenceComposer)8.dp else 4.dp,
+                vertical=if(referenceComposer)2.dp else 4.dp),
+                verticalAlignment=Alignment.Bottom,
+                horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick={emojiPicker=true},enabled=draftReady) {Icon(Icons.Outlined.EmojiEmotions,"Open emoji picker")}
                 androidx.compose.foundation.text.BasicTextField(input,{if(it.text.length<=4000)updateInput(it)},enabled=draftReady,keyboardOptions=KeyboardOptions(capitalization=KeyboardCapitalization.Sentences,keyboardType=KeyboardType.Text),modifier=Modifier.weight(1f).heightIn(min=48.dp,max=140.dp).padding(vertical=14.dp).onFocusChanged {inputFocused=it.isFocused}.testTag("message-input").semantics {contentDescription="Message"},textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onSurface),maxLines=5,decorationBox={inner->Box {if(body.isEmpty())Text("Message",color=MaterialTheme.colorScheme.onSurfaceVariant);inner()}})
                 IconButton(onClick={attachments=true},enabled=!busy&&replyTo.isEmpty()) {Icon(Icons.Outlined.AttachFile,"Attach image")}

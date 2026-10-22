@@ -59,6 +59,15 @@ class MbDisplayOptionsTest {
         assertEquals(liquidAccentScheme(false,"Cyan"),liquidAccentScheme(false,"unknown"))
         org.junit.Assert.assertNotEquals(liquidAccentScheme(false,"Cyan").primary,liquidAccentScheme(false,"Rose").primary)
     }
+    @Test fun referenceConversationChromeDoesNotAlterMessagePreferences() {
+        val reference=DisplayOptions()
+        assertEquals("Reference",reference.navBarStyle)
+        assertEquals(16,reference.messageFontSize)
+        assertEquals("HD",reference.videoQuality)
+        assertEquals("Standard",reference.photoQuality)
+        assertEquals("Liquid",reference.copy(navBarStyle="Liquid").navBarStyle)
+        assertEquals(reference.messageFontSize,reference.copy(navBarStyle="Liquid").messageFontSize)
+    }
     @Test fun referenceModeUsesConsistentFlatRowsAcrossChatsCallsAndContacts() {
         assertEquals(true,referenceListUsesFlatRows(DisplayOptions()))
         assertEquals(false,referenceListUsesFlatRows(DisplayOptions(navBarStyle="Liquid")))
