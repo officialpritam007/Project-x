@@ -142,11 +142,14 @@ private data class MbTouchParticle(val id:Long,val point:Offset)
                 MbTouchEffects.save(context,config.copy(enabled=it))
             })
         }
-        OutlinedTextField(value=config.glyph,
-            onValueChange={if(it.isNotBlank()&&it.length<=12)
-                MbTouchEffects.save(context,config.copy(glyph=it))},
-            modifier=Modifier.fillMaxWidth(),singleLine=true,
-            label={Text("Touch character")})
+        MbReferenceEditTextRow(
+            title="Touch character",
+            description="Choose one visible character or emoji.",
+            value=config.glyph,maxLength=12,
+            valid={it.isNotBlank() && it.none(Char::isISOControl)},
+            onCommit={glyph->
+                MbTouchEffects.save(context,config.copy(glyph=glyph))
+            })
         MbColorPickerButton("Touch animation color",config.color) {
             MbTouchEffects.save(context,config.copy(color=it))
         }
