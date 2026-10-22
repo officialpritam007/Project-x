@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +49,9 @@ private val dashboardAccount=listOf(
     MbSettingsDashboardRoute("Privacy","Liquid Chat Privacy",Icons.Outlined.LockOutline),
     MbSettingsDashboardRoute("Appearance","Appearance",Icons.Outlined.Palette),
     MbSettingsDashboardRoute("Data and storage","Data and Storage",
-        Icons.Outlined.Storage)
+        Icons.Outlined.Storage),
+    MbSettingsDashboardRoute("Invite a friend","Invite a friend",
+        Icons.Outlined.Share)
 )
 
 @Composable private fun DashboardGroup(
@@ -101,6 +104,19 @@ private val dashboardAccount=listOf(
     val avatar=profile?.optString("avatar_id").orEmpty().takeIf {
         it.isNotBlank()&&it!="null"
     }.orEmpty()
+    val context=LocalContext.current
+    val openSettingsAction:(String)->Unit={target->
+        if(target=="Invite a friend") {
+            val username=profile?.optString("username").orEmpty().trim()
+            val invitation=if(username.isBlank()) "Let's chat on Liquid Chat."
+                else "Find me on Liquid Chat: @$username"
+            val intent=android.content.Intent(android.content.Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(android.content.Intent.EXTRA_TEXT,invitation)
+            context.startActivity(android.content.Intent.createChooser(
+                intent,"Invite a friend"))
+        } else onSection(target)
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         .padding(horizontal=15.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
@@ -137,10 +153,13 @@ private val dashboardAccount=listOf(
             if(username.isNotBlank())
                 Text("@$username",fontSize=13.sp,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick={onSection("Liquid Chat Updates")}) {
+                Text("What's new?")
+            }
         }
         DashboardGroup(dashboardPrimary,onSection)
         DashboardGroup(dashboardChats,onSection)
-        DashboardGroup(dashboardAccount,onSection)
+        DashboardGroup(dashboardAccount,openSettingsAction)
         Text("Liquid Chat · © 2026",modifier=Modifier.fillMaxWidth(),
             textAlign=TextAlign.Center,
             style=MaterialTheme.typography.bodySmall,
