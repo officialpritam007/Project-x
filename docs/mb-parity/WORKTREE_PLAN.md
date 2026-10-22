@@ -5,6 +5,7 @@
 **Release issue:** https://github.com/officialpritam007/Project-x/issues/24
 **Known emulator teardown blocker:** https://github.com/officialpritam007/Project-x/issues/91
 **Feature matrix:** [FEATURE_MATRIX.md](FEATURE_MATRIX.md) — 346 stable IDs, 12 tracks.
+**Issue-to-branch index:** [ISSUE_INDEX.md](ISSUE_INDEX.md) — 12 dedicated GitHub issues.
 **Manifest:** `scripts/worktrees/tracks.json`.
 
 ## How actual worktrees work

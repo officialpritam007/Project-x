@@ -11,7 +11,9 @@
       "priority": "P0",
       "scope": "KSP/Compose memory, modularization, CI prereqs, stable shared component contracts",
       "branch": "parity/00-foundation",
-      "folder": "00-foundation"
+      "folder": "00-foundation",
+      "issue": 114,
+      "itemCount": 12
     },
     {
       "id": "01",
@@ -20,7 +22,9 @@
       "priority": "P1",
       "scope": "Tabs, badges, chat list/filter, search toolbar, home wallpaper and controls",
       "branch": "parity/01-shell-home",
-      "folder": "01-shell-home"
+      "folder": "01-shell-home",
+      "issue": 115,
+      "itemCount": 32
     },
     {
       "id": "02",
@@ -29,7 +33,9 @@
       "priority": "P1",
       "scope": "MB Preferences, color/fonts/DPI, wallpaper, animations, launcher icons",
       "branch": "parity/02-settings-appearance",
-      "folder": "02-settings-appearance"
+      "folder": "02-settings-appearance",
+      "issue": 116,
+      "itemCount": 42
     },
     {
       "id": "03",
@@ -38,7 +44,9 @@
       "priority": "P0",
       "scope": "Per-contact options, real preferences, FCM quiet/disable, safe privacy",
       "branch": "parity/03-settings-privacy",
-      "folder": "03-settings-privacy"
+      "folder": "03-settings-privacy",
+      "issue": 117,
+      "itemCount": 33
     },
     {
       "id": "04",
@@ -47,7 +55,9 @@
       "priority": "P0",
       "scope": "Reply/delete/forward/star/pin, reactions, search and delivery states",
       "branch": "parity/04-chat-actions",
-      "folder": "04-chat-actions"
+      "folder": "04-chat-actions",
+      "issue": 118,
+      "itemCount": 40
     },
     {
       "id": "05",
@@ -56,7 +66,9 @@
       "priority": "P1",
       "scope": "IME, emoji grids, GIF, pack picker, voice pause/resume/lock",
       "branch": "parity/05-composer-emoji",
-      "folder": "05-composer-emoji"
+      "folder": "05-composer-emoji",
+      "issue": 119,
+      "itemCount": 40
     },
     {
       "id": "06",
@@ -65,7 +77,9 @@
       "priority": "P1",
       "scope": "Photo/video/PDF processing, sticker cutout and packs, safe upload",
       "branch": "parity/06-media-editor",
-      "folder": "06-media-editor"
+      "folder": "06-media-editor",
+      "issue": 120,
+      "itemCount": 31
     },
     {
       "id": "07",
@@ -74,7 +88,9 @@
       "priority": "P0",
       "scope": "WebRTC signaling, route, active calling, call logs and visual parity",
       "branch": "parity/07-calls-audio",
-      "folder": "07-calls-audio"
+      "folder": "07-calls-audio",
+      "issue": 121,
+      "itemCount": 23
     },
     {
       "id": "08",
@@ -83,7 +99,9 @@
       "priority": "P1",
       "scope": "Story UI and privacy, group/channel backend scope and access control",
       "branch": "parity/08-moments-social",
-      "folder": "08-moments-social"
+      "folder": "08-moments-social",
+      "issue": 122,
+      "itemCount": 21
     },
     {
       "id": "09",
@@ -92,7 +110,9 @@
       "priority": "P1",
       "scope": "Profile cards, contact controls, global/media search, translation and a11y",
       "branch": "parity/09-profile-contact-search",
-      "folder": "09-profile-contact-search"
+      "folder": "09-profile-contact-search",
+      "issue": 123,
+      "itemCount": 24
     },
     {
       "id": "10",
@@ -101,7 +121,9 @@
       "priority": "P0",
       "scope": "RLS, account isolation, deletion, presence, media privacy, API migration",
       "branch": "parity/10-backend-security",
-      "folder": "10-backend-security"
+      "folder": "10-backend-security",
+      "issue": 124,
+      "itemCount": 24
     },
     {
       "id": "11",
@@ -110,7 +132,10 @@
       "priority": "P0",
       "scope": "Source inventory, screenshot baselines, CI and one two-phone verification",
       "branch": "parity/11-qa-release",
-      "folder": "11-qa-release"
+      "folder": "11-qa-release",
+      "issue": 125,
+      "itemCount": 24
     }
-  ]
+  ],
+  "planningCommit": "d936015cf34655a9eded75e6e52f0a97bf2aa2c2"
 }

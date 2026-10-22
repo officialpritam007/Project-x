@@ -9,6 +9,7 @@ tracks=manifest["tracks"]
 branches=[t["branch"] for t in tracks]
 assert len(branches)==len(set(branches)), "Duplicate branch names"
 assert len(tracks)==12, "A workstream disappeared"
+assert len(set(t["issue"] for t in tracks))==len(tracks), "Duplicate workstream issues"
 actual={}
 for t in tracks:
     id_=t["id"]
@@ -17,6 +18,7 @@ for t in tracks:
     numbers=list(map(int,ids))
     assert numbers==list(range(1,len(numbers)+1)), "Missing/duplicate/out-of-order IDs in "+id_
     actual[id_]=len(ids)
+    assert t["itemCount"]<=len(ids), f"Track {id_} lost entries"
 observed=sum(actual.values())
 assert observed>=manifest["items"], f"Inventory shrunk: {observed} < {manifest['items']}"
 print(f"OK: {observed} stable items / {len(tracks)} worktrees; by track: {actual}")
