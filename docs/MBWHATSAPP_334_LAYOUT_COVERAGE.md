@@ -254,3 +254,7 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Added a 240dp exact-aspect on-device drawing viewport to the single-photo editor, with five ink colors, bounded normalized finger strokes (up to 25 strokes × 500 points), Undo-last-stroke, Clear and Apply drawing. Applying rasterizes true ARGB strokes into a new account-private JPEG, subject to the same 9.5MB cap, source-scope and session/revision checks. The existing five-stage photo Undo/Redo stack can undo the applied artwork.
 - Disables free crop when the drawing viewport is active and vice versa, avoiding two competing gesture handlers. Existing captions, original file cleanup and all private Supabase media sends remain unchanged.
 - User-facing art and original app gesture curves are not proven exactly identical; final compiler/emulator/two-phone validation is pending.
+
+## Final APK request — build verification gate
+
+The owner has now requested the app/APK, superseding the earlier wait-to-test instruction. GitHub Actions `android.yml` on `main` is the calling-enabled build and mandatory validation gate. No source-only commit prior to this section is a verified APK; only the exact successful workflow run's downloadable artifact may be distributed as final. Strict screenshot/pixel parity still requires authentic paired captures.
