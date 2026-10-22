@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
+import com.pritam.liquidchat.BuildConfig
 
 private data class MbSettingsDashboardRoute(
     val title:String,val target:String,val icon:ImageVector
@@ -160,7 +161,7 @@ private val dashboardAccount=listOf(
         DashboardGroup(dashboardPrimary,onSection)
         DashboardGroup(dashboardChats,onSection)
         DashboardGroup(dashboardAccount,openSettingsAction)
-        Text("Liquid Chat · © 2026",modifier=Modifier.fillMaxWidth(),
+        Text("Liquid Chat · ${BuildConfig.VERSION_NAME}",modifier=Modifier.fillMaxWidth(),
             textAlign=TextAlign.Center,
             style=MaterialTheme.typography.bodySmall,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
