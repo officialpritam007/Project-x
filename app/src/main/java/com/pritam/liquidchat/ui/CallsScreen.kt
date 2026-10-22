@@ -295,28 +295,26 @@ private fun elapsedLabel(seconds:Long):String {
         }
     }
     details?.let {call->
-        ModalBottomSheet(onDismissRequest={details=null}) {
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal=24.dp).padding(bottom=24.dp),
-                verticalArrangement=Arrangement.spacedBy(12.dp)
-            ) {
-                Text(call.name,style=MaterialTheme.typography.headlineSmall)
-                Text("${call.direction} ${if(call.kind=="video")"video" else "voice"} call")
-                Text(call.timeLabel,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Duration: ${call.durationSeconds?.let(::elapsedLabel) ?: "Not connected"}")
-                Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick={details=null;model.open(call.conversation)}) {
-                        Icon(Icons.Outlined.ChatBubbleOutline,null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Message")
-                    }
-                    Button(onClick={details=null;redial(call)},
-                        enabled=callHistoryCanRedial(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
-                            call.kind,account!=null,currentCall!=null)) {
-                        Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Call again")
-                    }
+        // Use the same reference bottom-sheet hierarchy and close affordance
+        // as conversation actions, without changing live call permissions.
+        LiquidActionSheet(title=call.name,onDismiss={details=null}) {
+            Text("${call.direction} ${if(call.kind=="video")"video" else "voice"} call")
+            Text(call.timeLabel,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Duration: ${call.durationSeconds?.let(::elapsedLabel) ?: "Not connected"}")
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick={details=null;model.open(call.conversation)},
+                    modifier=Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.ChatBubbleOutline,null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Message")
+                }
+                Button(onClick={details=null;redial(call)},
+                    modifier=Modifier.weight(1f),
+                    enabled=callHistoryCanRedial(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
+                        call.kind,account!=null,currentCall!=null)) {
+                    Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Call again")
                 }
             }
         }
