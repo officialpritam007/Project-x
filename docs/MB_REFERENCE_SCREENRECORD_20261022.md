@@ -23,3 +23,7 @@ Reference: 2026-10-22, 162.8-second portrait screen recording (1080 × 2392). Th
 The video is evidence for reference behavior only, not proof of feature parity. The owner's original APK is not the new app. No exact pixel similarity, build success, reliability claim, or "100% working" label is valid until identical-state reference/new screenshots and actual Android CI/2-device tests are available.
 
 The last checked `main` Android builds #487, #489, and #490 failed in Kotlin FIR/KAPT stubs with JVM heap exhaustion. Merely changing the settings menu cannot fix this. Existing verified build #486 predates these new changes.
+
+## Build pipeline root-cause response — KSP migration
+
+The 2026-10-22 build logs for Android runs #487/#489/#490 show a `java.lang.OutOfMemoryError` during `:app:kaptGenerateStubsDebugKotlin` even with 5 GiB. Room 2.7.1 is the only `kapt` processor. The implementation now migrates this dependency to Kotlin Symbol Processing (`com.google.devtools.ksp` 2.1.20-2.0.1), which is compatible with Kotlin 2.1.20 and avoids generating Java stubs for the entire Compose source tree. This **does not establish a successful build**; actual GitHub Actions verification remains required. The previous successful #486 APK predates these changes.
