@@ -16,7 +16,7 @@ Status legend: **Partial** = some native counterpart exists but incomplete refer
 | `mb_colorpicker_layout.xml` | Partial | Original 45dp color-picker settings row with 15sp/13sp labels and a real 30dp swatch; used for app ink/background/chrome with persistent RGB color picker and Reset | More exact embedded picker art/transparency color-wheel gestures unverified |
 | `mb_convo_settings.xml` | Partial | Conversation Screen Settings with five animated, accessible expandable groups; existing privacy/media controls preserved | Other reference sections, precise icons, nested layout and visual acceptance still unverified |
 | `mb_custom_cm.xml` | Unmapped | ScrollView, RowBackground, several labels and divider views identified in binary XML | String resource meanings and source button behavior remain unresolved |
-| `mb_custom_color_picker_dialog.xml` | Partial | Native HSV sliders, hex input, 18 swatches and explicit photo-based dominant accent sampler | Reference exact pixel palette and manual photo pixel eyedropper remain missing |
+| `mb_custom_color_picker_dialog.xml` | Partial | Native HSV sliders, hex input, 18 swatches, automatic dominant accent and bounded on-device photo preview with actual tapped-pixel RGB eyedropper | Exact reference color-wheel artwork, magnifier gesture, touch precision and device verification remain unproven |
 | `mb_custom_webview.xml` | Partial | MessageInAppBrowser | Website behavior and navigation tests pending |
 | `mb_dialog_alert_ios.xml` | Partial | Reference-mode 22dp rounded dialogs with fade/spring entry and reduced-motion support | Exact reference backdrop blur, button order and exit transition unverified |
 | `mb_dialog_color_picker.xml` | Partial | 18-color swatch palette, three HSV sliders, hex input and local image sampling | Exact reference palette art and manual eyedropper gesture not yet matched |
@@ -140,3 +140,10 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Parsed the owner's binary `mb_info_profile.xml`: 60dp top spacing before a 128dp avatar, 23sp name, 16sp details and 14sp secondary detail. Reference-mode Liquid Chat contact shared-media now renders the original spacing and avatar/name sizing, retaining actual private signed-media queries and real Save Contact callback.
 - Parsed `mb_error_activity.xml`: an error surface with 20dp padding and a 48dp Send report control. Liquid Chat recovery provides user-initiated Android share of only a generic profile-load issue, app version and Android API; no raw server error, credentials, account IDs, phone numbers or message content leave the app.
 - Remaining native UI/behavior gaps remain open. All changes **source-only and unverified**: no Gradle, lint, CI, emulator, database deployment or APK tested per owner's explicit workflow.
+
+## 22 October 2026 — continuation: true photo-eyedropper and font-state fix
+
+- Native MB-style color dialog can open a photo, show an ephemeral software-bitmap preview bounded to 640px, and sample the **exact opaque RGB pixel tapped**, correctly accounting for image letterboxing under `ContentScale.Fit`. Taps on margins/transparent pixels are rejected. Original photo is neither uploaded nor saved to theme exports; the sampled HEX value still needs explicit **Apply**. The existing automatic dominant-accent sampler, HSV sliders and swatches remain.
+- Fixed the real imported-font selection regression: `AppViewModel.setDisplay` previously accepted `Imported` when loading preferences but silently sanitized a freshly selected imported body font back to `System` when writing preferences. It now accepts `Imported`; the renderer keeps its safe fallback if the selected font file is no longer present.
+- New source-only commits: `7cc698b`, `6b008ea`, `ff51d80`, `0e28361`. No build, lint, CI, emulator, migration, deployment, screenshot, or two-phone test was run. **No pixel-equivalence or functionality certification is claimed.**
+
