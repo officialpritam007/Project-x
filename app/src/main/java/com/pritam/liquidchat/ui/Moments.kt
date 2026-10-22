@@ -2,6 +2,7 @@ package com.pritam.liquidchat.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -163,15 +164,28 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
     title:String,moment:Moment?,model:AppViewModel,mine:Boolean,
     onClick:()->Unit,onAdd:(()->Unit)?=null
 ) {
+    val reference=referenceListUsesFlatRows(LocalDisplayOptions.current)
+    val shape=if(reference)androidx.compose.foundation.shape.CircleShape else Glass.card
+    val cardWidth=if(reference)82.dp else 94.dp
     Column(
-        Modifier.width(94.dp).clickable(onClick=onClick),
+        Modifier.width(cardWidth).clickable(onClick=onClick),
         horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.spacedBy(6.dp)
     ) {
-        GlassSurface(Modifier.size(width=94.dp,height=116.dp),Glass.card) {
-            Box(Modifier.fillMaxSize().clip(Glass.card),contentAlignment=Alignment.Center) {
+        // A ring indicates an available story, not an invented seen/unseen state.
+        // Every tile still resolves only through the existing participant-scoped media viewer.
+        Surface(
+            modifier=if(reference)Modifier.size(82.dp) else Modifier.size(94.dp,116.dp),
+            shape=shape,
+            border=if(reference&&moment!=null)BorderStroke(
+                2.dp,MaterialTheme.colorScheme.primary) else null,
+            color=MaterialTheme.colorScheme.surfaceVariant,
+            tonalElevation=if(reference)0.dp else 1.dp
+        ) {
+            Box(Modifier.fillMaxSize().clip(shape),contentAlignment=Alignment.Center) {
                 if(moment?.mediaKind=="story_video")
-                    Icon(Icons.Outlined.Videocam,"Video story",modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Outlined.Videocam,"Video story",
+                        modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
                 else if(moment!=null)
                     ProtectedImage(model.backend,moment.media,description="$title story",
                         modifier=Modifier.fillMaxSize(),scale=ContentScale.Crop)
@@ -180,13 +194,15 @@ internal fun parseMoments(array:JSONArray):List<Moment> =(0 until array.length()
                         null,modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
                 if(mine)
                     Surface(
-                        modifier=Modifier.align(Alignment.BottomEnd).padding(5.dp)
+                        modifier=Modifier.align(Alignment.BottomEnd).padding(3.dp)
                             .clickable {onAdd?.invoke()},
                         shape=RoundedCornerShape(50),color=MaterialTheme.colorScheme.primary
-                    ) {Icon(Icons.Outlined.Add,"Add a story",Modifier.padding(3.dp),tint=MaterialTheme.colorScheme.onPrimary)}
+                    ) {Icon(Icons.Outlined.Add,"Add a story",
+                        Modifier.padding(3.dp),tint=MaterialTheme.colorScheme.onPrimary)}
             }
         }
-        Text(title,style=MaterialTheme.typography.labelSmall,maxLines=1,color=MaterialTheme.colorScheme.onSurface)
+        Text(title,style=MaterialTheme.typography.labelSmall,maxLines=1,
+            color=MaterialTheme.colorScheme.onSurface)
     }
 }
 

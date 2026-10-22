@@ -168,3 +168,8 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Reference conversation messages now use flat bubble surfaces (without forced white glass border or elevation), narrower 84%-of-screen wrapping, 9dp/6dp content padding and a compact quoted-message card. Liquid mode retains its old haze-backed elevated bubble and 11dp/9dp padding. Existing user-configurable tails, left/right palette, custom text colors, message font sizes, opacity, stickers and delivery receipts remain independently configurable.
 - Swipe reply, double-tap reactions, long-press selection, edited labels, read-more, upload progression and Failed/Retry retain the prior event/data logic, unchanged.
 - Included JVM source checks that presentation-mode switching does not overwrite persisted bubble text/reaction settings. Visual geometry is a reconstruction, not demonstrated pixel accuracy, and final device/build tests remain deferred.
+
+## 2026-10-22 — story ring cards and playback continuity (source-only)
+
+- Reference navigation now renders **82dp round story cards** with a ring only when an actual unexpired story exists, while the Liquid variant retains the tall card. No synthetic seen/unseen receipts are implied. Existing authenticated private media preview, 24-hour expiry, story upload, video trim, mute, tap navigation, hold-to-pause, save, report and post functionality remain unchanged.
+- The chosen 82dp circular visual is a reconstructed chat-style treatment, **not established as the exact MB APK pixel value**. Animated/functional playback parity is not yet device verified.
