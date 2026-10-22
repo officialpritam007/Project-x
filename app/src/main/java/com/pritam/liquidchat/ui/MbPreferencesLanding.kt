@@ -134,7 +134,7 @@ internal object MbReferencePreferenceSections {
                 style=MaterialTheme.typography.titleLarge,
                 fontWeight=FontWeight.SemiBold)
         }
-        Box(Modifier.fillMaxWidth().height(122.dp),
+        if(preferenceSearch.isBlank()) Box(Modifier.fillMaxWidth().height(122.dp),
             contentAlignment=Alignment.Center) {
             Icon(painter=androidx.compose.ui.res.painterResource(
                 com.pritam.liquidchat.R.drawable.ic_liquid),
