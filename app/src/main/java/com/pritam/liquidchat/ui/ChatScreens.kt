@@ -1763,26 +1763,19 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             }
                         }
                         if(m.status=="SENT") {
-                            TextButton(onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null},
-                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Reply")}
-                            TextButton(onClick={
-                                actionMessage=null
-                                model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}
-                            },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text(if(m.starred)"Unstar" else "Star")}
+                            GlassActionRow("Reply",Icons.Outlined.Reply,
+                                onClick={replyTo=m.id;draftVersion=model.repository.saveDraft(cid,body,replyTo);actionMessage=null})
+                            GlassActionRow(if(m.starred)"Unstar" else "Star",Icons.Outlined.StarOutline,
+                                onClick={
+                                    actionMessage=null
+                                    model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}
+                                })
                         }
                         if(canForwardTextMessage(m,session?.userId)) {
-                            TextButton(onClick={actionMessage=null;forwardMessages=listOf(m);forwardSearch=""},
-                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                                Icon(Icons.Outlined.Forward,null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Forward to chat")
-                            }
-                            TextButton(onClick={actionMessage=null;selectedIds=setOf(m.id)},
-                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                                Icon(Icons.Outlined.CheckBox,null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Select multiple")
-                            }
+                            GlassActionRow("Forward to chat",Icons.Outlined.Forward,
+                                onClick={actionMessage=null;forwardMessages=listOf(m);forwardSearch=""})
+                            GlassActionRow("Select multiple",Icons.Outlined.CheckBox,
+                                onClick={actionMessage=null;selectedIds=setOf(m.id)})
                         }
                         if(m.mediaKind=="sticker" && m.status=="SENT" &&
                             m.mediaId.isNotEmpty() && m.deletedAt.isEmpty()) {
@@ -1800,9 +1793,10 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 Text("Save to My stickers")
                             }
                         }
-                        if(m.mediaKind=="image" && m.body.isNotBlank())TextButton(onClick={
-                            clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)));actionMessage=null
-                        },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Copy text")}
+                        if(m.mediaKind=="image" && m.body.isNotBlank())GlassActionRow(
+                            "Copy text",Icons.Outlined.ContentCopy,onClick={
+                                clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)));actionMessage=null
+                            })
                         if(m.mediaKind=="image" && m.body.isNotBlank())TextButton(onClick={
                             actionMessage=null
                             context.startActivity(android.content.Intent.createChooser(
@@ -1816,8 +1810,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             java.time.Duration.between(java.time.Instant.parse(m.serverTime),java.time.Instant.now()).seconds
                         }.getOrDefault(Long.MAX_VALUE)
                         if(m.sender==m.account&&m.status=="SENT"&&m.mediaId.isEmpty()&&age<=900)
-                            TextButton(onClick={editMessage=m;editBody=m.body;actionMessage=null},
-                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Edit")}
+                            GlassActionRow("Edit",Icons.Outlined.Edit,
+                                onClick={editMessage=m;editBody=m.body;actionMessage=null})
                     }
                     if("Safety" in categories) {
                         HorizontalDivider()
@@ -1827,10 +1821,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             TextButton(onClick={reportMessage=m;actionMessage=null;report=true},
                                 modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Report message")}
                         if(m.status in listOf("SENT","QUEUED","FAILED"))
-                            TextButton(onClick={deleteMessage=m;actionMessage=null},
-                                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                                Text("Delete",color=MaterialTheme.colorScheme.error)
-                            }
+                            GlassActionRow("Delete",Icons.Outlined.DeleteOutline,
+                                destructive=true,onClick={deleteMessage=m;actionMessage=null})
                     }
                     Text("${if(m.sender==m.account)"You" else chat?.name.orEmpty()} · ${
                         java.time.Instant.ofEpochMilli(m.localTime)
