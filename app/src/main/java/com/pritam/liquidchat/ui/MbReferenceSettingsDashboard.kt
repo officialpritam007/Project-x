@@ -42,6 +42,7 @@ private val dashboardPrimary=listOf(
 )
 private val dashboardChats=listOf(
     MbSettingsDashboardRoute("Add Lists","Chat Folders",Icons.Outlined.FavoriteBorder),
+    MbSettingsDashboardRoute("Starred messages","Starred Messages",Icons.Outlined.StarOutline),
     MbSettingsDashboardRoute("Chat Settings","Chat Settings",
         Icons.Outlined.ChatBubbleOutline)
 )
