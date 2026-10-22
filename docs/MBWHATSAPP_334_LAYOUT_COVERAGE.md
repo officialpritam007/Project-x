@@ -197,3 +197,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Added `scripts/compare_mb_screenshots.py` and `docs/MB_REFERENCE_SCREENSHOT_COMPARISON.md`, containing explicit 24+ paired screen states and reproducible **strict 0-tolerance** RGB pixel differences with refused resolution mismatch; outputs diff/overlay PNGs and JSON results.
 - SHA-256 of original owner-provided APK recorded and verified. **No original on-device screenshot or candidate APK screenshot was captured in this environment.** Resource XML, icon bytes and a recreated Compose UI are not valid substitutes. Measured visual parity is presently **unknown/unverified**. Avoid fabricating a similarity score or 100% completion statement.
 - The comparison tool is committed for the owner's final verification round, not executed against mock screenshots. No CI or APK build performed.
+
+## 2026-10-22 — conversation back-navigation polish (source-only)
+
+- Back now closes the active conversation search (clearing its query, result index and focus) before exiting; an active multi-message selection instead clears selection; only an ordinary conversation Back navigates to Chats. Native keyboard/sheet/dialog dismissal remains delegated to Android/Compose.
+- Added pure back-priority regression source, without modifying message transport, user state or calling.
+- Still awaits final compile/device validation per owner.

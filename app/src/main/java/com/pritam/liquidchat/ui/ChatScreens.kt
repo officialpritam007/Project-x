@@ -1027,7 +1027,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var report by remember {mutableStateOf(false)}
     var reportMessage by remember {mutableStateOf<Message?>(null)}
     var details by remember {mutableStateOf(false)}
-    BackHandler {model.closeChat()}
+    // Back dismisses the active chat subview before leaving the conversation.
+    // The keyboard and native bottom sheets keep their normal system behavior.
+    BackHandler {
+        when(conversationBackAction(searchOpen,selectedIds.isNotEmpty())) {
+            ConversationBackAction.CloseSearch->{
+                searchOpen=false
+                chatQuery=""
+                searchIndex=0
+                model.focusMessage.value=null
+            }
+            ConversationBackAction.ClearSelection->selectedIds=emptySet()
+            ConversationBackAction.CloseChat->model.closeChat()
+        }
+    }
     // Read acknowledgments are emitted only after a foreground conversation frame exists.
     LaunchedEffect(cid,messages.lastOrNull()?.id,foreground) {
         if(foreground) {withFrameNanos { };runCatching {model.repository.acknowledge(cid,true)}}
