@@ -10,8 +10,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -106,6 +106,28 @@ private val dashboardAccount=listOf(
         it.isNotBlank()&&it!="null"
     }.orEmpty()
     val context=LocalContext.current
+    var settingsQuery by rememberSaveable { mutableStateOf("") }
+    val normalizedQuery=settingsQuery.trim()
+    fun matches(route:MbSettingsDashboardRoute):Boolean {
+        if(normalizedQuery.isEmpty())return true
+        val searchable=when(route.target) {
+            "Liquid Chat Preferences"->"theme font bubble animation glass navigation customize"
+            "Chat Folders"->"list favorites starred folder organize chats"
+            "Chat Settings"->"message bubble emoji sticker composer quick replies"
+            "Liquid Chat Notifications"->"alerts quiet dnd sound ringtone vibration"
+            "Liquid Chat Privacy"->"read receipts block last seen online privacy"
+            "Data and Storage"->"cache clean media files download storage"
+            "Appearance"->"dark light background color icon font"
+            "Liquid Chat Updates"->"version release what's new developer info"
+            else->""
+        }
+        return route.title.contains(normalizedQuery,ignoreCase=true) ||
+            route.target.contains(normalizedQuery,ignoreCase=true) ||
+            searchable.contains(normalizedQuery,ignoreCase=true)
+    }
+    val primaryResults=dashboardPrimary.filter(::matches)
+    val chatResults=dashboardChats.filter(::matches)
+    val accountResults=dashboardAccount.filter(::matches)
     val openSettingsAction:(String)->Unit={target->
         if(target=="Invite a friend") {
             val username=profile?.optString("username").orEmpty().trim()
@@ -158,9 +180,30 @@ private val dashboardAccount=listOf(
                 Text("What's new?")
             }
         }
-        DashboardGroup(dashboardPrimary,onSection)
-        DashboardGroup(dashboardChats,onSection)
-        DashboardGroup(dashboardAccount,openSettingsAction)
+        OutlinedTextField(
+            value=settingsQuery,
+            onValueChange={settingsQuery=it},
+            modifier=Modifier.fillMaxWidth(),
+            label={Text("Search settings")},
+            leadingIcon={Icon(Icons.Outlined.Search,contentDescription=null)},
+            trailingIcon={
+                if(settingsQuery.isNotEmpty()) IconButton(onClick={settingsQuery=""}) {
+                    Icon(Icons.Outlined.Close,contentDescription="Clear settings search")
+                }
+            },
+            singleLine=true,
+            shape=RoundedCornerShape(20.dp)
+        )
+        if(primaryResults.isNotEmpty())DashboardGroup(primaryResults,onSection)
+        if(chatResults.isNotEmpty())DashboardGroup(chatResults,onSection)
+        if(accountResults.isNotEmpty())DashboardGroup(accountResults,openSettingsAction)
+        if(primaryResults.isEmpty()&&chatResults.isEmpty()&&accountResults.isEmpty()) {
+            Text("No matching settings. Try Preferences for detailed controls.",
+                modifier=Modifier.fillMaxWidth().padding(vertical=20.dp),
+                style=MaterialTheme.typography.bodyMedium,
+                color=MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign=TextAlign.Center)
+        }
         Text("Liquid Chat · ${BuildConfig.VERSION_NAME}",modifier=Modifier.fillMaxWidth(),
             textAlign=TextAlign.Center,
             style=MaterialTheme.typography.bodySmall,
