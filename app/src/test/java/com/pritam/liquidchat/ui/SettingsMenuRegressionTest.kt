@@ -11,6 +11,19 @@ class SettingsMenuRegressionTest {
     @Test fun unknownBlockStatusCannotPretendContactIsUnblocked() {
         assertEquals("Checking block status…",blockActionLabel(null))
     }
+    @Test fun referenceSettingsAreThePrimaryLandingWithWorkingBackNavigation() {
+        assertEquals("Liquid Chat Preferences",REFERENCE_SETTINGS_LANDING)
+        assertEquals(null,referenceSettingsBackTarget(REFERENCE_SETTINGS_LANDING,false))
+        assertEquals(REFERENCE_SETTINGS_LANDING,
+            referenceSettingsBackTarget("Liquid Chat Privacy",true))
+        assertEquals(REFERENCE_SETTINGS_LANDING,
+            referenceSettingsBackTarget("Account",true))
+        assertEquals(REFERENCE_SETTINGS_LANDING,
+            referenceSettingsBackTarget("Power Saving",true))
+        assertEquals(REFERENCE_SETTINGS_LANDING,
+            referenceSettingsBackTarget("Liquid Chat Themes",false))
+        assertEquals(null,referenceSettingsBackTarget("Account",false))
+    }
     @Test fun powerSavingNeverShowsAppearancePanel() {
         assertEquals(SettingsPanel.POWER_SAVING,settingsPanelFor("Power Saving"))
         assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Chat Settings"))

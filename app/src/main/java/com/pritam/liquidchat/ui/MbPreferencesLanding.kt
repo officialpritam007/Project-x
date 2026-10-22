@@ -33,6 +33,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** Reference-mode settings are primary; classic settings remain reachable via Back. */
+internal const val REFERENCE_SETTINGS_LANDING = "Liquid Chat Preferences"
+
+internal fun referenceSettingsBackTarget(section:String?,enteredFromReference:Boolean):String? = when {
+    section==REFERENCE_SETTINGS_LANDING -> null
+    enteredFromReference -> REFERENCE_SETTINGS_LANDING
+    section in setOf("Liquid Chat General Settings","Liquid Chat Conversation Screen",
+        "Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy",
+        "Liquid Chat Notifications","Liquid Chat Help","Liquid Chat Updates") ->
+        REFERENCE_SETTINGS_LANDING
+    else -> null
+}
+
 /**
  * The supplied reference APK's packaged preferences layout has a top icon and
  * rounded, divided option groups and a separate navigation host. Recreate
