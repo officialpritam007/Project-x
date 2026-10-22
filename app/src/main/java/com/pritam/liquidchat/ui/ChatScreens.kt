@@ -3407,29 +3407,10 @@ if(section=="Liquid Chat Home Screen") {
                             label={Text(label)})
                     }
                 }
-            Text("Reorder tabs · all five destinations remain accessible",
+            Text("Hold and drag a handle to reorder tabs; use arrows for accessible controls.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            MbNavigationOrder.parse(display.navigationOrder).forEachIndexed {position,destination ->
-                Row(Modifier.fillMaxWidth().heightIn(min=44.dp),
-                    verticalAlignment=Alignment.CenterVertically,
-                    horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                    Text(MbNavigationOrder.titles[destination],Modifier.weight(1f),
-                        style=MaterialTheme.typography.bodyMedium)
-                    IconButton(
-                        enabled=position>0,
-                        onClick={model.setDisplay(display.copy(navigationOrder=
-                            MbNavigationOrder.move(display.navigationOrder,destination,-1)))}) {
-                        Icon(Icons.Outlined.KeyboardArrowUp,
-                            "Move ${MbNavigationOrder.titles[destination]} left")
-                    }
-                    IconButton(
-                        enabled=position<4,
-                        onClick={model.setDisplay(display.copy(navigationOrder=
-                            MbNavigationOrder.move(display.navigationOrder,destination,1)))}) {
-                        Icon(Icons.Outlined.KeyboardArrowDown,
-                            "Move ${MbNavigationOrder.titles[destination]} right")
-                    }
-                }
+            MbNavigationReorderRows(display.navigationOrder) {next->
+                model.setDisplay(display.copy(navigationOrder=next))
             }
             TextButton(onClick={model.setDisplay(display.copy(navigationOrder=MbNavigationOrder.DEFAULT))},
                 enabled=display.navigationOrder!=MbNavigationOrder.DEFAULT) {
