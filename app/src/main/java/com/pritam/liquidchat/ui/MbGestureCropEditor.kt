@@ -19,7 +19,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.pritam.liquidchat.data.Images
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -46,6 +45,7 @@ internal fun normalizedCropBounds(
 ) {
     var origin by remember(image.file.absolutePath) {mutableStateOf<Offset?>(null)}
     var endpoint by remember(image.file.absolutePath) {mutableStateOf<Offset?>(null)}
+    val accent=MaterialTheme.colorScheme.primary
     BoxWithConstraints(Modifier.fillMaxWidth().height(240.dp),
         contentAlignment=Alignment.Center) {
         val aspect=image.width.toFloat()/image.height.coerceAtLeast(1)
@@ -93,7 +93,7 @@ internal fun normalizedCropBounds(
                         drawRect(Color.Black.copy(alpha=.15f))
                         drawRect(Color.White.copy(alpha=.12f),
                             topLeft=Offset(left,top),size=Size(right-left,bottom-top))
-                        drawRect(MaterialTheme.colorScheme.primary,
+                        drawRect(accent,
                             topLeft=Offset(left,top),size=Size(right-left,bottom-top),
                             style=Stroke(width=2.dp.toPx()))
                     }
