@@ -186,3 +186,8 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Reference-mode **My stickers** now shows a 3-column lazy thumbnail shelf with real account-scoped Send/Confirm Send and Delete controls on each sticker; Liquid-mode retains the original vertical list. The same existing on-device sticker files and `StickerLibrary` removal/refresh calls are preserved without additional backend scopes or public media URLs.
 - Nested list layout now has a maximum 360dp scroll viewport, with unique file-based keys; sticker send/delete busy guards unchanged. Original MB animated sticker pack segmentation/geometry is still unverified.
 - Only source changes; device behavior and original pixel parity are not certified.
+
+## 2026-10-22 — media crop/rotate/flip tool strip (source-only)
+
+- Both the **single-photo 5-step Undo/Redo editor** and the **multi-image album editor** now use the same 42dp-minimum outlined tool in Reference mode, keeping all existing 1:1/4:5/16:9 crops, left/right rotations, horizontal/vertical flips (where supported), grayscale and original account-scoped `Images.edit` actions. Liquid mode retains native chips.
+- This is a toolbar chrome change, **not** new non-destructive freeform crop or segmentation functionality. Original reference iconography/freeform gestures and visual screenshots remain to be proved.

@@ -2353,7 +2353,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     Images.Edit.FLIP_HORIZONTAL to "Flip",
                     Images.Edit.GRAYSCALE to "B&W"
                 ).forEach {(operation,label)->
-                    FilterChip(selected=false,enabled=!albumSending&&!albumEditing&&!busy,
+                    MbReferenceEditorTool(label=label,enabled=!albumSending&&!albumEditing&&!busy,
                         onClick={
                             val owner=session?.userId
                             val selectedIndex=albumEditIndex
@@ -2374,7 +2374,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                     } finally {albumEditing=false}
                                 }
                             }
-                        },label={Text(label)})
+                        })
                 }
             }
             OutlinedTextField(value=albumCaption,
@@ -2446,7 +2446,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             Images.Edit.FLIP_VERTICAL to "Flip vertical",
                             Images.Edit.GRAYSCALE to "B&W"
                         ).forEach {(operation,label)->
-                            FilterChip(selected=false,enabled=editingAllowed,
+                            MbReferenceEditorTool(label=label,enabled=editingAllowed,
                                 onClick={
                                     val owner=session?.userId
                                     if(owner!=null && !photoEditBusy) {
@@ -2465,8 +2465,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                             } finally {photoEditBusy=false}
                                         }
                                     }
-                                },
-                                label={Text(label)})
+                                })
                         }
                     }
                     Row(verticalAlignment=Alignment.CenterVertically,
