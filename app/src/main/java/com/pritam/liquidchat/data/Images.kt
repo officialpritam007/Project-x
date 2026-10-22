@@ -136,6 +136,83 @@ object Images {
             }
         }
 
+    data class DrawPoint(val x:Float,val y:Float) {
+        fun valid():Boolean=x.isFinite()&&y.isFinite()&&x in 0f..1f&&y in 0f..1f
+    }
+    data class DrawStroke(val points:List<DrawPoint>,val argb:Int,val widthFraction:Float=.008f) {
+        fun valid():Boolean=points.isNotEmpty()&&points.size<=500 &&
+            points.all {it.valid()}&&widthFraction.isFinite()&&widthFraction in .001f..0.05f
+    }
+    fun validDrawing(strokes:List<DrawStroke>):Boolean =
+        strokes.isNotEmpty()&&strokes.size<=25&&strokes.all {it.valid()}
+
+    /** Bounded local bitmap drawing; output is a true private JPEG, never a
+     * screen-only Compose overlay or an external image-processing API.
+     */
+    suspend fun drawStrokes(
+        context:Context,account:String,prepared:Prepared,strokes:List<DrawStroke>
+    ):Prepared=withContext(Dispatchers.IO) {
+        require(account.isNotBlank())
+        require(validDrawing(strokes)) {"Draw a stroke on the image before applying."}
+        val directory=File(context.filesDir,"media/$account").canonicalFile
+        require(prepared.file.isFile&&prepared.file.canonicalFile.parentFile==directory) {
+            "The photo does not belong to this account."
+        }
+        val output=File(directory,"${UUID.randomUUID()}.jpg")
+        var original:Bitmap?=null
+        var canvasImage:Bitmap?=null
+        try {
+            original=android.graphics.BitmapFactory.decodeFile(prepared.file.absolutePath)
+                ?: throw IOException("Cannot open photo for drawing.")
+            val source=original ?: throw IOException("Photo unavailable.")
+            canvasImage=source.copy(Bitmap.Config.ARGB_8888,true)
+                ?: throw IOException("Cannot create a drawing layer.")
+            val image=canvasImage ?: throw IOException("Drawing layer unavailable.")
+            val canvas=android.graphics.Canvas(image)
+            val edge=minOf(image.width,image.height).toFloat()
+            strokes.forEach {stroke->
+                val paint=android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    style=android.graphics.Paint.Style.STROKE
+                    color=stroke.argb or (0xFF shl 24)
+                    strokeWidth=(edge*stroke.widthFraction).coerceAtLeast(2f)
+                    strokeCap=android.graphics.Paint.Cap.ROUND
+                    strokeJoin=android.graphics.Paint.Join.ROUND
+                }
+                val first=stroke.points.first()
+                if(stroke.points.size==1) {
+                    val fill=android.graphics.Paint(paint).apply {
+                        style=android.graphics.Paint.Style.FILL
+                    }
+                    canvas.drawCircle(first.x*image.width,first.y*image.height,
+                        paint.strokeWidth/2f,fill)
+                } else {
+                    val path=android.graphics.Path().apply {
+                        moveTo(first.x*image.width,first.y*image.height)
+                        stroke.points.drop(1).forEach {point->
+                            lineTo(point.x*image.width,point.y*image.height)
+                        }
+                    }
+                    canvas.drawPath(path,paint)
+                }
+            }
+            output.outputStream().use {
+                check(image.compress(Bitmap.CompressFormat.JPEG,88,it))
+            }
+            if(output.length()>9_500_000L)output.outputStream().use {
+                check(image.compress(Bitmap.CompressFormat.JPEG,70,it))
+            }
+            if(output.length() !in 1..9_500_000L)
+                throw IOException("Annotated image exceeds the upload limit.")
+            Prepared(output,image.width,image.height)
+        } catch(e:Exception) {
+            output.delete()
+            throw e
+        } finally {
+            if(canvasImage!==original)canvasImage?.recycle()
+            original?.recycle()
+        }
+    }
+
     /** Preserve a centered crop using integer aspect arithmetic (no stretching). */
     private fun centeredCrop(source:Bitmap,aspectWidth:Int,aspectHeight:Int):Bitmap {
         require(aspectWidth>0 && aspectHeight>0)
