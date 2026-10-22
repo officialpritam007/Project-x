@@ -188,6 +188,10 @@ import com.pritam.liquidchat.data.Images
 }
 
 @Composable fun SettingsHome(model:AppViewModel,onSection:(String)->Unit) {
+    if(referenceListUsesFlatRows(LocalDisplayOptions.current)) {
+        MbReferenceSettingsDashboard(model,onSection)
+        return
+    }
     val profile by model.profile.collectAsStateWithLifecycle()
     val name=profile?.optString("display_name").orEmpty().ifBlank {"My account"}
     val avatar=profile?.optString("avatar_id").orEmpty().takeIf {it!="null"}.orEmpty()
