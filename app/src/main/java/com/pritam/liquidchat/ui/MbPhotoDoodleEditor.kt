@@ -49,7 +49,7 @@ internal fun normalizedDrawingPoint(offset:Offset,size:IntSize):Images.DrawPoint
                 .pointerInput(image.file.absolutePath,enabled,color) {
                     if(enabled)detectDragGestures(
                         onDragStart={start->
-                            current=normalizedDrawingPoint(start,size)?.let(::listOf)
+                            current=normalizedDrawingPoint(start,size)?.let {listOf(it)}
                                 ?: emptyList()
                         },
                         onDrag={change,_->

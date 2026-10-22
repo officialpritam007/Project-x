@@ -2520,7 +2520,23 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     var freeCropBounds by remember(image.file.absolutePath) {
                         mutableStateOf<Images.CropBounds?>(null)
                     }
-                    if(freeCropOpen) {
+                    var drawingOpen by remember(image.file.absolutePath) {mutableStateOf(false)}
+                    var drawingStrokes by remember(image.file.absolutePath) {
+                        mutableStateOf<List<Images.DrawStroke>>(emptyList())
+                    }
+                    var drawingColor by remember(image.file.absolutePath) {
+                        mutableIntStateOf(0xFFFF4B52.toInt())
+                    }
+                    if(drawingOpen) {
+                        MbPhotoDoodleEditor(image,drawingStrokes,drawingColor,
+                            enabled=editingAllowed&&drawingStrokes.size<25,
+                            onStroke={stroke->
+                                if(drawingStrokes.size<25&&stroke.valid())
+                                    drawingStrokes=drawingStrokes+stroke
+                            })
+                        Text("Draw on the photo. Undo a stroke or apply the artwork to the private image.",
+                            style=MaterialTheme.typography.bodySmall)
+                    } else if(freeCropOpen) {
                         MbGestureCropEditor(image,enabled=editingAllowed,
                             onSelection={freeCropBounds=it})
                         Text("Drag diagonally to select the area. Apply Crop preserves Undo history.",
@@ -2539,6 +2555,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                         TextButton(onClick={
                             freeCropOpen=!freeCropOpen
                             freeCropBounds=null
+                            drawingOpen=false
+                            drawingStrokes=emptyList()
                         },enabled=editingAllowed) {
                             Icon(Icons.Outlined.Crop,null,Modifier.size(18.dp))
                             Spacer(Modifier.width(5.dp))
@@ -2566,6 +2584,67 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                     }
                                 }
                             }) {Text("Apply Crop")}
+                        TextButton(onClick={
+                            drawingOpen=!drawingOpen
+                            drawingStrokes=emptyList()
+                            freeCropOpen=false
+                            freeCropBounds=null
+                        },enabled=editingAllowed) {
+                            Icon(Icons.Outlined.Draw,null,Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(if(drawingOpen)"Close drawing" else "Draw")
+                        }
+                    }
+                    if(drawingOpen) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                            listOf(
+                                0xFFFF4B52.toInt() to "Red",
+                                0xFF1596EB.toInt() to "Blue",
+                                0xFF35B867.toInt() to "Green",
+                                0xFFFFFFFF.toInt() to "White",
+                                0xFF161616.toInt() to "Black"
+                            ).forEach {(argb,label)->
+                                FilterChip(selected=drawingColor==argb,
+                                    onClick={drawingColor=argb},
+                                    enabled=editingAllowed,
+                                    label={Text(label)})
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp),
+                            verticalAlignment=Alignment.CenterVertically) {
+                            TextButton(onClick={drawingStrokes=drawingStrokes.dropLast(1)},
+                                enabled=editingAllowed&&drawingStrokes.isNotEmpty()) {
+                                Text("Undo stroke")
+                            }
+                            TextButton(onClick={drawingStrokes=emptyList()},
+                                enabled=editingAllowed&&drawingStrokes.isNotEmpty()) {
+                                Text("Clear")
+                            }
+                            TextButton(
+                                enabled=editingAllowed&&Images.validDrawing(drawingStrokes),
+                                onClick={
+                                    val owner=session?.userId
+                                    val strokes=drawingStrokes.toList()
+                                    if(owner!=null&&Images.validDrawing(strokes)&&!photoEditBusy) {
+                                        photoEditBusy=true
+                                        model.action {
+                                            try {
+                                                val next=Images.drawStrokes(
+                                                    context,owner,image,strokes)
+                                                if(model.session.value?.userId==owner&&prepared===image) {
+                                                    photoRedo.forEach {it.file.delete()}
+                                                    photoRedo=emptyList()
+                                                    val revisions=photoUndo+image
+                                                    photoUndo=revisions.takeLast(5)
+                                                    revisions.dropLast(5).forEach {it.file.delete()}
+                                                    prepared=next
+                                                } else next.file.delete()
+                                            } finally {photoEditBusy=false}
+                                        }
+                                    }
+                                }) {Text("Apply drawing")}
+                        }
                     }
                     Text("Photo editor",style=MaterialTheme.typography.titleSmall)
                     var overlayPhotoText by remember(image.file.absolutePath) {mutableStateOf("")}

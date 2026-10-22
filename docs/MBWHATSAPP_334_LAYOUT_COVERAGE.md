@@ -248,3 +248,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - The actual in-call overlay now uses the shared compact reference surface in the call information banner, audio control pane and active-video control strip, instead of always using elevated Liquid hero/capsule chrome. The audio-output chooser is the same reference action sheet used by chat and call history, with real Bluetooth/Speaker/Headset routes and selected state.
 - No modifications to WebRTC rendering, microphone/camera permission checks, ringtone, call presence/signaling, hang-up, minimize, PiP, video swap, route selection, or foreground service logic. Caller/avatar/timer remain actual call data.
 - Screen geometry is an approximation pending original/candidate matching runtime screenshot evidence and two-device call certification. Source-only commit, no CI.
+
+## 2026-10-22 — real freehand finger drawing on photos
+
+- Added a 240dp exact-aspect on-device drawing viewport to the single-photo editor, with five ink colors, bounded normalized finger strokes (up to 25 strokes × 500 points), Undo-last-stroke, Clear and Apply drawing. Applying rasterizes true ARGB strokes into a new account-private JPEG, subject to the same 9.5MB cap, source-scope and session/revision checks. The existing five-stage photo Undo/Redo stack can undo the applied artwork.
+- Disables free crop when the drawing viewport is active and vice versa, avoiding two competing gesture handlers. Existing captions, original file cleanup and all private Supabase media sends remain unchanged.
+- User-facing art and original app gesture curves are not proven exactly identical; final compiler/emulator/two-phone validation is pending.
