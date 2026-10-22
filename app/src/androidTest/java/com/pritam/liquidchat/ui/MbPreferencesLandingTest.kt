@@ -65,8 +65,11 @@ class MbPreferencesLandingTest {
     @Test fun referenceInventoryNeverExposesUnimplementedWhatsAppRoutes() {
         val targets=MbReferencePreferenceSections.all.map {it.target}
         assertEquals(targets.size,targets.distinct().size)
-        assertEquals(11,targets.size)
+        assertEquals(14,targets.size)
         assertFalse(targets.any {it.contains("WhatsApp",ignoreCase=true)})
+        assertTrue(targets.contains("Liquid Chat Multimedia"))
+        assertTrue(targets.contains("Liquid Chat Animations"))
+        assertTrue(targets.contains("Liquid Chat VIP Features"))
         assertTrue(targets.all {it.startsWith("Liquid Chat ") || it in setOf("Account","Data and Storage","Power Saving")})
     }
 }
