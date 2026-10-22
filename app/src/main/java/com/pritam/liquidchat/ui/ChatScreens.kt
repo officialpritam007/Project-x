@@ -1331,6 +1331,18 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 onCheckedChange={model.setDisplay(display.copy(
                     photoQuality=if(it)"HD" else "Standard"))})
         }
+        Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp),
+            verticalAlignment=Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("HD video upload",style=MaterialTheme.typography.titleSmall)
+                Text("HD encodes 720p; off uses 480p. Both remain private and capped at 30 seconds / 8 MB.",
+                    style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked=display.videoQuality=="HD",
+                onCheckedChange={model.setDisplay(display.copy(
+                    videoQuality=if(it)"HD" else "Standard"))})
+        }
         GlassActionRow("Gallery",Icons.Outlined.PhotoLibrary,onClick={attachments=false;picker.launch("image/*")})
         GlassActionRow("Select multiple photos",Icons.Outlined.PhotoLibrary,
             onClick={attachments=false;albumPicker.launch("image/*")})
@@ -1933,7 +1945,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 preparingVideo=true
                 model.action {
                     try {
-                        val staged=ChatVideo.prepare(context,uri,account,start)
+                        val staged=ChatVideo.prepare(context,uri,account,start,
+                            quality=model.display.value.videoQuality)
                         if(model.backend.session.value?.userId==account && selectedVideo==uri) {
                             preparedChatVideo?.file?.delete()
                             preparedChatVideo=staged
@@ -3216,13 +3229,19 @@ if(section=="Liquid Chat Home Screen") {
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             MbExpandableSettingsCard("Media upload quality") {
-                MbReferenceChoicePicker(title="Media upload quality",
+                MbReferenceChoicePicker(title="Photo upload quality",
                     choices=listOf("Standard","HD"),
                     selected=display.photoQuality,
                     onSelect={quality->
                         model.setDisplay(display.copy(photoQuality=quality))
                     })
-                Text("HD sends larger, sharper JPEG images via the same authenticated upload; it uses more storage and data.",
+                MbReferenceChoicePicker(title="Video upload quality",
+                    choices=listOf("Standard","HD"),
+                    selected=display.videoQuality,
+                    onSelect={quality->
+                        model.setDisplay(display.copy(videoQuality=quality))
+                    })
+                Text("Photos use device-private JPEG processing. Video quality selects 480p or 720p on-device H.264 encoding; clips stay within 30 seconds and 8 MB.",
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
