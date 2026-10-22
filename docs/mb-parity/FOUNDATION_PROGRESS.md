@@ -33,6 +33,12 @@
 - `P00-004` to `P00-012`: preserve contracts and conduct independent source/CI/credential/free-tier acceptance before closing. `P00-012` has an initial responsibility-based file split, not finished shared-component API ownership.
 - CI issue #91 remains open, as do all unverified source feature/parity items.
 
+## Review and CI trigger — 22 October 2026
+
+- Source-split changes are proposed for review in [PR #129](https://github.com/officialpritam007/Project-x/pull/129). This change deliberately triggers fresh pull-request CI on the exact foundation head; older planning commits skipped checks.
+- This is a prerequisite for dependent worktrees, not a declaration of build, instrumented UI, RLS, calling or pixel-parity success.
+- Preserve evidence of any failing job, investigate compiler/runtime faults, and do not merge before all mandatory gates pass.
+
 ## Integration gate
 
 The user requests one final phone-install/test round, not repeated partial APKs. Do not merge this source-only branch into `main` or promote a candidate until the required CI gates have been authorized and passed. Follow `WORKTREE_PLAN.md` and `FEATURE_MATRIX.md`; no inventory IDs should be erased.
