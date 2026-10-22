@@ -24,7 +24,7 @@ internal fun filterMessageHistory(
     }
     // Search covers only already-loaded, account-owned messages. Do not request
     // private preview URLs or open remote sites while filtering.
-    val linkPattern=Regex("""(?i)https?://[^\\s<>"']+""")
+    val linkPattern=Regex("""(?i)https?://[^\s<>"']+""")
     return messages.filter {m->
         val media=m.mediaId.isNotEmpty()||m.localImage.isNotEmpty()
         m.account==account && m.deletedAt.isEmpty() && m.body.contains(query.trim(),true) &&
