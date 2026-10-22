@@ -35,6 +35,8 @@ private val dashboardPrimary=listOf(
         Icons.Outlined.Palette),
     MbSettingsDashboardRoute("Tips and help","Liquid Chat Help",
         Icons.Outlined.Campaign),
+    MbSettingsDashboardRoute("Service status","Liquid Chat Service Status",
+        Icons.Outlined.CloudSync),
     MbSettingsDashboardRoute("Notifications","Liquid Chat Notifications",
         Icons.Outlined.NotificationsNone),
     MbSettingsDashboardRoute("App information","Liquid Chat Updates",
@@ -119,6 +121,7 @@ private val dashboardAccount=listOf(
             "Liquid Chat Privacy"->"read receipts block last seen online privacy"
             "Data and Storage"->"cache clean media files download storage"
             "Appearance"->"dark light background color icon font"
+            "Liquid Chat Service Status"->"service control connection supabase fcm push notification sync refresh"
             "Liquid Chat Updates"->"version release what's new developer info"
             else->""
         }
