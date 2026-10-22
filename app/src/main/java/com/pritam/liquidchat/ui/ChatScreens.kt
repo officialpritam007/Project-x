@@ -603,7 +603,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         val timestamp=java.time.Instant.ofEpochMilli(message.localTime)
             .atZone(java.time.ZoneId.systemDefault())
             .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))
-        return "$from · $timestamp:\n\${message.body}"
+        return "$from · $timestamp:\n${message.body}"
     }
     var replyTo by remember(cid) {mutableStateOf("")}
     var editMessage by remember(cid) {mutableStateOf<Message?>(null)}
