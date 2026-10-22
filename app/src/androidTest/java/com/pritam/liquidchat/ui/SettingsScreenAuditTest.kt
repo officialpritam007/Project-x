@@ -29,7 +29,7 @@ class SettingsScreenAuditTest {
         val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
         compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
-        compose.onNodeWithText("General Settings").performScrollTo().performClick()
+        compose.onNodeWithText("General configuration").performScrollTo().performClick()
         compose.onNodeWithText("Theme & typography").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("App font family").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Motion & accessibility").performScrollTo().assertIsDisplayed()
