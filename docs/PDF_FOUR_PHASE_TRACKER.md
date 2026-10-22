@@ -678,3 +678,19 @@ The following **direct-`main` source commits** correspond to existing checklist 
 | 4 | `P03-013`, `P03-014` | `f1191ab` | In-app browser refuses loopback/private IP/IPv6 literal and local hostname navigation; DNS rebinding and malicious public sites still need ordinary platform safeguards |
 
 **Unfinished scope:** authenticated Groups/Communities/Channels, backend privacy exceptions, real two-device calling and FCM acceptance, licensed GIF sources, advanced media editors, release signing, screenshot parity and the entire prescribed verification phase are **not complete**. No empty menu item or source checkbox represents such functionality as done.
+
+
+## Additional direct-main source work — 22 October 2026
+
+All entries below are **source changes only**, never acceptance certification. No tests, builds, emulator runs, physical-phone checks or backend deployments were performed for these commits.
+
+| Phase | Acceptance IDs | Commit | Implemented source behavior / limitation |
+| --- | --- | --- | --- |
+| 2 | `PDF-S10-009`, `P01-007` | `f952c4b` | Confirmation before deleting a device-local chat folder; existing chats and messages are untouched |
+| 2 | `PDF-S02-009`, `P09-013` | `d3ee429` | Search cached, account-isolated starred messages by text and conversation name; uncached items remain out of scope |
+| 3 | `PDF-S12-003`, `PDF-S12-019`, `P05-014` | `4c2b4e1` | Virtualized emoji rows and always-reachable category selector; not a licensed GIF service |
+| 3 | `P05-015` | `7b4dba1` | Explicit skin-tone preference applied to supported hand/person emojis only; other glyphs retained as-is |
+| 1 | `PDF-S04-003`, `P02-023`, `P02-024` | `565ff1b` | Battery-friendly visuals action persists reduced motion, opaque surfaces and zero blur; existing choices can restore effects |
+| 4 | `PDF-S08-005`, `P03-013`, `P03-014` | `c502372` | Confirmation before loading an unencrypted HTTP chat link; ordinary HTTPS links open through existing isolated browser |
+
+These changes do **not** complete the PDF's 243 distinct requirements or the complementary 346-item engineering matrix. Group/channel backends, many media features, device/provider validation, and release verification remain outstanding.
