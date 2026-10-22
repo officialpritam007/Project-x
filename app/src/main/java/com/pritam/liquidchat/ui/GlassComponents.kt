@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,18 +86,32 @@ import androidx.compose.ui.focus.onFocusChanged
         shape=androidx.compose.foundation.shape.RoundedCornerShape(
             topStart=if(reference)22.dp else 30.dp,
             topEnd=if(reference)22.dp else 30.dp),
+        dragHandle=if(reference)null else { {BottomSheetDefaults.DragHandle()} },
         containerColor=glassPopupColor(),tonalElevation=0.dp) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-            .padding(horizontal=if(reference)12.dp else 20.dp)
+            .padding(horizontal=if(reference)16.dp else 20.dp)
             .padding(bottom=16.dp),
             verticalArrangement=Arrangement.spacedBy(if(reference)0.dp else 4.dp)) {
-            Text(title,style=MaterialTheme.typography.titleLarge,
-                modifier=Modifier.padding(horizontal=if(reference)15.dp else 12.dp,
-                    vertical=8.dp))
+            if(reference) {
+                // Owner-supplied mb_new_dialog_bottom.xml has a centered 17sp
+                // title, 16dp outer padding, a close action and 12dp gap.
+                Row(Modifier.fillMaxWidth().padding(bottom=12.dp),
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Spacer(Modifier.size(40.dp))
+                    Text(title,modifier=Modifier.weight(1f),
+                        fontSize=17.sp,fontWeight=FontWeight.Bold,
+                        textAlign=androidx.compose.ui.text.style.TextAlign.Center,
+                        color=MaterialTheme.colorScheme.onSurface)
+                    IconButton(onClick=onDismiss,modifier=Modifier.size(40.dp)) {
+                        Icon(androidx.compose.material.icons.Icons.Outlined.Close,
+                            contentDescription="Close $title")
+                    }
+                }
+            } else Text(title,style=MaterialTheme.typography.titleLarge,
+                modifier=Modifier.padding(horizontal=12.dp,vertical=8.dp))
             content()
-            TextButton(onClick=onDismiss,modifier=Modifier.align(Alignment.End)) {
-                Text("Done")
-            }
+            if(!reference)TextButton(onClick=onDismiss,
+                modifier=Modifier.align(Alignment.End)) {Text("Done")}
         }
     }
 }
