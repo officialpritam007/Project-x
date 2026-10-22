@@ -252,13 +252,18 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
         else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec=tween(durationMillis=if(reduced)0 else 160),
         label="reference search focus")
-    GlassSurface(modifier.fillMaxWidth(),if(reference)Glass.compact else Glass.capsule) {
-        Row(Modifier.fillMaxWidth().heightIn(min=if(reference)46.dp else 48.dp)
-            .padding(start=14.dp,end=if(value.isNotEmpty())4.dp else 14.dp),
+    GlassSurface(modifier.fillMaxWidth()
+        .then(if(reference)Modifier.padding(start=12.dp,bottom=4.dp) else Modifier),
+        if(reference)Glass.compact else Glass.capsule) {
+        Row(Modifier.fillMaxWidth().heightIn(min=if(reference)35.dp else 48.dp)
+            .then(if(reference)Modifier.height(35.dp) else Modifier)
+            .padding(start=if(reference)14.dp else 14.dp,
+                end=if(value.isNotEmpty())4.dp else 14.dp),
             verticalAlignment=Alignment.CenterVertically,
             horizontalArrangement=Arrangement.spacedBy(10.dp)) {
             Icon(androidx.compose.material.icons.Icons.Outlined.Search,
-                contentDescription=null,modifier=Modifier.size(21.dp),tint=searchTint)
+                contentDescription=null,modifier=Modifier.size(if(reference)24.dp else 21.dp),
+                tint=searchTint)
             BasicTextField(value,onValue,
                 modifier=Modifier.weight(1f).onFocusChanged {focused=it.isFocused}
                     .semantics {contentDescription=hint},
@@ -273,7 +278,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                     inner()
                 }})
             if(value.isNotEmpty()) IconButton(onClick={onValue("")},
-                modifier=Modifier.size(40.dp)) {
+                modifier=Modifier.size(if(reference)35.dp else 40.dp)) {
                 Icon(androidx.compose.material.icons.Icons.Outlined.Close,
                     contentDescription="Clear $hint",modifier=Modifier.size(20.dp),
                     tint=MaterialTheme.colorScheme.onSurfaceVariant)
