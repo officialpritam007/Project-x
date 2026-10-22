@@ -605,6 +605,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         filterMessageHistory(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod)
     }
     var actionMessage by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    var speechCandidate by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    var spokenMessageId by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     // Long-press menus must close as soon as a message is revoked, hidden,
     // deleted, or an active account switches; never preserve stale payloads.
     LaunchedEffect(messages,actionMessage?.id,session?.userId) {
@@ -662,6 +664,27 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
+    // Android TTS may use the installed engine's cloud provider: speaking is
+    // never automatic, and a separate confirmation is required per message.
+    val messageSpeaker=remember(context.applicationContext,cid,session?.userId) {
+        MbMessageReadAloud(context.applicationContext)
+    }
+    DisposableEffect(messageSpeaker) {
+        onDispose {messageSpeaker.close()}
+    }
+    LaunchedEffect(messages,speechCandidate?.id,spokenMessageId,session?.userId) {
+        val requested=speechCandidate?.id
+        if(requested!=null && messages.none {
+            it.id==requested && it.account==session?.userId && it.deletedAt.isEmpty()
+        }) speechCandidate=null
+        val speaking=spokenMessageId
+        if(speaking!=null && messages.none {
+            it.id==speaking && it.account==session?.userId && it.deletedAt.isEmpty()
+        }) {
+            messageSpeaker.stop()
+            spokenMessageId=null
+        }
+    }
     val playOutgoingConversationCue=rememberConversationSendCue(
         model,cid,session?.userId,messages,messagesReady==cid,
         chat?.lastSeq ?: 0L,chat?.muted!=false,foreground)
@@ -1846,6 +1869,27 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         }},
         confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}}
     )
+    speechCandidate?.let {candidate->
+        LiquidAlertDialog(
+            onDismissRequest={speechCandidate=null},
+            title={Text("Read this message aloud?")},
+            text={Text("Android's installed speech engine will receive up to 2,000 " +
+                "characters of this message. Some speech engines use online services. " +
+                "Only continue if you consent to that processing.")},
+            confirmButton={TextButton(onClick={
+                val fresh=messages.firstOrNull {
+                    it.id==candidate.id && it.account==session?.userId &&
+                        it.deletedAt.isEmpty() && it.body.isNotBlank()
+                }
+                speechCandidate=null
+                if(fresh!=null) {
+                    messageSpeaker.speak(fresh.body)
+                    spokenMessageId=fresh.id
+                }
+            }) {Text("Read aloud")}},
+            dismissButton={TextButton(onClick={speechCandidate=null}) {Text("Cancel")}}
+        )
+    }
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
         // One native set of actions, two presentations. The reference APK
@@ -1936,6 +1980,17 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                                 Spacer(Modifier.width(8.dp))
                                 Text("Save to My stickers")
                             }
+                        }
+                        if(m.body.isNotBlank() && m.deletedAt.isEmpty()) {
+                            GlassActionRow("Read text aloud",Icons.Outlined.RecordVoiceOver,
+                                onClick={speechCandidate=m;actionMessage=null})
+                            if(spokenMessageId!=null) GlassActionRow(
+                                "Stop reading",Icons.Outlined.VolumeOff,
+                                onClick={
+                                    messageSpeaker.stop()
+                                    spokenMessageId=null
+                                    actionMessage=null
+                                })
                         }
                         if(m.mediaKind=="image" && m.body.isNotBlank())GlassActionRow(
                             "Copy text",Icons.Outlined.ContentCopy,onClick={
