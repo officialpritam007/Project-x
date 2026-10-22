@@ -109,6 +109,22 @@ internal fun scaledAppDensity(parent:Density,uiPercent:Int,textPercent:Int):Dens
         Text("Colors apply only to this device. Message colors and photo wallpapers remain independent.",
             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         HorizontalDivider()
+        Text("Performance preset",style=MaterialTheme.typography.titleSmall)
+        val lightweight=display.reducedMotion && display.reducedTransparency &&
+            display.blurIntensity==0
+        Text("Use simpler transitions and opaque surfaces on phones that struggle with glass effects. This only changes local appearance settings.",
+            style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(
+            enabled=!lightweight,
+            onClick={onDisplay(display.copy(reducedMotion=true,
+                reducedTransparency=true,blurIntensity=0))},
+            modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)
+        ) {Text(if(lightweight)"Battery-friendly visuals enabled" else "Use battery-friendly visuals")}
+        Text("You can restore blur, motion and transparency independently under Appearance and Animations.",
+            style=MaterialTheme.typography.labelSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        HorizontalDivider()
         Text("Interface scale · ${display.appUiScale}%",style=MaterialTheme.typography.titleSmall)
         Slider(value=display.appUiScale.coerceIn(85,120).toFloat(),
             onValueChange={onDisplay(display.copy(appUiScale=it.toInt()))},
