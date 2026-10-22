@@ -1,167 +1,156 @@
 package com.pritam.liquidchat.ui
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.ColorLens
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.BatteryFull
-import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** Reference-mode settings are primary; classic settings remain reachable via Back. */
-internal const val REFERENCE_SETTINGS_LANDING = "Liquid Chat Preferences"
+internal const val REFERENCE_SETTINGS_LANDING="Liquid Chat Preferences"
 
-internal fun referenceSettingsBackTarget(section:String?,enteredFromReference:Boolean):String? = when {
-    section==REFERENCE_SETTINGS_LANDING -> null
-    enteredFromReference -> REFERENCE_SETTINGS_LANDING
+/** Supported, intentionally Liquid Chat-owned routes seen in the owner's
+ * October 22 reference screen recording. No foreign paid account or service API.
+ */
+internal fun referenceSettingsBackTarget(section:String?,enteredFromReference:Boolean):String?=when {
+    section==REFERENCE_SETTINGS_LANDING->null
+    enteredFromReference->REFERENCE_SETTINGS_LANDING
     section in setOf("Liquid Chat General Settings","Liquid Chat Conversation Screen",
         "Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy",
-        "Liquid Chat Notifications","Liquid Chat Help","Liquid Chat Updates") ->
-        REFERENCE_SETTINGS_LANDING
-    else -> null
+        "Liquid Chat Notifications","Liquid Chat Help","Liquid Chat Updates",
+        "Liquid Chat Multimedia","Liquid Chat Animations","Liquid Chat VIP Features")->REFERENCE_SETTINGS_LANDING
+    else->null
 }
 
-/**
- * The supplied reference APK's packaged preferences layout has a top icon and
- * rounded, divided option groups and a separate navigation host. Recreate
- * that structure with six *working Liquid Chat routes*, without copying foreign
- * services or dead switches. The app already owns the bottom navigation host.
- */
 internal data class MbReferencePreference(
-    val label:String,
-    val target:String,
-    val icon:ImageVector
+    val label:String,val target:String,val icon:ImageVector
 )
 
 internal object MbReferencePreferenceSections {
-    val visual=listOf(
-        MbReferencePreference("General Settings","Liquid Chat General Settings",Icons.Outlined.Palette),
-        MbReferencePreference("Home Screen","Liquid Chat Home Screen",Icons.Outlined.Home),
-        MbReferencePreference("Conversation Screen","Liquid Chat Conversation Screen",Icons.Outlined.ChatBubbleOutline)
+    val controls=listOf(
+        MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.LockOutline),
+        MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.NotificationsNone)
+    )
+    val premium=listOf(
+        MbReferencePreference("Extra features","Liquid Chat VIP Features",Icons.Outlined.AutoAwesome)
     )
     val themes=listOf(
-        MbReferencePreference("Themes","Liquid Chat Themes",Icons.Outlined.ColorLens)
+        MbReferencePreference("Themes","Liquid Chat Themes",Icons.Outlined.Palette)
     )
-    val controls=listOf(
-        MbReferencePreference("Privacy","Liquid Chat Privacy",Icons.Outlined.Lock),
-        MbReferencePreference("Notifications","Liquid Chat Notifications",Icons.Outlined.Notifications)
+    val visual=listOf(
+        MbReferencePreference("General configuration","Liquid Chat General Settings",Icons.Outlined.Settings),
+        MbReferencePreference("Home Screen","Liquid Chat Home Screen",Icons.Outlined.Home),
+        MbReferencePreference("Multimedia","Liquid Chat Multimedia",Icons.Outlined.HighQuality),
+        MbReferencePreference("Conversation Screen","Liquid Chat Conversation Screen",Icons.Outlined.ChatBubbleOutline),
+        MbReferencePreference("Animations","Liquid Chat Animations",Icons.Outlined.Animation)
     )
     val utility=listOf(
         MbReferencePreference("My account","Account",Icons.Outlined.PersonOutline),
         MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage),
         MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull),
-        MbReferencePreference("Tips & Help","Liquid Chat Help",Icons.Outlined.HelpOutline),
-        MbReferencePreference("App updates","Liquid Chat Updates",Icons.Outlined.HelpOutline)
+        MbReferencePreference("Tips and help","Liquid Chat Help",Icons.Outlined.HelpOutline),
+        MbReferencePreference("App updates","Liquid Chat Updates",Icons.Outlined.SystemUpdate)
     )
-    val all=visual+themes+controls+utility
+    val all=controls+premium+themes+visual+utility
 }
 
-@Composable private fun MbReferenceActionRow(
-    route:MbReferencePreference,
-    onNavigate:(String)->Unit
+@Composable private fun MbVideoReferenceRow(
+    route:MbReferencePreference,onNavigate:(String)->Unit
 ) {
-    // res/layout-v1/mb_item_settings.xml: 24dp leading/trailing icon,
-    // 15dp leading inset, 10dp trailing inset and 8dp vertical padding.
-    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).clip(Glass.compact)
-        .clickable(role=Role.Button,onClick={onNavigate(route.target)})
-        .padding(start=15.dp,end=10.dp,top=8.dp,bottom=8.dp),
+    Row(
+        Modifier.fillMaxWidth().heightIn(min=46.dp)
+            .clickable(role=Role.Button,onClick={onNavigate(route.target)})
+            .padding(start=14.dp,end=12.dp,top=9.dp,bottom=9.dp),
         verticalAlignment=Alignment.CenterVertically,
-        horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+        horizontalArrangement=Arrangement.spacedBy(15.dp)
+    ) {
         Icon(route.icon,contentDescription=null,
-            modifier=Modifier.size(24.dp),tint=MaterialTheme.colorScheme.onSurface)
-        Text(route.label,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
+            modifier=Modifier.size(21.dp),tint=MaterialTheme.colorScheme.onSurface)
+        Text(route.label,modifier=Modifier.weight(1f),
+            style=MaterialTheme.typography.bodyMedium.copy(fontSize=15.sp),
+            fontWeight=FontWeight.SemiBold)
         Icon(Icons.Outlined.ChevronRight,contentDescription=null,
-            tint=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.size(24.dp))
+            modifier=Modifier.size(19.dp),
+            tint=MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-@Composable private fun MbReferenceSection(
-    heading:String,
-    hint:String,
-    routes:List<MbReferencePreference>,
+@Composable private fun MbVideoReferenceGroup(
+    rows:List<MbReferencePreference>,
     onNavigate:(String)->Unit
 ) {
-    Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
-        // Reference mb_preferences.xml positions 14sp all-caps section labels
-        // 40dp from the viewport edge; this column itself has 20dp margins.
-        Text(heading.uppercase(),Modifier.padding(start=20.dp,top=12.dp),
-            fontSize=14.sp,fontWeight=FontWeight.SemiBold,
-            color=MaterialTheme.colorScheme.primary)
-        GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
-            routes.forEachIndexed {i,route->
-                if(i>0) HorizontalDivider(
-                    modifier=Modifier.padding(start=60.dp),
-                    color=MaterialTheme.colorScheme.outlineVariant)
-                MbReferenceActionRow(route,onNavigate)
+    Surface(modifier=Modifier.fillMaxWidth(),
+        shape=RoundedCornerShape(22.dp),
+        color=MaterialTheme.colorScheme.surface,
+        border=BorderStroke(1.dp,MaterialTheme.colorScheme.outline.copy(alpha=.30f)),
+        tonalElevation=0.dp) {
+        Column {
+            rows.forEachIndexed {index,route->
+                if(index>0) HorizontalDivider(
+                    modifier=Modifier.padding(start=52.dp,end=14.dp),
+                    thickness=.5.dp,
+                    color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.48f))
+                MbVideoReferenceRow(route,onNavigate)
             }
         }
     }
 }
 
+/** The video reference uses a white/light flat Settings canvas, stacked
+ * 22dp-outline grouped rows, no redundant headings between major groups,
+ * and a centered launcher mark. The actual screens remain fully owned by
+ * Liquid Chat and preserve native Android accessibility semantics.
+ */
 @Composable internal fun MbPreferencesLanding(
-    onBack:()->Unit,
-    onNavigate:(String)->Unit
+    onBack:()->Unit,onNavigate:(String)->Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-        .padding(horizontal=20.dp,vertical=10.dp)
+        .padding(horizontal=16.dp)
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         verticalArrangement=Arrangement.spacedBy(20.dp)) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min=47.dp),
+            verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack,contentDescription="Back to Settings")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription="Back to Settings")
             }
-            Text("Liquid Chat Preferences",style=MaterialTheme.typography.headlineSmall)
+            Text("Liquid Chat Preferences",
+                style=MaterialTheme.typography.titleLarge,
+                fontWeight=FontWeight.SemiBold)
         }
-        // Reference uses a centered 110dp launcher graphic above grouped rows.
-        // Show the Liquid Chat logo, never the third-party app branding.
-        Box(Modifier.fillMaxWidth().padding(top=10.dp,bottom=8.dp),
+        Box(Modifier.fillMaxWidth().height(122.dp),
             contentAlignment=Alignment.Center) {
             Icon(painter=androidx.compose.ui.res.painterResource(
                 com.pritam.liquidchat.R.drawable.ic_liquid),
                 contentDescription="Liquid Chat Preferences icon",
-                modifier=Modifier.size(110.dp).padding(10.dp),
-                tint=androidx.compose.ui.graphics.Color.Unspecified)
+                modifier=Modifier.size(106.dp).padding(10.dp),
+                tint=Color.Unspecified)
         }
-        MbReferenceSection("Customization",
-            "Customize your device's app appearance. Chat messages and contacts are unchanged.",
+        MbVideoReferenceGroup(MbReferencePreferenceSections.controls,onNavigate)
+        MbVideoReferenceGroup(MbReferencePreferenceSections.premium,onNavigate)
+        MbVideoReferenceGroup(MbReferencePreferenceSections.themes+
             MbReferencePreferenceSections.visual,onNavigate)
-        MbReferenceSection("Themes",
-            "Import, export or reset your Liquid Chat visual preferences.",
-            MbReferencePreferenceSections.themes,onNavigate)
-        MbReferenceSection("Privacy & alerts",
-            "Manage actual account privacy and Android notification controls.",
-            MbReferencePreferenceSections.controls,onNavigate)
-        MbReferenceSection("Account & storage",
-            "Profile, device cache and reduced-motion controls already available in Liquid Chat.",
-            MbReferencePreferenceSections.utility,onNavigate)
-        Text("These settings control the actual features of Liquid Chat.",
-            Modifier.fillMaxWidth().padding(horizontal=12.dp),
-            style=MaterialTheme.typography.bodySmall,
+        Text("ACCOUNT & SUPPORT",modifier=Modifier.padding(start=10.dp),
+            fontSize=12.sp,fontWeight=FontWeight.SemiBold,
             color=MaterialTheme.colorScheme.onSurfaceVariant)
+        MbVideoReferenceGroup(MbReferencePreferenceSections.utility,onNavigate)
+        Text("Liquid Chat · Working settings for your own account and device.",
+            modifier=Modifier.fillMaxWidth().padding(bottom=4.dp),
+            style=MaterialTheme.typography.labelSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign=androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
