@@ -230,3 +230,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 
 - Upgraded the genuine 512×512 account-local PNG sticker creator: optional near-white removal now runs a bounded O(width × height) **4-neighbor flood-fill from image borders** so isolated white details enclosed by a foreground silhouette are not stripped. Existing feathering, RGBA transparency and 512 KB file cap are preserved. UI copy explains the behavior; local-only preview and private Send/Save actions unchanged.
 - Added pure background-mask regression source covering edge-connected white, enclosed white and invalid dimensions. This is not neural segmentation, animated pack import or 100% MB original segmentation equivalence. No build/device tests have run yet.
+
+## 2026-10-22 — on-device still-sticker text tool
+
+- Private sticker maker supports an optional **32-character white text overlay with rounded black outline**, flattened locally onto the 512×512 RGBA PNG via `android.graphics.Canvas` before size validation. Sticker preview has a real editable label and Apply/Remove text control; switching white-background removal regenerates the current applied overlay too.
+- Local-only; account/session/revision checks protect regeneration and old temporary sticker files are only removed after a successful replacement. Saved sticker shelf, confirmation, private send flow, quota and content authorization untouched.
+- The original APK's advanced segmentation, animated packs and pixel-accurate text editor styling remain unverified.

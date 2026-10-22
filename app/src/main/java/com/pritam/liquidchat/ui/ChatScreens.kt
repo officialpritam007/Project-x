@@ -904,6 +904,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     var preparedSticker by remember(cid,session?.userId) {mutableStateOf<Images.Prepared?>(null)}
     var stickerSourceUri by remember(cid,session?.userId) {mutableStateOf<android.net.Uri?>(null)}
     var removeStickerWhite by remember(cid,session?.userId) {mutableStateOf(true)}
+    var stickerLabel by remember(cid,session?.userId) {mutableStateOf("")}
+    var appliedStickerLabel by remember(cid,session?.userId) {mutableStateOf("")}
     val stickerPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {uri->
         if(uri!=null)model.action {
             val account=model.backend.session.value?.userId ?: return@action
@@ -913,6 +915,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 preparedSticker=created
                 stickerSourceUri=uri
                 removeStickerWhite=true
+                stickerLabel=""
+                appliedStickerLabel=""
             } else created.file.delete()
         }
     }
@@ -2248,7 +2252,8 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             val source=stickerSourceUri
                             val owner=session?.userId
                             if(source!=null && owner!=null)model.action {
-                                val next=StickerFactory.prepare(context,source,owner,checked)
+                                val next=StickerFactory.prepare(context,source,owner,checked,
+                                    label=appliedStickerLabel)
                                 if(model.backend.session.value?.userId==owner &&
                                     preparedSticker===sticker) {
                                     preparedSticker=next
@@ -2261,6 +2266,33 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 Text("Only connected background near the image edges is removed; enclosed white details remain. Review the preview before sending.",
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(value=stickerLabel,
+                    onValueChange={stickerLabel=it.take(32)},
+                    modifier=Modifier.fillMaxWidth(),
+                    label={Text("Sticker text (optional)")},maxLines=1,singleLine=true,
+                    enabled=!busy&&stickerSourceUri!=null)
+                if(stickerSourceUri!=null) {
+                    OutlinedButton(
+                        modifier=Modifier.fillMaxWidth(),
+                        enabled=!busy && stickerLabel!=appliedStickerLabel,
+                        onClick={
+                            val owner=session?.userId
+                            val source=stickerSourceUri
+                            val desired=stickerLabel
+                            if(owner!=null&&source!=null)model.action {
+                                val next=StickerFactory.prepare(context,source,owner,
+                                    removeWhite=removeStickerWhite,label=desired)
+                                if(model.backend.session.value?.userId==owner &&
+                                    preparedSticker===sticker) {
+                                    preparedSticker=next
+                                    appliedStickerLabel=com.pritam.liquidchat.data.normalizedStickerLabel(desired)
+                                    sticker.file.delete()
+                                } else next.file.delete()
+                            }
+                        }) {
+                        Text(if(stickerLabel.isBlank())"Remove sticker text" else "Apply sticker text")
+                    }
+                }
                 OutlinedButton(onClick={
                     val owner=session?.userId
                     if(owner!=null)model.action {
