@@ -32,7 +32,8 @@ internal fun referenceSettingsBackTarget(section:String?,enteredFromReference:Bo
     section in setOf("Liquid Chat General Settings","Liquid Chat Conversation Screen",
         "Liquid Chat Home Screen","Liquid Chat Themes","Liquid Chat Privacy",
         "Liquid Chat Notifications","Liquid Chat Help","Liquid Chat Updates",
-        "Liquid Chat Multimedia","Liquid Chat Animations","Liquid Chat VIP Features")->REFERENCE_SETTINGS_LANDING
+        "Liquid Chat Multimedia","Liquid Chat Animations","Liquid Chat VIP Features",
+        "Liquid Chat Developer Information")->REFERENCE_SETTINGS_LANDING
     else->null
 }
 
@@ -64,6 +65,7 @@ internal object MbReferencePreferenceSections {
         MbReferencePreference("Data & storage","Data and Storage",Icons.Outlined.Storage,keywords="cache usage files media cleanup download storage"),
         MbReferencePreference("Power saving","Power Saving",Icons.Outlined.BatteryFull,keywords="battery energy performance"),
         MbReferencePreference("Tips and help","Liquid Chat Help",Icons.Outlined.HelpOutline,keywords="guide support developer questions"),
+        MbReferencePreference("Developer information","Liquid Chat Developer Information",Icons.Outlined.Code,keywords="developer open source project donation information funding github"),
         MbReferencePreference("App updates","Liquid Chat Updates",Icons.Outlined.SystemUpdate,keywords="version changelog whats new release")
     )
     val all=controls+premium+themes+visual+utility
