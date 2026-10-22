@@ -3075,6 +3075,12 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                     else MaterialTheme.typography.headlineSmall)}
         if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
         if(section=="Liquid Chat Updates") MbAppUpdates()
+        if(section=="Liquid Chat Multimedia")
+            MbRecordedMultimediaSettings(display,model::setDisplay)
+        if(section=="Liquid Chat Animations")
+            MbRecordedAnimationSettings(display,model::setDisplay)
+        if(section=="Liquid Chat VIP Features")
+            MbRecordedExtraFeaturesSettings(onNavigate={section=it})
         if(section=="Liquid Chat General Settings") MbGeneralAppearanceSettings(display,model::setDisplay)
         if(section=="Liquid Chat Home Screen") MbStoryPlaybackSettingsCard()
         if(section=="Liquid Chat Home Screen") GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
