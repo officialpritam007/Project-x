@@ -86,7 +86,7 @@ import androidx.compose.ui.focus.onFocusChanged
         shape=androidx.compose.foundation.shape.RoundedCornerShape(
             topStart=if(reference)22.dp else 30.dp,
             topEnd=if(reference)22.dp else 30.dp),
-        dragHandle=if(reference)null else { {BottomSheetDefaults.DragHandle()} },
+        dragHandle={if(!reference)BottomSheetDefaults.DragHandle()},
         containerColor=glassPopupColor(),tonalElevation=0.dp) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .padding(horizontal=if(reference)16.dp else 20.dp)
