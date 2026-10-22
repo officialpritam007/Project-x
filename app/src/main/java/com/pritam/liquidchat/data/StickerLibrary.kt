@@ -97,7 +97,7 @@ internal object StickerLibrary {
         val updated=(listOf(file.name)+recent(context,account).map {it.name }
             .filterNot {it==file.name}).take(MAX_RECENTS)
         val json=org.json.JSONArray()
-        updated.forEach(json::put)
+        updated.forEach {json.put(it)}
         check(prefs(context).edit().putString(recentKey(account),json.toString()).commit()) {
             "Unable to save recent sticker."
         }
@@ -109,7 +109,7 @@ internal object StickerLibrary {
         val updatedFavorites=favoriteNames(context,account)-file.name
         val updatedRecent=org.json.JSONArray()
         recent(context,account).map {it.name}.filterNot {it==file.name}
-            .forEach(updatedRecent::put)
+            .forEach {updatedRecent.put(it)}
         check(prefs(context).edit()
             .putStringSet(favoritesKey(account),updatedFavorites)
             .putString(recentKey(account),updatedRecent.toString()).commit()) {
