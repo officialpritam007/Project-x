@@ -656,7 +656,7 @@
 ## Tracking and commit evidence
 
 - PDF check items: **243** across twelve PDF sections. Original engineering checks: **346** in twelve tracks (all assigned once to a phase here).
-- New Phase 1 source commits: `7321f45` (open dashboard first), `7d50466` (search grouped main settings).
+- Phase 1 source commits (all **unverified**): `7321f45` (main Settings landing), `7d50466` (searchable dashboard), `34ac301` (verified public developer links and honest donations status), `b26033c` (Developer Information in Preferences), `4154392` (real Settings route wiring).
 - Older source commits: `a3b5ce7`, `ba9ee9b`, `54b6771`, `3e444d9`, `05220d7` (preference search, invitation/version links).
 - **None of the 346 original items or the PDF checkboxes are automatically certified by creating this document.** Advance individual statuses with evidence and capture unresolved external/backend dependencies.
 - Phase 2 includes backend-only Groups/Channels/Communities requirements, not placeholder views. Phase 4 includes verification gates, which remain blocked while automated tests/builds are disallowed.
