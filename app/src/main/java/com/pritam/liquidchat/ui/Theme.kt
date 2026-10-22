@@ -117,6 +117,28 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
         onPrimary=if(dark)Color(0xFF102033) else Color.White,
         onPrimaryContainer=if(dark)colors.first else colors.first)
 }
+/** Faithful to the owner's recorded white/green reference light surface;
+ * opt-in via the existing Reference navigation style. Explicitly chosen
+ * Liquid mode, Dark mode or custom color settings always take precedence.
+ */
+internal fun mbRecordedLightPalette(base:ColorScheme,options:DisplayOptions,dark:Boolean):ColorScheme {
+    if(dark || options.navBarStyle!="Reference" ||
+        options.accentColor!="Cyan" || options.appBackgroundHex.isNotEmpty())
+        return base
+    return base.copy(
+        primary=Color(0xFF19A66C),
+        onPrimary=Color.White,
+        primaryContainer=Color(0xFFD8F2E4),
+        onPrimaryContainer=Color(0xFF126442),
+        background=Color.White,
+        surface=Color.White,
+        surfaceVariant=Color(0xFFF7F7F7),
+        onSurface=Color(0xFF171717),
+        onSurfaceVariant=Color(0xFF5F6664),
+        outlineVariant=Color(0xFFE6E6E6)
+    )
+}
+
 @Composable fun LiquidTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val haze=remember {HazeState()}
     val imported=rememberImportedFonts()
@@ -131,7 +153,8 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
     CompositionLocalProvider(LocalGlassDark provides dark,LocalGlassState provides haze,
         LocalDensity provides density) {
         MaterialTheme(
-            colorScheme=appAppearanceScheme(baseScheme,options),
+            colorScheme=appAppearanceScheme(
+                mbRecordedLightPalette(baseScheme,options,dark),options),
             shapes=Shapes(small=Glass.compact,medium=Glass.card,large=Glass.hero),
             typography=liquidTypography(LocalDisplayOptions.current.fontPreset,
                 LocalDisplayOptions.current.titleFontPreset,imported.body,imported.title),
@@ -140,9 +163,12 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
     }
 }
 @Composable fun glassBackground(): Brush {
-    appOverrideColor(LocalDisplayOptions.current.appBackgroundHex)?.let {
+    val options=LocalDisplayOptions.current
+    appOverrideColor(options.appBackgroundHex)?.let {
         return Brush.linearGradient(listOf(it,it))
     }
+    if(options.navBarStyle=="Reference" && !LocalGlassDark.current)
+        return Brush.linearGradient(listOf(Color.White,Color.White))
     return Brush.linearGradient(if(LocalGlassDark.current)
         listOf(Color(0xFF081729),Color(0xFF152B41),Color(0xFF18253A),Color(0xFF132E43),Color(0xFF101C2D))
     else
@@ -175,6 +201,15 @@ internal fun liquidAccentScheme(dark:Boolean,accent:String):ColorScheme {
     content:@Composable ()->Unit) {
     val dark=if(tintOverride!=null)tintOverride.luminance()<.5f else LocalGlassDark.current
     val options=LocalDisplayOptions.current
+    if(options.navBarStyle=="Reference" && !dark && tintOverride==null) {
+        Surface(
+            modifier=modifier,
+            shape=shape,
+            color=MaterialTheme.colorScheme.surface,
+            border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant)
+        ) { content() }
+        return
+    }
     val opaque=options.reducedTransparency
     // Keep 22dp as the original blur at 55%; update the surface dynamically.
     val blurRadius=(options.blurIntensity.coerceIn(0,100)*0.4f).dp
