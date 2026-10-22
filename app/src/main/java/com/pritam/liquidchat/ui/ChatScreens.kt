@@ -1704,12 +1704,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     )
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
-        LiquidAlertDialog(
-            onDismissRequest={actionMessage=null},
-            title={Text("Message actions")},
-            text={
-                Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                    verticalArrangement=Arrangement.spacedBy(4.dp)) {
+        // One native set of actions, two presentations. The reference APK
+        // uses a bottom action menu; Liquid style retains the old alert.
+        val actionContents: @Composable ColumnScope.() -> Unit = {
                     if(m.deletedAt.isNotEmpty()) {
                         Text("This message was deleted",
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1841,8 +1838,20 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))
                     }",style=MaterialTheme.typography.bodySmall,
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
+
+        }
+        if(display.navBarStyle=="Reference") {
+            LiquidActionSheet(title="Message actions",onDismiss={actionMessage=null}) {
+                actionContents()
+            }
+        } else LiquidAlertDialog(
+            onDismissRequest={actionMessage=null},
+            title={Text("Message actions")},
+            text={Column(Modifier.fillMaxWidth().heightIn(max=470.dp)
+                .verticalScroll(rememberScrollState()),
+                verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                actionContents()
+            }},
             confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}}
         )
     }
