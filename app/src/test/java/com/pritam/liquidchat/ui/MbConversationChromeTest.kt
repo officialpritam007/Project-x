@@ -17,6 +17,15 @@ class MbConversationChromeTest {
         assertEquals(saved.outgoingInk,liquid.outgoingInk)
         assertEquals(saved.doubleTapReactionEnabled,liquid.doubleTapReactionEnabled)
     }
+    @Test fun twelveVideoStylesAlterRealBubbleGeometry() {
+        assertEquals(12,MB_RECORDED_BUBBLE_STYLES.size)
+        assertEquals(12,MB_RECORDED_BUBBLE_STYLES.distinct().size)
+        assertTrue(MB_RECORDED_BUBBLE_STYLES.all {it.isNotBlank()})
+        assertNotEquals(conversationBubbleShape("iOS",true),
+            conversationBubbleShape("Style 5",true))
+        assertNotEquals(conversationBubbleShape("Style 2",true),
+            conversationBubbleShape("Style 2",false))
+    }
     @Test fun chatBubbleShapeRemainsSenderAware() {
         assertNotEquals(conversationBubbleShape("Tail",true),
             conversationBubbleShape("Tail",false))

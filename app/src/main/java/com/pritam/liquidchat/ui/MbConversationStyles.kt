@@ -12,11 +12,59 @@ import androidx.compose.ui.unit.dp
 internal fun referenceMessageChrome(display:DisplayOptions):Boolean =
     referenceListUsesFlatRows(display)
 
+/** Each visual setting affects actual incoming and outgoing chat bubbles,
+ * not just the sample picker. Negative/concave geometry from the foreign
+ * app is deliberately approximated until matching rendered screenshots exist.
+ */
+internal val MB_RECORDED_BUBBLE_STYLES=listOf(
+    "iOS","Style 1","Style 2","Style 3","Style 4","Style 5",
+    "Style 6","Style 7","Style 8","Style 9","Style 10","Style 11"
+)
+
 internal fun conversationBubbleShape(style:String,mine:Boolean):RoundedCornerShape = when(style) {
     "Rounded" -> RoundedCornerShape(22.dp)
     "Compact" -> RoundedCornerShape(11.dp)
+    "iOS" -> RoundedCornerShape(
+        topStart=19.dp,topEnd=19.dp,
+        bottomStart=if(mine)19.dp else 5.dp,
+        bottomEnd=if(mine)5.dp else 19.dp)
+    "Style 1" -> RoundedCornerShape(
+        topStart=8.dp,topEnd=20.dp,
+        bottomStart=if(mine)8.dp else 2.dp,
+        bottomEnd=if(mine)2.dp else 20.dp)
+    "Style 2" -> RoundedCornerShape(
+        topStart=25.dp,topEnd=25.dp,
+        bottomStart=if(mine)25.dp else 1.dp,
+        bottomEnd=if(mine)1.dp else 25.dp)
+    "Style 3" -> RoundedCornerShape(
+        topStart=5.dp,topEnd=18.dp,
+        bottomStart=if(mine)18.dp else 4.dp,
+        bottomEnd=if(mine)4.dp else 18.dp)
+    "Style 4" -> RoundedCornerShape(
+        topStart=24.dp,topEnd=6.dp,
+        bottomStart=if(mine)24.dp else 7.dp,
+        bottomEnd=if(mine)7.dp else 24.dp)
+    "Style 5" -> RoundedCornerShape(
+        topStart=2.dp,topEnd=2.dp,bottomStart=2.dp,bottomEnd=2.dp)
+    "Style 6" -> RoundedCornerShape(
+        topStart=7.dp,topEnd=24.dp,
+        bottomStart=if(mine)24.dp else 7.dp,
+        bottomEnd=if(mine)7.dp else 24.dp)
+    "Style 7" -> RoundedCornerShape(
+        topStart=18.dp,topEnd=18.dp,bottomStart=8.dp,bottomEnd=8.dp)
+    "Style 8" -> RoundedCornerShape(
+        topStart=28.dp,topEnd=12.dp,
+        bottomStart=if(mine)12.dp else 2.dp,
+        bottomEnd=if(mine)2.dp else 28.dp)
+    "Style 9" -> RoundedCornerShape(
+        topStart=6.dp,topEnd=6.dp,
+        bottomStart=if(mine)16.dp else 2.dp,
+        bottomEnd=if(mine)2.dp else 16.dp)
+    "Style 10" -> RoundedCornerShape(32.dp)
+    "Style 11" -> RoundedCornerShape(
+        topStart=28.dp,topEnd=28.dp,bottomStart=10.dp,bottomEnd=10.dp)
     else -> RoundedCornerShape(
-        topStart=22.dp, topEnd=22.dp,
+        topStart=22.dp,topEnd=22.dp,
         bottomStart=if(mine)22.dp else 8.dp,
         bottomEnd=if(mine)8.dp else 22.dp
     )

@@ -3626,8 +3626,7 @@ if(section=="Liquid Chat Home Screen") {
                 onValueChange={model.setDisplay(display.copy(bubbleOpacity=it.toInt()))},
                 valueRange=45f..100f,steps=54,modifier=Modifier.fillMaxWidth())
             }
-                MbReferenceChoicePicker(title="Message bubble style",
-                    choices=listOf("Tail","Rounded","Compact"),
+                MbReferenceBubbleStylePicker(
                     selected=display.bubbleStyle,
                     onSelect={style->
                         model.setDisplay(display.copy(bubbleStyle=style))
