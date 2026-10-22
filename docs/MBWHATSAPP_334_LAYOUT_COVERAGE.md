@@ -242,3 +242,9 @@ Tracker: https://github.com/officialpritam007/Project-x/issues/66
 - Added real **on-device image text annotation** in the single-photo editor. User enters up to 64 normalized characters; Apply text creates a new account-private edited JPEG with visible white text and black outline near the lower image area. Original source is kept for existing five-step Undo/Redo, deletion/cancel cleanup and private authorized send. This is not a server-side filter or a fake overlay which disappears after upload.
 - Existing caption stays a separate sent-message field. No photo editing service, new quota or nonprivate media URL is introduced.
 - This is a functional addition, not verification of original MB gesture timing, fonts or device screenshots.
+
+## 2026-10-22 — incoming/active call visual consistency
+
+- The actual in-call overlay now uses the shared compact reference surface in the call information banner, audio control pane and active-video control strip, instead of always using elevated Liquid hero/capsule chrome. The audio-output chooser is the same reference action sheet used by chat and call history, with real Bluetooth/Speaker/Headset routes and selected state.
+- No modifications to WebRTC rendering, microphone/camera permission checks, ringtone, call presence/signaling, hang-up, minimize, PiP, video swap, route selection, or foreground service logic. Caller/avatar/timer remain actual call data.
+- Screen geometry is an approximation pending original/candidate matching runtime screenshot evidence and two-device call certification. Source-only commit, no CI.

@@ -51,6 +51,7 @@ import kotlin.math.roundToInt
 fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=null,avatar:String="") {
     val call by controller.view.collectAsStateWithLifecycle()
     val c=call ?: return
+    val referenceCall=referenceListUsesFlatRows(LocalDisplayOptions.current)
     val context=LocalContext.current
     var seconds by remember(c.id,c.connectedAt) {mutableLongStateOf(0)}
     LaunchedEffect(c.connectedAt) {while(c.connectedAt>0){seconds=(SystemClock.elapsedRealtime()-c.connectedAt)/1000;delay(1000)}}
@@ -153,7 +154,8 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
             }
             Column(Modifier.fillMaxSize().systemBarsPadding().padding(18.dp),verticalArrangement=Arrangement.SpaceBetween,horizontalAlignment=Alignment.CenterHorizontally) {
                 AnimatedVisibility(visible=!activeVideo||controlsVisible,enter=fadeIn(),exit=fadeOut()) {
-                GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
+                GlassSurface(Modifier.fillMaxWidth(),
+                    if(referenceCall)Glass.compact else Glass.hero) {
                     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(displayName ?: "Liquid Chat",style=MaterialTheme.typography.titleLarge)
@@ -185,7 +187,8 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                         onCamera=controller::toggleCamera,onSwitch=controller::switchCamera,
                         onHangup=controller::hangup
                     )
-                } else GlassSurface(Modifier.fillMaxWidth(),Glass.hero) {
+                } else GlassSurface(Modifier.fillMaxWidth(),
+                    if(referenceCall)Glass.compact else Glass.hero) {
                     Column(Modifier.padding(12.dp),horizontalAlignment=Alignment.CenterHorizontally) {
                         if(!terminal)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
                             IconButton(onClick=controller::toggleMute) {Icon(if(c.muted)Icons.Outlined.MicOff else Icons.Outlined.Mic,if(c.muted)"Unmute" else "Mute")}
@@ -202,26 +205,23 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
             }
         }
     }
-    routes?.let { availableRoutes ->
-        ModalBottomSheet(onDismissRequest={routes=null},containerColor=MaterialTheme.colorScheme.surface.copy(alpha=.94f)) {
-            Column(Modifier.fillMaxWidth().padding(horizontal=24.dp).padding(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                Text("Audio output",style=MaterialTheme.typography.headlineSmall)
-                if(availableRoutes.isEmpty())Text("No output devices available",color=MaterialTheme.colorScheme.onSurfaceVariant)
-                availableRoutes.forEach { (id,name) ->
-                    GlassSurface(Modifier.fillMaxWidth().clickable {
+    routes?.let {availableRoutes->
+        // The same reference action sheet now serves call audio routing too.
+        // Keep Bluetooth permission request, selected device and controller actions.
+        LiquidActionSheet(title="Audio output",onDismiss={routes=null}) {
+            if(availableRoutes.isEmpty())
+                Text("No output devices available",
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
+            availableRoutes.forEach {(id,name)->
+                GlassActionRow(
+                    if(c.audioRoute==name)"$name · Selected" else name,
+                    if(name.contains("Bluetooth",true))Icons.Outlined.BluetoothAudio
+                    else if(name.contains("Speaker",true))Icons.Outlined.VolumeUp
+                    else Icons.Outlined.Headset,
+                    onClick={
                         controller.selectAudioRoute(id)
                         routes=null
-                    },Glass.compact) {
-                        Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-                            Icon(if(name.contains("Bluetooth",true))Icons.Outlined.BluetoothAudio else if(name.contains("Speaker",true))Icons.Outlined.VolumeUp else Icons.Outlined.Headset,
-                                null,tint=MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(14.dp))
-                            Text(name,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
-                            if(c.audioRoute==name)Icon(Icons.Outlined.Check,"Current output",tint=MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-                TextButton(onClick={routes=null},modifier=Modifier.align(Alignment.End)) {Text("Done")}
+                    })
             }
         }
     }
@@ -259,7 +259,8 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     muted:Boolean,cameraEnabled:Boolean,audioRoute:String,
     onMute:()->Unit,onAudio:()->Unit,onCamera:()->Unit,onSwitch:()->Unit,onHangup:()->Unit
 ) {
-    GlassSurface(Modifier.fillMaxWidth(),Glass.capsule) {
+    GlassSurface(Modifier.fillMaxWidth(),
+        if(referenceListUsesFlatRows(LocalDisplayOptions.current))Glass.compact else Glass.capsule) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal=6.dp,vertical=4.dp),
             verticalAlignment=Alignment.CenterVertically,
