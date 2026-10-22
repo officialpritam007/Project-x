@@ -6,11 +6,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import com.pritam.liquidchat.calls.CallView
 import com.pritam.liquidchat.ui.LiquidApp
+import com.pritam.liquidchat.ui.MbAppShortcuts
 
 /** Standard Android window protection; not a replacement for encryption. */
 internal fun screenCaptureWindowFlag(preventScreenshots:Boolean):Int =
@@ -22,6 +26,17 @@ internal fun callWindowMayShowWhenLocked(call:CallView?,policyAccepted:Boolean=t
 
 class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels()
+    private var shortcutRequest by mutableStateOf<Pair<Int,Int>?>(null)
+    private var shortcutSequence=0
+
+    /** A launcher shortcut is navigation only, never an authentication bypass. */
+    private fun captureShortcut(launch:Intent?) {
+        val destination=launch?.getIntExtra(MbAppShortcuts.EXTRA_TAB,-1) ?: -1
+        if(destination in 0..4) {
+            shortcutSequence+=1
+            shortcutRequest=destination to shortcutSequence
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Intent extras are untrusted on an exported Activity. Observe validated
@@ -50,13 +65,15 @@ class MainActivity : ComponentActivity() {
         intent?.data?.let(model::callback)
         intent?.getStringExtra("conversationId")?.let {model.openNotification(it,intent?.getStringExtra("accountId"))}
         intent?.getStringExtra("callId")?.let {id->intent?.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it,com.pritam.liquidchat.calls.CallAnswerActivity.consume(id,it))}}
-        setContent { LiquidApp(model) }
+        captureShortcut(intent)
+        setContent { LiquidApp(model,shortcutRequest) }
     }
     override fun onStart() {super.onStart();model.repository.foreground.value=true}
     override fun onStop() {model.repository.foreground.value=false;super.onStop()}
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        captureShortcut(intent)
         intent.data?.let(model::callback)
         intent.getStringExtra("conversationId")?.let {model.openNotification(it,intent.getStringExtra("accountId"))}
         intent.getStringExtra("callId")?.let {id->intent.getStringExtra("accountId")?.let {model.calls.openIncomingNotification(id,it,com.pritam.liquidchat.calls.CallAnswerActivity.consume(id,it))}}
