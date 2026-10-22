@@ -65,6 +65,25 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
             confirmButton={TextButton(onClick=onDismiss) {Text("Close")}})
         return
     }
+    // HTTP content is unencrypted. Ask before making even the initial request,
+    // rather than showing a warning after remote content has already loaded.
+    var insecureLinkApproved by remember(link) {
+        mutableStateOf(!link.startsWith("http://",ignoreCase=true))
+    }
+    if(!insecureLinkApproved) {
+        val host=runCatching {URI(link).host.orEmpty()}.getOrDefault("this website")
+        AlertDialog(
+            onDismissRequest=onDismiss,
+            title={Text("Unencrypted website")},
+            text={Text("The link to $host uses HTTP, not HTTPS. Other networks may read " +
+                "or alter its contents. Do not enter passwords or private information.")},
+            confirmButton={TextButton(onClick={insecureLinkApproved=true}) {
+                Text("Open anyway")
+            }},
+            dismissButton={TextButton(onClick=onDismiss) {Text("Cancel")}}
+        )
+        return
+    }
     val context=LocalContext.current
     var scripts by remember(link) {mutableStateOf(false)}
     var currentUrl by remember(link) {mutableStateOf(link)}
