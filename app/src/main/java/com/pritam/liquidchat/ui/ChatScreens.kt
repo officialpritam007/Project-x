@@ -2965,9 +2965,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
 }
 @OptIn(ExperimentalLayoutApi::class)
 @Composable fun SettingsScreen(model:AppViewModel,busy:Boolean) {
-    // Open the actual reference-hierarchy screen on the Settings tab.
-    // The legacy Liquid Chat settings list remains one Back away.
-    var section by rememberSaveable {mutableStateOf<String?>(REFERENCE_SETTINGS_LANDING)}
+    // Open the reference Settings dashboard first; Preferences stays one tap away.
+    // Never bury account, help, storage and chat-list routes behind a Back action.
+    var section by rememberSaveable {mutableStateOf<String?>(null)}
     var fromPreferences by rememberSaveable {mutableStateOf(false)}
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
