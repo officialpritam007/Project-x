@@ -34,8 +34,7 @@ import com.pritam.liquidchat.data.PdfDocuments
             feedback="PDF saved."
         }
     }
-    Surface(color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.65f),
-        shape=Glass.compact) {
+    GlassSurface(shape=Glass.compact) {
         Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically,
                 horizontalArrangement=Arrangement.spacedBy(8.dp)) {
