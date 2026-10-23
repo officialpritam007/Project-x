@@ -698,8 +698,10 @@ import kotlinx.coroutines.launch
                         if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
                         else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
                     ))
-            // The message viewport owns its safe insets; chrome is independently
-    // drawn above it so the toolbar and keyboard-following composer truly float.
+                }
+            }
+        }
+    // The timeline respects the real heights of independently floating chrome.
     Box(Modifier.fillMaxSize().imePadding()) {
         var floatingHeaderHeight by remember(cid) {mutableIntStateOf(0)}
         var floatingComposerHeight by remember(cid) {mutableIntStateOf(0)}
@@ -954,11 +956,6 @@ import kotlinx.coroutines.launch
                 }
             }
         }
-        }
-    }
-
-    }
-         }
         }
     }
 
