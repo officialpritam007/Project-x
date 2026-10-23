@@ -49,4 +49,5 @@ import com.pritam.liquidchat.R
         Text("Icons are device-wide and do not change chats, calls or your account.",
             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
+    MbAppShortcutsSettingsCard()
 }

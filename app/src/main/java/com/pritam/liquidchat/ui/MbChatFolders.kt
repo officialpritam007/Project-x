@@ -67,6 +67,23 @@ internal object MbChatFolders {
         persist(context,account,updated)
         return updated
     }
+    /** Rename the visible list without altering its stable ID or chat membership. */
+    fun rename(context:Context,account:String,id:String,name:String):List<MbChatFolder> {
+        val title=name.trim()
+        require(title.length in 1..24 && title.all {!it.isISOControl()}) {
+            "Folder name must be 1–24 characters."
+        }
+        val existing=list(context,account)
+        require(existing.any {it.id==id}) {"Folder does not exist."}
+        require(existing.none {it.id!=id && it.name.equals(title,ignoreCase=true)}) {
+            "A folder with this name already exists."
+        }
+        val updated=existing.map {folder->
+            if(folder.id==id)folder.copy(name=title) else folder
+        }
+        persist(context,account,updated)
+        return updated
+    }
     fun remove(context:Context,account:String,id:String):List<MbChatFolder> {
         val updated=list(context,account).filterNot {it.id==id}
         persist(context,account,updated)

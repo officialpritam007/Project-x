@@ -119,11 +119,20 @@ internal fun startVoiceWithFocusHandoff(
         },contentAlignment=Alignment.Center) {Icon(Icons.Outlined.Mic,null,tint=MaterialTheme.colorScheme.onPrimary)}
         if(capture.recording) androidx.compose.ui.window.Popup(alignment=Alignment.BottomEnd,offset=androidx.compose.ui.unit.IntOffset(0,-160),onDismissRequest={}) {
             GlassCard(Modifier.widthIn(max=350.dp)) {
-                Text("Recording ${capture.elapsed/1000}s / 120s",style=MaterialTheme.typography.titleSmall)
+                Text("${if(capture.paused)"Paused" else "Recording"} ${capture.elapsed/1000}s / 120s",
+                    style=MaterialTheme.typography.titleSmall)
                 Text(if(capture.locked)"Hands-free recording · Back to discard"
                     else "Release to send · left to cancel · up to lock",
                     style=MaterialTheme.typography.bodySmall)
-                if(capture.locked)Row {TextButton(onClick=capture::cancel){Text("Discard")};TextButton(onClick={send()}){Text("Send voice")}}
+                if(capture.locked)Row {
+                    TextButton(onClick=capture::cancel) {Text("Discard")}
+                    TextButton(onClick={
+                        runCatching {
+                            if(capture.paused)capture.resume() else capture.pause()
+                        }.onFailure {error="Cannot pause or resume this recording."}
+                    }) {Text(if(capture.paused)"Resume" else "Pause")}
+                    TextButton(onClick={send()}) {Text("Send voice")}
+                }
             }
         }
     }

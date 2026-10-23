@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,7 +24,8 @@ import java.io.File
  * Both variants preserve the caller's authenticated send/confirmation/delete logic.
  */
 @Composable internal fun MbSavedStickerShelf(
-    stickers:List<File>,enabled:Boolean,onSend:(File)->Unit,onDelete:(File)->Unit
+    stickers:List<File>,enabled:Boolean,onSend:(File)->Unit,onDelete:(File)->Unit,
+    favorites:Set<String> = emptySet(),onToggleFavorite:((File)->Unit)?=null
 ) {
     if(referenceListUsesFlatRows(LocalDisplayOptions.current)) {
         LazyVerticalGrid(
@@ -41,6 +44,15 @@ import java.io.File
                         horizontalArrangement=Arrangement.Center) {
                         TextButton(onClick={onSend(file)},enabled=enabled,
                             contentPadding=PaddingValues(horizontal=4.dp)) {Text("Send")}
+                        if(onToggleFavorite!=null) IconButton(
+                            onClick={onToggleFavorite(file)},enabled=enabled,
+                            modifier=Modifier.size(36.dp)) {
+                            Icon(if(file.name in favorites)Icons.Outlined.Star
+                                else Icons.Outlined.StarOutline,
+                                if(file.name in favorites)"Remove favorite sticker"
+                                else "Favorite sticker",
+                                modifier=Modifier.size(20.dp))
+                        }
                         IconButton(onClick={onDelete(file)},enabled=enabled,
                             modifier=Modifier.size(36.dp)) {
                             Icon(Icons.Outlined.DeleteOutline,"Delete saved sticker",
@@ -60,6 +72,13 @@ import java.io.File
                         modifier=Modifier.size(76.dp))
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick={onSend(file)},enabled=enabled) {Text("Send")}
+                    if(onToggleFavorite!=null) IconButton(
+                        onClick={onToggleFavorite(file)},enabled=enabled) {
+                        Icon(if(file.name in favorites)Icons.Outlined.Star
+                            else Icons.Outlined.StarOutline,
+                            if(file.name in favorites)"Remove favorite sticker"
+                            else "Favorite sticker")
+                    }
                     IconButton(onClick={onDelete(file)},enabled=enabled) {
                         Icon(Icons.Outlined.DeleteOutline,"Delete saved sticker")
                     }

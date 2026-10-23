@@ -5,6 +5,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Rule
@@ -37,6 +38,26 @@ class MbPreferencesLandingTest {
         }
     }
 
+    @Test fun referenceRowsMeetTouchTargetMinimumAndOpenTheirRealRoutes() {
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            LiquidTheme(false) {
+                MbPreferencesLanding(onBack = {}, onNavigate = { opened += it })
+            }
+        }
+        for (label in listOf("Privacy", "Notifications", "Multimedia", "Data & storage")) {
+            compose.onNodeWithText(label).performScrollTo()
+                .assertHasClickAction().assertHeightIsAtLeast(48.dp).performClick()
+        }
+        compose.runOnIdle {
+            assertEquals(
+                listOf("Liquid Chat Privacy", "Liquid Chat Notifications",
+                    "Liquid Chat Multimedia", "Data and Storage"),
+                opened
+            )
+        }
+    }
+
     @Test fun userFacingPreferencesContainOnlyLiquidChatBranding() {
         compose.setContent { LiquidTheme(false) {
             MbPreferencesLanding(onBack={},onNavigate={})
@@ -65,7 +86,8 @@ class MbPreferencesLandingTest {
     @Test fun referenceInventoryNeverExposesUnimplementedWhatsAppRoutes() {
         val targets=MbReferencePreferenceSections.all.map {it.target}
         assertEquals(targets.size,targets.distinct().size)
-        assertEquals(14,targets.size)
+        assertEquals(15,targets.size)
+        assertTrue(targets.contains("Liquid Chat Developer Information"))
         assertFalse(targets.any {it.contains("WhatsApp",ignoreCase=true)})
         assertTrue(targets.contains("Liquid Chat Multimedia"))
         assertTrue(targets.contains("Liquid Chat Animations"))

@@ -77,6 +77,7 @@ data class DisplayOptions(
     val appBackgroundHex:String="",
     val appChromeHex:String="",
     val appUiScale:Int=100,
-    val appTextScale:Int=100
+    val appTextScale:Int=100,
+    val showWallpaper:Boolean=true
 )
 val LocalDisplayOptions=staticCompositionLocalOf {DisplayOptions()}
