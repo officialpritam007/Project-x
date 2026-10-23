@@ -667,38 +667,28 @@ import kotlinx.coroutines.launch
         val composerSpace=if(floatingComposerHeight>0)with(density) {floatingComposerHeight.toDp()} else 82.dp
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(headerSpace))
-        if(searchOpen) GlassSurface(
-            Modifier.fillMaxWidth().padding(horizontal=if(referenceListUsesFlatRows(display))0.dp else 8.dp),
-            if(referenceListUsesFlatRows(display))Glass.compact else Glass.card
-        ) {
-            Column(Modifier.padding(8.dp)) {
-                // The reference APK has a 35dp/24dp search row. Retain the
-                // real downloaded-message filters, query and explicit dismissal.
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    GlassSearch(chatQuery,{chatQuery=it;searchIndex=0},
-                        "Search this chat",Modifier.weight(1f))
-                    IconButton(onClick={searchOpen=false;chatQuery=""}) {
-                        Icon(Icons.Outlined.Close,"Close search")
-                    }
+        if(searchOpen) ConversationSearchPanel(
+            query=chatQuery,sender=searchSender,media=searchMedia,period=searchPeriod,
+            matchCount=chatResults.size,
+            flatReferenceRows=referenceListUsesFlatRows(display),
+            onQueryChange={chatQuery=it;searchIndex=0},
+            onClose={searchOpen=false;chatQuery=""},
+            onSenderChange={searchSender=it;searchIndex=0},
+            onMediaChange={searchMedia=it;searchIndex=0},
+            onPeriodChange={searchPeriod=it;searchIndex=0},
+            onPrevious={
+                if(chatResults.isNotEmpty()) {
+                    searchIndex=(searchIndex-1+chatResults.size)%chatResults.size
+                    model.focusMessage.value=chatResults[searchIndex].id
                 }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                    SearchFilterMenu("Sender",searchSender.label,SearchSender.entries.map {it.label}) {
-                        searchSender=SearchSender.entries[it];searchIndex=0
-                    }
-                    SearchFilterMenu("Type",searchMedia.label,SearchMedia.entries.map {it.label}) {
-                        searchMedia=SearchMedia.entries[it];searchIndex=0
-                    }
-                    SearchFilterMenu("Date",searchPeriod.label,SearchPeriod.entries.map {it.label}) {
-                        searchPeriod=SearchPeriod.entries[it];searchIndex=0
-                    }
-                }
-                Row(verticalAlignment=Alignment.CenterVertically) {
-                    Text("Downloaded messages only · ${chatResults.size} matches",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall)
-                    IconButton(onClick={if(chatResults.isNotEmpty()){searchIndex=(searchIndex-1+chatResults.size)%chatResults.size;model.focusMessage.value=chatResults[searchIndex].id}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowUp,"Previous match")}
-                    IconButton(onClick={if(chatResults.isNotEmpty()){model.focusMessage.value=chatResults[searchIndex%chatResults.size].id;searchIndex=(searchIndex+1)%chatResults.size}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowDown,"Next match")}
+            },
+            onNext={
+                if(chatResults.isNotEmpty()) {
+                    model.focusMessage.value=chatResults[searchIndex%chatResults.size].id
+                    searchIndex=(searchIndex+1)%chatResults.size
                 }
             }
-        }
+        )
         if(messagesReady!=cid)Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {CircularProgressIndicator(Modifier.size(24.dp))}
         else MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
             MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus||m.id in selectedIds,
@@ -2472,12 +2462,3 @@ import kotlinx.coroutines.launch
     if(confirmDelete&&chat!=null) LiquidAlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
 
-@Composable private fun SearchFilterMenu(title:String,selected:String,options:List<String>,onSelect:(Int)->Unit) {
-    var expanded by remember {mutableStateOf(false)}
-    Box {
-        TextButton(onClick={expanded=true}) {Text("$title: $selected")}
-        LiquidDropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
-            options.forEachIndexed {index,label->DropdownMenuItem(text={Text(label)},onClick={onSelect(index);expanded=false})}
-        }
-    }
-}
