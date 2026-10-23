@@ -5,6 +5,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Rule
@@ -34,6 +35,26 @@ class MbPreferencesLandingTest {
             assertEquals(MbReferencePreferenceSections.all.map {it.target},opened)
             assertEquals(1,backs)
             assertEquals(MbReferencePreferenceSections.all.size,opened.distinct().size)
+        }
+    }
+
+    @Test fun referenceRowsMeetTouchTargetMinimumAndOpenTheirRealRoutes() {
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            LiquidTheme(false) {
+                MbPreferencesLanding(onBack = {}, onNavigate = { opened += it })
+            }
+        }
+        for (label in listOf("Privacy", "Notifications", "Multimedia", "Data & storage")) {
+            compose.onNodeWithText(label).performScrollTo()
+                .assertHasClickAction().assertHeightIsAtLeast(48.dp).performClick()
+        }
+        compose.runOnIdle {
+            assertEquals(
+                listOf("Liquid Chat Privacy", "Liquid Chat Notifications",
+                    "Liquid Chat Multimedia", "Data and Storage"),
+                opened
+            )
         }
     }
 
