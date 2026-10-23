@@ -9,7 +9,7 @@ private val explicitWebUrl=Regex("https?://[^\\s<>\"\\p{Cntrl}]+",RegexOption.IG
 /** Explicit web URLs only. Parsing never resolves DNS or downloads a preview. */
 internal fun messageWebLinks(text:String):List<MessageWebLink> =
     explicitWebUrl.findAll(text).take(32).mapNotNull {match->
-        var url=match.value.trimEnd('.',',',';',':','!','?','\u3002','\u2019','\u201d')
+        var url=match.value.trimEnd('.',',',';',':','!','?','\u3002','\u0964','\u0965','\u2026','\uff01','\uff1f','\u2019','\u201d')
         for((open,close) in listOf('(' to ')','[' to ']','{' to '}')) {
             while(url.endsWith(close)&&url.count {it==close}>url.count {it==open})url=url.dropLast(1)
         }
