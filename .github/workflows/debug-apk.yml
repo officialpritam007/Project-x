@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: downloadable-debug-apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   debug-apk:
     name: Assemble installable debug APK
