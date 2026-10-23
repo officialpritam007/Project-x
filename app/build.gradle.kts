@@ -46,6 +46,15 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
+// Temporary compiler workaround for the K2 FIR data-flow OOM in the current
+// monolithic Compose conversation UI. Keep the Kotlin 2.1.20 tooling and
+// restore K2 after breaking down the oversized composable functions.
+kotlin {
+    compilerOptions {
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
+    }
+}
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.11.01"))
     implementation("androidx.activity:activity-ktx:1.10.1")
