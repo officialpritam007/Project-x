@@ -9,7 +9,7 @@ jobs:
   debug-apk:
     name: Assemble installable debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
     env:
       ENABLE_EXPERIMENTAL_CALLS: 'true'
       FCM_APP_ID: ${{ vars.FCM_APP_ID }}
@@ -31,8 +31,26 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Build debug APK
-        run: ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug
+      - name: Build debug APK with dedicated Kotlin compiler memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The earlier in-process compiler exceeded Gradle heap and stalled.
+          # Keep Gradle and Kotlin on separately bounded JVM heaps (public Linux runner).
+          free -h
+          ./gradlew --no-daemon --max-workers=1 --console=plain --stacktrace \
+            "-Dorg.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8" \
+            "-Pkotlin.compiler.execution.strategy=daemon" \
+            "-Pkotlin.daemon.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=1g" \
+            :app:assembleDebug 2>&1 | tee debug-gradle.log
+      - name: Upload compiler diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Liquid-Chat-debug-build-log
+          path: debug-gradle.log
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Verify signed debug APK and record provenance
         shell: bash
         run: |
