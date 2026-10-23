@@ -26,7 +26,7 @@ internal object MbChatFolders {
             .getString(key(account),"[]") ?: "[]"
         return runCatching {
             val array=JSONArray(raw)
-            buildList {
+            buildList<MbChatFolder> {
                 for(i in 0 until minOf(array.length(),MAX_FOLDERS)) {
                     val item=array.optJSONObject(i) ?: continue
                     val id=item.optString("id")
