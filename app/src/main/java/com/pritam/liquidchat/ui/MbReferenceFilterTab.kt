@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -17,11 +19,12 @@ import androidx.compose.ui.unit.sp
 ) {
     if(!referenceListUsesFlatRows(LocalDisplayOptions.current)) {
         FilterChip(selected=selected,onClick=onClick,label={Text(label)},
-            modifier=modifier,shape=Glass.capsule)
+            modifier=modifier.heightIn(min=48.dp),shape=Glass.capsule)
         return
     }
-    Column(modifier.defaultMinSize(minHeight=42.dp)
+    Column(modifier.heightIn(min=48.dp)
         .clickable(role=Role.Tab,onClick=onClick)
+        .semantics { this.selected=selected }
         .padding(horizontal=12.dp,vertical=5.dp),
         horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.Bottom) {
