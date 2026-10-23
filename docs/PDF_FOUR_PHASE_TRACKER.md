@@ -659,7 +659,7 @@
 - Phase 1 source commits (all **unverified**): `7321f45` (main Settings landing), `7d50466` (searchable dashboard), `34ac301` (verified public developer links and honest donations status), `b26033c` (Developer Information in Preferences), `4154392` (real Settings route wiring).
 - Older source commits: `a3b5ce7`, `ba9ee9b`, `54b6771`, `3e444d9`, `05220d7` (preference search, invitation/version links).
 - **None of the 346 original items or the PDF checkboxes are automatically certified by creating this document.** Advance individual statuses with evidence and capture unresolved external/backend dependencies.
-- Phase 2 includes backend-only Groups/Channels/Communities requirements, not placeholder views. Phase 4 includes verification gates, which remain blocked while automated tests/builds are disallowed.
+- Phase 2 includes backend-only Groups/Channels/Communities requirements, not placeholder views. Phase 4 includes verification gates; automated tests/builds are authorized by the 23 October owner instruction above. Historical restrictions below describe earlier sessions only.
 
 
 ## Incremental source implementation — 22 October 2026 continuation
@@ -721,3 +721,25 @@ A new `rc12` candidate (version code 19) contains the direct-`main` source commi
 | 11 | `P11-001`–`P11-024` | CI candidate run (pending) | Automated checks authorized; no checkbox closes until actual check evidence exists, and real two-phone/provider acceptance is still required |
 
 **Explicitly unfinished:** the remainder of all 346 engineering acceptance items, screenshot/pixel parity, real Groups/Communities/Channels backend and RLS, GIF provider and animated stickers, per-contact server-enforced privacy exceptions, real two-phone call/FCM/OEM tests, production signing, and provider acceptance. Tests may reveal additional bugs to repair.
+
+
+## 23 October 2026 — Foundation and appearance persistence repair
+
+Status: **Source Implemented; Android verification pending**. No acceptance boxes closed.
+
+- `P00-003`: separated inbox, contacts, conversation, message rendering, settings,
+  shared-image viewer and message-action policies into independent Kotlin files.
+  Original declaration bodies were compared during extraction; the conversation
+  function itself still needs further decomposition. No compiler-memory cure claimed.
+- `PDF-S04-009`, `P02-015`: custom accent survives preference reload.
+- `PDF-S07-001`–`PDF-S07-013`, `P04-006`, `P02-014`: all 12 recorded bubble
+  presets plus the three legacy styles pass the actual save/reload/import boundary.
+  Previously the picker offered them but the ViewModel rejected them as Tail.
+- `PDF-S04-014`, `P02-031`: Show wallpaper persists, round-trips in theme JSON,
+  and disables home photo/video plus conversation photo/video/gradient rendering
+  without removing saved files. Video player leaves composition when hidden.
+- `P02-014`: resetting appearance preserves video quality as well as photo quality.
+- Regression source: `DisplayPreferencesTest` uses isolated SharedPreferences,
+  all picker styles, custom accent, wallpaper compatibility and quality reset.
+- See [implementation gap review](IMPLEMENTATION_GAP_REVIEW_20261023.md) for
+  baseline, evidence limits and next unfinished work.

@@ -109,6 +109,16 @@ internal fun scaledAppDensity(parent:Density,uiPercent:Int,textPercent:Int):Dens
         Text("Colors apply only to this device. Message colors and photo wallpapers remain independent.",
             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         HorizontalDivider()
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Show wallpaper",style=MaterialTheme.typography.titleSmall)
+                Text("Show saved home and conversation backgrounds. Turning this off keeps your files and selections.",
+                    style=MaterialTheme.typography.bodySmall)
+            }
+            Switch(checked=display.showWallpaper,
+                onCheckedChange={onDisplay(display.copy(showWallpaper=it))})
+        }
+        HorizontalDivider()
         Text("Performance preset",style=MaterialTheme.typography.titleSmall)
         val lightweight=display.reducedMotion && display.reducedTransparency &&
             display.blurIntensity==0
