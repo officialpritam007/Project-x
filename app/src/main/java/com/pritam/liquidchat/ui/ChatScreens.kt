@@ -380,7 +380,7 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
                 item {Text("Downloaded message history",style=MaterialTheme.typography.labelLarge)}
                 items(visibleResults,key={"result-${it.id}"}) {m->
                     val chat=chats.firstOrNull {it.id==m.conversation}
-                    if(chat!=null) Surface(onClick={model.open(chat.id,m.id)},shape=Glass.compact,color=MaterialTheme.colorScheme.surface,modifier=Modifier.fillMaxWidth()) {
+                    if(chat!=null) GlassSurface(Modifier.fillMaxWidth().clickable {model.open(chat.id,m.id)},Glass.compact) {
                         Column(Modifier.padding(16.dp)) {Text("${chat.name} · ${if(m.sender==m.account)"You" else chat.name}",style=MaterialTheme.typography.labelLarge);Text(m.body,maxLines=2,overflow=TextOverflow.Ellipsis)}
                     }
                 }
