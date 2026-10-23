@@ -653,47 +653,11 @@ import kotlinx.coroutines.launch
         } finally {kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {runCatching {model.repository.typing(cid,false)}}}
     }
     Box(Modifier.fillMaxSize()) {
-        val owner=session?.userId
-        val backgroundBrush=if(display.showWallpaper)
-            wallpaper(if(palette=="Photo" || palette=="Video") "Ice" else palette,LocalGlassDark.current)
-        else androidx.compose.ui.graphics.Brush.linearGradient(
-            listOf(MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)
+        ConversationWallpaperBackdrop(
+            owner=session?.userId,cid=cid,palette=palette,
+            wallpaperRevision=wallpaperRevision,showWallpaper=display.showWallpaper,
+            dim=display.chatWallpaperDim,foreground=foreground
         )
-        Box(Modifier.matchParentSize().glassSource(.5f).background(backgroundBrush)) {
-            if(display.showWallpaper && palette=="Video" && owner!=null) {
-                val videoFile=remember(owner,cid,wallpaperRevision) {
-                    runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,cid)}
-                        .getOrNull()
-                }
-                if(videoFile?.isFile==true) {
-                    LocalVideoWallpaper(videoFile,foreground,wallpaperRevision,Modifier.matchParentSize())
-                    Box(Modifier.matchParentSize().background(
-                        if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
-                        else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
-                    ))
-                }
-            }
-            if(display.showWallpaper && palette=="Photo" && owner!=null) {
-                val photoFile=remember(owner,cid,wallpaperRevision) {
-                    runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}
-                        .getOrNull()
-                }
-                if(photoFile?.isFile==true) {
-                    val request=remember(photoFile,wallpaperRevision) {
-                        coil.request.ImageRequest.Builder(context).data(photoFile)
-                            .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
-                            .diskCachePolicy(coil.request.CachePolicy.DISABLED).build()
-                    }
-                    coil.compose.AsyncImage(model=request,contentDescription=null,
-                        contentScale=androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier=Modifier.matchParentSize())
-                    Box(Modifier.matchParentSize().background(
-                        if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
-                        else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
-                    ))
-                }
-            }
-        }
     // The timeline respects the real heights of independently floating chrome.
     Box(Modifier.fillMaxSize().imePadding()) {
         var floatingHeaderHeight by remember(cid) {mutableIntStateOf(0)}
