@@ -334,14 +334,8 @@ internal fun referenceListUsesFlatRows(display:DisplayOptions):Boolean =
     modifier:Modifier=Modifier,
     content:@Composable ()->Unit
 ) {
-    if(referenceListUsesFlatRows(LocalDisplayOptions.current)) {
-        Surface(modifier=modifier,
-            shape=androidx.compose.ui.graphics.RectangleShape,
-            color=MaterialTheme.colorScheme.surface.copy(
-                alpha=if(LocalGlassDark.current).72f else .86f),
-            tonalElevation=0.dp,
-            content=content)
-    } else GlassSurface(modifier,content=content)
+    val reference=referenceListUsesFlatRows(LocalDisplayOptions.current)
+    GlassSurface(modifier,if(reference)Glass.compact else Glass.card,content)
 }
 
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
