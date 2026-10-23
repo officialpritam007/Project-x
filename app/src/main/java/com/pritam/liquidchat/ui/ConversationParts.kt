@@ -87,7 +87,7 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
                     val preceding=reversed.getOrNull(index+1)
                     Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
                         if(preceding==null||messageDate(preceding)!=messageDate(m)) Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center) {
-                            Surface(shape=Glass.capsule,color=MaterialTheme.colorScheme.surface.copy(alpha=.85f)) {
+                            GlassSurface(shape=Glass.capsule) {
                                 Text(dateLabel(messageDate(m)),Modifier.padding(horizontal=14.dp,vertical=6.dp),style=MaterialTheme.typography.labelMedium)
                             }
                         }
@@ -105,8 +105,10 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
                     }
                 }
             }
-            if(!nearBottom) SmallFloatingActionButton(onClick={scope.launch {state.animateScrollToItem(0)}},modifier=Modifier.align(Alignment.BottomEnd).padding(8.dp),containerColor=MaterialTheme.colorScheme.surface) {
-                Icon(Icons.Outlined.KeyboardArrowDown,"Jump to latest messages")
+            if(!nearBottom) GlassSurface(Modifier.align(Alignment.BottomEnd).padding(8.dp),Glass.capsule) {
+                IconButton(onClick={scope.launch {state.animateScrollToItem(0)}}) {
+                    Icon(Icons.Outlined.KeyboardArrowDown,"Jump to latest messages")
+                }
             }
         }
     }
@@ -115,7 +117,7 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
 @Composable internal fun TypingBubble() {
     val reduced=LocalDisplayOptions.current.reducedMotion
     val dotDuration=when(LocalDisplayOptions.current.animation) {"Normal"->650;"Extra"->330;else->500}
-    Surface(shape=Glass.card,color=MaterialTheme.colorScheme.surface,modifier=Modifier.semantics(mergeDescendants=true) {contentDescription="Typing";liveRegion=LiveRegionMode.Polite}) {
+    GlassSurface(Modifier.semantics(mergeDescendants=true) {contentDescription="Typing";liveRegion=LiveRegionMode.Polite},Glass.card) {
         Row(Modifier.padding(horizontal=16.dp,vertical=14.dp),horizontalArrangement=Arrangement.spacedBy(5.dp)) {
             val transition=rememberInfiniteTransition(label="Typing")
             repeat(3) {i->
