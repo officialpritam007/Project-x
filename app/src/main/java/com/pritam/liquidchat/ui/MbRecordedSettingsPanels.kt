@@ -104,12 +104,7 @@ import androidx.compose.ui.unit.dp
 @Composable private fun MbRecordedSettingsGroup(
     content:@Composable ColumnScope.()->Unit
 ) {
-    Surface(modifier=Modifier.fillMaxWidth(),
-        shape=RoundedCornerShape(22.dp),
-        color=MaterialTheme.colorScheme.surface,
-        tonalElevation=0.dp,
-        border=BorderStroke(1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha=.30f))) {
+    GlassSurface(Modifier.fillMaxWidth(),Glass.card) {
         Column(content=content)
     }
 }
