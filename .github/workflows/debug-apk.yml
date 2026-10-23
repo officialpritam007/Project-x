@@ -64,7 +64,7 @@ jobs:
           mkdir -p apk-download
           cp "$APK" apk-download/Liquid-Chat-current-debug.apk
           git rev-parse HEAD > apk-download/build-commit.txt
-          git rev-parse HEAD^ > apk-download/original-main-commit.txt
+          git show -s --format='%H %cI %s' HEAD > apk-download/build-provenance.txt
           sha256sum apk-download/Liquid-Chat-current-debug.apk > apk-download/sha256.txt
       - name: Upload Android debug APK
         uses: actions/upload-artifact@v4
