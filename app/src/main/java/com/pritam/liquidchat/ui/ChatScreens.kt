@@ -122,18 +122,9 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
 @Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
     val homeDisplay=LocalDisplayOptions.current
     val reference=referenceListUsesFlatRows(homeDisplay)
-    Surface(
-        shape=if(reference)androidx.compose.ui.graphics.RectangleShape else Glass.card,
-        color=if(reference)MaterialTheme.colorScheme.surface.copy(
-            alpha=if(LocalGlassDark.current).72f else .86f)
-            else if(LocalGlassDark.current)Color(0xFF20384D).copy(alpha=.62f)
-            else Color.White.copy(alpha=.56f),
-        border=if(reference)null else androidx.compose.foundation.BorderStroke(
-            1.dp,Color.White.copy(alpha=if(LocalGlassDark.current).17f else .72f)),
-        modifier=Modifier.fillMaxWidth()
-            .then(if(reference)Modifier else Modifier.glassSource())
-            .combinedClickable(onClick=onClick,onLongClick=onLongClick)
-    ) {
+    GlassSurface(Modifier.fillMaxWidth()
+        .combinedClickable(onClick=onClick,onLongClick=onLongClick),
+        if(reference)Glass.compact else Glass.card) {
         Row(Modifier.fillMaxWidth().padding(vertical=homeDisplay.homeRowPadding.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Avatar(chat.name,chat.avatarId,backend,size=homeDisplay.homeAvatarSize.dp)
             Column(Modifier.weight(1f)) {
@@ -401,10 +392,14 @@ internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
         if(!inboxDisplay.hidePhotoShortcut) GlassSurface(Modifier.size(48.dp),CircleShape) {IconButton(onClick=onContacts) {Icon(Icons.Outlined.PhotoCamera,"Choose a contact to share a photo")}}
         // Reference mode already exposes the 56dp new-chat button directly
         // beside the bottom navigation. Avoid rendering a duplicate floating FAB.
-        if(inboxDisplay.navBarStyle!="Reference") FloatingActionButton(
-            onClick=onContacts,shape=CircleShape,
-            containerColor=Color(0xFF00A6E8),contentColor=Color.White,
-            modifier=Modifier.size(52.dp)) {Icon(Icons.Outlined.Add,"New chat")}
+        if(inboxDisplay.navBarStyle!="Reference") GlassSurface(
+            Modifier.size(52.dp),CircleShape
+        ) {
+            IconButton(onClick=onContacts,modifier=Modifier.fillMaxSize()) {
+                Icon(Icons.Outlined.Add,"New chat",
+                    tint=MaterialTheme.colorScheme.primary)
+            }
+        }
     }
     }
     if(allStarsOpen && homeOwner!=null) MbAllStarredMessages(
