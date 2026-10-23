@@ -29,4 +29,17 @@ class MbNavigationOrderTest {
         assertTrue(runCatching {MbNavigationOrder.move(MbNavigationOrder.DEFAULT,7,1)}.isFailure)
         assertTrue(runCatching {MbNavigationOrder.move(MbNavigationOrder.DEFAULT,1,0)}.isFailure)
     }
+    @Test fun dragAcrossMultipleRowsMovesStableDestinationOnly() {
+        val moved=MbNavigationOrder.moveBy(MbNavigationOrder.DEFAULT,1,2)
+        assertEquals(listOf(0,2,3,1,4),MbNavigationOrder.parse(moved))
+        assertEquals(setOf(0,1,2,3,4),MbNavigationOrder.parse(moved).toSet())
+        assertEquals(MbNavigationOrder.DEFAULT,MbNavigationOrder.moveBy(moved,1,-2))
+    }
+    @Test fun dragClampsAtEndsEvenForExtremeOffsets() {
+        assertEquals(listOf(1,2,3,4,0),
+            MbNavigationOrder.parse(MbNavigationOrder.moveBy(null,0,Int.MAX_VALUE)))
+        assertEquals(listOf(4,0,1,2,3),
+            MbNavigationOrder.parse(MbNavigationOrder.moveBy(null,4,Int.MIN_VALUE)))
+        assertTrue(runCatching {MbNavigationOrder.moveBy(null,5,1)}.isFailure)
+    }
 }
