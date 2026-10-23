@@ -70,7 +70,10 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
         val chromeBackground=MaterialTheme.colorScheme.background
         val chromeDarkIcons=chromeBackground.luminance()>.5f
         SideEffect {
-            (context as? android.app.Activity)?.window?.let {window->
+            var host:android.content.Context=context
+            while(host is android.content.ContextWrapper && host !is android.app.Activity
+                && host.baseContext!==host) host=host.baseContext
+            (host as? android.app.Activity)?.window?.let {window->
                 val bars=androidx.core.view.WindowCompat.getInsetsController(window,chromeView)
                 bars.isAppearanceLightStatusBars=chromeDarkIcons
                 bars.isAppearanceLightNavigationBars=chromeDarkIcons
