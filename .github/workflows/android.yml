@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 85
     env:
       HAS_OWNER_DEBUG_KEY: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
       FCM_APP_ID: ${{ vars.FCM_APP_ID }}
@@ -62,13 +62,21 @@ jobs:
           with open(os.environ['GITHUB_ENV'],'a') as env:
               env.write('LIQUID_DEBUG_KEYSTORE_PATH='+str(key)+'\n')
           PYKEY
-      - name: Tests, lint and APK
-        # Large Compose trees need more than the previous 3 GiB in-process FIR/KAPT heap.
-        # Serialize Debug and Release, and keep all mandatory checks enabled.
+      - name: Compile debug Kotlin
+        # ConversationScreen contains a large Compose tree. Compile independently
+        # first, so a Kotlin compiler failure is visible before lint/release work.
+        # The previous 25-minute job limit killed compilation without diagnostics.
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
-          ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testReleaseUnitTest lintRelease bundleRelease
+          ./gradlew --no-daemon --console=plain --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process :app:compileDebugKotlin
+      - name: Debug tests, lint and APK
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --console=plain --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - name: Release tests, lint and bundle
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --console=plain --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testReleaseUnitTest lintRelease bundleRelease
       - name: Inventory resolved release dependencies and declared licenses
         run: ./gradlew --no-daemon -I scripts/dependency_inventory.init.gradle :app:exportDependencyInventory
       - name: Validate APK signature, alignment and native page compatibility
