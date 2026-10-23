@@ -80,10 +80,38 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.launch
 
+/** Never offer text forwarding for deleted, failed, or media-only messages. */
+internal fun canForwardTextMessage(message:Message,account:String?):Boolean =
+    account!=null && message.account==account && message.status=="SENT" &&
+    message.deletedAt.isEmpty() && message.mediaId.isEmpty() &&
+    message.localImage.isEmpty() && message.mediaKind=="image" && message.body.isNotBlank()
+
+/** Unknown server state must never produce contradictory block/unblock actions. */
+internal fun blockActionLabel(ownedBlocked:Boolean?):String =
+    when(ownedBlocked) { true->"Unblock contact"; false->"Block contact"; null->"Checking block status…" }
+
+internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
+internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
+    "Chat Settings","Liquid Chat General Settings"->SettingsPanel.APPEARANCE
+    "Power Saving"->SettingsPanel.POWER_SAVING
+    else->SettingsPanel.OTHER
+}
+
+/** Display category order for the one-to-one message action sheet. */
+internal fun messageActionCategories(message:Message):List<String> {
+    val result=mutableListOf<String>()
+    if(message.deletedAt.isEmpty()) {
+        if(message.status=="SENT")result+="Quick reactions"
+        result+="Message actions"
+    }
+    if((message.status=="SENT" && message.sender!=message.account && message.deletedAt.isEmpty()) ||
+        message.status in listOf("SENT","QUEUED","FAILED"))result+="Safety"
+    return result
+}
+
+internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
+    if(id in ids) ids-id else if(ids.size<30) ids+id else ids
 @Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null,self:Boolean=false,size:androidx.compose.ui.unit.Dp=48.dp) {
     Box(Modifier.size(size).clip(CircleShape).background(if(self)Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
         if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
