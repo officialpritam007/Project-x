@@ -42,7 +42,7 @@ private val dashboardPrimary=listOf(
     MbSettingsDashboardRoute("Notifications","Liquid Chat Notifications",
         Icons.Outlined.NotificationsNone),
     MbSettingsDashboardRoute("App information","Liquid Chat Updates",
-        Icons.Outlined.InfoOutline)
+        Icons.Outlined.Info)
 )
 private val dashboardChats=listOf(
     MbSettingsDashboardRoute("Add Lists","Chat Folders",Icons.Outlined.FavoriteBorder),
@@ -52,7 +52,7 @@ private val dashboardChats=listOf(
 )
 private val dashboardAccount=listOf(
     MbSettingsDashboardRoute("Account","Account",Icons.Outlined.Key),
-    MbSettingsDashboardRoute("Privacy","Liquid Chat Privacy",Icons.Outlined.LockOutline),
+    MbSettingsDashboardRoute("Privacy","Liquid Chat Privacy",Icons.Outlined.Lock),
     MbSettingsDashboardRoute("Appearance","Appearance",Icons.Outlined.Palette),
     MbSettingsDashboardRoute("Data and storage","Data and Storage",
         Icons.Outlined.Storage),
