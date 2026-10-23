@@ -107,7 +107,10 @@ import kotlinx.coroutines.launch
     if(open) androidx.compose.ui.window.Dialog(onDismissRequest={open=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
-                TextButton(onClick={open=false}) {Text("Close image")}
+                GlassSurface(Modifier.fillMaxWidth()
+                    .padding(horizontal=12.dp,vertical=8.dp),Glass.capsule) {
+                    TextButton(onClick={open=false}) {Text("Close image")}
+                }
                 var zoom by remember(message.id) {mutableFloatStateOf(1f)}
                 var pan by remember(message.id) {mutableStateOf(Offset.Zero)}
                 var size by remember {mutableStateOf(IntSize.Zero)}
@@ -123,6 +126,8 @@ import kotlinx.coroutines.launch
                 val scope=rememberCoroutineScope()
                 var saving by remember(message.id) {mutableStateOf(false)}
                 var saveFeedback by remember(message.id) {mutableStateOf<String?>(null)}
+                GlassSurface(Modifier.fillMaxWidth()
+                    .padding(horizontal=12.dp,vertical=8.dp),Glass.capsule) {
                 Row(Modifier.fillMaxWidth(),
                     verticalAlignment=Alignment.CenterVertically,
                     horizontalArrangement=Arrangement.SpaceEvenly) {
@@ -145,6 +150,7 @@ import kotlinx.coroutines.launch
                             Text(if(saving)"Saving…" else "Save photo")
                         }
                     }
+                }
                 }
                 saveFeedback?.let {Text(it,
                     modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp),
