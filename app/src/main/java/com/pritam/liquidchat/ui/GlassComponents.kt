@@ -38,9 +38,14 @@ import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.onFocusChanged
 
-/** Opaque fallback keeps separate popup windows readable without backdrop capture. */
-@Composable internal fun glassPopupColor():Color =
+/** Dialog windows cannot reliably capture the activity's Haze source.
+ * Use a readable translucent fallback rather than an opaque popup block.
+ */
+@Composable internal fun glassPopupColor():Color = if(LocalDisplayOptions.current.reducedTransparency) {
     if(LocalGlassDark.current) Color(0xFF22364B) else Color(0xFFF8FCFF)
+} else {
+    if(LocalGlassDark.current) Color(0xED22364B) else Color(0xEAF8FCFF)
+}
 
 @Composable internal fun LiquidDropdownMenu(
     expanded:Boolean,onDismissRequest:()->Unit,content:@Composable ColumnScope.()->Unit
