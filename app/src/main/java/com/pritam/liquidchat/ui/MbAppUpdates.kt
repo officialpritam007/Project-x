@@ -48,3 +48,40 @@ import com.pritam.liquidchat.BuildConfig
         }
     }
 }
+
+
+/** Public project metadata only: no fabricated payment method, premium plan or identity. */
+@Composable internal fun MbDeveloperInformation() {
+    val context=LocalContext.current
+    var error by remember {mutableStateOf<String?>(null)}
+    fun openVerifiedUrl(url:String) {
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))
+        }.onSuccess {error=null}
+            .onFailure {error="Unable to open the browser on this device."}
+    }
+    GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+        Text("Developer information",style=MaterialTheme.typography.titleLarge)
+        Text("Liquid Chat is developed in the Project X repository. View the public source, releases and issue tracker for authentic project information.",
+            style=MaterialTheme.typography.bodyMedium)
+        Text("Repository: officialpritam007/Project-x",
+            style=MaterialTheme.typography.labelLarge,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+        TextButton(onClick={openVerifiedUrl("https://github.com/officialpritam007")}) {
+            Text("Open developer profile")
+        }
+        TextButton(onClick={openVerifiedUrl("https://github.com/officialpritam007/Project-x")}) {
+            Text("Open source repository")
+        }
+        TextButton(onClick={openVerifiedUrl("https://github.com/officialpritam007/Project-x/issues")}) {
+            Text("Support and issue reports")
+        }
+        error?.let {Text(it,color=MaterialTheme.colorScheme.error)}
+    }
+    GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
+        Text("Donations",style=MaterialTheme.typography.titleMedium)
+        Text("No verified donation destination is configured. This app does not request payments or unlock paid features.",
+            style=MaterialTheme.typography.bodySmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}

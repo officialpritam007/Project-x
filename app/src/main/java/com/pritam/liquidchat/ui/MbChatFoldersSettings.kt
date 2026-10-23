@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +25,16 @@ import com.pritam.liquidchat.AppViewModel
     var folders by remember(account) {mutableStateOf(MbChatFolders.list(context,account))}
     var title by remember(account) {mutableStateOf("")}
     var feedback by remember(account) {mutableStateOf<String?>(null)}
+    var renamingId by remember(account) {mutableStateOf<String?>(null)}
+    var renameText by remember(account) {mutableStateOf("")}
+    var pendingRemoval by remember(account) {mutableStateOf<MbChatFolder?>(null)}
+    var contactQuery by remember(account) {mutableStateOf("")}
     val ownedChats=chats.filter {it.account==account}
+    val matchingChats=ownedChats.filter {chat->
+        val query=contactQuery.trim()
+        query.isEmpty() || chat.name.contains(query,ignoreCase=true) ||
+            chat.username.contains(query,ignoreCase=true)
+    }
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("Chat Folders",style=MaterialTheme.typography.titleLarge)
         Text("Keep selected one-to-one conversations together. Folder membership is private to this account on this phone; your Supabase chats are unchanged.",
@@ -51,10 +61,68 @@ import com.pritam.liquidchat.AppViewModel
         feedback?.let {Text(it,color=MaterialTheme.colorScheme.error,
             style=MaterialTheme.typography.bodySmall)}
     }
+    if(folders.isNotEmpty()) GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
+        OutlinedTextField(
+            value=contactQuery,
+            onValueChange={contactQuery=it.take(80)},
+            label={Text("Find chats to add to a list")},
+            modifier=Modifier.fillMaxWidth(),
+            singleLine=true)
+        Text("${matchingChats.size} of ${ownedChats.size} conversations",
+            style=MaterialTheme.typography.labelSmall,
+            color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     if(folders.isEmpty()) GlassCard(Modifier.fillMaxWidth()) {
         Text("No custom folders yet.")
         Text("Create a folder and select the contacts to show inside it. You can also add chats from a conversation's long-press menu.",
             style=MaterialTheme.typography.bodySmall)
+    }
+    if(renamingId!=null) AlertDialog(
+        onDismissRequest={renamingId=null},
+        title={Text("Rename chat list")},
+        text={
+            Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value=renameText,
+                    onValueChange={renameText=it.take(24)},
+                    label={Text("List name")},
+                    singleLine=true,
+                    modifier=Modifier.fillMaxWidth())
+                Text("Renaming keeps all chats in this list.",
+                    style=MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton={
+            TextButton(
+                enabled=account!=null && renameText.isNotBlank(),
+                onClick={
+                    val owner=account
+                    val id=renamingId
+                    if(owner!=null && id!=null)runCatching {
+                        MbChatFolders.rename(context,owner,id,renameText)
+                    }.onSuccess {folders=it;feedback=null;renamingId=null}
+                        .onFailure {feedback=it.message ?: "Cannot rename list."}
+                }) {Text("Save")}
+        },
+        dismissButton={TextButton(onClick={renamingId=null}) {Text("Cancel")}}
+    )
+    pendingRemoval?.let {folder->
+        AlertDialog(
+            onDismissRequest={pendingRemoval=null},
+            title={Text("Remove ${folder.name}?")},
+            text={Text("This only removes the custom list from this phone. " +
+                "Its ${folder.members.size} selected chats and all messages stay intact.")},
+            confirmButton={
+                TextButton(onClick={
+                    val owner=account
+                    if(owner!=null)runCatching {
+                        MbChatFolders.remove(context,owner,folder.id)
+                    }.onSuccess {folders=it;feedback=null;pendingRemoval=null}
+                        .onFailure {feedback=it.message ?: "Could not remove this list."}
+                },enabled=account!=null) {Text("Remove list")}
+            },
+            dismissButton={TextButton(onClick={pendingRemoval=null}) {Text("Keep list")}}
+        )
     }
     folders.forEach {folder->
         GlassCard(Modifier.fillMaxWidth(),Glass.compact) {
@@ -64,16 +132,20 @@ import com.pritam.liquidchat.AppViewModel
                     Text("${folder.members.size} chats",
                         style=MaterialTheme.typography.labelSmall)
                 }
-                IconButton(onClick={
-                    val owner=account
-                    if(owner!=null)folders=MbChatFolders.remove(context,owner,folder.id)
-                },enabled=account!=null) {
+                IconButton(onClick={renamingId=folder.id;renameText=folder.name},
+                    enabled=account!=null) {
+                    Icon(Icons.Outlined.Edit,"Rename folder")
+                }
+                IconButton(onClick={pendingRemoval=folder},enabled=account!=null) {
                     Icon(Icons.Outlined.DeleteOutline,"Remove folder")
                 }
             }
             if(ownedChats.isEmpty()) Text("Your conversations will appear here.",
                 style=MaterialTheme.typography.bodySmall)
-            ownedChats.forEach {chat->
+            if(contactQuery.isNotBlank() && matchingChats.isEmpty())
+                Text("No matching conversations on this account.",
+                    style=MaterialTheme.typography.bodySmall)
+            matchingChats.forEach {chat->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Checkbox(checked=chat.id in folder.members,
                         onCheckedChange={enabled->

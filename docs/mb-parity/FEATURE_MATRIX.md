@@ -1,5 +1,25 @@
 # Liquid Chat — two-video and original APK parity inventory
 
+## Owner-directed implementation mode — revised 23 October 2026
+
+- Commit source changes **directly to `main`**, with no pull requests, as requested.
+- **Testing and APK delivery are now explicitly authorized**. Run candidate Android unit tests, lint, emulator instrumentation, CI artifact/signature checks and Edge Function source tests; do not quietly suppress failing gates.
+- Production signing, external provider credentials, physical two-phone checks and live database migrations remain separately gated. Never claim production approval without passing those.
+- Keep all unverified acceptance checkboxes open. A source edit, a green compile or an artifact alone is not a verified feature or full parity release.
+- Preserve existing users, data, messaging, calling, media privacy and working navigation. Never insert fake Groups/Communities/Channels or privacy-bypassing controls.
+- Interim source-only commits may retain `[skip ci]`; run an actual full current-main CI after integration for the candidate APK.
+
+### Direct-to-main source progress (unverified)
+
+| Commit | Concrete change | Evidence status |
+| --- | --- | --- |
+| `a3b5ce7` | Search field on Liquid Chat Preferences page | SOURCE ONLY, untested |
+| `ba9ee9b` | Working Settings "What's new?" route and Android share chooser for "Invite a friend" | SOURCE ONLY, untested |
+| `54b6771` | Search keywords for theme, privacy, HD media, notifications, nav, font and settings categories | SOURCE ONLY, untested |
+| `3e444d9` | Actual build version shown in reference Settings footer | SOURCE ONLY, untested |
+
+**Overall scope:** 346 acceptance items across 12 tracks. The items below remain the source-of-truth checklist. Existing implementations are not newly certified. Major dependencies such as actual Communities/Groups/Channels, per-contact server privacy, GIF services, two-phone calling and exact screenshot parity require separate source work or external acceptance. No statement of full completion is made here.
+
 Baseline 2026-10-22; current foundation head before planning: `02f0293f74a60d39602a88dd8f63d16a0c778704`.
 
 **Purpose:** Every observed or user-required option is an independently checkable acceptance item. Sources: both 22 October 2026 owner screen recordings, `docs/MB_REFERENCE_SCREENRECORD_20261022.md`, and `docs/MBWHATSAPP_334_LAYOUT_COVERAGE.md`. Some extended requirements were not opened in recordings; **do not call those video-proven**.

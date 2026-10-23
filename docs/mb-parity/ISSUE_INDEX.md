@@ -1,6 +1,6 @@
 # Liquid Chat — issue and branch tracking index
 
-All issues are real, linked tracking issues. Every `Pxx-nnn` row in [the feature matrix](FEATURE_MATRIX.md) belongs to exactly one track. **None are marked complete merely because the structure exists.** Owner-provided videos and original reference APK are the requirements evidence; unpublished/proprietary behavior must be researched and reimplemented safely.
+Branch baseline: `95c49a241f8d365f830dd6578997668e58360dd2` (12 heads confirmed on 2026-10-22 before workstream-specific commits). All issues are real, linked tracking issues. Every `Pxx-nnn` row in [the feature matrix](FEATURE_MATRIX.md) belongs to exactly one track. **None are marked complete merely because the structure exists.** Owner-provided videos and original reference APK are the requirements evidence; unpublished/proprietary behavior must be researched and reimplemented safely.
 
 Parent issue: [#66 MBWhatsApp parity](https://github.com/officialpritam007/Project-x/issues/66). Release: [#24 final APK](https://github.com/officialpritam007/Project-x/issues/24). CI stability: [#91](https://github.com/officialpritam007/Project-x/issues/91).
 

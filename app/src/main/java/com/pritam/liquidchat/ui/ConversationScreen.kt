@@ -14,6 +14,10 @@ import com.pritam.liquidchat.data.PreparedChatVideo
 import com.pritam.liquidchat.data.ChatVideo
 import com.pritam.liquidchat.data.StoryVideo
 import androidx.compose.ui.focus.onFocusChanged
+import com.pritam.liquidchat.data.SavedMedia
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -26,6 +30,23 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +54,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +65,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,6 +77,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Chat
 import com.pritam.liquidchat.data.Message
@@ -96,6 +128,8 @@ import kotlinx.coroutines.launch
         filterMessageHistory(messages,chatQuery,session?.userId,searchSender,searchMedia,searchPeriod)
     }
     var actionMessage by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    var speechCandidate by remember(cid,session?.userId) {mutableStateOf<Message?>(null)}
+    var spokenMessageId by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     // Long-press menus must close as soon as a message is revoked, hidden,
     // deleted, or an active account switches; never preserve stale payloads.
     LaunchedEffect(messages,actionMessage?.id,session?.userId) {
@@ -153,6 +187,38 @@ import kotlinx.coroutines.launch
         palette=model.repository.palette(cid)
     }
     val context=LocalContext.current
+    // Android TTS may use the installed engine's cloud provider: speaking is
+    // never automatic, and a separate confirmation is required per message.
+    val messageSpeaker=remember(context.applicationContext,cid,session?.userId) {
+        MbMessageReadAloud(context.applicationContext)
+    }
+    val speechLifecycleOwner=LocalLifecycleOwner.current
+    DisposableEffect(messageSpeaker,speechLifecycleOwner) {
+        val observer=LifecycleEventObserver {_,event->
+            if(event==Lifecycle.Event.ON_STOP) {
+                messageSpeaker.stop()
+                spokenMessageId=null
+            }
+        }
+        speechLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            speechLifecycleOwner.lifecycle.removeObserver(observer)
+            messageSpeaker.close()
+        }
+    }
+    LaunchedEffect(messages,speechCandidate?.id,spokenMessageId,session?.userId) {
+        val requested=speechCandidate?.id
+        if(requested!=null && messages.none {
+            it.id==requested && it.account==session?.userId && it.deletedAt.isEmpty()
+        }) speechCandidate=null
+        val speaking=spokenMessageId
+        if(speaking!=null && messages.none {
+            it.id==speaking && it.account==session?.userId && it.deletedAt.isEmpty()
+        }) {
+            messageSpeaker.stop()
+            spokenMessageId=null
+        }
+    }
     val playOutgoingConversationCue=rememberConversationSendCue(
         model,cid,session?.userId,messages,messagesReady==cid,
         chat?.lastSeq ?: 0L,chat?.muted!=false,foreground)
@@ -382,6 +448,20 @@ import kotlinx.coroutines.launch
     var savedStickers by remember(cid,session?.userId) {
         mutableStateOf(StickerLibrary.list(context,session?.userId))
     }
+    var favoriteStickers by remember(cid,session?.userId) {
+        mutableStateOf(StickerLibrary.favoriteNames(context,session?.userId))
+    }
+    var recentStickers by remember(cid,session?.userId) {
+        mutableStateOf(StickerLibrary.recent(context,session?.userId))
+    }
+    var stickerShelfFilter by remember(cid,session?.userId) {mutableStateOf("All")}
+    LaunchedEffect(stickerLibraryOpen,session?.userId) {
+        if(stickerLibraryOpen) {
+            savedStickers=StickerLibrary.list(context,session?.userId)
+            favoriteStickers=StickerLibrary.favoriteNames(context,session?.userId)
+            recentStickers=StickerLibrary.recent(context,session?.userId)
+        }
+    }
     var stickerNotice by remember(cid,session?.userId) {mutableStateOf<String?>(null)}
     var confirmSavedSticker by remember(cid,session?.userId) {mutableStateOf<java.io.File?>(null)}
     var sendingSavedSticker by remember(cid,session?.userId) {mutableStateOf(false)}
@@ -400,6 +480,11 @@ import kotlinx.coroutines.launch
                         "Conversation or account changed."
                     }
                     model.repository.sendSticker(cid,outgoing)
+                    // The send is already queued. A metadata storage error must
+                    // never report the actual message as unsent or retry it.
+                    runCatching {StickerLibrary.markUsed(context,owner,file)}
+                    if(model.session.value?.userId==owner)
+                        recentStickers=StickerLibrary.recent(context,owner)
                     confirmSavedSticker=null
                     stickerLibraryOpen=false
                 } catch(e:Exception) {
@@ -578,6 +663,10 @@ import kotlinx.coroutines.launch
         wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current))) {
         val owner=session?.userId
         if(palette=="Video" && owner!=null) {
+        if(display.showWallpaper) wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current)
+        else androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)))) {
+        val owner=session?.userId
+        if(display.showWallpaper && palette=="Video" && owner!=null) {
             val videoFile=remember(owner,cid,wallpaperRevision) {
                 runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,cid)}
                     .getOrNull()
@@ -590,6 +679,7 @@ import kotlinx.coroutines.launch
             }
         }
         if(palette=="Photo" && owner!=null) {
+        if(display.showWallpaper && palette=="Photo" && owner!=null) {
             val photoFile=remember(owner,cid,wallpaperRevision) {
                 runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}.getOrNull()
             }
@@ -1025,6 +1115,12 @@ import kotlinx.coroutines.launch
         val text=body.replaceRange(start,end,emoji)
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
     },onDismiss={emojiPicker=false})
+    },onDismiss={emojiPicker=false},onSavedStickers={
+        emojiPicker=false
+        savedStickers=StickerLibrary.list(context,session?.userId)
+        stickerNotice=null
+        stickerLibraryOpen=true
+    })
     if(scheduleOpen) LiquidAlertDialog(
         onDismissRequest={scheduleOpen=false;scheduleEditingId=null},
         title={Text(if(scheduleEditingId==null)"Schedule a message" else "Edit scheduled message")},
@@ -1337,6 +1433,27 @@ import kotlinx.coroutines.launch
         }},
         confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}}
     )
+    speechCandidate?.let {candidate->
+        LiquidAlertDialog(
+            onDismissRequest={speechCandidate=null},
+            title={Text("Read this message aloud?")},
+            text={Text("Android's installed speech engine will receive up to 2,000 " +
+                "characters of this message. Some speech engines use online services. " +
+                "Only continue if you consent to that processing.")},
+            confirmButton={TextButton(onClick={
+                val fresh=messages.firstOrNull {
+                    it.id==candidate.id && it.account==session?.userId &&
+                        it.deletedAt.isEmpty() && it.body.isNotBlank()
+                }
+                speechCandidate=null
+                if(fresh!=null) {
+                    messageSpeaker.speak(fresh.body)
+                    spokenMessageId=fresh.id
+                }
+            }) {Text("Read aloud")}},
+            dismissButton={TextButton(onClick={speechCandidate=null}) {Text("Cancel")}}
+        )
+    }
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
         // One native set of actions, two presentations. The reference APK
@@ -1427,6 +1544,17 @@ import kotlinx.coroutines.launch
                                 Spacer(Modifier.width(8.dp))
                                 Text("Save to My stickers")
                             }
+                        }
+                        if(m.body.isNotBlank() && m.deletedAt.isEmpty()) {
+                            GlassActionRow("Read text aloud",Icons.Outlined.RecordVoiceOver,
+                                onClick={speechCandidate=m;actionMessage=null})
+                            if(spokenMessageId!=null) GlassActionRow(
+                                "Stop reading",Icons.Outlined.VolumeOff,
+                                onClick={
+                                    messageSpeaker.stop()
+                                    spokenMessageId=null
+                                    actionMessage=null
+                                })
                         }
                         if(m.mediaKind=="image" && m.body.isNotBlank())GlassActionRow(
                             "Copy text",Icons.Outlined.ContentCopy,onClick={
@@ -1705,6 +1833,51 @@ import kotlinx.coroutines.launch
                 Text("No saved stickers. Choose Create sticker to make one.")
             MbSavedStickerShelf(
                 stickers=savedStickers,enabled=!busy&&!sendingSavedSticker,
+            OutlinedButton(
+                onClick={
+                    stickerLibraryOpen=false
+                    stickerPicker.launch("image/*")
+                },
+                enabled=!busy&&!sendingSavedSticker,
+                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)
+            ) {
+                Icon(Icons.Outlined.AddPhotoAlternate,contentDescription=null)
+                Spacer(Modifier.width(8.dp))
+                Text("Create sticker from photo")
+            }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                listOf("All","Recent","Favorites").forEach {tab->
+                    FilterChip(
+                        selected=stickerShelfFilter==tab,
+                        onClick={stickerShelfFilter=tab},
+                        label={Text(tab)},
+                        modifier=Modifier.weight(1f)
+                    )
+                }
+            }
+            val visibleStickers=when(stickerShelfFilter) {
+                "Recent"->recentStickers
+                "Favorites"->savedStickers.filter {it.name in favoriteStickers}
+                else->savedStickers
+            }
+            if(visibleStickers.isEmpty())
+                Text(when(stickerShelfFilter) {
+                    "Recent"->"No recently sent stickers on this account."
+                    "Favorites"->"Tap the star on a saved sticker to add a favorite."
+                    else->"No saved stickers. Choose Create sticker to make one."
+                })
+            MbSavedStickerShelf(
+                stickers=visibleStickers,enabled=!busy&&!sendingSavedSticker,
+                favorites=favoriteStickers,
+                onToggleFavorite={file->
+                    val owner=session?.userId
+                    if(owner!=null)runCatching {
+                        StickerLibrary.setFavorite(context,owner,file,
+                            file.name !in favoriteStickers)
+                        StickerLibrary.favoriteNames(context,owner)
+                    }.onSuccess {favoriteStickers=it;stickerNotice=null}
+                        .onFailure {stickerNotice=it.message ?: "Cannot update favorite."}
+                },
                 onSend={file->
                     if(display.confirmSavedStickerSend)confirmSavedSticker=file
                     else sendSavedSticker(file)
@@ -1714,6 +1887,8 @@ import kotlinx.coroutines.launch
                     if(owner!=null)runCatching {
                         StickerLibrary.remove(context,owner,file)
                         savedStickers=StickerLibrary.list(context,owner)
+                        favoriteStickers=StickerLibrary.favoriteNames(context,owner)
+                        recentStickers=StickerLibrary.recent(context,owner)
                     }.onFailure {stickerNotice=it.message ?: "Could not remove sticker."}
                 }
             )
