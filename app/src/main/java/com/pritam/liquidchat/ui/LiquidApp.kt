@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,7 +68,7 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
         // when the user overrides Android's system dark/light appearance.
         val chromeView=androidx.compose.ui.platform.LocalView.current
         val chromeBackground=MaterialTheme.colorScheme.background
-        val chromeDarkIcons=androidx.compose.ui.graphics.luminance(chromeBackground)>.5f
+        val chromeDarkIcons=chromeBackground.luminance()>.5f
         SideEffect {
             (context as? android.app.Activity)?.window?.let {window->
                 val bars=androidx.core.view.WindowCompat.getInsetsController(window,chromeView)
