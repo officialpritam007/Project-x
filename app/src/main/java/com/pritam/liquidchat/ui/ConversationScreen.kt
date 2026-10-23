@@ -1454,6 +1454,7 @@ import kotlinx.coroutines.launch
     }
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
+        var expandedMessageActions by remember(m.id) {mutableStateOf(false)}
         // One native set of actions, two presentations. The reference APK
         // uses a bottom action menu; Liquid style retains the old alert.
         val actionContents: @Composable ColumnScope.() -> Unit = {
@@ -1482,6 +1483,12 @@ import kotlinx.coroutines.launch
                         HorizontalDivider()
                     }
                     if("Message actions" in categories) {
+                        if(m.body.isNotBlank() && m.deletedAt.isEmpty()
+                            && m.mediaKind!="image") GlassActionRow(
+                            "Copy text",Icons.Outlined.ContentCopy,onClick={
+                                clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)))
+                                actionMessage=null
+                            })
                         Text("Message actions",style=MaterialTheme.typography.labelMedium,
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
                         if(m.status=="SENT" && m.editedAt.isNotEmpty() &&
@@ -1593,19 +1600,48 @@ import kotlinx.coroutines.launch
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
 
         }
-        if(display.navBarStyle=="Reference") {
+        if(expandedMessageActions) {
             LiquidActionSheet(title="Message actions",onDismiss={actionMessage=null}) {
                 actionContents()
             }
-        } else LiquidAlertDialog(
-            onDismissRequest={actionMessage=null},
-            title={Text("Message actions")},
-            text={Column(Modifier.fillMaxWidth().heightIn(max=470.dp)
-                .verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                actionContents()
-            }},
-            confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}}
+        } else CompactMessageActionMenu(
+            preview=m.body.takeIf {m.deletedAt.isEmpty() && it.isNotBlank()},
+            reactions=if("Quick reactions" in categories)
+                MbQuickReactions.selected(display.quickReactions) else emptyList(),
+            canReply=m.status=="SENT" && m.deletedAt.isEmpty(),
+            canCopy=m.body.isNotBlank() && m.deletedAt.isEmpty(),
+            canForward=canForwardTextMessage(m,session?.userId),
+            canStar=m.status=="SENT" && m.deletedAt.isEmpty(),
+            starred=m.starred,
+            canDelete=m.status in listOf("SENT","QUEUED","FAILED"),
+            onReact={emoji->
+                actionMessage=null
+                model.action {
+                    val previous=runCatching {
+                        org.json.JSONObject(m.reactions).optString(m.account)
+                    }.getOrDefault("")
+                    model.repository.messageAction(m.id,"react",
+                        if(previous==emoji)"" else emoji)
+                }
+            },
+            onReply={
+                replyTo=m.id
+                draftVersion=model.repository.saveDraft(cid,body,replyTo)
+                actionMessage=null
+            },
+            onCopy={
+                clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)))
+                actionMessage=null
+            },
+            onForward={actionMessage=null;forwardMessages=listOf(m);forwardSearch=""},
+            onStar={
+                actionMessage=null
+                model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}
+            },
+            onSelect={actionMessage=null;selectedIds=setOf(m.id)},
+            onDelete={deleteMessage=m;actionMessage=null},
+            onMore={expandedMessageActions=true},
+            onDismiss={actionMessage=null}
         )
     }
     forwardMessages.takeIf {it.isNotEmpty()}?.let {batch->
