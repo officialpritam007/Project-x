@@ -15,7 +15,6 @@ import com.pritam.liquidchat.data.ChatVideo
 import com.pritam.liquidchat.data.StoryVideo
 import androidx.compose.ui.focus.onFocusChanged
 import com.pritam.liquidchat.data.SavedMedia
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,9 +32,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -55,7 +52,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
@@ -78,9 +74,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -660,11 +653,9 @@ import kotlinx.coroutines.launch
     }
     Box(Modifier.fillMaxSize()) {
     Box(Modifier.matchParentSize().glassSource(.5f).background(
-        wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current))) {
-        val owner=session?.userId
-        if(palette=="Video" && owner!=null) {
         if(display.showWallpaper) wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current)
-        else androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)))) {
+        else androidx.compose.ui.graphics.Brush.linearGradient(listOf(
+            MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)))) {
         val owner=session?.userId
         if(display.showWallpaper && palette=="Video" && owner!=null) {
             val videoFile=remember(owner,cid,wallpaperRevision) {
@@ -678,7 +669,6 @@ import kotlinx.coroutines.launch
                     else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))))
             }
         }
-        if(palette=="Photo" && owner!=null) {
         if(display.showWallpaper && palette=="Photo" && owner!=null) {
             val photoFile=remember(owner,cid,wallpaperRevision) {
                 runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}.getOrNull()
@@ -1114,7 +1104,6 @@ import kotlinx.coroutines.launch
         val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
         val text=body.replaceRange(start,end,emoji)
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
-    },onDismiss={emojiPicker=false})
     },onDismiss={emojiPicker=false},onSavedStickers={
         emojiPicker=false
         savedStickers=StickerLibrary.list(context,session?.userId)
@@ -1831,8 +1820,6 @@ import kotlinx.coroutines.launch
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(savedStickers.isEmpty())
                 Text("No saved stickers. Choose Create sticker to make one.")
-            MbSavedStickerShelf(
-                stickers=savedStickers,enabled=!busy&&!sendingSavedSticker,
             OutlinedButton(
                 onClick={
                     stickerLibraryOpen=false
