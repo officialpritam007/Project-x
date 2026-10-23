@@ -1,0 +1,54 @@
+name: Downloadable current debug APK
+on:
+  push:
+    branches: [build/debug-apk-2026-10-23]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  debug-apk:
+    name: Assemble installable debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ENABLE_EXPERIMENTAL_CALLS: 'true'
+      FCM_APP_ID: ${{ vars.FCM_APP_ID }}
+      FCM_PROJECT_ID: ${{ vars.FCM_PROJECT_ID }}
+      FCM_API_KEY: ${{ vars.FCM_API_KEY }}
+      FCM_SENDER_ID: ${{ vars.FCM_SENDER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - name: Setup Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Build debug APK
+        run: ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process :app:assembleDebug
+      - name: Verify signed debug APK and record provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+          mkdir -p apk-download
+          cp "$APK" apk-download/Liquid-Chat-current-debug.apk
+          git rev-parse HEAD > apk-download/build-commit.txt
+          git rev-parse HEAD^ > apk-download/original-main-commit.txt
+          sha256sum apk-download/Liquid-Chat-current-debug.apk > apk-download/sha256.txt
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Liquid-Chat-current-debug
+          path: apk-download/
+          retention-days: 14
+          if-no-files-found: error
