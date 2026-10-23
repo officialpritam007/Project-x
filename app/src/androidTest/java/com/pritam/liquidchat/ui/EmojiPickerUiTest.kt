@@ -8,28 +8,17 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/** Tests the AndroidX picker integration, not the legacy hardcoded category bar. */
 @RunWith(AndroidJUnit4::class)
 class EmojiPickerUiTest {
     @get:Rule val compose=createComposeRule()
 
-    @Test fun allEightReferenceCategoriesAreReachableWithoutHorizontalClipping() {
+    @Test fun officialEmojiPickerIsEmbeddedWithNavigationAndSearch() {
         compose.setContent {LiquidTheme(false) {EmojiPicker(onEmoji={},onDismiss={})}}
-        val categories=listOf(
-            "Smileys & People","Animals & Nature","Food","Activities",
-            "Travel & Places","Objects","Symbols","Flags"
-        )
-        categories.forEachIndexed {index,label->
-            compose.onNodeWithTag("emoji-categories").performScrollToIndex(index)
-            compose.onNodeWithText(label,substring=true).assertIsDisplayed()
-        }
-    }
-
-    @Test fun explicitSkinToneSelectionIsVisibleAndNotAppliedWithoutTapping() {
-        compose.setContent {LiquidTheme(false) {EmojiPicker(onEmoji={},onDismiss={})}}
-        compose.onNodeWithTag("emoji-tone-0").assertIsSelected()
-        compose.onNodeWithTag("emoji-tone-3").performClick()
-        compose.onNodeWithTag("emoji-tone-3").assertIsSelected()
-        compose.onNodeWithTag("emoji-tone-0").assertIsNotSelected()
+        // AndroidView owns the category navigation and native long-press variants.
+        // Compose must still expose the host, without relying on internal View ids.
+        compose.onNodeWithTag("emoji-categories").assertExists()
+        compose.onNodeWithTag("emoji-search").assertIsDisplayed()
     }
 
     @Test fun stickerTabOpensExistingLibraryWithoutSendingAutomatically() {
@@ -37,11 +26,8 @@ class EmojiPickerUiTest {
         var inserted=0
         compose.setContent {
             LiquidTheme(false) {
-                EmojiPicker(
-                    onEmoji={inserted++},
-                    onDismiss={},
-                    onSavedStickers={opens++}
-                )
+                EmojiPicker(onEmoji={inserted++},onDismiss={},
+                    onSavedStickers={opens++})
             }
         }
         compose.onNodeWithTag("stickers-tab").assertIsDisplayed().performClick()
@@ -51,7 +37,7 @@ class EmojiPickerUiTest {
         }
     }
 
-    @Test fun searchFindsOtherCategoryEmojiAndReportsNoResults() {
+    @Test fun localSearchFindsOtherCategoryEmojiAndReportsNoResults() {
         compose.setContent {LiquidTheme(false) {EmojiPicker(onEmoji={},onDismiss={})}}
         compose.onNodeWithTag("emoji-search").performTextInput("football")
         compose.onNodeWithText("⚽").assertExists()
@@ -59,5 +45,15 @@ class EmojiPickerUiTest {
         compose.onNodeWithTag("emoji-search").performTextClearance()
         compose.onNodeWithTag("emoji-search").performTextInput("not-a-real-emoji-term")
         compose.onNodeWithText("No matching emoji").assertExists()
+    }
+
+    @Test fun tappingSearchResultInsertsExactlyOneEmoji() {
+        val selected=mutableListOf<String>()
+        compose.setContent {LiquidTheme(false) {
+            EmojiPicker(onEmoji={selected.add(it)},onDismiss={},accountKey="test-fixture")
+        }}
+        compose.onNodeWithTag("emoji-search").performTextInput("football")
+        compose.onNodeWithText("⚽").performClick()
+        compose.runOnIdle {assertEquals(listOf("⚽"),selected)}
     }
 }

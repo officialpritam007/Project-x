@@ -57,8 +57,8 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
                 onFinished={playing=false},
                 modifier=Modifier.fillMaxWidth().height(220.dp))
         } else {
-            Surface(color=MaterialTheme.colorScheme.surfaceVariant,
-                shape=Glass.compact,modifier=Modifier.fillMaxWidth().height(130.dp)) {
+            GlassSurface(modifier=Modifier.fillMaxWidth().height(130.dp),
+                shape=Glass.compact) {
                 Box(contentAlignment=Alignment.Center) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.Videocam,"Private video",Modifier.size(38.dp))

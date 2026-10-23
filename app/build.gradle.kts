@@ -64,6 +64,9 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
     implementation("dev.chrisbanes.haze:haze:1.5.4")
+    // Official Android emoji grid: categories, skin-tone variants and recent emoji.
+    // 1.6.0 stays compatible with this project's compileSdk 36.
+    implementation("androidx.emoji2:emoji2-emojipicker:1.6.0")
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.11.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

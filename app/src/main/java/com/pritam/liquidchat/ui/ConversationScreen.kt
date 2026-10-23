@@ -15,7 +15,6 @@ import com.pritam.liquidchat.data.ChatVideo
 import com.pritam.liquidchat.data.StoryVideo
 import androidx.compose.ui.focus.onFocusChanged
 import com.pritam.liquidchat.data.SavedMedia
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,9 +32,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -55,7 +52,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
@@ -72,15 +68,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -659,130 +653,56 @@ import kotlinx.coroutines.launch
         } finally {kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {runCatching {model.repository.typing(cid,false)}}}
     }
     Box(Modifier.fillMaxSize()) {
-    Box(Modifier.matchParentSize().glassSource(.5f).background(
-        wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current))) {
         val owner=session?.userId
-        if(palette=="Video" && owner!=null) {
-        if(display.showWallpaper) wallpaper(if(palette=="Photo" || palette=="Video")"Ice" else palette,LocalGlassDark.current)
-        else androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)))) {
-        val owner=session?.userId
-        if(display.showWallpaper && palette=="Video" && owner!=null) {
-            val videoFile=remember(owner,cid,wallpaperRevision) {
-                runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,cid)}
-                    .getOrNull()
-            }
-            if(videoFile?.isFile==true) {
-                LocalVideoWallpaper(videoFile,foreground,wallpaperRevision,Modifier.matchParentSize())
-                Box(Modifier.matchParentSize().background(
-                    if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
-                    else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))))
-            }
-        }
-        if(palette=="Photo" && owner!=null) {
-        if(display.showWallpaper && palette=="Photo" && owner!=null) {
-            val photoFile=remember(owner,cid,wallpaperRevision) {
-                runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}.getOrNull()
-            }
-            if(photoFile?.isFile==true) {
-                val request=remember(photoFile,wallpaperRevision) {
-                    coil.request.ImageRequest.Builder(context).data(photoFile)
-                        .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
-                        .diskCachePolicy(coil.request.CachePolicy.DISABLED).build()
+        val backgroundBrush=if(display.showWallpaper)
+            wallpaper(if(palette=="Photo" || palette=="Video") "Ice" else palette,LocalGlassDark.current)
+        else androidx.compose.ui.graphics.Brush.linearGradient(
+            listOf(MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)
+        )
+        Box(Modifier.matchParentSize().glassSource(.5f).background(backgroundBrush)) {
+            if(display.showWallpaper && palette=="Video" && owner!=null) {
+                val videoFile=remember(owner,cid,wallpaperRevision) {
+                    runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,cid)}
+                        .getOrNull()
                 }
-                coil.compose.AsyncImage(model=request,contentDescription=null,
-                    contentScale=androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier=Modifier.matchParentSize())
-                Box(Modifier.matchParentSize().background(
-                    if(LocalGlassDark.current)Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
-                    else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))))
+                if(videoFile?.isFile==true) {
+                    LocalVideoWallpaper(videoFile,foreground,wallpaperRevision,Modifier.matchParentSize())
+                    Box(Modifier.matchParentSize().background(
+                        if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
+                        else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
+                    ))
+                }
             }
-        }
-    }
-    Column(Modifier.fillMaxSize().imePadding()) {
-        // Visual-only presentation choice; keep the existing actions and call state intact.
-        val headerIconTint=if(chatAccent!="Follow")chatAccentColor else when(display.chatHeaderIconColor) {
-            "Accent"->MaterialTheme.colorScheme.primary
-            "Text"->MaterialTheme.colorScheme.onSurface
-            else->LocalContentColor.current
-        }
-        // Keep every existing authenticated action; reconstruct only visual chrome.
-        // The reference home toolbar has a compact 47dp content band, while
-        // the original Liquid alternative retains its capsule and margins.
-        val referenceChrome=referenceListUsesFlatRows(display)
-        GlassChromeSurface(
-            Modifier.fillMaxWidth().padding(
-                horizontal=if(referenceChrome)0.dp else 8.dp,
-                vertical=if(referenceChrome)0.dp else 3.dp),
-            if(referenceChrome)Glass.compact else Glass.capsule
-        ) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min=if(referenceChrome)47.dp else 0.dp)
-                .padding(horizontal=if(referenceChrome)0.dp else 4.dp,
-                    vertical=if(referenceChrome)0.dp else 2.dp),
-            verticalAlignment=Alignment.CenterVertically) {
-            IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats",tint=headerIconTint)}
-            if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
-            Column(Modifier.weight(1f).padding(horizontal=8.dp).clickable {details=true}) {Text(chat?.name ?: "Conversation",maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleMedium.copy(fontSize=display.chatHeaderNameSize.sp));Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis)}
-            if(chat!=null && com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) {
-                IconButton(onClick={requestCall("audio")}) {Icon(Icons.Outlined.Call,"Start voice call",tint=headerIconTint)}
-                IconButton(onClick={requestCall("video")}) {Icon(Icons.Outlined.Videocam,"Start video call",tint=headerIconTint)}
-            }
-            Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options",tint=headerIconTint)}
-                if(menu)LiquidActionSheet(title=chat?.name ?: "Conversation",onDismiss={menu=false}) {
-                    chat?.let { c->
-                        GlassActionRow("Contact details & shared media",Icons.Outlined.Person,
-                            onClick={menu=false;details=true})
-                        GlassActionRow("Search conversation",Icons.Outlined.Search,
-                            onClick={menu=false;searchOpen=true})
-                        GlassActionRow("Quick replies",Icons.Outlined.ChatBubbleOutline,
-                            onClick={menu=false;quickRepliesOpen=true})
-                        GlassActionRow("Schedule message",Icons.Outlined.Schedule,
-                            onClick={
-                                menu=false
-                                scheduleEditingId=null
-                                scheduleBody=body
-                                scheduleReplyTo=replyTo
-                                scheduleDraftVersion=draftVersion
-                                scheduleAt=System.currentTimeMillis()+3_600_000L
-                                scheduleOpen=true
-                            })
-                        GlassActionRow("Scheduled messages (${scheduledTexts.size})",Icons.Outlined.Event,
-                            onClick={menu=false;schedulesOpen=true})
-                        GlassActionRow("Export chat text",Icons.Outlined.FileUpload,
-                            onClick={
-                                menu=false
-                                exportOwner=session?.userId
-                                if(exportOwner!=null)exportChatText.launch("LiquidChat-Chat.txt")
-                            })
-                        GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
-                            onClick={menu=false;starsOpen=true})
-                        GlassActionRow("Custom notifications",Icons.Outlined.Notifications,
-                            onClick={menu=false;notificationsOpen=true})
-                        HorizontalDivider(Modifier.padding(vertical=8.dp))
-                        GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
-                            onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
-                        GlassActionRow("Chat appearance",Icons.Outlined.Wallpaper,onClick={menu=false;appearance=true})
-                        GlassActionRow(if(c.favorite)"Remove favorite" else "Favorite",Icons.Outlined.StarOutline,
-                            onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
-                        GlassActionRow(if(c.archived)"Unarchive" else "Archive",Icons.Outlined.Archive,
-                            onClick={menu=false;model.updateChat(c,archived=!c.archived)})
-                        GlassActionRow(if(c.muted)"Unmute" else "Mute",Icons.Outlined.NotificationsOff,
-                            onClick={menu=false;model.updateChat(c,muted=!c.muted)})
-                        HorizontalDivider(Modifier.padding(vertical=8.dp))
-                        GlassActionRow(blockActionLabel(ownedBlock),Icons.Outlined.Block,
-                            enabled=ownedBlock!=null && !busy,onClick={
-                                val blocked=ownedBlock
-                                if(blocked!=null) {menu=false;ownedBlock=null;model.block(c.peer,!blocked)}
-                            })
-                        GlassActionRow("Report contact",Icons.Outlined.Flag,
-                            onClick={menu=false;reportMessage=null;report=true})
-                        GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
-                            destructive=true,onClick={menu=false;confirmDelete=true})
+            if(display.showWallpaper && palette=="Photo" && owner!=null) {
+                val photoFile=remember(owner,cid,wallpaperRevision) {
+                    runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}
+                        .getOrNull()
+                }
+                if(photoFile?.isFile==true) {
+                    val request=remember(photoFile,wallpaperRevision) {
+                        coil.request.ImageRequest.Builder(context).data(photoFile)
+                            .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                            .diskCachePolicy(coil.request.CachePolicy.DISABLED).build()
                     }
+                    coil.compose.AsyncImage(model=request,contentDescription=null,
+                        contentScale=androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier=Modifier.matchParentSize())
+                    Box(Modifier.matchParentSize().background(
+                        if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
+                        else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
+                    ))
                 }
             }
         }
-        }
+    // The timeline respects the real heights of independently floating chrome.
+    Box(Modifier.fillMaxSize().imePadding()) {
+        var floatingHeaderHeight by remember(cid) {mutableIntStateOf(0)}
+        var floatingComposerHeight by remember(cid) {mutableIntStateOf(0)}
+        val density=LocalDensity.current
+        val headerSpace=if(floatingHeaderHeight>0)with(density) {floatingHeaderHeight.toDp()} else 80.dp
+        val composerSpace=if(floatingComposerHeight>0)with(density) {floatingComposerHeight.toDp()} else 82.dp
+        Column(Modifier.fillMaxSize()) {
+            Spacer(Modifier.height(headerSpace))
         if(searchOpen) GlassSurface(
             Modifier.fillMaxWidth().padding(horizontal=if(referenceListUsesFlatRows(display))0.dp else 8.dp),
             if(referenceListUsesFlatRows(display))Glass.compact else Glass.card
@@ -901,14 +821,101 @@ import kotlinx.coroutines.launch
                 IconButton(onClick={replyTo="";draftVersion=model.repository.saveDraft(cid,body)}) {Icon(Icons.Outlined.Close,"Cancel reply")}
             }
         }
+            Spacer(Modifier.height(composerSpace))
+        }
+        Box(Modifier.align(Alignment.TopCenter).zIndex(2f)
+            .onSizeChanged {if(floatingHeaderHeight!=it.height)floatingHeaderHeight=it.height}) {
+        // Visual-only presentation choice; keep the existing actions and call state intact.
+        val headerIconTint=if(chatAccent!="Follow")chatAccentColor else when(display.chatHeaderIconColor) {
+            "Accent"->MaterialTheme.colorScheme.primary
+            "Text"->MaterialTheme.colorScheme.onSurface
+            else->LocalContentColor.current
+        }
+        // Keep every existing authenticated action; reconstruct only visual chrome.
+        // The reference home toolbar has a compact 47dp content band, while
+        // the original Liquid alternative retains its capsule and margins.
+        val referenceChrome=referenceListUsesFlatRows(display)
+        GlassChromeSurface(
+            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),
+            Glass.capsule
+        ) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min=if(referenceChrome)47.dp else 0.dp)
+                .padding(horizontal=if(referenceChrome)0.dp else 4.dp,
+                    vertical=if(referenceChrome)0.dp else 2.dp),
+            verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=model::closeChat) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to chats",tint=headerIconTint)}
+            if(chat!=null) Box(Modifier.clickable {details=true}) {Avatar(chat.name,chat.avatarId,model.backend)}
+            Column(Modifier.weight(1f).padding(horizontal=8.dp).clickable {details=true}) {Text(chat?.name ?: "Conversation",maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleMedium.copy(fontSize=display.chatHeaderNameSize.sp));Text(when {contact.optBoolean("online")->"Online";!contact.isNull("last_seen")&&contact.has("last_seen")->"Last seen "+runCatching {java.time.Instant.parse(contact.getString("last_seen")).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))}.getOrDefault("");else->chat?.username?.let {"@$it"}.orEmpty()},style=MaterialTheme.typography.bodySmall,maxLines=1,overflow=TextOverflow.Ellipsis)}
+            if(chat!=null && com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS) {
+                IconButton(onClick={requestCall("audio")}) {Icon(Icons.Outlined.Call,"Start voice call",tint=headerIconTint)}
+                IconButton(onClick={requestCall("video")}) {Icon(Icons.Outlined.Videocam,"Start video call",tint=headerIconTint)}
+            }
+            Box {IconButton(onClick={menu=true}) {Icon(Icons.Outlined.MoreVert,"Conversation options",tint=headerIconTint)}
+                if(menu)LiquidActionSheet(title=chat?.name ?: "Conversation",onDismiss={menu=false}) {
+                    chat?.let { c->
+                        GlassActionRow("Contact details & shared media",Icons.Outlined.Person,
+                            onClick={menu=false;details=true})
+                        GlassActionRow("Search conversation",Icons.Outlined.Search,
+                            onClick={menu=false;searchOpen=true})
+                        GlassActionRow("Quick replies",Icons.Outlined.ChatBubbleOutline,
+                            onClick={menu=false;quickRepliesOpen=true})
+                        GlassActionRow("Schedule message",Icons.Outlined.Schedule,
+                            onClick={
+                                menu=false
+                                scheduleEditingId=null
+                                scheduleBody=body
+                                scheduleReplyTo=replyTo
+                                scheduleDraftVersion=draftVersion
+                                scheduleAt=System.currentTimeMillis()+3_600_000L
+                                scheduleOpen=true
+                            })
+                        GlassActionRow("Scheduled messages (${scheduledTexts.size})",Icons.Outlined.Event,
+                            onClick={menu=false;schedulesOpen=true})
+                        GlassActionRow("Export chat text",Icons.Outlined.FileUpload,
+                            onClick={
+                                menu=false
+                                exportOwner=session?.userId
+                                if(exportOwner!=null)exportChatText.launch("LiquidChat-Chat.txt")
+                            })
+                        GlassActionRow("Starred messages",Icons.Outlined.StarOutline,
+                            onClick={menu=false;starsOpen=true})
+                        GlassActionRow("Custom notifications",Icons.Outlined.Notifications,
+                            onClick={menu=false;notificationsOpen=true})
+                        HorizontalDivider(Modifier.padding(vertical=8.dp))
+                        GlassActionRow(if(c.pinnedAt>0)"Unpin" else "Pin",Icons.Outlined.PushPin,
+                            onClick={menu=false;model.action {model.repository.chatAction(c.id,"pin",c.pinnedAt==0L)}})
+                        GlassActionRow("Chat appearance",Icons.Outlined.Wallpaper,onClick={menu=false;appearance=true})
+                        GlassActionRow(if(c.favorite)"Remove favorite" else "Favorite",Icons.Outlined.StarOutline,
+                            onClick={menu=false;model.updateChat(c,favorite=!c.favorite)})
+                        GlassActionRow(if(c.archived)"Unarchive" else "Archive",Icons.Outlined.Archive,
+                            onClick={menu=false;model.updateChat(c,archived=!c.archived)})
+                        GlassActionRow(if(c.muted)"Unmute" else "Mute",Icons.Outlined.NotificationsOff,
+                            onClick={menu=false;model.updateChat(c,muted=!c.muted)})
+                        HorizontalDivider(Modifier.padding(vertical=8.dp))
+                        GlassActionRow(blockActionLabel(ownedBlock),Icons.Outlined.Block,
+                            enabled=ownedBlock!=null && !busy,onClick={
+                                val blocked=ownedBlock
+                                if(blocked!=null) {menu=false;ownedBlock=null;model.block(c.peer,!blocked)}
+                            })
+                        GlassActionRow("Report contact",Icons.Outlined.Flag,
+                            onClick={menu=false;reportMessage=null;report=true})
+                        GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
+                            destructive=true,onClick={menu=false;confirmDelete=true})
+                    }
+                }
+            }
+        }
+        }
+        }
+        Box(Modifier.align(Alignment.BottomCenter).zIndex(2f)
+            .onSizeChanged {if(floatingComposerHeight!=it.height)floatingComposerHeight=it.height}) {
         // Reference mode keeps the composer flush with the conversation edge.
         // No changes to draft revisions, keyboard focus, voice lock or send state.
         val referenceComposer=referenceListUsesFlatRows(display)
         GlassChromeSurface(
-            Modifier.fillMaxWidth().padding(
-                horizontal=if(referenceComposer)0.dp else 8.dp,
-                vertical=if(referenceComposer)2.dp else 8.dp),
-            if(referenceComposer)Glass.compact else Glass.capsule
+            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),
+            Glass.capsule
         ) {
             Row(Modifier.fillMaxWidth().padding(
                 horizontal=if(referenceComposer)8.dp else 4.dp,
@@ -941,6 +948,7 @@ import kotlinx.coroutines.launch
                              else if(LocalGlassDark.current)Color.Black else Color.White)
                 }
             }
+        }
         }
     }
 
@@ -1111,16 +1119,16 @@ import kotlinx.coroutines.launch
 
     }
     if(emojiPicker)EmojiPicker(onEmoji={emoji->
-        val start=minOf(input.selection.start,input.selection.end);val end=maxOf(input.selection.start,input.selection.end)
+        val start=minOf(input.selection.start,input.selection.end)
+        val end=maxOf(input.selection.start,input.selection.end)
         val text=body.replaceRange(start,end,emoji)
         if(text.length<=4000)updateInput(TextFieldValue(text,TextRange(start+emoji.length)))
-    },onDismiss={emojiPicker=false})
     },onDismiss={emojiPicker=false},onSavedStickers={
         emojiPicker=false
         savedStickers=StickerLibrary.list(context,session?.userId)
         stickerNotice=null
         stickerLibraryOpen=true
-    })
+    },accountKey=session?.userId.orEmpty())
     if(scheduleOpen) LiquidAlertDialog(
         onDismissRequest={scheduleOpen=false;scheduleEditingId=null},
         title={Text(if(scheduleEditingId==null)"Schedule a message" else "Edit scheduled message")},
@@ -1456,6 +1464,7 @@ import kotlinx.coroutines.launch
     }
     actionMessage?.let {m->
         val categories=messageActionCategories(m)
+        var expandedMessageActions by remember(m.id) {mutableStateOf(false)}
         // One native set of actions, two presentations. The reference APK
         // uses a bottom action menu; Liquid style retains the old alert.
         val actionContents: @Composable ColumnScope.() -> Unit = {
@@ -1484,6 +1493,12 @@ import kotlinx.coroutines.launch
                         HorizontalDivider()
                     }
                     if("Message actions" in categories) {
+                        if(m.body.isNotBlank() && m.deletedAt.isEmpty()
+                            && m.mediaKind!="image") GlassActionRow(
+                            "Copy text",Icons.Outlined.ContentCopy,onClick={
+                                clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)))
+                                actionMessage=null
+                            })
                         Text("Message actions",style=MaterialTheme.typography.labelMedium,
                             color=MaterialTheme.colorScheme.onSurfaceVariant)
                         if(m.status=="SENT" && m.editedAt.isNotEmpty() &&
@@ -1595,19 +1610,48 @@ import kotlinx.coroutines.launch
                         color=MaterialTheme.colorScheme.onSurfaceVariant)
 
         }
-        if(display.navBarStyle=="Reference") {
+        if(expandedMessageActions) {
             LiquidActionSheet(title="Message actions",onDismiss={actionMessage=null}) {
                 actionContents()
             }
-        } else LiquidAlertDialog(
-            onDismissRequest={actionMessage=null},
-            title={Text("Message actions")},
-            text={Column(Modifier.fillMaxWidth().heightIn(max=470.dp)
-                .verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                actionContents()
-            }},
-            confirmButton={TextButton(onClick={actionMessage=null}) {Text("Done")}}
+        } else CompactMessageActionMenu(
+            preview=m.body.takeIf {m.deletedAt.isEmpty() && it.isNotBlank()},
+            reactions=if("Quick reactions" in categories)
+                MbQuickReactions.selected(display.quickReactions) else emptyList(),
+            canReply=m.status=="SENT" && m.deletedAt.isEmpty(),
+            canCopy=m.body.isNotBlank() && m.deletedAt.isEmpty(),
+            canForward=canForwardTextMessage(m,session?.userId),
+            canStar=m.status=="SENT" && m.deletedAt.isEmpty(),
+            starred=m.starred,
+            canDelete=m.status in listOf("SENT","QUEUED","FAILED"),
+            onReact={emoji->
+                actionMessage=null
+                model.action {
+                    val previous=runCatching {
+                        org.json.JSONObject(m.reactions).optString(m.account)
+                    }.getOrDefault("")
+                    model.repository.messageAction(m.id,"react",
+                        if(previous==emoji)"" else emoji)
+                }
+            },
+            onReply={
+                replyTo=m.id
+                draftVersion=model.repository.saveDraft(cid,body,replyTo)
+                actionMessage=null
+            },
+            onCopy={
+                clipboard.setText(AnnotatedString(copiedText(m,display.copySenderAndTime)))
+                actionMessage=null
+            },
+            onForward={actionMessage=null;forwardMessages=listOf(m);forwardSearch=""},
+            onStar={
+                actionMessage=null
+                model.action {model.repository.messageAction(m.id,"star",(!m.starred).toString())}
+            },
+            onSelect={actionMessage=null;selectedIds=setOf(m.id)},
+            onDelete={deleteMessage=m;actionMessage=null},
+            onMore={expandedMessageActions=true},
+            onDismiss={actionMessage=null}
         )
     }
     forwardMessages.takeIf {it.isNotEmpty()}?.let {batch->

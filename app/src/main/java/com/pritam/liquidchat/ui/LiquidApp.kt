@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.BorderStroke
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,6 +64,23 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}
     CompositionLocalProvider(LocalDisplayOptions provides display) {
     LiquidTheme(dark) {
+        // Match status/navigation icon brightness to the actual app palette even
+        // when the user overrides Android's system dark/light appearance.
+        val chromeView=androidx.compose.ui.platform.LocalView.current
+        val chromeBackground=MaterialTheme.colorScheme.background
+        val chromeDarkIcons=chromeBackground.luminance()>.5f
+        SideEffect {
+            var host:android.content.Context=context
+            while(host is android.content.ContextWrapper && host !is android.app.Activity
+                && host.baseContext!==host) host=host.baseContext
+            (host as? android.app.Activity)?.window?.let {window->
+                val bars=androidx.core.view.WindowCompat.getInsetsController(window,chromeView)
+                bars.isAppearanceLightStatusBars=chromeDarkIcons
+                bars.isAppearanceLightNavigationBars=chromeDarkIcons
+                window.statusBarColor=android.graphics.Color.TRANSPARENT
+                window.navigationBarColor=android.graphics.Color.TRANSPARENT
+            }
+        }
         VoicePlaybackLifecycle(model,session?.userId to active)
         if(logoutPrompt) LiquidAlertDialog(onDismissRequest=model::dismissLogout,title={Text("Discard unsent messages?")},text={Text("$unsent unsent messages will be removed from this device when you sign out.")},confirmButton={TextButton(onClick=model::finishLogout) {Text("Sign out")}},dismissButton={TextButton(onClick=model::dismissLogout) {Text("Cancel")}})
         MbTouchHost {

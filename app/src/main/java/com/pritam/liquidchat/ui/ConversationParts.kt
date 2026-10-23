@@ -236,146 +236,101 @@ private val referenceEmojiCategoryIcons=mapOf(
     "Symbols" to "❤️","Flags" to "🏳️"
 )
 
+/**
+ * Recent emoji are deliberately in-memory and keyed by signed-in account.
+ * The library's default provider persists recents app-wide, which would expose
+ * one user's writing habits after a different account signs in.
+ */
+private object AccountEmojiRecents {
+    private val recent=linkedMapOf<String,List<String>>()
+    @Synchronized fun list(account:String):List<String> = recent[account].orEmpty()
+    @Synchronized fun add(account:String,emoji:String) {
+        recent[account]=(listOf(emoji)+recent[account].orEmpty().filterNot {it==emoji}).take(24)
+        while(recent.size>4) recent.remove(recent.keys.first())
+    }
+}
+
 @Composable internal fun EmojiPicker(
     onEmoji:(String)->Unit,
     onDismiss:()->Unit,
-    onSavedStickers:(()->Unit)?=null
+    onSavedStickers:(()->Unit)?=null,
+    accountKey:String=""
 ) {
-    var category by remember {mutableStateOf("Smileys & People")}
     var query by remember {mutableStateOf("")}
-    var skinTone by remember {mutableIntStateOf(0)}
-    // Session-only recents: do not persist message-writing habits across logouts.
-    var recent by remember {mutableStateOf<List<String>>(emptyList())}
-    fun choose(emoji:String) {
-        val chosen=tonedEmoji(emoji,skinTone)
-        recent=recentEmojiChoices(recent,chosen)
-        onEmoji(chosen)
+    val safeAccount=accountKey.ifBlank {"current-session"}
+    val provider=remember(safeAccount) {
+        object:androidx.emoji2.emojipicker.RecentEmojiProvider {
+            override suspend fun getRecentEmojiList():List<String> =
+                AccountEmojiRecents.list(safeAccount)
+            override fun recordSelection(emoji:String) {
+                AccountEmojiRecents.add(safeAccount,emoji)
+            }
+        }
     }
-    val emojiRows=remember(category,query) {findEmojis(category,query).chunked(5)}
-    val emojiSize=LocalDisplayOptions.current.emojiPickerSize.coerceIn(18,32).sp
     ModalBottomSheet(
         onDismissRequest=onDismiss,
         sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
-        containerColor=MaterialTheme.colorScheme.surface,
+        containerColor=glassPopupColor(),
         dragHandle={BottomSheetDefaults.DragHandle()}
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal=16.dp),
+        Column(Modifier.fillMaxWidth().padding(horizontal=12.dp),
             verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("Emoji & stickers",style=MaterialTheme.typography.titleMedium,
-                modifier=Modifier.padding(horizontal=4.dp,vertical=4.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement=Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected=true,
-                    onClick={},
-                    label={Text("Emoji")},
-                    modifier=Modifier.weight(1f).testTag("emoji-tab")
-                )
-                FilterChip(
-                    selected=false,
-                    onClick={onSavedStickers ?: {}},
-                    enabled=onSavedStickers!=null,
-                    label={Text("My stickers")},
-                    modifier=Modifier.weight(1f).testTag("stickers-tab")
-                )
-            }
-            OutlinedTextField(
-                value=query,onValueChange={query=it.take(32)},singleLine=true,
-                label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
-                leadingIcon={Icon(Icons.Outlined.Search,null)},
-                trailingIcon={
-                    if(query.isNotBlank()) IconButton(onClick={query=""}) {
-                        Icon(Icons.Outlined.Close,"Clear emoji search")
-                    }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Emoji",style=MaterialTheme.typography.titleMedium,
+                    modifier=Modifier.weight(1f).padding(start=8.dp))
+                if(onSavedStickers!=null) TextButton(onClick=onSavedStickers,
+                    modifier=Modifier.testTag("stickers-tab")) {
+                    Icon(Icons.Outlined.AutoAwesome,null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("My stickers")
                 }
-            )
-            // Categories remain reachable while a large emoji list is scrolled.
-            if(query.isBlank()) LazyRow(
-                modifier=Modifier.testTag("emoji-categories"),
-                horizontalArrangement=Arrangement.spacedBy(8.dp),
-                contentPadding=PaddingValues(vertical=2.dp)
-            ) {
-                items(referenceEmojiCategoryNames,key={it}) {name->
-                    FilterChip(
-                        selected=category==name,
-                        onClick={category=name},
-                        label={Text("${referenceEmojiCategoryIcons[name].orEmpty()} $name")}
-                    )
-                }
+                IconButton(onClick=onDismiss) {Icon(Icons.Outlined.Close,"Close emoji picker")}
             }
-            if(query.isBlank() && category=="Smileys & People") {
-                Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
-                    Text("Skin tone for supported people and hand emojis",
-                        style=MaterialTheme.typography.labelSmall,
-                        color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(Modifier.fillMaxWidth(),
-                        horizontalArrangement=Arrangement.spacedBy(1.dp)) {
-                        (0..5).forEach {tone->
-                            val sample=if(tone==0)"👍" else tonedEmoji("👍",tone)
-                            FilterChip(
-                                selected=skinTone==tone,
-                                onClick={skinTone=tone},
-                                label={Text(sample)},
-                                modifier=Modifier.weight(1f).testTag("emoji-tone-$tone")
-                            )
+            OutlinedTextField(query,{query=it.take(32)},singleLine=true,
+                label={Text("Search emoji")},leadingIcon={Icon(Icons.Outlined.Search,null)},
+                modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
+                trailingIcon={if(query.isNotBlank()) IconButton(onClick={query=""}) {
+                    Icon(Icons.Outlined.Close,"Clear emoji search")
+                }})
+            if(query.isBlank()) {
+                // Official AndroidX catalogue supplies current emoji categories,
+                // recents and long-press tone / variant selectors.
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory={context->
+                        androidx.emoji2.emojipicker.EmojiPickerView(context).apply {
+                            emojiGridColumns=8
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                            setRecentEmojiProvider(provider)
+                            setOnEmojiPickedListener {item->onEmoji(item.emoji)}
                         }
-                    }
-                }
-            }
-            // Lazy rows avoid composing every emoji as the keyboard opens.
-            LazyColumn(
-                modifier=Modifier.fillMaxWidth().heightIn(max=430.dp),
-                verticalArrangement=Arrangement.spacedBy(4.dp),
-                contentPadding=PaddingValues(bottom=6.dp)
-            ) {
-                if(query.isBlank()) {
-                    item(key="quick-reactions") {
-                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                            Text("Quick reactions",style=MaterialTheme.typography.labelMedium)
-                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(1.dp)) {
-                                MbQuickReactions.defaults.forEach {emoji->
-                                    TextButton(onClick={choose(emoji)},
-                                        modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                        contentPadding=PaddingValues(0.dp)) {Text(emoji,fontSize=emojiSize)}
+                    },
+                    update={view->view.setOnEmojiPickedListener {item->onEmoji(item.emoji)}},
+                    modifier=Modifier.fillMaxWidth().height(390.dp)
+                        .testTag("emoji-categories")
+                )
+            } else {
+                // Search complements the native picker without transmitting typed
+                // queries to a server. Existing keyword aliases remain supported.
+                val matching=remember(query) {findEmojis("Smileys & People",query)}
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max=390.dp)) {
+                    if(matching.isEmpty()) item {Text("No matching emoji",
+                        modifier=Modifier.padding(16.dp))}
+                    itemsIndexed(matching.chunked(6)) {_,line->
+                        Row(Modifier.fillMaxWidth()) {
+                            line.forEach {emoji->
+                                TextButton(onClick={
+                                    provider.recordSelection(emoji)
+                                    onEmoji(emoji)
+                                },modifier=Modifier.weight(1f).heightIn(min=48.dp)) {
+                                    Text(emoji,fontSize=25.sp)
                                 }
                             }
-                        }
-                    }
-                    if(recent.isNotEmpty()) item(key="recent-emoji") {
-                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                            Text("Recently picked",style=MaterialTheme.typography.labelMedium)
-                            Row(Modifier.fillMaxWidth()) {
-                                recent.forEach {emoji->
-                                    TextButton(onClick={choose(emoji)},
-                                        modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                        contentPadding=PaddingValues(0.dp)) {Text(emoji,fontSize=emojiSize)}
-                                }
-                            }
-                        }
-                    }
-                }
-                if(emojiRows.isEmpty())item(key="no-emojis") {
-                    Text("No matching emoji",style=MaterialTheme.typography.bodyMedium,
-                        modifier=Modifier.padding(vertical=12.dp))
-                }
-                itemsIndexed(emojiRows,key={index,_->"emoji-row-$index"}) {_,row->
-                    Row(Modifier.fillMaxWidth()) {
-                        repeat(5) {index->
-                            if(index<row.size) TextButton(
-                                onClick={choose(row[index])},
-                                modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                contentPadding=PaddingValues(0.dp)
-                            ) {Text(row[index],fontSize=emojiSize)}
-                            else Spacer(Modifier.weight(1f))
+                            repeat(6-line.size) {Spacer(Modifier.weight(1f))}
                         }
                     }
                 }
             }
-            TextButton(onClick=onDismiss,
-                modifier=Modifier.align(Alignment.End)) {Text("Done")}
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.navigationBarsPadding().height(8.dp))
     }
 }

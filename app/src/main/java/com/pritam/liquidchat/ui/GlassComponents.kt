@@ -38,9 +38,14 @@ import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.onFocusChanged
 
-/** Opaque fallback keeps separate popup windows readable without backdrop capture. */
-@Composable internal fun glassPopupColor():Color =
+/** Dialog windows cannot reliably capture the activity's Haze source.
+ * Use a readable translucent fallback rather than an opaque popup block.
+ */
+@Composable internal fun glassPopupColor():Color = if(LocalDisplayOptions.current.reducedTransparency) {
     if(LocalGlassDark.current) Color(0xFF22364B) else Color(0xFFF8FCFF)
+} else {
+    if(LocalGlassDark.current) Color(0xED22364B) else Color(0xEAF8FCFF)
+}
 
 @Composable internal fun LiquidDropdownMenu(
     expanded:Boolean,onDismissRequest:()->Unit,content:@Composable ColumnScope.()->Unit
@@ -49,6 +54,26 @@ import androidx.compose.ui.focus.onFocusChanged
         DropdownMenu(expanded=expanded,onDismissRequest=onDismissRequest,
             containerColor=glassPopupColor(),tonalElevation=0.dp,
             modifier=Modifier.widthIn(max=320.dp),content=content)
+    }
+}
+
+/** Compact icon + label target for the conversation long-press glass palette. */
+@Composable internal fun CompactMessageAction(
+    label:String,icon:ImageVector,onClick:()->Unit,
+    modifier:Modifier=Modifier,enabled:Boolean=true,destructive:Boolean=false
+) {
+    val ink=if(destructive)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Column(modifier.heightIn(min=60.dp).clip(Glass.compact)
+        .background(MaterialTheme.colorScheme.surface.copy(alpha=.48f))
+        .clickable(enabled=enabled,role=Role.Button,onClick=onClick)
+        .padding(horizontal=2.dp,vertical=7.dp),
+        horizontalAlignment=Alignment.CenterHorizontally,
+        verticalArrangement=Arrangement.spacedBy(3.dp,Alignment.CenterVertically)) {
+        Icon(icon,contentDescription=null,modifier=Modifier.size(21.dp),
+            tint=ink.copy(alpha=if(enabled)1f else .4f))
+        Text(label,maxLines=1,overflow=TextOverflow.Ellipsis,
+            style=MaterialTheme.typography.labelSmall,
+            color=ink.copy(alpha=if(enabled)1f else .4f))
     }
 }
 
@@ -309,14 +334,8 @@ internal fun referenceListUsesFlatRows(display:DisplayOptions):Boolean =
     modifier:Modifier=Modifier,
     content:@Composable ()->Unit
 ) {
-    if(referenceListUsesFlatRows(LocalDisplayOptions.current)) {
-        Surface(modifier=modifier,
-            shape=androidx.compose.ui.graphics.RectangleShape,
-            color=MaterialTheme.colorScheme.surface.copy(
-                alpha=if(LocalGlassDark.current).72f else .86f),
-            tonalElevation=0.dp,
-            content=content)
-    } else GlassSurface(modifier,content=content)
+    val reference=referenceListUsesFlatRows(LocalDisplayOptions.current)
+    GlassSurface(modifier,if(reference)Glass.compact else Glass.card,content)
 }
 
 @Composable fun GlassHeader(title:String,brand:Boolean=false,trailing:@Composable ()->Unit={}) {
