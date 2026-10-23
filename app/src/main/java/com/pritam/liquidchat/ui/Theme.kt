@@ -201,15 +201,8 @@ internal fun mbRecordedLightPalette(base:ColorScheme,options:DisplayOptions,dark
     content:@Composable ()->Unit) {
     val dark=if(tintOverride!=null)tintOverride.luminance()<.5f else LocalGlassDark.current
     val options=LocalDisplayOptions.current
-    if(options.navBarStyle=="Reference" && !dark && tintOverride==null) {
-        Surface(
-            modifier=modifier,
-            shape=shape,
-            color=MaterialTheme.colorScheme.surface,
-            border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant)
-        ) { content() }
-        return
-    }
+    // Every appearance preset keeps real Haze glass; Reference no longer
+    // silently swaps a frosted chrome surface for a flat opaque card.
     val opaque=options.reducedTransparency
     // Keep 22dp as the original blur at 55%; update the surface dynamically.
     val blurRadius=(options.blurIntensity.coerceIn(0,100)*0.4f).dp
