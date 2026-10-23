@@ -112,38 +112,6 @@ internal fun messageActionCategories(message:Message):List<String> {
 
 internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(id in ids) ids-id else if(ids.size<30) ids+id else ids
-@Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null,self:Boolean=false,size:androidx.compose.ui.unit.Dp=48.dp) {
-    Box(Modifier.size(size).clip(CircleShape).background(if(self)Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
-        if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
-        else Text(if(self)name.split(" ").filter {it.firstOrNull()?.isLetter()==true}.take(2).joinToString(""){it.take(1)}.uppercase() else name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=Color.White)
-    }
-}
-@OptIn(ExperimentalFoundationApi::class)
-@Composable fun ChatRow(chat:Chat,backend:com.pritam.liquidchat.data.Backend,onClick:()->Unit,onLongClick:()->Unit={}) {
-    val homeDisplay=LocalDisplayOptions.current
-    val reference=referenceListUsesFlatRows(homeDisplay)
-    GlassSurface(Modifier.fillMaxWidth()
-        .combinedClickable(onClick=onClick,onLongClick=onLongClick),
-        if(reference)Glass.compact else Glass.card) {
-        Row(Modifier.fillMaxWidth().padding(vertical=homeDisplay.homeRowPadding.dp,horizontal=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Avatar(chat.name,chat.avatarId,backend,size=homeDisplay.homeAvatarSize.dp)
-            Column(Modifier.weight(1f)) {
-                Text(chat.name,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium.copy(fontSize=homeDisplay.homeChatNameSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis)
-                Text(inboxSnippet(chat.preview,"Say hello to @${chat.username}",homeDisplay.hideHomePreviews),style=MaterialTheme.typography.bodyMedium.copy(fontSize=homeDisplay.homeChatPreviewSize.sp),maxLines=1,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                if(chat.lastAt.isNotEmpty()) Text(remember(chat.lastAt) {runCatching {java.time.Instant.parse(chat.lastAt).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
-                Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    if(homeDisplay.showPinBadges && chat.pinnedAt>0)Icon(Icons.Outlined.PushPin,"Pinned",Modifier.size(14.dp))
-                    if(chat.favorite)Icon(Icons.Outlined.Star,"Favorite",Modifier.size(14.dp))
-                    if(chat.muted)Icon(Icons.Outlined.NotificationsOff,"Muted",Modifier.size(14.dp))
-                }
-                if(chat.unread>0) Badge {Text(if(chat.unread>99)"99+" else chat.unread.toString())}
-                else if(chat.manualUnread)Badge(Modifier.semantics {contentDescription="Marked unread"})
-            }
-        }
-    }
-}
 @OptIn(ExperimentalFoundationApi::class,ExperimentalLayoutApi::class)
 @Composable fun ChatsScreen(model:AppViewModel,chats:List<Chat>,onContacts:()->Unit={},onProfile:()->Unit={}) {
     var selectedChat by remember {mutableStateOf<Chat?>(null)}
