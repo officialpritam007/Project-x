@@ -236,6 +236,7 @@ private val referenceEmojiCategoryIcons=mapOf(
     "Symbols" to "❤️","Flags" to "🏳️"
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun EmojiPicker(
     onEmoji:(String)->Unit,
     onDismiss:()->Unit,
