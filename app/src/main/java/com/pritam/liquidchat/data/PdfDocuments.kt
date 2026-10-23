@@ -11,7 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 
-internal data class PreparedPdf(val file:File,val name:String)
+data class PreparedPdf(val file:File,val name:String)
 
 internal object PdfDocuments {
     const val MAX_BYTES=8_388_608
