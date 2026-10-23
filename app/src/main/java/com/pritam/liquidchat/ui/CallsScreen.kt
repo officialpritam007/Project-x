@@ -130,92 +130,17 @@ import java.time.format.DateTimeFormatter
         }
     }
     val visible=remember(rows,filter) {filterCallHistory(rows,filter)}
-    Column(
-        Modifier.fillMaxSize().padding(horizontal=12.dp),
-        verticalArrangement=Arrangement.spacedBy(12.dp)
-    ) {
-        GlassHeader("Calls") {
-            IconButton(onClick={scope.launch {refresh(force=true)}},enabled=!loading&&account!=null) {
-                Icon(Icons.Outlined.Refresh,"Refresh call history")
-            }
-        }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            listOf("All","Missed","Voice","Video").forEach {choice->
-                MbReferenceFilterTab(label=choice,selected=filter==choice,onClick={filter=choice})
-            }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),
-            verticalAlignment=Alignment.CenterVertically) {
-            Text(when(filter){"Missed"->"Missed calls";"Voice"->"Voice calls";"Video"->"Video calls";else->"Recent calls"},
-                Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,
-                fontWeight=FontWeight.SemiBold)
-            Text("${visible.size} loaded",style=MaterialTheme.typography.labelMedium,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if(permissionError!=null) GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment=Alignment.CenterVertically) {
-                Text(permissionError.orEmpty(),Modifier.weight(1f),color=MaterialTheme.colorScheme.error)
-                TextButton(onClick={permissionError=null}) {Text("Dismiss")}
-            }
-        }
-        if(error!=null) GlassCard(Modifier.fillMaxWidth()) {
-            Text(error.orEmpty(),color=MaterialTheme.colorScheme.error)
-            TextButton(onClick={scope.launch {refresh(append=retryAppend,force=true)}},enabled=!loading) {Text("Retry")}
-        }
-        LazyColumn(
-            modifier=Modifier.fillMaxSize(),
-            verticalArrangement=Arrangement.spacedBy(
-                if(referenceListUsesFlatRows(LocalDisplayOptions.current))0.dp else 8.dp),
-            contentPadding=PaddingValues(bottom=120.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
-        ) {
-            if(loading&&!loadedOnce&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-history-loading"))}
-            if(loadedOnce&&!loading&&error==null&&visible.isEmpty()&&!more) item(key="empty") {
-                GlassCard(Modifier.fillMaxWidth()) {
-                    Text(when(filter) {"Missed"->"No missed calls";"Voice"->"No voice calls";"Video"->"No video calls";else->"No recent calls"},style=MaterialTheme.typography.titleMedium)
-                    Text("Your voice and video call history will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            items(visible,key={it.id}) {call->
-                val peerChat=chats.firstOrNull {it.account==account&&it.id==call.conversation}
-                ReferenceListRow(Modifier.fillMaxWidth()) {
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(
-                            min=if(referenceListUsesFlatRows(LocalDisplayOptions.current))60.dp else 70.dp)
-                            .clickable {details=call}
-                            .padding(horizontal=12.dp,
-                                vertical=if(referenceListUsesFlatRows(LocalDisplayOptions.current))6.dp else 10.dp),
-                        verticalAlignment=Alignment.CenterVertically,
-                        horizontalArrangement=Arrangement.spacedBy(12.dp)
-                    ) {
-                        Avatar(peerChat?.name ?: call.name,peerChat?.avatarId ?: call.avatar,model.backend,size=46.dp)
-                        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                            Text(peerChat?.name ?: call.name,fontWeight=FontWeight.SemiBold,
-                                color=if(call.missed)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-                                Icon(if(call.missed)Icons.Outlined.CallMissed else if(call.outgoing)Icons.Outlined.CallMade else Icons.Outlined.CallReceived,
-                                    null,Modifier.size(15.dp),tint=if(call.missed)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                                Text("${call.direction} · ${if(call.kind=="video")"Video" else "Voice"}",
-                                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Text(call.timeLabel,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(onClick={redial(call)},
-                            enabled=callHistoryCanRedial(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
-                                call.kind,account!=null,currentCall!=null)) {
-                            Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,
-                                if(call.kind=="video")"Video call again" else "Voice call again",
-                                tint=MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-            if(more)item(key="more") {
-                TextButton(onClick={scope.launch {refresh(append=true)}},enabled=!loading,modifier=Modifier.fillMaxWidth()) {
-                    Text(if(appending)"Loading older calls…" else "Load older calls")
-                }
-            }
-        }
-    }
+    CallsHistoryContent(
+        model=model,chats=chats,account=account,callInProgress=currentCall!=null,
+        filter=filter,onFilter={filter=it},visible=visible,rowsEmpty=rows.isEmpty(),
+        loading=loading,loadedOnce=loadedOnce,appending=appending,more=more,
+        error=error,permissionError=permissionError,
+        onDismissPermissionError={permissionError=null},
+        onRetry={scope.launch {refresh(append=retryAppend,force=true)}},
+        onRefresh={scope.launch {refresh(force=true)}},
+        onLoadOlder={scope.launch {refresh(append=true)}},
+        onDetails={details=it},onRedial=::redial
+    )
     details?.let {call->
         // Use the same reference bottom-sheet hierarchy and close affordance
         // as conversation actions, without changing live call permissions.
