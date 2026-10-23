@@ -712,10 +712,8 @@ import kotlinx.coroutines.launch
         // the original Liquid alternative retains its capsule and margins.
         val referenceChrome=referenceListUsesFlatRows(display)
         GlassChromeSurface(
-            Modifier.fillMaxWidth().padding(
-                horizontal=if(referenceChrome)0.dp else 8.dp,
-                vertical=if(referenceChrome)0.dp else 3.dp),
-            if(referenceChrome)Glass.compact else Glass.capsule
+            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),
+            Glass.capsule
         ) {
         Row(
             Modifier.fillMaxWidth().heightIn(min=if(referenceChrome)47.dp else 0.dp)
@@ -907,10 +905,8 @@ import kotlinx.coroutines.launch
         // No changes to draft revisions, keyboard focus, voice lock or send state.
         val referenceComposer=referenceListUsesFlatRows(display)
         GlassChromeSurface(
-            Modifier.fillMaxWidth().padding(
-                horizontal=if(referenceComposer)0.dp else 8.dp,
-                vertical=if(referenceComposer)2.dp else 8.dp),
-            if(referenceComposer)Glass.compact else Glass.capsule
+            Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),
+            Glass.capsule
         ) {
             Row(Modifier.fillMaxWidth().padding(
                 horizontal=if(referenceComposer)8.dp else 4.dp,
