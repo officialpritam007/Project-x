@@ -34,6 +34,21 @@ class MessageWebLinksTest {
         assertEquals("http://example.org/MixedPath",androidBrowserUrl(http))
     }
 
+    @Test fun multilingualSentenceTerminatorsAreNotIncludedInBrowserLinks() {
+        val cases=listOf(
+            "https://example.org/hello।" to "https://example.org/hello",
+            "https://example.org/hello॥" to "https://example.org/hello",
+            "https://example.org/hello…" to "https://example.org/hello",
+            "https://example.org/hello！" to "https://example.org/hello",
+            "https://example.org/hello？" to "https://example.org/hello"
+        )
+        cases.forEach { (text,expected) ->
+            val link=messageWebLinks(text).single()
+            assertEquals(expected,link.url)
+            assertEquals(expected,text.substring(link.start,link.end))
+        }
+    }
+
     @Test fun oversizedAndExcessiveLinksAreBounded() {
         assertTrue(messageWebLinks("https://example.org/"+"a".repeat(2048)).isEmpty())
         assertEquals(32,messageWebLinks(List(100){"https://example.org/$it"}.joinToString(" ")).size)
