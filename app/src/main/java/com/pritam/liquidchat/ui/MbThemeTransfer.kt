@@ -24,6 +24,7 @@ internal object MbThemeTransfer {
             preventScreenshots=current.preventScreenshots,
             copySenderAndTime=current.copySenderAndTime,
             photoQuality=current.photoQuality,
+            videoQuality=current.videoQuality,
             doubleTapReactionEnabled=current.doubleTapReactionEnabled,
             doubleTapReactionEmoji=current.doubleTapReactionEmoji,
             hideQuickReplySuggestions=current.hideQuickReplySuggestions,
@@ -69,6 +70,7 @@ internal object MbThemeTransfer {
         put("appTextScale",options.appTextScale.coerceIn(90,130))
         put("navigationOrder",MbNavigationOrder.normalize(options.navigationOrder))
         put("quickReactions",MbQuickReactions.normalize(options.quickReactions))
+        put("showWallpaper",options.showWallpaper)
         put("homeWallpaperDim",options.homeWallpaperDim)
         put("chatWallpaperDim",options.chatWallpaperDim)
         put("homeAvatarSize",options.homeAvatarSize)
@@ -126,7 +128,7 @@ internal object MbThemeTransfer {
             reducedMotion=bool("reducedMotion",current.reducedMotion),
             reducedTransparency=bool("reducedTransparency",current.reducedTransparency),
             blurIntensity=number("blurIntensity",current.blurIntensity,0,100),
-            bubbleStyle=choice("bubbleStyle",setOf("Tail","Rounded","Compact"),current.bubbleStyle),
+            bubbleStyle=choice("bubbleStyle",LIQUID_BUBBLE_STYLES,current.bubbleStyle),
             bubbleColor=choice("bubbleColor",setOf("Original","Green","Lavender","Rose","Night"),current.bubbleColor),
             messageFontSize=number("messageFontSize",current.messageFontSize,10,30),
             showNavLabels=bool("showNavLabels",current.showNavLabels),
@@ -159,6 +161,7 @@ internal object MbThemeTransfer {
                 MbNavigationOrder.normalize(j.optString("navigationOrder")) else current.navigationOrder,
             quickReactions=if(j.has("quickReactions") && j.opt("quickReactions") is String)
                 MbQuickReactions.normalize(j.optString("quickReactions")) else current.quickReactions,
+            showWallpaper=bool("showWallpaper",current.showWallpaper),
             homeWallpaperDim=number("homeWallpaperDim",current.homeWallpaperDim,0,100),
             chatWallpaperDim=number("chatWallpaperDim",current.chatWallpaperDim,0,100),
             homeAvatarSize=number("homeAvatarSize",current.homeAvatarSize,40,68),

@@ -135,7 +135,55 @@ internal val emojiCategories:Map<String,List<String>> = linkedMapOf(
     "Faces" to listOf("😀","😃","😄","😁","😊","🥰","😍","😘","😎","🥹","😂","🤣","😭","😅","😉","🤔","😴","😢","😡","🤗"),
     "Hearts" to listOf("❤️","🩷","🧡","💛","💚","🩵","💙","💜","🤍","🖤","💖","💕","💗","💞","💘"),
     "Gestures" to listOf("👍","👎","👏","🙌","🙏","🤝","👋","👌","✌️","🤞","🫶","💪","🤙","👀","✨"),
-    "More" to listOf("🎉","🎂","🎁","🌹","🌸","🌻","☀️","🌙","⭐","🔥","💯","✅","⚽","🏆","🎵","☕","🍰","🐱","🐶","🦋")
+    "More" to listOf("🎉","🎂","🎁","🌹","🌸","🌻","☀️","🌙","⭐","🔥","💯","✅","⚽","🏆","🎵","☕","🍰","🐱","🐶","🦋"),
+    // The eight visible reference categories use device-rendered Unicode glyphs.
+    // Legacy category keys above remain supported for existing saved/test callers.
+    "Smileys & People" to listOf(
+        "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂","😉","🥲","🥹",
+        "😍","🥰","😘","😗","😙","😚","😋","😜","🤪","😎","🥳","🤔",
+        "😴","😢","😭","😮","😱","😡","🥺","🤗","😷","👍","👎","👏",
+        "🙌","🙏","👋","👌","✌️","🤞","🫶","💪","👨","👩","👶","👵"
+    ),
+    "Animals & Nature" to listOf(
+        "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮",
+        "🐷","🐸","🐵","🐔","🐧","🐦","🦆","🦅","🦉","🦋","🐝","🐢",
+        "🐍","🐬","🐳","🐟","🌹","🌻","🌷","🌸","🌺","🌲","🌴","🍁",
+        "🌈","☀️","🌙","⭐","🔥","❄️"
+    ),
+    "Food" to listOf(
+        "🍎","🍌","🍇","🍉","🍓","🍒","🥭","🍍","🥥","🥝","🍋","🍑",
+        "🥑","🥕","🌽","🥦","🍞","🥐","🧀","🥚","🍔","🍟","🍕","🌮",
+        "🍣","🍜","🍝","🍛","🍚","🥘","🍰","🎂","🍪","🍩","🍫","🍿",
+        "☕","🍵","🧃","🥛","🥤"
+    ),
+    "Activities" to listOf(
+        "⚽","🏀","🏈","⚾","🎾","🏐","🏉","🥏","🎱","🏓","🏸","🥊",
+        "🥋","🎯","🎮","🕹️","🎲","♟️","🎳","🏆","🥇","🎖️","🎉",
+        "🎊","🎁","🎈","🎤","🎧","🎸","🎹","🥁","🎬","🎨","📷"
+    ),
+    "Travel & Places" to listOf(
+        "🚗","🚕","🚌","🚎","🏎️","🚓","🚑","🚒","🚚","🚲","🏍️",
+        "🚂","🚆","🚇","🚉","✈️","🚀","🚁","🚢","⛵","🚦","🚧",
+        "⛽","🗺️","🧭","🏖️","🏝️","🏔️","🏕️","🏠","🏡","🏢",
+        "🏥","🏫","🏛️","🗼","🌉","🌆","🌇","🌃"
+    ),
+    "Objects" to listOf(
+        "📱","💻","⌨️","🖥️","🖨️","📷","📸","📺","📻","🎙️",
+        "⏰","⌚","🔋","💡","🔦","🕯️","💰","💳","💎","🔑",
+        "🔒","🔓","🔨","🪛","⚙️","🧰","🧲","📦","📚","📖",
+        "✏️","🖊️","📝","📌","📎","✂️","🧹","🛒","🎒"
+    ),
+    "Symbols" to listOf(
+        "❤️","🩷","🧡","💛","💚","🩵","💙","💜","🤍","🖤",
+        "💖","💕","💗","💞","💘","✅","❌","❗","❓","⚠️",
+        "💯","♻️","🔔","🔕","🔗","➕","➖","➡️","⬅️","⬆️",
+        "⬇️","▶️","⏸️","⏹️","🔁","🔄","✔️"
+    ),
+    "Flags" to listOf(
+        "🏳️","🏴","🏁","🚩","🏳️‍🌈","🇮🇳","🇧🇩","🇳🇵","🇧🇹",
+        "🇱🇰","🇵🇰","🇺🇸","🇬🇧","🇨🇦","🇦🇺","🇯🇵","🇰🇷",
+        "🇨🇳","🇩🇪","🇫🇷","🇮🇹","🇪🇸","🇧🇷","🇦🇷","🇿🇦"
+    )
 )
 
 private val emojiSearchTerms=mapOf(
@@ -166,73 +214,168 @@ internal fun findEmojis(category:String,query:String):List<String> {
 internal fun recentEmojiChoices(previous:List<String>,selected:String):List<String> =
     (listOf(selected)+previous.filterNot {it==selected}).take(5)
 
-@Composable internal fun EmojiPicker(onEmoji:(String)->Unit,onDismiss:()->Unit) {
-    var category by remember {mutableStateOf("Faces")}
+/** Unicode skin-tone modifiers apply only to glyphs known to support Fitzpatrick tones.
+ * An unsupported emoji is returned verbatim, so no broken modifier sequence
+ * is inserted into a recipient's message.
+ */
+internal fun tonedEmoji(base:String,tone:Int):String {
+    if(tone !in 1..5 || base !in setOf(
+        "👍","👎","👏","🙌","🙏","👋","👌","✌️","🤞","🫶","💪",
+        "👨","👩","👶","👵"
+    ))return base
+    return base.replace("\uFE0F","") + String(Character.toChars(0x1F3FA+tone))
+}
+
+private val referenceEmojiCategoryNames=listOf(
+    "Smileys & People","Animals & Nature","Food","Activities",
+    "Travel & Places","Objects","Symbols","Flags"
+)
+private val referenceEmojiCategoryIcons=mapOf(
+    "Smileys & People" to "😀","Animals & Nature" to "🐻","Food" to "🍎",
+    "Activities" to "⚽","Travel & Places" to "🚗","Objects" to "💡",
+    "Symbols" to "❤️","Flags" to "🏳️"
+)
+
+@Composable internal fun EmojiPicker(
+    onEmoji:(String)->Unit,
+    onDismiss:()->Unit,
+    onSavedStickers:(()->Unit)?=null
+) {
+    var category by remember {mutableStateOf("Smileys & People")}
     var query by remember {mutableStateOf("")}
+    var skinTone by remember {mutableIntStateOf(0)}
     // Session-only recents: do not persist message-writing habits across logouts.
     var recent by remember {mutableStateOf<List<String>>(emptyList())}
-    fun choose(emoji:String) {recent=recentEmojiChoices(recent,emoji);onEmoji(emoji)}
-    val displayed=findEmojis(category,query)
+    fun choose(emoji:String) {
+        val chosen=tonedEmoji(emoji,skinTone)
+        recent=recentEmojiChoices(recent,chosen)
+        onEmoji(chosen)
+    }
+    val emojiRows=remember(category,query) {findEmojis(category,query).chunked(5)}
     val emojiSize=LocalDisplayOptions.current.emojiPickerSize.coerceIn(18,32).sp
-    LiquidAlertDialog(
+    ModalBottomSheet(
         onDismissRequest=onDismiss,
-        title={Text("Emoji")},
-        text={
-            Column(
-                Modifier.fillMaxWidth().heightIn(max=410.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(8.dp)
+        sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
+        containerColor=MaterialTheme.colorScheme.surface,
+        dragHandle={BottomSheetDefaults.DragHandle()}
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal=16.dp),
+            verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text("Emoji & stickers",style=MaterialTheme.typography.titleMedium,
+                modifier=Modifier.padding(horizontal=4.dp,vertical=4.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement=Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    value=query,onValueChange={query=it.take(32)},singleLine=true,
-                    label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
-                    leadingIcon={Icon(Icons.Outlined.Search,null)},
-                    trailingIcon={
-                        if(query.isNotBlank())
-                            IconButton(onClick={query=""}) {Icon(Icons.Outlined.Close,"Clear emoji search")}
-                    }
+                FilterChip(
+                    selected=true,
+                    onClick={},
+                    label={Text("Emoji")},
+                    modifier=Modifier.weight(1f).testTag("emoji-tab")
                 )
+                FilterChip(
+                    selected=false,
+                    onClick={onSavedStickers ?: {}},
+                    enabled=onSavedStickers!=null,
+                    label={Text("My stickers")},
+                    modifier=Modifier.weight(1f).testTag("stickers-tab")
+                )
+            }
+            OutlinedTextField(
+                value=query,onValueChange={query=it.take(32)},singleLine=true,
+                label={Text("Search emoji")},modifier=Modifier.fillMaxWidth().testTag("emoji-search"),
+                leadingIcon={Icon(Icons.Outlined.Search,null)},
+                trailingIcon={
+                    if(query.isNotBlank()) IconButton(onClick={query=""}) {
+                        Icon(Icons.Outlined.Close,"Clear emoji search")
+                    }
+                }
+            )
+            // Categories remain reachable while a large emoji list is scrolled.
+            if(query.isBlank()) LazyRow(
+                modifier=Modifier.testTag("emoji-categories"),
+                horizontalArrangement=Arrangement.spacedBy(8.dp),
+                contentPadding=PaddingValues(vertical=2.dp)
+            ) {
+                items(referenceEmojiCategoryNames,key={it}) {name->
+                    FilterChip(
+                        selected=category==name,
+                        onClick={category=name},
+                        label={Text("${referenceEmojiCategoryIcons[name].orEmpty()} $name")}
+                    )
+                }
+            }
+            if(query.isBlank() && category=="Smileys & People") {
+                Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                    Text("Skin tone for supported people and hand emojis",
+                        style=MaterialTheme.typography.labelSmall,
+                        color=MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement=Arrangement.spacedBy(1.dp)) {
+                        (0..5).forEach {tone->
+                            val sample=if(tone==0)"👍" else tonedEmoji("👍",tone)
+                            FilterChip(
+                                selected=skinTone==tone,
+                                onClick={skinTone=tone},
+                                label={Text(sample)},
+                                modifier=Modifier.weight(1f).testTag("emoji-tone-$tone")
+                            )
+                        }
+                    }
+                }
+            }
+            // Lazy rows avoid composing every emoji as the keyboard opens.
+            LazyColumn(
+                modifier=Modifier.fillMaxWidth().heightIn(max=430.dp),
+                verticalArrangement=Arrangement.spacedBy(4.dp),
+                contentPadding=PaddingValues(bottom=6.dp)
+            ) {
                 if(query.isBlank()) {
-                    // Two full-width rows avoid the clipped/offscreen fourth category.
-                    emojiCategories.keys.toList().chunked(2).forEach {names->
-                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                            names.forEach {name->
-                                FilterChip(
-                                    selected=category==name,onClick={category=name},
-                                    label={Text(name)},modifier=Modifier.weight(1f)
-                                )
+                    item(key="quick-reactions") {
+                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                            Text("Quick reactions",style=MaterialTheme.typography.labelMedium)
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(1.dp)) {
+                                MbQuickReactions.defaults.forEach {emoji->
+                                    TextButton(onClick={choose(emoji)},
+                                        modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                        contentPadding=PaddingValues(0.dp)) {Text(emoji,fontSize=emojiSize)}
+                                }
                             }
                         }
                     }
-                    if(recent.isNotEmpty()) {
-                        Text("Recently picked",style=MaterialTheme.typography.labelMedium)
-                        Row(Modifier.fillMaxWidth()) {
-                            recent.forEach {emoji->
-                                TextButton(onClick={choose(emoji)},
-                                    modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                    contentPadding=PaddingValues(0.dp)) {
-                                    Text(emoji,fontSize=emojiSize)
+                    if(recent.isNotEmpty()) item(key="recent-emoji") {
+                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                            Text("Recently picked",style=MaterialTheme.typography.labelMedium)
+                            Row(Modifier.fillMaxWidth()) {
+                                recent.forEach {emoji->
+                                    TextButton(onClick={choose(emoji)},
+                                        modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                        contentPadding=PaddingValues(0.dp)) {Text(emoji,fontSize=emojiSize)}
                                 }
                             }
                         }
                     }
                 }
-                if(displayed.isEmpty())Text("No matching emoji",style=MaterialTheme.typography.bodyMedium)
-                displayed.chunked(5).forEach {row->
+                if(emojiRows.isEmpty())item(key="no-emojis") {
+                    Text("No matching emoji",style=MaterialTheme.typography.bodyMedium,
+                        modifier=Modifier.padding(vertical=12.dp))
+                }
+                itemsIndexed(emojiRows,key={index,_->"emoji-row-$index"}) {_,row->
                     Row(Modifier.fillMaxWidth()) {
                         repeat(5) {index->
-                            if(index<row.size)
-                                TextButton(
-                                    onClick={choose(row[index])},
-                                    modifier=Modifier.weight(1f).heightIn(min=48.dp),
-                                    contentPadding=PaddingValues(0.dp)
-                                ) {Text(row[index],fontSize=emojiSize)}
+                            if(index<row.size) TextButton(
+                                onClick={choose(row[index])},
+                                modifier=Modifier.weight(1f).heightIn(min=48.dp),
+                                contentPadding=PaddingValues(0.dp)
+                            ) {Text(row[index],fontSize=emojiSize)}
                             else Spacer(Modifier.weight(1f))
                         }
                     }
                 }
             }
-        },
-        confirmButton={TextButton(onClick=onDismiss) {Text("Done")}}
-    )
+            TextButton(onClick=onDismiss,
+                modifier=Modifier.align(Alignment.End)) {Text("Done")}
+        }
+        Spacer(Modifier.height(8.dp))
+    }
 }
-

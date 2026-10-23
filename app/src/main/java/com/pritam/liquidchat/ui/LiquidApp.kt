@@ -25,7 +25,7 @@ import com.pritam.liquidchat.AppViewModel
 internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:String?,error:String?):Boolean =
     !loaded || (profileId!=null && profileId!=account) || (profileId==null && error!=null)
 
-@Composable fun LiquidApp(model: AppViewModel) {
+@Composable fun LiquidApp(model: AppViewModel,shortcutRequest:Pair<Int,Int>?=null) {
     val context=androidx.compose.ui.platform.LocalContext.current
     val permission=androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
     val display by model.display.collectAsStateWithLifecycle()
@@ -55,6 +55,9 @@ internal fun profileRequiresRetry(loaded:Boolean,profileId:String?,account:Strin
         }
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(shortcutRequest,session?.userId) {
+        if(shortcutRequest!=null && session!=null)tab=shortcutRequest.first
+    }
     key(session?.userId,sessionEpoch) {
     val conversationStates=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val dark=when(display.appearance) {"Light"->false;"Dark"->true;else->androidx.compose.foundation.isSystemInDarkTheme()}

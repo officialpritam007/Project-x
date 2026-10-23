@@ -21,6 +21,11 @@ internal val MB_RECORDED_BUBBLE_STYLES=listOf(
     "Style 6","Style 7","Style 8","Style 9","Style 10","Style 11"
 )
 
+internal val LIQUID_BUBBLE_STYLES = setOf("Tail", "Rounded", "Compact") + MB_RECORDED_BUBBLE_STYLES
+
+internal fun normalizedBubbleStyle(value:String?):String =
+    value?.takeIf {it in LIQUID_BUBBLE_STYLES} ?: "Tail"
+
 internal fun conversationBubbleShape(style:String,mine:Boolean):RoundedCornerShape = when(style) {
     "Rounded" -> RoundedCornerShape(22.dp)
     "Compact" -> RoundedCornerShape(11.dp)

@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,12 +12,43 @@ import org.junit.runner.RunWith
 class EmojiPickerUiTest {
     @get:Rule val compose=createComposeRule()
 
-    @Test fun categoryNamesAreAllReachableWithoutHorizontalClipping() {
+    @Test fun allEightReferenceCategoriesAreReachableWithoutHorizontalClipping() {
         compose.setContent {LiquidTheme(false) {EmojiPicker(onEmoji={},onDismiss={})}}
-        compose.onNodeWithText("Faces").assertExists()
-        compose.onNodeWithText("Hearts").assertExists()
-        compose.onNodeWithText("Gestures").assertExists()
-        compose.onNodeWithText("More").assertExists()
+        val categories=listOf(
+            "Smileys & People","Animals & Nature","Food","Activities",
+            "Travel & Places","Objects","Symbols","Flags"
+        )
+        categories.forEachIndexed {index,label->
+            compose.onNodeWithTag("emoji-categories").performScrollToIndex(index)
+            compose.onNodeWithText(label,substring=true).assertIsDisplayed()
+        }
+    }
+
+    @Test fun explicitSkinToneSelectionIsVisibleAndNotAppliedWithoutTapping() {
+        compose.setContent {LiquidTheme(false) {EmojiPicker(onEmoji={},onDismiss={})}}
+        compose.onNodeWithTag("emoji-tone-0").assertIsSelected()
+        compose.onNodeWithTag("emoji-tone-3").performClick()
+        compose.onNodeWithTag("emoji-tone-3").assertIsSelected()
+        compose.onNodeWithTag("emoji-tone-0").assertIsNotSelected()
+    }
+
+    @Test fun stickerTabOpensExistingLibraryWithoutSendingAutomatically() {
+        var opens=0
+        var inserted=0
+        compose.setContent {
+            LiquidTheme(false) {
+                EmojiPicker(
+                    onEmoji={inserted++},
+                    onDismiss={},
+                    onSavedStickers={opens++}
+                )
+            }
+        }
+        compose.onNodeWithTag("stickers-tab").assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertEquals(1,opens)
+            assertEquals(0,inserted)
+        }
     }
 
     @Test fun searchFindsOtherCategoryEmojiAndReportsNoResults() {

@@ -9,7 +9,7 @@
 **Manifest:** `scripts/worktrees/tracks.json`.
 
 ## How actual worktrees work
-GitHub hosts **branches**, not local `git worktree` checkouts. Twelve `parity/NN-...` branches are created from the exact same **planning-main commit**, never from unrelated stale commits. On Windows run `powershell -ExecutionPolicy Bypass -File scripts/worktrees/setup.ps1 -All` at the repository root; on macOS/Linux run `bash scripts/worktrees/setup.sh all`. Both place sibling directories under `../Project-x-worktrees/NN-slug`. For one branch use `-Track 04-chat-actions` or `bash scripts/worktrees/setup.sh 04-chat-actions`.
+GitHub hosts **branches**, not local `git worktree` checkouts. Twelve `parity/NN-...` branches were created from the same planning-main commit `95c49a241f8d365f830dd6578997668e58360dd2`. Their **source-code feature baseline** is `02f0293f74a60d39602a88dd8f63d16a0c778704`, and the planning files/issue mappings were committed afterward; later administrative edits to `main` do not silently advance feature branches. Do not assume separate physical local checkouts were created on your PC. On Windows run `powershell -ExecutionPolicy Bypass -File scripts/worktrees/setup.ps1 -All` at the repository root; on macOS/Linux run `bash scripts/worktrees/setup.sh all`. Both place sibling directories under `../Project-x-worktrees/NN-slug`. For one branch use `-Track 04-chat-actions` or `bash scripts/worktrees/setup.sh 04-chat-actions`.
 
 No automatic cherry-pick or merge occurs. Every worktree has a dedicated branch. If code is added to another branch, do not overwrite it; bring changes in during controlled integration after checking dependencies. GitHub mobile or Work users can work directly on those remote branches without a local checkout.
 

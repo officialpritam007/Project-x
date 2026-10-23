@@ -21,12 +21,41 @@ import androidx.compose.ui.window.DialogProperties
 import java.net.URI
 import java.util.Locale
 
+/** Avoid directly navigating to loopback, private or device-local networks from
+ * untrusted chat content. Domain DNS can change later; this is a syntactic
+ * guard, not a substitute for Android Safe Browsing.
+ */
+internal fun privateChatLinkHost(rawHost:String):Boolean {
+    val host=rawHost.trimEnd('.').lowercase(Locale.ROOT)
+    if(host.isBlank() || host=="localhost" || host.endsWith(".localhost") ||
+        host.endsWith(".local") || host.endsWith(".internal") ||
+        host.endsWith(".home.arpa"))return true
+    // Reject numeric shorthand and IPv6 literal forms, including mapped IPv4.
+    if(host.contains(':') || host.all {it.isDigit()})return true
+    val chunks=host.split('.')
+    if(chunks.size==4 && chunks.all {it.isNotEmpty()&&it.all(Char::isDigit)}) {
+        val octets=chunks.map {it.toIntOrNull() ?: return true}
+        if(octets.any {it !in 0..255})return true
+        val first=octets[0]
+        val second=octets[1]
+        return first==0 || first==10 || first==127 || first>=224 ||
+            (first==100 && second in 64..127) ||
+            (first==169 && second==254) ||
+            (first==172 && second in 16..31) ||
+            (first==192 && second==168) ||
+            (first==198 && second in 18..19)
+    }
+    return false
+}
+
 /** Deliberately isolated: no auth headers, JS bridge or Liquid Chat cookies. */
 internal fun safeBrowserDestination(value:String):Boolean = runCatching {
     val uri=URI(value)
+    val host=uri.host
     uri.scheme?.lowercase(Locale.ROOT) in setOf("http","https") &&
-        !uri.host.isNullOrBlank() && uri.rawUserInfo==null &&
-        uri.port in -1..65535 && value.length<=2048
+        !host.isNullOrBlank() && !privateChatLinkHost(host) &&
+        uri.rawUserInfo==null && uri.port in -1..65535 &&
+        value.length<=2048
 }.getOrDefault(false)
 
 @Composable internal fun MessageInAppBrowser(link:String,onDismiss:()->Unit) {
@@ -34,6 +63,25 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
         LiquidAlertDialog(onDismissRequest=onDismiss,
             text={Text("This link cannot be opened safely.")},
             confirmButton={TextButton(onClick=onDismiss) {Text("Close")}})
+        return
+    }
+    // HTTP content is unencrypted. Ask before making even the initial request,
+    // rather than showing a warning after remote content has already loaded.
+    var insecureLinkApproved by remember(link) {
+        mutableStateOf(!link.startsWith("http://",ignoreCase=true))
+    }
+    if(!insecureLinkApproved) {
+        val host=runCatching {URI(link).host.orEmpty()}.getOrDefault("this website")
+        AlertDialog(
+            onDismissRequest=onDismiss,
+            title={Text("Unencrypted website")},
+            text={Text("The link to $host uses HTTP, not HTTPS. Other networks may read " +
+                "or alter its contents. Do not enter passwords or private information.")},
+            confirmButton={TextButton(onClick={insecureLinkApproved=true}) {
+                Text("Open anyway")
+            }},
+            dismissButton={TextButton(onClick=onDismiss) {Text("Cancel")}}
+        )
         return
     }
     val context=LocalContext.current

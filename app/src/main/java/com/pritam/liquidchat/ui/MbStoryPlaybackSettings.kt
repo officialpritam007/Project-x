@@ -4,11 +4,13 @@ import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioManager
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /** Device-only story playback preferences; message privacy remains server-controlled. */
@@ -49,17 +51,21 @@ internal object MbStoryPlaybackSettings {
     }
     GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
         Text("Stories",style=MaterialTheme.typography.titleMedium)
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min=48.dp)
+            .toggleable(value=!options.autoAdvance,role=Role.Switch,
+                onValueChange={update(options.copy(autoAdvance=!it))}),
+            verticalAlignment=Alignment.CenterVertically) {
             Text("Disable automatic story advance",Modifier.weight(1f))
-            Switch(checked=!options.autoAdvance,
-                onCheckedChange={update(options.copy(autoAdvance=!it))})
+            Switch(checked=!options.autoAdvance,onCheckedChange=null)
         }
         Text("Stay on the current story when playback ends. Tap to move between stories or replay it.",
             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min=48.dp)
+            .toggleable(value=options.startWithSound,role=Role.Switch,
+                onValueChange={update(options.copy(startWithSound=it))}),
+            verticalAlignment=Alignment.CenterVertically) {
             Text("Start video stories with sound",Modifier.weight(1f))
-            Switch(checked=options.startWithSound,
-                onCheckedChange={update(options.copy(startWithSound=it))})
+            Switch(checked=options.startWithSound,onCheckedChange=null)
         }
         Text("Off by default. Silent mode and Do Not Disturb keep initial playback muted. You can mute or unmute while viewing.",
             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
