@@ -59,11 +59,16 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
         } else {
             GlassSurface(modifier=Modifier.fillMaxWidth().height(130.dp),
                 shape=Glass.compact) {
-                Box(contentAlignment=Alignment.Center) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+                    if(active) {
+                        ProtectedVideoThumbnail(model.backend,message.mediaId,
+                            description="Private chat video poster",
+                            modifier=Modifier.fillMaxSize())
+                        Icon(Icons.Outlined.PlayArrow,contentDescription="Play private video",
+                            modifier=Modifier.size(40.dp),tint=androidx.compose.ui.graphics.Color.White)
+                    } else Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.Videocam,"Private video",Modifier.size(38.dp))
-                        Text(if(active)"Private video · up to 30 seconds"
-                            else "Video queued for private delivery",
+                        Text("Video queued for private delivery",
                             style=MaterialTheme.typography.labelSmall)
                     }
                 }
