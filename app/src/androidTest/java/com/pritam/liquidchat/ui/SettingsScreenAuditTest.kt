@@ -80,7 +80,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Conversation Screen").performScrollTo().performClick()
         compose.onNodeWithText("Wallpaper & contrast").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Bubble style").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Message bubble style").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming and outgoing bubble colors").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Outgoing bubble").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming bubble").performScrollTo().assertIsDisplayed()
