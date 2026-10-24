@@ -33,8 +33,13 @@ import com.pritam.liquidchat.data.Images
     val reference=referenceListUsesFlatRows(LocalDisplayOptions.current)
     Column(Modifier.fillMaxWidth().padding(vertical=6.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
         Box(Modifier.size(if(large && reference)120.dp else if(large)103.dp else 96.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF18C5DA),Color(0xFF008CB9)))).border(2.dp,Color.White.copy(alpha=.9f),CircleShape),contentAlignment=Alignment.Center) {
-            if(avatar.isNotEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,description="Your profile photo",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
-            else Text(name.split(" ").filter {it.isNotBlank()}.take(2).joinToString("") {it.take(1)}.uppercase(),fontSize=39.sp,color=Color.White)
+            Text(name.split(" ").filter {it.isNotBlank()}.take(2)
+                .joinToString("") {it.take(1)}.uppercase(),
+                fontSize=39.sp,color=Color.White)
+            if(avatar.isNotEmpty()&&avatar!="null") ProtectedImage(model.backend,avatar,
+                description="Your profile photo",modifier=Modifier.fillMaxSize(),
+                scale=androidx.compose.ui.layout.ContentScale.Crop,
+                showLoadingSurface=false)
         }
         Text(name.ifBlank {"My Profile"},fontSize=25.sp,fontWeight=FontWeight.Bold)
         // A user profile is not a presence indicator. Never label anyone online without
