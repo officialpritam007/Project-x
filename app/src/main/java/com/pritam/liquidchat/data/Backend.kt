@@ -101,6 +101,16 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         try {rotateProfileScope()}
         finally {uiReads.activate(current.userId,authorization(current.access),force=true)}
     }
+    /** A media download RPC can explicitly revoke an already cached signed URL.
+     * Scope the invalidation to the same active account and access identity.
+     * Ordinary unrelated RLS 403 responses must not invalidate whole sessions.
+     */
+    internal fun invalidateRevokedMedia(account:String,id:String) = synchronized(sessionMonitor) {
+        val active=_session.value ?: return@synchronized
+        if(active.userId!=account) return@synchronized
+        uiReads.invalidate(account,"signed-image:$id")
+        rotateProfileScope()
+    }
     private fun clearSession()=synchronized(sessionMonitor) {
         sessionGeneration++
         rejectedAccess=null
