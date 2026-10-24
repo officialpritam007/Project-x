@@ -89,7 +89,11 @@ import androidx.compose.ui.unit.sp
             ) {
                 Text(if(terminal)"Call finished" else if(call.video)"Liquid Chat Video" else "Liquid Chat Audio",
                     color=Color.White.copy(alpha=.72f),style=MaterialTheme.typography.bodyMedium)
-                Text(displayName ?: "Liquid Chat",color=Color.White,fontSize=34.sp,lineHeight=40.sp,
+                // Keep the timer and long caller name visible side by side at large
+                // Android font scales on short landscape screens.
+                Text(displayName ?: "Liquid Chat",color=Color.White,
+                    fontSize=if(landscape)26.sp else 34.sp,
+                    lineHeight=if(landscape)30.sp else 40.sp,
                     fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,
                     textAlign=if(landscape)TextAlign.Start else TextAlign.Center)
                 Text(status,color=Color.White.copy(alpha=.88f),style=MaterialTheme.typography.bodyLarge,
