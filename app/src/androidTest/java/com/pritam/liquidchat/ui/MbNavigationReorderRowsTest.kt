@@ -26,7 +26,12 @@ class MbNavigationReorderRowsTest {
         callsTab.performTouchInput {
             down(center)
             advanceEventTime(850)
-            moveBy(Offset(0f,rowHeightPx*1.4f))
+            // Cross touch slop first, then drag a full destination row.
+            // A single large jump can be consumed by long-press drag activation.
+            moveBy(Offset(0f,18f))
+            advanceEventTime(32)
+            moveBy(Offset(0f,rowHeightPx*1.0f))
+            advanceEventTime(32)
             up()
         }
         compose.runOnIdle {
