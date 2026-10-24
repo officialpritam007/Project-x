@@ -55,7 +55,11 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
                 backend=model.backend,media=message.mediaId,
                 paused=!foreground,muted=muted,onProgress={},
                 onFinished={playing=false},
-                modifier=Modifier.fillMaxWidth().height(220.dp))
+                modifier=Modifier.fillMaxWidth().height(220.dp),
+                poster={
+                    ProtectedVideoThumbnail(model.backend,message.mediaId,
+                        description="Private video preview",modifier=Modifier.fillMaxSize())
+                })
         } else {
             // Preserve the media card height when playback starts or stops so the
             // surrounding message timeline does not jump by 90dp.
