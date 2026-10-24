@@ -154,9 +154,11 @@ import java.util.UUID
                 if(moment?.mediaKind=="story_video") {
                     ProtectedVideoThumbnail(model.backend,moment.media,
                         description="$title video story poster",modifier=Modifier.fillMaxSize())
-                    Icon(Icons.Outlined.PlayCircleOutline,"Play video story",
-                        modifier=Modifier.size(32.dp),
-                        tint=Color.White)
+                    Surface(shape=Glass.capsule,color=Color.Black.copy(alpha=.50f)) {
+                        Icon(Icons.Outlined.PlayCircleOutline,"Play video story",
+                            modifier=Modifier.padding(6.dp).size(32.dp),
+                            tint=Color.White)
+                    }
                     if(moment.durationMs>0L) Text("${moment.durationMs/1000}s",
                         modifier=Modifier.align(Alignment.BottomCenter).padding(4.dp),
                         style=MaterialTheme.typography.labelSmall,
