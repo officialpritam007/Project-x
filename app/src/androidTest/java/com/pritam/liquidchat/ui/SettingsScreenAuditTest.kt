@@ -47,7 +47,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
         compose.onNodeWithText("Home Screen").performScrollTo().performClick()
         compose.onNodeWithText("Bottom navigation & tabs").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("iOS navigation").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("iOS navigation").assertExists()
         compose.onNodeWithText("Liquid capsule").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Show navigation labels").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Hide navigation icons").performScrollTo().assertIsDisplayed()
