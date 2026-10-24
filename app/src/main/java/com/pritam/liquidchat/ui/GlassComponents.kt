@@ -39,14 +39,19 @@ import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.onFocusChanged
 
-/** Dialog windows cannot reliably capture the activity's Haze source.
- * Use a readable translucent fallback rather than an opaque popup block.
+/** Dialog windows and bottom sheets cannot reliably capture the activity's
+ * Haze source. Follow the active Material surface (including Reference's
+ * white/green palette and user customizations) instead of using a fixed
+ * ice-blue popup. Near-opaque chrome keeps chat text from bleeding through
+ * long action lists. Reduced transparency is always completely opaque.
  */
-@Composable internal fun glassPopupColor():Color = if(LocalDisplayOptions.current.reducedTransparency) {
-    if(LocalGlassDark.current) Color(0xFF22364B) else Color(0xFFF8FCFF)
-} else {
-    if(LocalGlassDark.current) Color(0xED22364B) else Color(0xEAF8FCFF)
-}
+internal fun popupSurfaceColor(surface:Color,reducedTransparency:Boolean):Color =
+    surface.copy(alpha=if(reducedTransparency)1f else .985f)
+
+@Composable internal fun glassPopupColor():Color = popupSurfaceColor(
+    MaterialTheme.colorScheme.surface,
+    LocalDisplayOptions.current.reducedTransparency
+)
 
 @Composable internal fun LiquidDropdownMenu(
     expanded:Boolean,onDismissRequest:()->Unit,content:@Composable ColumnScope.()->Unit
