@@ -71,7 +71,10 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Conversation Screen").performScrollTo().performClick()
         compose.onNodeWithText("Wallpaper & contrast").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Message bubble style").performScrollTo().assertIsDisplayed()
+        // The Reference theme uses a modal "Bubble style" picker; the
+        // alternate theme uses the inline "Message bubble style" picker.
+        compose.onNodeWithText("bubble style",substring=true,ignoreCase=true)
+            .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming and outgoing bubble colors").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Outgoing bubble").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming bubble").performScrollTo().assertIsDisplayed()
@@ -80,7 +83,9 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Message time").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Reactions & text").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Quick reaction emojis · choose 1–6").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Emoji picker size · 24 sp").performScrollTo().assertIsDisplayed()
+        // Reference mode uses a seekbar instead of the inline 24 sp slider.
+        compose.onNodeWithText("Emoji picker size",substring=true)
+            .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Web link color").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Live message preview").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming message").performScrollTo().assertIsDisplayed()

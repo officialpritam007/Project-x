@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -98,7 +99,12 @@ class CallScreenChromeTest {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f,1.6f)) {
                 LiquidTheme(false) {
+                    // Exercise the full 640x320 landscape layout but scale the
+                    // fixture into a portrait emulator's physical viewport.
+                    // Otherwise Compose clips the oversized test host, and
+                    // assertIsDisplayed reports false for its timer.
                     Box(Modifier.requiredSize(640.dp,320.dp)
+                        .graphicsLayer { scaleX=0.5f; scaleY=0.5f }
                         .consumeWindowInsets(WindowInsets.systemBars)
                         .clipToBounds().testTag("call-chrome-landscape")) {
                         CallScreenChrome(connected,name,"02:34",false,true,
