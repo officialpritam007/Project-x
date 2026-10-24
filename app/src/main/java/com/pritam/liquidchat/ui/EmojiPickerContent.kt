@@ -147,6 +147,7 @@ private object AccountEmojiRecents {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun EmojiPicker(
     onEmoji:(String)->Unit,
     onDismiss:()->Unit,

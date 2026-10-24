@@ -462,7 +462,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
      * transaction. A failed batch leaves all local input files with the picker
      * and never uploads a partially created server album.
      */
-    suspend fun sendDocuments(cid:String,documents:List<PreparedPdf>) {
+    internal suspend fun sendDocuments(cid:String,documents:List<PreparedPdf>) {
         require(documents.size in 1..5) {"Choose up to five PDFs."}
         val account=account()
         val root=java.io.File(context.filesDir,"media/$account").canonicalFile
@@ -488,7 +488,7 @@ class ChatRepository(private val context:Context,val backend:Backend,val db:Loca
         enqueue(account)
     }
 
-    suspend fun sendDocument(cid:String,pdf:PreparedPdf) {
+    internal suspend fun sendDocument(cid:String,pdf:PreparedPdf) {
         val account=account()
         val name=PdfDocuments.safeName(pdf.name)
         require(pdf.file.isFile && pdf.file.extension.lowercase()=="pdf"

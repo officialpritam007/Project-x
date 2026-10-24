@@ -1744,8 +1744,6 @@ import kotlinx.coroutines.launch
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(savedStickers.isEmpty())
                 Text("No saved stickers. Choose Create sticker to make one.")
-            MbSavedStickerShelf(
-                stickers=savedStickers,enabled=!busy&&!sendingSavedSticker,
             OutlinedButton(
                 onClick={
                     stickerLibraryOpen=false

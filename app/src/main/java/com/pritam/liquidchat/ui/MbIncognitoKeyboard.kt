@@ -4,6 +4,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.PlatformTextInputInterceptor
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
@@ -28,6 +29,7 @@ internal class MbIncognitoTextInputRequest(
 }
 
 /** Optional IME hint; individual keyboards may ignore it. */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable internal fun MbIncognitoKeyboard(
     enabled:Boolean,
     content:@Composable ()->Unit

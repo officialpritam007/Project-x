@@ -30,7 +30,7 @@ internal object MbQuickReplies {
             .getString(accountKey(account),"[]") ?: "[]"
         return runCatching {
             val array=JSONArray(raw)
-            buildList {
+            buildList<MbQuickReply> {
                 for(i in 0 until minOf(array.length(),MAX_REPLIES)) {
                     val item=array.optJSONObject(i) ?: continue
                     val shortcut=runCatching {normalized(item.optString("shortcut"))}.getOrNull()

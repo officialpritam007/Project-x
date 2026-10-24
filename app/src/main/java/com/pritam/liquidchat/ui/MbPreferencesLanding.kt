@@ -66,7 +66,7 @@ internal object MbReferencePreferenceSections {
         MbReferencePreference(
             "Privacy",
             "Liquid Chat Privacy",
-            Icons.Outlined.LockOutline,
+            Icons.Outlined.Lock,
             keywords = "online last seen read receipts hide typing recording block contacts security"
         ),
         MbReferencePreference(
