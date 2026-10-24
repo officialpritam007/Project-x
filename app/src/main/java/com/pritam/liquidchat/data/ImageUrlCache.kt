@@ -19,7 +19,6 @@ internal suspend fun Backend.imageUrl(
             if(!url.startsWith("https://"))throw IOException("Invalid protected image URL")
             JSONObject().put("url",url)
                 .put("valid_until",started+lifetime-minOf(5_000L,lifetime/10)).toString()
-        }
             }
         } catch (error: ApiException) {
             // A fresh media authorization denial revokes previously issued link access.
