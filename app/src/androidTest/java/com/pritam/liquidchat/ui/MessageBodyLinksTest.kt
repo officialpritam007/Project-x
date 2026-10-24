@@ -42,9 +42,13 @@ class MessageBodyLinksTest {
         }
         compose.waitForIdle();assertTrue(opened.isEmpty())
         tapLink()
-        compose.runOnIdle {assertEquals(listOf("https://example.invalid/KeepCase?Token=AbC"),opened);enabled.value=false}
+        compose.onNodeWithText("Liquid Chat Browser").assertIsDisplayed()
+        compose.runOnIdle {assertTrue("Links must stay inside the app",opened.isEmpty())}
+        compose.onNodeWithText("Close").performClick()
+        compose.runOnIdle {enabled.value=false}
         tapLink()
-        compose.runOnIdle {assertEquals(1,opened.size)}
+        compose.onNodeWithText("Liquid Chat Browser").assertDoesNotExist()
+        compose.runOnIdle {assertTrue("Selection must not navigate",opened.isEmpty())}
     }
 
     @Test fun inAppBrowserWorksWithoutAnExternalUriHandler() {
