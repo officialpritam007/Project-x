@@ -23,6 +23,14 @@ internal fun unexpiredMoments(
     }
 }
 
+/** Enforce the destination's audience even if a cached or remote feed
+ * includes the account's own content. Pagination still uses unfiltered rows.
+ */
+internal fun momentsForAudience(items:List<Moment>,mine:Boolean,userId:String?):List<Moment> {
+    if(userId.isNullOrBlank())return emptyList()
+    return items.filter {if(mine)it.owner==userId else it.owner!=userId}
+}
+
 /** The next cursor belongs to the server page, even when some stories expire locally. */
 internal data class MomentPage(val items:List<Moment>,val cursor:Moment?,val more:Boolean)
 internal fun momentPage(kind:String,raw:List<Moment>,now:java.time.Instant=java.time.Instant.now()) =
