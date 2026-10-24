@@ -23,21 +23,14 @@ class MbNavigationReorderRowsTest {
         val rowHeightPx=callsTab.fetchSemanticsNode().boundsInRoot.height
         callsTab.performTouchInput {
             down(center)
-            // Feed stationary MOVE events throughout the hold, rather than
-            // jumping straight from DOWN to a displaced MOVE after 1 second.
-            // This lets the long-press detector observe the held pointer on
-            // every emulator before any drag displacement is introduced.
-            repeat(8) {
-                advanceEventTime(125)
-                moveBy(Offset.Zero)
-            }
-            advanceEventTime(48)
-            moveBy(Offset(0f,rowHeightPx*0.1f))
-            repeat(12) {
-                advanceEventTime(24)
-                moveBy(Offset(0f,rowHeightPx*0.13f))
-            }
-            advanceEventTime(24)
+            // Let the platform's actual long-press timeout elapse before
+            // moving; Compose's drag detector needs time to process the drag
+            // while the pointer is still down before the UP event arrives.
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis+100)
+            moveBy(Offset(0f,rowHeightPx*0.65f))
+            advanceEventTime(100)
+            moveBy(Offset(0f,rowHeightPx*0.50f))
+            advanceEventTime(1000)
             up()
         }
         compose.runOnIdle {
