@@ -14,6 +14,14 @@ import org.junit.runner.RunWith
 class SettingsScreenAuditTest {
     @get:Rule val compose=createComposeRule()
 
+    @Test fun themesRemainDirectlyReachableFromSettingsHome() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Themes").performScrollTo().performClick()
+        compose.onNodeWithText("Saved themes on this device").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Restore defaults").performScrollTo().assertExists()
+    }
+
     @Test fun powerSavingHasItsOwnControlsRatherThanAppearanceClones() {
         val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
