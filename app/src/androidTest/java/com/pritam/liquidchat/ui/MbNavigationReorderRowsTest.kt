@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -22,6 +23,9 @@ class MbNavigationReorderRowsTest {
             }
         }
         val callsTab=compose.onNodeWithTag("reorder-tab-1")
+        val contactsBounds=compose.onNodeWithTag("reorder-tab-2").fetchSemanticsNode().boundsInRoot
+        assertTrue("Reorder handles must occupy separate vertical rows",
+            callsTab.fetchSemanticsNode().boundsInRoot.bottom<=contactsBounds.top)
         val rowHeightPx=callsTab.fetchSemanticsNode().boundsInRoot.height
         callsTab.performTouchInput {
             down(center)
