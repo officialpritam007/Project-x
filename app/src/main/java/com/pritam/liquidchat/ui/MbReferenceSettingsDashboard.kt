@@ -33,6 +33,7 @@ private data class MbSettingsDashboardRoute(
 private val dashboardPrimary=listOf(
     MbSettingsDashboardRoute("Liquid Chat Preferences","Liquid Chat Preferences",
         Icons.Outlined.Palette),
+    MbSettingsDashboardRoute("Themes","Liquid Chat Themes",Icons.Outlined.ColorLens),
     MbSettingsDashboardRoute("Tips and help","Liquid Chat Help",
         Icons.Outlined.Campaign),
     MbSettingsDashboardRoute("Service status","Liquid Chat Service Status",
