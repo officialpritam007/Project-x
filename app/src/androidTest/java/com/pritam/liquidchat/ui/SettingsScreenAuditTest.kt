@@ -116,7 +116,7 @@ class SettingsScreenAuditTest {
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
         compose.onNodeWithText("Chat Settings").performScrollTo().performClick()
         compose.onNodeWithText("Appearance").assertIsDisplayed()
-        compose.onNodeWithText("Animation level").assertIsDisplayed()
+        compose.onNodeWithText("Animation level").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Background delivery").assertDoesNotExist()
     }
 
