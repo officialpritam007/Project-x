@@ -30,7 +30,8 @@ import org.json.JSONObject
     muted:Boolean,
     onProgress:(Float)->Unit,
     onFinished:()->Unit,
-    modifier:Modifier=Modifier
+    modifier:Modifier=Modifier,
+    poster:(@Composable ()->Unit)?=null
 ) {
     val context=LocalContext.current
     val account by backend.session.collectAsStateWithLifecycle()
@@ -131,6 +132,9 @@ import org.json.JSONObject
                     update={it.player=player},
                     modifier=Modifier.fillMaxSize()
                 )
+                // Show the cached first frame until playback has prepared.
+                // Buffering after the first frame keeps the rendered frame.
+                if(!videoReady&&!playbackError) poster?.invoke()
                 if(playbackError) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Text("Unable to play this private video",color=Color.White)
