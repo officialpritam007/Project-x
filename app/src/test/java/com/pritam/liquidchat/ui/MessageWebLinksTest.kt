@@ -53,4 +53,12 @@ class MessageWebLinksTest {
         assertTrue(messageWebLinks("https://example.org/"+"a".repeat(2048)).isEmpty())
         assertEquals(32,messageWebLinks(List(100){"https://example.org/$it"}.joinToString(" ")).size)
     }
+    @Test fun httpNavigationConsentIncludesRedirectsButNotSecurePages() {
+        assertTrue(webNavigationRequiresHttpConsent("http://example.org/path"))
+        assertTrue(webNavigationRequiresHttpConsent("HTTP://example.org/Other"))
+        assertFalse(webNavigationRequiresHttpConsent("https://example.org/path"))
+        assertFalse(webNavigationRequiresHttpConsent("file:///private"))
+        assertFalse(webNavigationRequiresHttpConsent("not a valid URL"))
+    }
+
 }

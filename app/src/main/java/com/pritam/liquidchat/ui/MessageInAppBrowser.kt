@@ -68,7 +68,7 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
     // HTTP content is unencrypted. Ask before making even the initial request,
     // rather than showing a warning after remote content has already loaded.
     var insecureLinkApproved by remember(link) {
-        mutableStateOf(!link.startsWith("http://",ignoreCase=true))
+        mutableStateOf(!webNavigationRequiresHttpConsent(link))
     }
     if(!insecureLinkApproved) {
         val host=runCatching {URI(link).host.orEmpty()}.getOrDefault("this website")
@@ -87,6 +87,7 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
     val context=LocalContext.current
     var scripts by remember(link) {mutableStateOf(false)}
     var currentUrl by remember(link) {mutableStateOf(link)}
+    var pendingHttpNavigation by remember(link) {mutableStateOf<String?>(null)}
     var canGoBack by remember(link) {mutableStateOf(false)}
     val browser=remember(link) {
         WebView(context).apply {
@@ -102,8 +103,18 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
             android.webkit.CookieManager.getInstance().setAcceptCookie(false)
             android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this,false)
             webViewClient=object:WebViewClient() {
-                override fun shouldOverrideUrlLoading(view:WebView?,request:WebResourceRequest):Boolean =
-                    !safeBrowserDestination(request.url.toString())
+                override fun shouldOverrideUrlLoading(view:WebView?,request:WebResourceRequest):Boolean {
+                    val destination=request.url.toString()
+                    if(!safeBrowserDestination(destination))return true
+                    // loadUrl(link) has already passed its initial consent dialog.
+                    // All later main-frame HTTP navigations, even redirects from
+                    // an HTTPS page, need their own explicit approval.
+                    if(request.isForMainFrame && webNavigationRequiresHttpConsent(destination)) {
+                        pendingHttpNavigation=destination
+                        return true
+                    }
+                    return false
+                }
 
                 override fun onPageFinished(view:WebView?,url:String?) {
                     super.onPageFinished(view,url)
@@ -113,6 +124,21 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
             }
             loadUrl(link)
         }
+    }
+    pendingHttpNavigation?.let {destination->
+        val host=runCatching {URI(destination).host.orEmpty()}.getOrDefault("this website")
+        AlertDialog(
+            onDismissRequest={pendingHttpNavigation=null},
+            title={Text("Unencrypted navigation")},
+            text={Text("The link to $host uses HTTP, not HTTPS. Network observers may read or change the content. Continue only if you trust this site.")},
+            confirmButton={TextButton(onClick={
+                pendingHttpNavigation=null
+                // App-initiated navigation does not call shouldOverrideUrlLoading;
+                // the confirmed destination is loaded exactly once.
+                browser.loadUrl(destination)
+            }) {Text("Open anyway")}},
+            dismissButton={TextButton(onClick={pendingHttpNavigation=null}) {Text("Cancel")}}
+        )
     }
     BackHandler {if(canGoBack)browser.goBack() else onDismiss()}
     DisposableEffect(browser) {
