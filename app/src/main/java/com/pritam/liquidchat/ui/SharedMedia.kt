@@ -76,7 +76,8 @@ import kotlinx.coroutines.flow.collect
     LaunchedEffect(chat.id,account,epoch,kind,refreshKeys) {
         rows=emptyList();cursor=null;more=true;page(true)
     }
-    val referenceSheet=referenceListUsesFlatRows(LocalDisplayOptions.current)
+    val display=LocalDisplayOptions.current
+    val referenceSheet=referenceListUsesFlatRows(display)
     ModalBottomSheet(onDismissRequest=onDismiss,
         sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
         containerColor=glassPopupColor(),tonalElevation=0.dp,
@@ -90,7 +91,7 @@ import kotlinx.coroutines.flow.collect
             onSave={model.action {model.repository.saveContact(chat.peer,true)}},
             onPage={scope.launch {page(rows.isEmpty())}},
             avatar={Avatar(chat.name,chat.avatarId,model.backend,
-                size=if(model.display.value.navBarStyle=="Reference")128.dp
+                size=if(display.navBarStyle=="Reference")128.dp
                     else if(iosStyle)92.dp else 76.dp)},
             media={m->
                 if(kind=="image" || kind=="sticker")SharedImagePreview(model,m,thumbnail=true)
