@@ -32,6 +32,9 @@ import kotlin.math.roundToInt
     onOrderChange:(String)->Unit
 ) {
     val callback by rememberUpdatedState(onOrderChange)
+    // Stack the rows even when this control is composed without a parent Column.
+    // Sibling Rows otherwise overlap and dispatch taps to the wrong destination.
+    Column(Modifier.fillMaxWidth()) {
     MbNavigationOrder.parse(order).forEachIndexed {position,destination ->
         val title=MbNavigationOrder.titles[destination]
         var dragOffset by remember(destination) {mutableFloatStateOf(0f)}
@@ -85,5 +88,6 @@ import kotlin.math.roundToInt
                     contentDescription="Move $title right")
             }
         }
+    }
     }
 }
