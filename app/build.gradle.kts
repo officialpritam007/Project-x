@@ -44,7 +44,11 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = "17" }
+    // Temporary K1 frontend fallback for the monolithic ConversationScreen.
+    // Kotlin 2.2.21 K2's FIR data-flow analysis overflows its persistent vector
+    // in this screen (not a source error). Keep this until the screen is fully
+    // separated into smaller state holders and composables.
+    kotlinOptions { jvmTarget = "17"; languageVersion = "1.9" }
 }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.11.01"))

@@ -33,4 +33,3 @@ internal fun messageActionCategories(message:Message):List<String> {
 
 internal fun toggleTextSelection(ids:Set<String>,id:String):Set<String> =
     if(id in ids) ids-id else if(ids.size<30) ids+id else ids
-

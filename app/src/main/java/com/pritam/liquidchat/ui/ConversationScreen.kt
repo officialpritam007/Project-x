@@ -653,47 +653,11 @@ import kotlinx.coroutines.launch
         } finally {kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {runCatching {model.repository.typing(cid,false)}}}
     }
     Box(Modifier.fillMaxSize()) {
-        val owner=session?.userId
-        val backgroundBrush=if(display.showWallpaper)
-            wallpaper(if(palette=="Photo" || palette=="Video") "Ice" else palette,LocalGlassDark.current)
-        else androidx.compose.ui.graphics.Brush.linearGradient(
-            listOf(MaterialTheme.colorScheme.background,MaterialTheme.colorScheme.background)
+        ConversationWallpaperBackdrop(
+            owner=session?.userId,cid=cid,palette=palette,
+            wallpaperRevision=wallpaperRevision,showWallpaper=display.showWallpaper,
+            dim=display.chatWallpaperDim,foreground=foreground
         )
-        Box(Modifier.matchParentSize().glassSource(.5f).background(backgroundBrush)) {
-            if(display.showWallpaper && palette=="Video" && owner!=null) {
-                val videoFile=remember(owner,cid,wallpaperRevision) {
-                    runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.location(context,owner,cid)}
-                        .getOrNull()
-                }
-                if(videoFile?.isFile==true) {
-                    LocalVideoWallpaper(videoFile,foreground,wallpaperRevision,Modifier.matchParentSize())
-                    Box(Modifier.matchParentSize().background(
-                        if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
-                        else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
-                    ))
-                }
-            }
-            if(display.showWallpaper && palette=="Photo" && owner!=null) {
-                val photoFile=remember(owner,cid,wallpaperRevision) {
-                    runCatching {com.pritam.liquidchat.data.PersonalWallpaper.location(context,owner,cid)}
-                        .getOrNull()
-                }
-                if(photoFile?.isFile==true) {
-                    val request=remember(photoFile,wallpaperRevision) {
-                        coil.request.ImageRequest.Builder(context).data(photoFile)
-                            .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
-                            .diskCachePolicy(coil.request.CachePolicy.DISABLED).build()
-                    }
-                    coil.compose.AsyncImage(model=request,contentDescription=null,
-                        contentScale=androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier=Modifier.matchParentSize())
-                    Box(Modifier.matchParentSize().background(
-                        if(LocalGlassDark.current) Color.Black.copy(alpha=wallpaperDimAlpha(.46f,display.chatWallpaperDim))
-                        else Color.White.copy(alpha=wallpaperDimAlpha(.30f,display.chatWallpaperDim))
-                    ))
-                }
-            }
-        }
     // The timeline respects the real heights of independently floating chrome.
     Box(Modifier.fillMaxSize().imePadding()) {
         var floatingHeaderHeight by remember(cid) {mutableIntStateOf(0)}
@@ -703,38 +667,28 @@ import kotlinx.coroutines.launch
         val composerSpace=if(floatingComposerHeight>0)with(density) {floatingComposerHeight.toDp()} else 82.dp
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(headerSpace))
-        if(searchOpen) GlassSurface(
-            Modifier.fillMaxWidth().padding(horizontal=if(referenceListUsesFlatRows(display))0.dp else 8.dp),
-            if(referenceListUsesFlatRows(display))Glass.compact else Glass.card
-        ) {
-            Column(Modifier.padding(8.dp)) {
-                // The reference APK has a 35dp/24dp search row. Retain the
-                // real downloaded-message filters, query and explicit dismissal.
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                    GlassSearch(chatQuery,{chatQuery=it;searchIndex=0},
-                        "Search this chat",Modifier.weight(1f))
-                    IconButton(onClick={searchOpen=false;chatQuery=""}) {
-                        Icon(Icons.Outlined.Close,"Close search")
-                    }
+        if(searchOpen) ConversationSearchPanel(
+            query=chatQuery,sender=searchSender,media=searchMedia,period=searchPeriod,
+            matchCount=chatResults.size,
+            flatReferenceRows=referenceListUsesFlatRows(display),
+            onQueryChange={chatQuery=it;searchIndex=0},
+            onClose={searchOpen=false;chatQuery=""},
+            onSenderChange={searchSender=it;searchIndex=0},
+            onMediaChange={searchMedia=it;searchIndex=0},
+            onPeriodChange={searchPeriod=it;searchIndex=0},
+            onPrevious={
+                if(chatResults.isNotEmpty()) {
+                    searchIndex=(searchIndex-1+chatResults.size)%chatResults.size
+                    model.focusMessage.value=chatResults[searchIndex].id
                 }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                    SearchFilterMenu("Sender",searchSender.label,SearchSender.entries.map {it.label}) {
-                        searchSender=SearchSender.entries[it];searchIndex=0
-                    }
-                    SearchFilterMenu("Type",searchMedia.label,SearchMedia.entries.map {it.label}) {
-                        searchMedia=SearchMedia.entries[it];searchIndex=0
-                    }
-                    SearchFilterMenu("Date",searchPeriod.label,SearchPeriod.entries.map {it.label}) {
-                        searchPeriod=SearchPeriod.entries[it];searchIndex=0
-                    }
-                }
-                Row(verticalAlignment=Alignment.CenterVertically) {
-                    Text("Downloaded messages only · ${chatResults.size} matches",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall)
-                    IconButton(onClick={if(chatResults.isNotEmpty()){searchIndex=(searchIndex-1+chatResults.size)%chatResults.size;model.focusMessage.value=chatResults[searchIndex].id}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowUp,"Previous match")}
-                    IconButton(onClick={if(chatResults.isNotEmpty()){model.focusMessage.value=chatResults[searchIndex%chatResults.size].id;searchIndex=(searchIndex+1)%chatResults.size}},enabled=chatResults.isNotEmpty()) {Icon(Icons.Outlined.KeyboardArrowDown,"Next match")}
+            },
+            onNext={
+                if(chatResults.isNotEmpty()) {
+                    model.focusMessage.value=chatResults[searchIndex%chatResults.size].id
+                    searchIndex=(searchIndex+1)%chatResults.size
                 }
             }
-        }
+        )
         if(messagesReady!=cid)Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {CircularProgressIndicator(Modifier.size(24.dp))}
         else MessageTimeline(cid,messages,contact.optBoolean("typing"),focus,{model.focusMessage.value=null},loadOlder={model.repository.loadOlder(cid)},modifier=Modifier.weight(1f).fillMaxWidth()) {m->
             MessageBubble(m,chat,model,onRetry={model.retry(m.id)},highlight=m.id==focus||m.id in selectedIds,
@@ -953,45 +907,14 @@ import kotlinx.coroutines.launch
     }
 
     }
-    if(textToolsOpen) LiquidActionSheet(
-        title="Text tools · offline",onDismiss={textToolsOpen=false}) {
-        Text("Only this unsent draft is transformed. This is not an AI service and your text stays on this phone.",
-            modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp),
-            style=MaterialTheme.typography.bodySmall,
-            color=MaterialTheme.colorScheme.onSurfaceVariant)
-        OfflineTextAction.entries.forEach {option->
-            GlassActionRow(option.label,Icons.Outlined.TextFields,onClick={
-                textToolSource=body
-                textToolChoice=option
-                textToolsOpen=false
-            })
-        }
-    }
-    textToolChoice?.let {choice->
-        val result=remember(textToolSource,choice) {
-            transformDraftOffline(textToolSource,choice)
-        }
-        LiquidAlertDialog(
-            onDismissRequest={textToolChoice=null},
-            title={Text(choice.label)},
-            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                Text("Preview",style=MaterialTheme.typography.labelMedium)
-                Text(result,modifier=Modifier.fillMaxWidth().heightIn(max=240.dp)
-                    .verticalScroll(rememberScrollState()))
-                if(body!=textToolSource)Text("Your draft has changed. Close and open Text tools again.",
-                    color=MaterialTheme.colorScheme.error,
-                    style=MaterialTheme.typography.bodySmall)
-            }},
-            confirmButton={TextButton(onClick={
-                if(body==textToolSource) {
-                    updateInput(TextFieldValue(result,TextRange(result.length)))
-                }
-                textToolChoice=null
-            },enabled=draftReady&&!queueing&&body==textToolSource&&
-                result!=textToolSource) {Text("Apply to draft")}},
-            dismissButton={TextButton(onClick={textToolChoice=null}) {Text("Cancel")}}
-        )
-    }
+    ConversationOfflineTextTools(
+        open=textToolsOpen,selected=textToolChoice,body=body,sourceText=textToolSource,
+        draftReady=draftReady,queueing=queueing,
+        onCloseTools={textToolsOpen=false},
+        onSelectTool={option->textToolSource=body;textToolChoice=option;textToolsOpen=false},
+        onDismissPreview={textToolChoice=null},
+        onApply={result->updateInput(TextFieldValue(result,TextRange(result.length)))}
+    )
     if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
         if(display.navBarStyle=="Reference") {
             MbReferenceSwitchRow(
@@ -1367,79 +1290,25 @@ import kotlinx.coroutines.launch
         }},
         confirmButton={TextButton(onClick={quickRepliesOpen=false}) {Text("Done")}}
     )
-    if(appearance)LiquidAlertDialog(
-        onDismissRequest={appearance=false},
-        title={Text("Chat appearance")},
-        text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("Choose a built-in palette, private photo or muted MP4 video from this phone.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Chat accent · header actions and send button",
-                style=MaterialTheme.typography.titleSmall)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                MbConversationAccent.choices.forEach {choice->
-                    FilterChip(selected=chatAccent==choice,
-                        onClick={
-                            session?.userId?.let {account->
-                                MbConversationAccent.save(context,account,cid,choice)
-                                chatAccent=choice
-                            }
-                        },
-                        label={Text(choice)})
-                }
+    if(appearance) ConversationAppearanceDialog(
+        cid=cid,account=session?.userId,palette=palette,chatAccent=chatAccent,
+        wallpaperRevision=wallpaperRevision,
+        onDismiss={appearance=false},
+        onAccentSelected={choice->
+            session?.userId?.let {account->
+                MbConversationAccent.save(context,account,cid,choice)
+                chatAccent=choice
             }
-            Text("Stored only on this device and isolated by account. Messages and calls are unchanged.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-            listOf("Ice","Lilac","Mint","Sand").forEach {choice->
-                TextButton(onClick={model.action {
-                    model.repository.setPalette(cid,choice)
-                    palette=choice
-                    appearance=false
-                }}) {Text(if(choice==palette)"✓ $choice" else choice)}
+        },
+        onPaletteSelected={choice->
+            model.action {
+                model.repository.setPalette(cid,choice)
+                palette=choice
+                appearance=false
             }
-            FilledTonalButton(
-                onClick={wallpaperPickerAccount=session?.userId;wallpaperPicker.launch("image/*")},
-                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                Icon(Icons.Outlined.AddPhotoAlternate,null)
-                Spacer(Modifier.width(8.dp))
-                Text("Choose photo wallpaper")
-            }
-            FilledTonalButton(
-                onClick={videoWallpaperPickerAccount=session?.userId;videoWallpaperPicker.launch("video/mp4")},
-                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                Icon(Icons.Outlined.Videocam,null)
-                Spacer(Modifier.width(8.dp))
-                Text("Choose MP4 video wallpaper")
-            }
-            val owner=session?.userId
-            if(owner!=null && remember(owner,cid,wallpaperRevision) {
-                runCatching {com.pritam.liquidchat.data.PersonalWallpaper.has(context,owner,cid)}
-                    .getOrDefault(false)
-            }) {
-                TextButton(onClick={model.action {
-                    model.repository.setPalette(cid,"Photo")
-                    palette="Photo"
-                    appearance=false
-                }}) {Text(if(palette=="Photo")"✓ My photo" else "My saved photo")}
-            }
-            if(owner!=null && remember(owner,cid,wallpaperRevision) {
-                runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.has(context,owner,cid)}
-                    .getOrDefault(false)
-            }) {
-                TextButton(onClick={model.action {
-                    model.repository.setPalette(cid,"Video")
-                    palette="Video"
-                    appearance=false
-                }}) {Text(if(palette=="Video")"✓ My video" else "My saved video")}
-            }
-            Text("Photos and videos stay private on this phone. MP4 is limited to 30s / 24 MB, up to 1080p; playback loops silently and pauses in background or reduced motion. Files are erased on logout and chat deletion.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }},
-        confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}}
+        },
+        onPickPhoto={wallpaperPickerAccount=session?.userId;wallpaperPicker.launch("image/*")},
+        onPickVideo={videoWallpaperPickerAccount=session?.userId;videoWallpaperPicker.launch("video/mp4")}
     )
     speechCandidate?.let {candidate->
         LiquidAlertDialog(
@@ -1875,8 +1744,6 @@ import kotlinx.coroutines.launch
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(savedStickers.isEmpty())
                 Text("No saved stickers. Choose Create sticker to make one.")
-            MbSavedStickerShelf(
-                stickers=savedStickers,enabled=!busy&&!sendingSavedSticker,
             OutlinedButton(
                 onClick={
                     stickerLibraryOpen=false
@@ -2508,12 +2375,3 @@ import kotlinx.coroutines.launch
     if(confirmDelete&&chat!=null) LiquidAlertDialog(onDismissRequest={confirmDelete=false},title={Text("Delete your chat history?")},text={Text("This hides existing history for your account on every device. The other person keeps their copy. Unsent local copies will be removed; messages already sending may still finish.")},confirmButton={TextButton(onClick={confirmDelete=false;model.updateChat(chat,delete=true)}) {Text("Delete for me")}},dismissButton={TextButton(onClick={confirmDelete=false}) {Text("Cancel")}})
 }
 
-@Composable private fun SearchFilterMenu(title:String,selected:String,options:List<String>,onSelect:(Int)->Unit) {
-    var expanded by remember {mutableStateOf(false)}
-    Box {
-        TextButton(onClick={expanded=true}) {Text("$title: $selected")}
-        LiquidDropdownMenu(expanded=expanded,onDismissRequest={expanded=false}) {
-            options.forEachIndexed {index,label->DropdownMenuItem(text={Text(label)},onClick={onSelect(index);expanded=false})}
-        }
-    }
-}

@@ -35,9 +35,12 @@ class ConversationUpgradeTest {
     @Test fun emojiPickerOffersRealChoicesAndLocalizedDatesAreCorrect() {
         var picked=""
         compose.setContent {LiquidTheme(false) {EmojiPicker({picked=it},{})}}
-        compose.onNodeWithText("😀").performClick();compose.runOnIdle {assertEquals("😀",picked)}
-        compose.onNodeWithText("Hearts").performClick();compose.onNodeWithText("❤️").performClick()
-        compose.runOnIdle {assertEquals("❤️",picked)}
+        // Current emoji categories and tone selectors live inside AndroidView;
+        // use a Compose-owned local search result to test insertion safely.
+        compose.onNodeWithTag("emoji-categories").assertExists()
+        compose.onNodeWithTag("emoji-search").performTextInput("football")
+        compose.onNodeWithText("⚽").performClick()
+        compose.runOnIdle {assertEquals("⚽",picked)}
         val today=LocalDate.of(2026,10,17)
         assertEquals("Today",dateLabel(today,today));assertEquals("Yesterday",dateLabel(today.minusDays(1),today))
     }

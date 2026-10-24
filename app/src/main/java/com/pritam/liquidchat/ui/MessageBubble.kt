@@ -88,6 +88,8 @@ import kotlinx.coroutines.launch
 @Composable internal fun MessageBubble(message:Message,chat:Chat?,model:AppViewModel,onRetry:()->Unit,highlight:Boolean,onLongClick:()->Unit={},onReply:()->Unit={},quoted:Message?=null,onQuoteClick:()->Unit={},selectionMode:Boolean=false,onSelect:()->Unit={},onDoubleTap:()->Unit={}) {
     val uploadFlow=remember(model,message.account,message.id) {model.repository.uploadProgress(message.account,message.id)}
     val uploadPercent by uploadFlow.collectAsStateWithLifecycle(initialValue=null)
+    // Observe account changes in composition; keep fresh .value reads in event callbacks.
+    val activeSession by model.session.collectAsStateWithLifecycle()
     val mine=message.sender==message.account
     val isSticker=message.mediaKind=="sticker"&&message.deletedAt.isEmpty()
     val bubbleDisplay=LocalDisplayOptions.current
@@ -148,7 +150,7 @@ import kotlinx.coroutines.launch
                 .then(if(isSticker||referenceBubble)Modifier else Modifier.glassSource())
                 .combinedClickable(onClick={if(selectionMode)onSelect()},
                     onDoubleClick=if(canDoubleTapReact(message,bubbleDisplay.doubleTapReactionEnabled,
-                        selectionMode,model.session.value?.userId))onDoubleTap else null,
+                        selectionMode,activeSession?.userId))onDoubleTap else null,
                     onLongClick={if(selectionMode)onSelect() else onLongClick()})
         ) {
             Column(Modifier.padding(
@@ -208,7 +210,7 @@ import kotlinx.coroutines.launch
                     Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
                         reactions.forEach {(emoji,count)->
                             val allowed=message.status=="SENT" &&
-                                model.session.value?.userId==message.account &&
+                                activeSession?.userId==message.account &&
                                 !selectionMode && message.deletedAt.isEmpty()
                             Surface(
                                 onClick={

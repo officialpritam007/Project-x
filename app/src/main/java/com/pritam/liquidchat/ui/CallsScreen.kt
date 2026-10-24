@@ -35,88 +35,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** Call summaries are loaded only from the existing authenticated, participant-scoped RPC. */
-internal data class CallHistoryRow(
-    val id:String,
-    val conversation:String,
-    val peer:String,
-    val name:String,
-    val avatar:String,
-    val kind:String,
-    val outcome:String,
-    val created:String,
-    val answered:String?,
-    val ended:String?,
-    val outgoing:Boolean
-) {
-    val missed get()=outcome=="missed" && !outgoing
-    val durationSeconds:Long? get() {
-        val start=answered?.let {runCatching {Instant.parse(it)}.getOrNull()} ?: return null
-        val end=ended?.let {runCatching {Instant.parse(it)}.getOrNull()} ?: return null
-        return Duration.between(start,end).seconds.takeIf {it>=0}
-    }
-    val direction:String get()=when {
-        missed->"Missed"
-        outcome=="missed"->"No answer"
-        outcome=="declined"->"Declined"
-        outgoing->"Outgoing"
-        else->"Incoming"
-    }
-    val timeLabel:String get()=runCatching {
-        Instant.parse(created).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd MMM · h:mm a"))
-    }.getOrDefault("")
-    companion object {
-        fun parse(data:JSONArray,account:String):List<CallHistoryRow> = (0 until data.length()).mapNotNull {i->
-            runCatching {
-                val j=data.getJSONObject(i)
-                CallHistoryRow(
-                    id=j.getString("id"),
-                    conversation=j.getString("conversation_id"),
-                    peer=j.getString("peer_id"),
-                    name=j.optString("display_name").ifBlank {"Contact"},
-                    avatar=j.optString("avatar_id").takeUnless {it=="null"}.orEmpty(),
-                    kind=j.optString("kind","audio"),
-                    outcome=j.optString("outcome",j.optString("state")),
-                    created=j.getString("created_at"),
-                    answered=j.optString("answered_at").takeUnless {it.isBlank()||it=="null"},
-                    ended=j.optString("ended_at").takeUnless {it.isBlank()||it=="null"},
-                    outgoing=j.getString("caller_id")==account
-                )
-            }.getOrNull()
-        }
-    }
-}
-
-/** Keep the server cursor/count separate from rows that cannot be rendered. */
-internal data class CallHistoryPage(val rows:List<CallHistoryRow>,val before:String?,val more:Boolean)
-internal fun callHistoryPage(data:JSONArray,account:String)=CallHistoryPage(
-    CallHistoryRow.parse(data,account),
-    data.optJSONObject(data.length()-1)?.optString("created_at")?.takeIf {it.isNotBlank()},
-    data.length()>=50
-)
-
-/** In-memory only; never modifies the server page cursor or filtered row history. */
-internal fun filterCallHistory(rows:List<CallHistoryRow>,selection:String):List<CallHistoryRow> = when(selection) {
-    "Missed"->rows.filter {it.missed}
-    "Voice"->rows.filter {it.kind=="audio"}
-    "Video"->rows.filter {it.kind=="video"}
-    else->rows
-}
-
-/** Same runtime microphone/camera permissions as the conversation call buttons. */
-internal fun callHistoryCanRedial(callsEnabled:Boolean,kind:String,hasAccount:Boolean,callInProgress:Boolean):Boolean =
-    callsEnabled && hasAccount && !callInProgress && kind in listOf("audio","video")
-
-internal fun callHistoryRequiredPermissions(kind:String):Array<String> =
-    if(kind=="video") arrayOf(Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA)
-    else arrayOf(Manifest.permission.RECORD_AUDIO)
-
-private fun elapsedLabel(seconds:Long):String {
-    val hours=seconds/3600
-    val minutes=(seconds%3600)/60
-    return if(hours>0) "${hours}h ${minutes}m" else if(minutes>0) "${minutes}m ${seconds%60}s" else "${seconds}s"
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun CallsScreen(model:AppViewModel,chats:List<Chat>) {
     val session by model.session.collectAsStateWithLifecycle()
@@ -212,92 +130,17 @@ private fun elapsedLabel(seconds:Long):String {
         }
     }
     val visible=remember(rows,filter) {filterCallHistory(rows,filter)}
-    Column(
-        Modifier.fillMaxSize().padding(horizontal=12.dp),
-        verticalArrangement=Arrangement.spacedBy(12.dp)
-    ) {
-        GlassHeader("Calls") {
-            IconButton(onClick={scope.launch {refresh(force=true)}},enabled=!loading&&account!=null) {
-                Icon(Icons.Outlined.Refresh,"Refresh call history")
-            }
-        }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            listOf("All","Missed","Voice","Video").forEach {choice->
-                MbReferenceFilterTab(label=choice,selected=filter==choice,onClick={filter=choice})
-            }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),
-            verticalAlignment=Alignment.CenterVertically) {
-            Text(when(filter){"Missed"->"Missed calls";"Voice"->"Voice calls";"Video"->"Video calls";else->"Recent calls"},
-                Modifier.weight(1f),style=MaterialTheme.typography.titleMedium,
-                fontWeight=FontWeight.SemiBold)
-            Text("${visible.size} loaded",style=MaterialTheme.typography.labelMedium,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if(permissionError!=null) GlassCard(Modifier.fillMaxWidth()) {
-            Row(verticalAlignment=Alignment.CenterVertically) {
-                Text(permissionError.orEmpty(),Modifier.weight(1f),color=MaterialTheme.colorScheme.error)
-                TextButton(onClick={permissionError=null}) {Text("Dismiss")}
-            }
-        }
-        if(error!=null) GlassCard(Modifier.fillMaxWidth()) {
-            Text(error.orEmpty(),color=MaterialTheme.colorScheme.error)
-            TextButton(onClick={scope.launch {refresh(append=retryAppend,force=true)}},enabled=!loading) {Text("Retry")}
-        }
-        LazyColumn(
-            modifier=Modifier.fillMaxSize(),
-            verticalArrangement=Arrangement.spacedBy(
-                if(referenceListUsesFlatRows(LocalDisplayOptions.current))0.dp else 8.dp),
-            contentPadding=PaddingValues(bottom=120.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
-        ) {
-            if(loading&&!loadedOnce&&rows.isEmpty())item(key="loading") {LinearProgressIndicator(Modifier.fillMaxWidth().testTag("call-history-loading"))}
-            if(loadedOnce&&!loading&&error==null&&visible.isEmpty()&&!more) item(key="empty") {
-                GlassCard(Modifier.fillMaxWidth()) {
-                    Text(when(filter) {"Missed"->"No missed calls";"Voice"->"No voice calls";"Video"->"No video calls";else->"No recent calls"},style=MaterialTheme.typography.titleMedium)
-                    Text("Your voice and video call history will appear here.",color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            items(visible,key={it.id}) {call->
-                val peerChat=chats.firstOrNull {it.account==account&&it.id==call.conversation}
-                ReferenceListRow(Modifier.fillMaxWidth()) {
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(
-                            min=if(referenceListUsesFlatRows(LocalDisplayOptions.current))60.dp else 70.dp)
-                            .clickable {details=call}
-                            .padding(horizontal=12.dp,
-                                vertical=if(referenceListUsesFlatRows(LocalDisplayOptions.current))6.dp else 10.dp),
-                        verticalAlignment=Alignment.CenterVertically,
-                        horizontalArrangement=Arrangement.spacedBy(12.dp)
-                    ) {
-                        Avatar(peerChat?.name ?: call.name,peerChat?.avatarId ?: call.avatar,model.backend,size=46.dp)
-                        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                            Text(peerChat?.name ?: call.name,fontWeight=FontWeight.SemiBold,
-                                color=if(call.missed)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-                                Icon(if(call.missed)Icons.Outlined.CallMissed else if(call.outgoing)Icons.Outlined.CallMade else Icons.Outlined.CallReceived,
-                                    null,Modifier.size(15.dp),tint=if(call.missed)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                                Text("${call.direction} · ${if(call.kind=="video")"Video" else "Voice"}",
-                                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Text(call.timeLabel,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(onClick={redial(call)},
-                            enabled=callHistoryCanRedial(com.pritam.liquidchat.BuildConfig.ENABLE_EXPERIMENTAL_CALLS,
-                                call.kind,account!=null,currentCall!=null)) {
-                            Icon(if(call.kind=="video")Icons.Outlined.Videocam else Icons.Outlined.Call,
-                                if(call.kind=="video")"Video call again" else "Voice call again",
-                                tint=MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-            if(more)item(key="more") {
-                TextButton(onClick={scope.launch {refresh(append=true)}},enabled=!loading,modifier=Modifier.fillMaxWidth()) {
-                    Text(if(appending)"Loading older calls…" else "Load older calls")
-                }
-            }
-        }
-    }
+    CallsHistoryContent(
+        model=model,chats=chats,account=account,callInProgress=currentCall!=null,
+        filter=filter,onFilter={filter=it},visible=visible,rowsEmpty=rows.isEmpty(),
+        loading=loading,loadedOnce=loadedOnce,appending=appending,more=more,
+        error=error,permissionError=permissionError,
+        onDismissPermissionError={permissionError=null},
+        onRetry={scope.launch {refresh(append=retryAppend,force=true)}},
+        onRefresh={scope.launch {refresh(force=true)}},
+        onLoadOlder={scope.launch {refresh(append=true)}},
+        onDetails={details=it},onRedial=::redial
+    )
     details?.let {call->
         // Use the same reference bottom-sheet hierarchy and close affordance
         // as conversation actions, without changing live call permissions.
