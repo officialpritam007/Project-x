@@ -1,8 +1,10 @@
 package com.pritam.liquidchat.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +47,10 @@ import kotlinx.coroutines.isActive
     var failed by remember(memoryKey) {mutableStateOf(false)}
     var retry by remember(memoryKey) {mutableIntStateOf(0)}
     var autoRetried by remember(memoryKey) {mutableStateOf(false)}
+    // Loading is tied to rendered pixels, not merely possession of a signed URL.
+    // This also prevents cached avatars from flashing a placeholder on tab return.
+    var hasRenderedBitmap by remember(memoryKey) {mutableStateOf(cached)}
+    var loadingPixels by remember(memoryKey) {mutableStateOf(!cached)}
     LaunchedEffect(memoryKey,retry,lifecycle) {
         // Returning to a tab with a decoded Coil bitmap must not pulse loading
         // or hide an already-visible avatar while renewing its signed URL.
@@ -71,12 +77,20 @@ import kotlinx.coroutines.isActive
             .placeholderMemoryCacheKey(memoryKey).diskCachePolicy(CachePolicy.DISABLED)
             .crossfade(false).build()
     }
-    Box(modifier.glassSource()) {
+    val canLoad=local.isNotEmpty() ||
+        (account!=null&&version!=null&&id.isNotBlank()&&id!="null")
+    Box(modifier.glassSource().background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment=Alignment.Center) {
         if(url!=null) AsyncImage(
             model=request,imageLoader=imageLoader,contentDescription=description,
             modifier=Modifier.fillMaxSize(),contentScale=scale,
-            onSuccess={failed=false;currentLoadState(true)},
+            onLoading={loadingPixels=!hasRenderedBitmap},
+            onSuccess={
+                hasRenderedBitmap=true;loadingPixels=false
+                failed=false;currentLoadState(true)
+            },
             onError={
+                loadingPixels=false
                 currentLoadState(false)
                 // An evicted bitmap or expired link gets one automatic URL renewal.
                 if(local.isEmpty()&&!autoRetried) {autoRetried=true;url=null;retry++}
@@ -84,7 +98,7 @@ import kotlinx.coroutines.isActive
             }
         )
         if(failed) TextButton(onClick={url=null;failed=false;autoRetried=false;retry++}) {Text("Retry image")}
-        else if(url==null&&account!=null&&version!=null&&id.isNotBlank()&&id!="null")
+        else if(canLoad&&!hasRenderedBitmap&&(url==null||loadingPixels))
             CircularProgressIndicator(Modifier.size(24.dp))
     }
 }
