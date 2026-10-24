@@ -18,6 +18,7 @@ import coil.compose.AsyncImage
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.pritam.liquidchat.data.ApiException
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.imageUrl
 import com.pritam.liquidchat.data.imageUrlRefreshDelay
@@ -46,6 +47,7 @@ import kotlinx.coroutines.isActive
     val cached=remember(memoryKey) {imageLoader.memoryCache?.get(MemoryCache.Key(memoryKey))!=null}
     var url by remember(memoryKey) {mutableStateOf<String?>(local.takeIf {it.isNotEmpty()} ?: id.takeIf {cached})}
     var failed by remember(memoryKey) {mutableStateOf(false)}
+    var permissionRevoked by remember(account,id,sessionEpoch) {mutableStateOf(false)}
     var retry by remember(memoryKey) {mutableIntStateOf(0)}
     var autoRetried by remember(memoryKey) {mutableStateOf(false)}
     // Loading is tied to rendered pixels, not merely possession of a signed URL.
@@ -57,6 +59,7 @@ import kotlinx.coroutines.isActive
         // or hide an already-visible avatar while renewing its signed URL.
         // Keep the explicit failure path below (and onError) fail-closed.
         if(!cached)currentLoadState(false)
+        if(permissionRevoked)return@LaunchedEffect
         val expectedEpoch=sessionEpoch
         if(local.isNotEmpty()) {url=local;return@LaunchedEffect}
         if(account.isNullOrBlank()||version==null||id.isBlank()||id=="null")return@LaunchedEffect
@@ -68,7 +71,11 @@ import kotlinx.coroutines.isActive
                     val signed=backend.imageUrl(account,id,force=retry>0)
                     if(backend.uiReads.epoch(account)==expectedEpoch) {url=signed;failed=false}
                 } catch(e:CancellationException) {throw e}
-                catch(_:Exception) {url=null;failed=true;currentLoadState(false);return@repeatOnLifecycle}
+                catch(e:Exception) {
+                    if(e is ApiException&&e.status in setOf(403,404,410))permissionRevoked=true
+                    url=null;failed=true;currentLoadState(false)
+                    return@repeatOnLifecycle
+                }
                 delay(backend.imageUrlRefreshDelay(account,id))
             }
         }
@@ -99,8 +106,8 @@ import kotlinx.coroutines.isActive
                 else failed=true
             }
         )
-        if(failed && showLoadingSurface)
-            TextButton(onClick={url=null;failed=false;autoRetried=false;retry++}) {Text("Retry image")}
+        if((failed||permissionRevoked)&&showLoadingSurface)
+            TextButton(onClick={url=null;failed=false;permissionRevoked=false;autoRetried=false;retry++}) {Text("Retry image")}
         else if(showLoadingSurface&&canLoad&&!hasRenderedBitmap&&(url==null||loadingPixels))
             CircularProgressIndicator(Modifier.size(24.dp))
     }
