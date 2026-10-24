@@ -376,10 +376,7 @@ import kotlinx.coroutines.launch
             ) {Text("Remove photo")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
-        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE ||
-            section=="Liquid Chat Home Screen" || section=="Liquid Chat Conversation Screen") {
-            // Reference Home/Conversation panels live alongside appearance controls.
-            // Do not gate them behind the generic appearance classification.
+        if(settingsPanelFor(section)==SettingsPanel.APPEARANCE) {
             SettingsAppearanceControls(model,display,section)
         }
         if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {
