@@ -5,6 +5,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -136,7 +139,9 @@ import java.util.UUID
     val shape=if(reference)androidx.compose.foundation.shape.CircleShape else Glass.card
     val cardWidth=if(reference)82.dp else 94.dp
     Column(
-        Modifier.width(cardWidth).clickable(onClick=onClick),
+        Modifier.width(cardWidth)
+            .semantics {contentDescription=if(moment!=null)"$title story" else if(mine)"Add your story" else "View stories"}
+            .clickable(role=Role.Button,onClick=onClick),
         horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.spacedBy(6.dp)
     ) {
@@ -173,7 +178,7 @@ import java.util.UUID
                 if(mine)
                     Surface(
                         modifier=Modifier.align(Alignment.BottomEnd).padding(3.dp)
-                            .clickable {onAdd?.invoke()},
+                            .clickable(role=Role.Button,onClick={onAdd?.invoke()}),
                         shape=RoundedCornerShape(50),color=MaterialTheme.colorScheme.primary
                     ) {Icon(Icons.Outlined.Add,"Add a story",
                         Modifier.padding(3.dp),tint=MaterialTheme.colorScheme.onPrimary)}
