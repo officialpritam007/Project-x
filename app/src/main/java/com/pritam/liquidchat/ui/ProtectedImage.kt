@@ -16,6 +16,7 @@ import coil.compose.AsyncImage
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.pritam.liquidchat.data.ApiException
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.imageUrl
 import com.pritam.liquidchat.data.imageUrlRefreshDelay
@@ -43,6 +44,10 @@ import kotlinx.coroutines.isActive
     val cached=remember(memoryKey) {imageLoader.memoryCache?.get(MemoryCache.Key(memoryKey))!=null}
     var url by remember(memoryKey) {mutableStateOf<String?>(local.takeIf {it.isNotEmpty()} ?: id.takeIf {cached})}
     var failed by remember(memoryKey) {mutableStateOf(false)}
+    // A denied signed URL invalidates the cache version, but must not reset the
+    // visible failure into an endless fetch/revocation loop. Only a deliberate
+    // retry or a new session can clear this account-scoped denial.
+    var permissionRevoked by remember(account,id,sessionEpoch) {mutableStateOf(false)}
     var retry by remember(memoryKey) {mutableIntStateOf(0)}
     var autoRetried by remember(memoryKey) {mutableStateOf(false)}
     LaunchedEffect(memoryKey,retry,lifecycle) {
@@ -50,6 +55,7 @@ import kotlinx.coroutines.isActive
         // or hide an already-visible avatar while renewing its signed URL.
         // Keep the explicit failure path below (and onError) fail-closed.
         if(!cached)currentLoadState(false)
+        if(permissionRevoked)return@LaunchedEffect
         val expectedEpoch=sessionEpoch
         if(local.isNotEmpty()) {url=local;return@LaunchedEffect}
         if(account.isNullOrBlank()||version==null||id.isBlank()||id=="null")return@LaunchedEffect
@@ -61,7 +67,11 @@ import kotlinx.coroutines.isActive
                     val signed=backend.imageUrl(account,id,force=retry>0)
                     if(backend.uiReads.epoch(account)==expectedEpoch) {url=signed;failed=false}
                 } catch(e:CancellationException) {throw e}
-                catch(_:Exception) {url=null;failed=true;currentLoadState(false);return@repeatOnLifecycle}
+                catch(e:Exception) {
+                    if(e is ApiException && e.status in setOf(403,404,410)) permissionRevoked=true
+                    url=null;failed=true;currentLoadState(false)
+                    return@repeatOnLifecycle
+                }
                 delay(backend.imageUrlRefreshDelay(account,id))
             }
         }
@@ -83,7 +93,9 @@ import kotlinx.coroutines.isActive
                 else failed=true
             }
         )
-        if(failed) TextButton(onClick={url=null;failed=false;autoRetried=false;retry++}) {Text("Retry image")}
+        if(failed || permissionRevoked) TextButton(onClick={
+            url=null;failed=false;permissionRevoked=false;autoRetried=false;retry++
+        }) {Text("Retry image")}
         else if(url==null&&account!=null&&version!=null&&id.isNotBlank()&&id!="null")
             CircularProgressIndicator(Modifier.size(24.dp))
     }
