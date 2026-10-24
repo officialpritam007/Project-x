@@ -13,12 +13,10 @@ class MbNavigationReorderRowsTest {
     @get:Rule val compose=createComposeRule()
 
     @Test fun holdAndDragMovesCallsOnePositionButKeepsAllDestinations() {
-        var currentOrder=""
+        val order=mutableStateOf(MbNavigationOrder.DEFAULT)
         compose.setContent {
-            var order by remember {mutableStateOf(MbNavigationOrder.DEFAULT)}
-            currentOrder=order
             LiquidTheme(false) {
-                MbNavigationReorderRows(order) {order=it}
+                MbNavigationReorderRows(order.value) {order.value=it}
             }
         }
         val callsTab=compose.onNodeWithTag("reorder-tab-1")
@@ -43,21 +41,19 @@ class MbNavigationReorderRowsTest {
             up()
         }
         compose.runOnIdle {
-            assertEquals("0,2,1,3,4",currentOrder)
-            assertEquals(setOf(0,1,2,3,4),MbNavigationOrder.parse(currentOrder).toSet())
+            assertEquals("0,2,1,3,4",order.value)
+            assertEquals(setOf(0,1,2,3,4),MbNavigationOrder.parse(order.value).toSet())
         }
     }
 
     @Test fun accessibleArrowButtonsReorderWithoutDragging() {
-        var currentOrder=""
+        val order=mutableStateOf(MbNavigationOrder.DEFAULT)
         compose.setContent {
-            var order by remember {mutableStateOf(MbNavigationOrder.DEFAULT)}
-            currentOrder=order
-            LiquidTheme(false) {MbNavigationReorderRows(order) {order=it}}
+            LiquidTheme(false) {MbNavigationReorderRows(order.value) {order.value=it}}
         }
         compose.onNodeWithContentDescription("Move Calls right").performClick()
-        compose.runOnIdle {assertEquals("0,2,1,3,4",currentOrder)}
+        compose.runOnIdle {assertEquals("0,2,1,3,4",order.value)}
         compose.onNodeWithContentDescription("Move Calls left").performClick()
-        compose.runOnIdle {assertEquals(MbNavigationOrder.DEFAULT,currentOrder)}
+        compose.runOnIdle {assertEquals(MbNavigationOrder.DEFAULT,order.value)}
     }
 }
