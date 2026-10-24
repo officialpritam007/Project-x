@@ -30,6 +30,9 @@ class MbReferenceFilterTabTest {
             }
         }
         compose.onNodeWithText("All").assertIsSelected()
+        val allBounds=compose.onNodeWithText("All").fetchSemanticsNode().boundsInRoot
+        val unreadBounds=compose.onNodeWithText("Unread").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue("Filter hit targets must not overlap",allBounds.right<=unreadBounds.left)
         compose.onNodeWithText("Unread").assertIsNotSelected()
         compose.onNode(hasText("Unread") and hasClickAction()).performClick()
         compose.runOnIdle { assertEquals("Unread", clicked) }
