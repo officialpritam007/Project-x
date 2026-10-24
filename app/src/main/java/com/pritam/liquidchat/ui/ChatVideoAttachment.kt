@@ -57,7 +57,9 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
                 onFinished={playing=false},
                 modifier=Modifier.fillMaxWidth().height(220.dp))
         } else {
-            GlassSurface(modifier=Modifier.fillMaxWidth().height(130.dp),
+            // Preserve the media card height when playback starts or stops so the
+            // surrounding message timeline does not jump by 90dp.
+            GlassSurface(modifier=Modifier.fillMaxWidth().height(220.dp),
                 shape=Glass.compact) {
                 Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
                     if(active) {
