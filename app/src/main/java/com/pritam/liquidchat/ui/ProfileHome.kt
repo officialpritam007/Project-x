@@ -111,6 +111,8 @@ import com.pritam.liquidchat.data.Images
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
                 if(username.isNotBlank())IconButton(onClick={
                     clipboard.setText(AnnotatedString("@$username"))
+                    android.widget.Toast.makeText(context,"Username copied",
+                        android.widget.Toast.LENGTH_SHORT).show()
                 }) {Icon(Icons.Outlined.ContentCopy,"Copy username")}
             }
             profile?.optString("bio")?.takeIf {it.isNotBlank()}?.let {bio->
