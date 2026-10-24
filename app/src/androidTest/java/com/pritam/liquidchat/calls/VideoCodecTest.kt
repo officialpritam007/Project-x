@@ -11,7 +11,12 @@ import org.webrtc.MediaStreamTrack
 class VideoCodecTest {
     @org.junit.Test fun signalingAfterTeardownFailsPromptlyRatherThanSuspendingForever()=kotlinx.coroutines.runBlocking {
         val context=androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
-        val engine=CallEngine(context,false,{},{})
+        // The production call engine is created from the UI thread. Android 29's
+        // PhoneStateListener constructor requires a prepared Looper on that thread.
+        lateinit var engine: CallEngine
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            engine=CallEngine(context,false,{},{})
+        }
         engine.close()
         engine.close()
         // Late ICE/control callbacks must be ignored before parsing or touching JNI.
