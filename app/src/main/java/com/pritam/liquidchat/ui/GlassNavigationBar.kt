@@ -43,6 +43,12 @@ import androidx.compose.ui.focus.onFocusChanged
 internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     options.showNavLabels || options.hideNavIcons
 
+/** Scale the reference navigation with the user's icon/label preferences. */
+internal fun referenceNavigationHeight(options:DisplayOptions):Int {
+    val icon=if(options.navIconSize==24)30 else options.navIconSize
+    return maxOf(56,icon+if(showEffectiveNavigationLabels(options))options.navLabelSize+14 else 12)
+}
+
 @Composable fun GlassNavigation(
     tab:Int,unreadChats:Int=0,modifier:Modifier=Modifier,
     applyNavigationInset:Boolean=true,onTab:(Int)->Unit
@@ -58,6 +64,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
     // 56dp row, five weighted columns, 30dp icons and 11sp captions.
     // User-adjusted size preferences still take precedence over defaults.
     val referenceIconSize=if(referenceBar&&display.navIconSize==24)30 else display.navIconSize
+    val referenceHeight=referenceNavigationHeight(display).dp
     // Keep the original Figma assets for the four existing tabs.
     val off=listOf("icon_7_223","icon_7_210","icon_7_214","icon_7_218")
     val on=listOf("icon_7_206","icon_7_227","icon_7_248","icon_7_269")
@@ -69,7 +76,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
         if(referenceBar)Glass.compact else Glass.capsule
     ) {
         Row(Modifier.fillMaxWidth()
-            .then(if(referenceBar)Modifier.height(56.dp).padding(horizontal=6.dp)
+            .then(if(referenceBar)Modifier.height(referenceHeight).padding(horizontal=6.dp)
                 else Modifier.padding(6.dp))
             .selectableGroup()) {
             plan.visible.forEach {i->
@@ -87,7 +94,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                 )
                 Box(
                     Modifier.weight(1f)
-                        .then(if(referenceBar)Modifier.height(56.dp)
+                        .then(if(referenceBar)Modifier.height(referenceHeight)
                             else Modifier.heightIn(min=54.dp))
                         .clip(if(referenceBar)Glass.compact else Glass.capsule)
                         .background(if(referenceBar)Color.Transparent else selection)
@@ -150,6 +157,7 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
                     destinations=plan.overflow,
                     current=tab,
                     referenceBar=referenceBar,
+                    navigationHeight=referenceHeight,
                     onTab=onTab,
                     modifier=Modifier.weight(1f)
                 )
