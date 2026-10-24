@@ -102,8 +102,13 @@ internal fun safeBrowserDestination(value:String):Boolean = runCatching {
             android.webkit.CookieManager.getInstance().setAcceptCookie(false)
             android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this,false)
             webViewClient=object:WebViewClient() {
-                override fun shouldOverrideUrlLoading(view:WebView?,request:WebResourceRequest):Boolean =
-                    !safeBrowserDestination(request.url.toString())
+                override fun shouldOverrideUrlLoading(view:WebView?,request:WebResourceRequest):Boolean {
+                    val next=request.url.toString()
+                    // The initial HTTP URL needs explicit consent before loadUrl().
+                    // Never silently downgrade a subsequently navigated page to HTTP.
+                    return !safeBrowserDestination(next) ||
+                        request.isForMainFrame && request.url.scheme.equals("http",ignoreCase=true)
+                }
 
                 override fun onPageFinished(view:WebView?,url:String?) {
                     super.onPageFinished(view,url)

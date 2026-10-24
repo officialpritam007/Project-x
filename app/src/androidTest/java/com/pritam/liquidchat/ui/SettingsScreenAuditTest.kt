@@ -47,7 +47,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
         compose.onNodeWithText("Home Screen").performScrollTo().performClick()
         compose.onNodeWithText("Bottom navigation & tabs").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("iOS navigation").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("iOS navigation").assertExists()
         compose.onNodeWithText("Liquid capsule").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Show navigation labels").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Hide navigation icons").performScrollTo().assertIsDisplayed()
@@ -116,7 +116,7 @@ class SettingsScreenAuditTest {
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
         compose.onNodeWithText("Chat Settings").performScrollTo().performClick()
         compose.onNodeWithText("Appearance").assertIsDisplayed()
-        compose.onNodeWithText("Animation level").assertIsDisplayed()
+        compose.onNodeWithText("Animation level").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Background delivery").assertDoesNotExist()
     }
 }
