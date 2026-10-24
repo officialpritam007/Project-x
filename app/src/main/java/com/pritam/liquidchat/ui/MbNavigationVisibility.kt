@@ -90,6 +90,7 @@ internal object MbNavigationVisibility {
     destinations:List<Int>,
     current:Int,
     referenceBar:Boolean,
+    navigationHeight:androidx.compose.ui.unit.Dp=56.dp,
     onTab:(Int)->Unit,
     modifier:Modifier=Modifier
 ) {
@@ -99,7 +100,7 @@ internal object MbNavigationVisibility {
     val iconSize=if(referenceBar&&display.navIconSize==24)30 else display.navIconSize
     Box(modifier) {
         Column(Modifier.fillMaxWidth()
-            .then(if(referenceBar)Modifier.height(56.dp) else Modifier.heightIn(min=54.dp))
+            .then(if(referenceBar)Modifier.height(navigationHeight) else Modifier.heightIn(min=54.dp))
             .clip(if(referenceBar)Glass.compact else Glass.capsule)
             .background(if(selected&&!referenceBar)MaterialTheme.colorScheme.primary.copy(alpha=.18f) else Color.Transparent)
             .clickable(role=Role.Button) {expanded=true}
