@@ -115,7 +115,17 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
                 if(!valid)return Result.success()
                 if(app.backend.session.value?.userId==account && !app.repository.foreground.value) {
                     val remaining=java.time.Duration.between(java.time.Instant.now(),expiresAt).toMillis()
-                    if(remaining>0)showIncoming(app,callId,account,call.optString("kind")=="video",remaining,app.repository.dao.chat(account,conversation)?.name ?: "Liquid Chat")
+                    if(remaining>0&&showIncoming(app,callId,account,call.optString("kind")=="video",remaining,app.repository.dao.chat(account,conversation)?.name ?: "Liquid Chat")) {
+                        // notify() enqueues work in system_server; acknowledge only after it is posted.
+                        repeat(5) {
+                            if(app.backend.session.value?.userId!=account||!expiresAt.isAfter(java.time.Instant.now()))return Result.success()
+                            if(app.getSystemService(NotificationManager::class.java).activeNotifications.any {it.id==callId.hashCode()}) {
+                                app.backend.rpc("call_update",org.json.JSONObject().put("p_call",callId).put("p_payload",org.json.JSONObject().put("action","presented")))
+                                return Result.success()
+                            }
+                            kotlinx.coroutines.delay(200)
+                        }
+                    }
                 }
                 Result.success()
             } catch(e:CancellationException){throw e}
@@ -158,19 +168,20 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             Result.success()
         } catch(e:CancellationException){throw e}catch(_:Exception){if(runAttemptCount<5)Result.retry() else Result.failure()}
     }
-    private fun showIncoming(context:Context,callId:String,account:String,video:Boolean,remaining:Long,name:String) {
+    private fun showIncoming(context:Context,callId:String,account:String,video:Boolean,remaining:Long,name:String):Boolean {
         if(DeviceAlertPreferences.disableAll(context,account)) {
             MessageNotificationDedupe.claim(context,account,"call-$callId")
-            return
+            return false
         }
         if(android.os.Build.VERSION.SDK_INT>=33 &&
-           ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
+           ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return false
         val manager=context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("incoming_calls_v2","Incoming calls",NotificationManager.IMPORTANCE_HIGH).apply {
             description="One-to-one voice and video call invitations"
             enableVibration(true)
             setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE),android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build())
         })
+        if(!manager.areNotificationsEnabled()||manager.getNotificationChannel("incoming_calls_v2")?.importance==NotificationManager.IMPORTANCE_NONE)return false
         val intent=Intent(context,MainActivity::class.java)
             .putExtra("callId",callId).putExtra("accountId",account)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -194,6 +205,7 @@ class ReceiveWorker(context:Context,params:WorkerParameters):CoroutineWorker(con
             .setTimeoutAfter(remaining.coerceAtMost(PushRecovery.CALL_WINDOW_MS))
             .build())
         }
+        return true
     }
 
     private fun show(context:Context,cid:String,id:String,title:String,body:String,account:String,previews:Boolean) {

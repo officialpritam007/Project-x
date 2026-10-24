@@ -181,9 +181,12 @@ private fun audioOutputDescription(route:String)=
 @Composable internal fun ActiveVideoControlStrip(
     muted:Boolean,cameraEnabled:Boolean,audioRoute:String,
     onMute:()->Unit,onAudio:()->Unit,onCamera:()->Unit,onSwitch:()->Unit,onHangup:()->Unit,
-    modifier:Modifier=Modifier
+    modifier:Modifier=Modifier,onMenuVisibilityChanged:(Boolean)->Unit={}
 ) {
     var moreOpen by remember {mutableStateOf(false)}
+    val menuListener by rememberUpdatedState(onMenuVisibilityChanged)
+    LaunchedEffect(moreOpen) {menuListener(moreOpen)}
+    DisposableEffect(Unit) {onDispose {menuListener(false)}}
     BoxWithConstraints(modifier) {
         val horizontal=maxHeight<238.dp
         val buttonSize=if(horizontal&&maxWidth<238.dp)48.dp else 52.dp

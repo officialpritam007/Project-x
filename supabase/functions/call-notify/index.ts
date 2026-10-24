@@ -1,8 +1,12 @@
+import { dispatchTokens } from "./dispatch.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.52.1";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+const admin = createClient(url, serviceKey, { auth: { persistSession: false },global:{
+  fetch:(input,init)=>fetch(input,{...init,signal:init?.signal
+    ? AbortSignal.any([init.signal,AbortSignal.timeout(3000)]) : AbortSignal.timeout(3000)})
+} });
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -65,9 +69,9 @@ Deno.serve(async (req:Request)=>{
     if(error)throw new Error("Call push unavailable");
     if(!claimed)return json({accepted:false},202);
     const recipients:Array<string>=Array.isArray(claimed.tokens)?claimed.tokens:[];
-    const delivered:string[]=[];
-    await Promise.all(recipients.slice(0,12).map(async (device:string)=>{
-      if(typeof device!=="string"||device.length>4096)return;
+    const deadline=Math.min(Date.now()+25000,Date.parse(claimed.expiresAt));
+    const {delivered,attempted}=await dispatchTokens(recipients,async (device:string)=>{
+      if(typeof device!=="string"||device.length>4096)return false;
       try {
         const response=await fetch(`https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`,{
           method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
@@ -78,20 +82,22 @@ Deno.serve(async (req:Request)=>{
             conversationId:String(claimed.conversationId),
             kind:String(claimed.kind)
           },android:{priority:"high",ttl:"45s",collapse_key:`call-${claimed.recipientId}`}}}),
-          signal:AbortSignal.timeout(8000)
+          signal:AbortSignal.timeout(Math.max(1,Math.min(8000,deadline-Date.now())))
         });
-        if(response.ok)delivered.push(device);
+        if(response.ok)return true;
         else {
           const failure=await response.json().catch(()=>({}));
-          if(failure?.error?.details?.some((x:{errorCode?:string})=>x.errorCode==="UNREGISTERED"))
-            await admin.rpc("remove_invalid_device",{p_token:device,p_recipient:claimed.recipientId});
+          if(failure?.error?.details?.some((x:{errorCode?:string})=>x.errorCode==="UNREGISTERED")) {
+            const {error:removeError}=await admin.rpc("remove_invalid_device",{p_token:device,p_recipient:claimed.recipientId});
+            if(removeError)return false;
+          }
         }
       }catch { /* Do not leak FCM credentials or tokens to callers. */ }
-    }));
-    const {error:finishError}=await admin.rpc("finish_call_push",{p_call:input.callId,p_delivered:delivered});
+      return false;
+    },12,deadline);
+    const {data:complete,error:finishError}=await admin.rpc("finish_call_push_v2",{p_call:input.callId,p_claim:claimed.claimId,p_attempted:attempted,p_delivered:delivered});
     if(finishError)throw new Error("Dispatch completion unavailable");
-    const complete=delivered.length===recipients.length;
-    return json({accepted:true,complete,attempted:Math.min(recipients.length,12),delivered:delivered.length},complete?200:503);
+    return json({accepted:true,complete,attempted:attempted.length,unattempted:recipients.length-attempted.length,failed:attempted.length-delivered.length,delivered:delivered.length},complete?200:503);
   }catch {
     return json({error:"Call push temporarily unavailable"},503);
   }

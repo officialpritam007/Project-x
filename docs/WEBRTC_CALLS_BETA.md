@@ -1,3 +1,5 @@
+> Protocol/lifecycle update: see [2026-10-24 implementation and rollout blockers](calling/2026-10-24-implementation.md). Optional authenticated TURN and system PiP are now implemented in source; provider connectivity and physical-device acceptance remain unverified. Deploy the tracked protocol migration and Edge Functions before distributing this update.
+
 # Liquid Chat — voice/video calling beta
 
 ## Current status (19 October 2026)

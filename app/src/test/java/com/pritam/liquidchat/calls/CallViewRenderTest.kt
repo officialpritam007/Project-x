@@ -42,6 +42,12 @@ class CallViewRenderTest {
         assertTrue(outgoing.renderVideo)
     }
 
+    @Test fun interruptionBeforeServerIdIsNotATerminalError() {
+        assertFalse(CallView(null,"chat","peer","video",false,"On hold",held=true).terminal)
+        assertTrue(CallView(null,"chat","peer","video",false,"Ended").terminal)
+        assertTrue(CallView(null,"chat","peer","video",false,"On another call").terminal)
+    }
+
     @Test fun audioCallsAndTerminalStatesNeverRenderVideo() {
         assertFalse(CallView(callId, "chat", "peer", "audio", true, "Connected").renderVideo)
         assertFalse(CallView(null, "chat", "peer", "video", false, "Call unavailable").renderVideo)

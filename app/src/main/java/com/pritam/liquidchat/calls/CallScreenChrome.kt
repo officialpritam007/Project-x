@@ -38,17 +38,21 @@ import androidx.compose.ui.unit.sp
     onCamera:()->Unit,
     onSwitch:()->Unit,
     onHangup:()->Unit,
-    onClose:()->Unit
+    onClose:()->Unit,
+    onMenuVisibilityChanged:(Boolean)->Unit={}
 ) {
-    val terminal=call.id==null&&call.status!="Preparing"
+    val terminal=call.terminal
     val shouldRing=call.incoming&&call.status=="Incoming call"
     val videoLayout=call.video&&!shouldRing&&!terminal
     val showChrome=!activeVideo||controlsVisible
     val status=when {
         terminal->call.status
         shouldRing->"Incoming ${if(call.video)"video" else "voice"} call"
+        call.held->"On hold"
+        call.remoteHeld->"Other participant is on hold"
+        !call.signalingAvailable->"Signaling unavailable · media may continue"
         call.connectedAt>0->if(call.status=="Connected")timer else "$timer · ${call.status}"
-        call.status=="Ringing"->"Calling…"
+        call.status=="Ringing"->"Ringing"
         else->call.status
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -73,7 +77,8 @@ import androidx.compose.ui.unit.sp
                 modifier=Modifier.align(Alignment.BottomEnd).systemBarsPadding().padding(16.dp)) {
                 key(call.id) {ActiveVideoControlStrip(
                     muted=call.muted,cameraEnabled=call.cameraEnabled,audioRoute=call.audioRoute,
-                    onMute=onMute,onAudio=onAudio,onCamera=onCamera,onSwitch=onSwitch,onHangup=onHangup
+                    onMute=onMute,onAudio=onAudio,onCamera=onCamera,onSwitch=onSwitch,onHangup=onHangup,
+                    onMenuVisibilityChanged=onMenuVisibilityChanged
                 )}
             }
         } else {

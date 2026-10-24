@@ -19,11 +19,13 @@ internal fun matchingCommunicationDeviceId(devices:List<Pair<Int,Int>>,wantedTyp
 internal fun interruptsCallAudio(change:Int):Boolean = change==AudioManager.AUDIOFOCUS_LOSS ||
     change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT || change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
 
-/** Foreground-only WebRTC peer: DTLS/SRTP transports media directly; Supabase carries SDP/ICE only. */
+/** User-started WebRTC peer: DTLS/SRTP transports media directly; Supabase carries SDP/ICE only. */
 class CallEngine(private val context: Context, private val video: Boolean,
                  private val sendCandidate: (JSONObject) -> Unit,
                  private val connectionChanged: (String) -> Unit,
-                 private val frameReceived:(Boolean)->Unit = {}) : Closeable {
+                 private val frameReceived:(Boolean)->Unit = {},
+                 private val routesChanged:()->Unit = {},
+                 private val iceServers:List<PeerConnection.IceServer> = emptyList()) : Closeable {
     companion object {
         private val initialized = AtomicBoolean(false)
 
@@ -49,10 +51,11 @@ class CallEngine(private val context: Context, private val video: Boolean,
     private var videoSource: VideoSource? = null
     private var videoTrack: VideoTrack? = null
     private var remoteVideo: VideoTrack? = null
+    private var remoteAudio:AudioTrack?=null
     private var capturer: VideoCapturer? = null
     private var texture: SurfaceTextureHelper? = null
-    private var localRenderer: SurfaceViewRenderer? = null
-    private var remoteRenderer: SurfaceViewRenderer? = null
+    private var localRenderer: CallTextureRenderer? = null
+    private var remoteRenderer: CallTextureRenderer? = null
     private val rendererLock = Any()
     private var remoteReady = false
     private val queuedIce = mutableListOf<IceCandidate>()
@@ -60,9 +63,66 @@ class CallEngine(private val context: Context, private val video: Boolean,
     private val originalMode = audioManager.mode
     private val originalSpeaker = audioManager.isSpeakerphoneOn
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var routeListener:AudioManager.OnCommunicationDeviceChangedListener?=null
     private val resourceGate = CallResourceGate()
     private val closed get()=resourceGate.closed
 
+    private var cameraRunning=false
+    private var cameraWanted=true
+    private var micMuted=false
+    @Volatile private var held=false
+    private var frontCamera=true
+    private var manualRoute:Int?=null
+    private var phoneBusy=false
+    private val telephony=context.getSystemService(android.telephony.TelephonyManager::class.java)
+    private val phoneListener=object:android.telephony.PhoneStateListener() {
+        override fun onCallStateChanged(state:Int,number:String?) {
+            if(closed)return
+            val wasBusy=phoneBusy
+            phoneBusy=state!=android.telephony.TelephonyManager.CALL_STATE_IDLE
+            if(phoneBusy)connectionChanged("On hold")
+            else if(wasBusy)connectionChanged("Focus restored")
+        }
+    }
+    private val scoReceiver=object:android.content.BroadcastReceiver() {
+        override fun onReceive(context:Context,intent:android.content.Intent) {if(!closed)routesChanged()}
+    }
+    fun refreshAudioRoute() {
+        refreshRoute()
+        if(!closed&&androidx.core.content.ContextCompat.checkSelfPermission(context,android.Manifest.permission.READ_PHONE_STATE)==android.content.pm.PackageManager.PERMISSION_GRANTED)
+            telephony.listen(phoneListener,android.telephony.PhoneStateListener.LISTEN_CALL_STATE)
+    }
+    fun resumeAudio():Boolean=!phoneBusy&&audioFocusRequest?.let {audioManager.requestAudioFocus(it)==AudioManager.AUDIOFOCUS_REQUEST_GRANTED}==true
+
+    private val handler=android.os.Handler(android.os.Looper.getMainLooper())
+    private val deviceCallback=object:android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(devices:Array<out android.media.AudioDeviceInfo>) {refreshRoute()}
+        override fun onAudioDevicesRemoved(devices:Array<out android.media.AudioDeviceInfo>) {refreshRoute()}
+    }
+    private fun refreshRoute() {
+        if(closed)return
+        runCatching {
+            if(android.os.Build.VERSION.SDK_INT>=31) {
+                val devices=audioManager.availableCommunicationDevices
+                val selected=manualRoute?.let {id->devices.firstOrNull {it.id==id}}
+                if(selected==null)manualRoute=null
+                val preferredId=preferredCallDevice(devices.map {it.id to it.type},manualRoute,video)
+                val preferred=devices.firstOrNull {it.id==preferredId}
+                preferred?.let {audioManager.setCommunicationDevice(it)}
+            } else {
+                val hasBluetooth=audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {it.type in listOf(7,8)}
+                if(manualRoute== -3&&!hasBluetooth)manualRoute=null
+                if(manualRoute==null) {
+                val bluetooth=audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {it.type in listOf(7,8)}
+                audioManager.isSpeakerphoneOn=!bluetooth&&video
+                if(bluetooth){audioManager.startBluetoothSco();audioManager.isBluetoothScoOn=true}
+                else {audioManager.stopBluetoothSco();audioManager.isBluetoothScoOn=false}
+                }
+            }
+            Unit
+        }
+        routesChanged()
+    }
     fun start():Unit = resourceGate.withOpen {
         val focusRequest=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(AudioAttributes.Builder()
@@ -73,7 +133,8 @@ class CallEngine(private val context: Context, private val video: Boolean,
                 // A cellular/other audio interruption must not leave live call
                 // capture running silently behind a lost or ducked audio session.
                 if(!closed&&interruptsCallAudio(change))
-                    connectionChanged("Audio focus lost")
+                    connectionChanged(if(change==AudioManager.AUDIOFOCUS_LOSS)"Focus lost permanently" else "On hold")
+                else if(!closed&&change==AudioManager.AUDIOFOCUS_GAIN)connectionChanged("Focus restored")
             }
             .build()
         if(audioManager.requestAudioFocus(focusRequest)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
@@ -82,23 +143,33 @@ class CallEngine(private val context: Context, private val video: Boolean,
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         // Android 12+ routes calls with setCommunicationDevice, not the deprecated
         // isSpeakerphoneOn flag; selecting speaker matters especially for video calls.
-        if(android.os.Build.VERSION.SDK_INT>=31) speaker(video)
-        else audioManager.isSpeakerphoneOn=video
+        audioManager.registerAudioDeviceCallback(deviceCallback,handler)
+        if(android.os.Build.VERSION.SDK_INT>=31) {
+            routeListener=AudioManager.OnCommunicationDeviceChangedListener {if(!closed)routesChanged()}
+            audioManager.addOnCommunicationDeviceChangedListener(context.mainExecutor,routeListener!!)
+        }
+        androidx.core.content.ContextCompat.registerReceiver(context,scoReceiver,android.content.IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED),androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        if(androidx.core.content.ContextCompat.checkSelfPermission(context,android.Manifest.permission.READ_PHONE_STATE)==android.content.pm.PackageManager.PERMISSION_GRANTED)
+            telephony.listen(phoneListener,android.telephony.PhoneStateListener.LISTEN_CALL_STATE)
+        refreshRoute()
         factory = createFactory(context, egl.eglBaseContext)
         val config = PeerConnection.RTCConfiguration(listOf(
             PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
-        )).apply {
+        )+iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
         }
         peer = factory!!.createPeerConnection(config, object : PeerConnection.Observer {
             override fun onSignalingChange(newState: PeerConnection.SignalingState?) {}
-            override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {
-                when (newState) {
-                    PeerConnection.IceConnectionState.CONNECTED,
-                    PeerConnection.IceConnectionState.COMPLETED -> connectionChanged("Connected")
-                    PeerConnection.IceConnectionState.DISCONNECTED -> connectionChanged("Reconnecting")
-                    PeerConnection.IceConnectionState.FAILED -> connectionChanged("Connection failed")
-                    PeerConnection.IceConnectionState.CLOSED -> connectionChanged("Ended")
+            override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {}
+            override fun onConnectionChange(newState:PeerConnection.PeerConnectionState?) {
+                if(closed)return
+                // Combined peer state includes DTLS. ICE alone is not media readiness.
+                when(newState) {
+                    PeerConnection.PeerConnectionState.CONNECTING -> connectionChanged("Connecting")
+                    PeerConnection.PeerConnectionState.CONNECTED -> connectionChanged("Connected")
+                    PeerConnection.PeerConnectionState.DISCONNECTED -> connectionChanged("Reconnecting")
+                    PeerConnection.PeerConnectionState.FAILED -> connectionChanged("Connection failed")
+                    PeerConnection.PeerConnectionState.CLOSED -> connectionChanged("Ended")
                     else -> Unit
                 }
             }
@@ -115,9 +186,11 @@ class CallEngine(private val context: Context, private val video: Boolean,
             override fun onRenegotiationNeeded() {}
             override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
                 (receiver?.track() as? VideoTrack)?.let(::receiveVideo)
+                (receiver?.track() as? AudioTrack)?.let(::receiveAudio)
             }
             override fun onTrack(transceiver: RtpTransceiver?) {
                 (transceiver?.receiver?.track() as? VideoTrack)?.let(::receiveVideo)
+                (transceiver?.receiver?.track() as? AudioTrack)?.let(::receiveAudio)
             }
         }) ?: error("Could not create WebRTC connection")
         audioSource = factory!!.createAudioSource(MediaConstraints())
@@ -134,10 +207,20 @@ class CallEngine(private val context: Context, private val video: Boolean,
             videoSource = factory!!.createVideoSource(false)
             texture = SurfaceTextureHelper.create("LiquidCallCamera",egl.eglBaseContext)
             capturer!!.initialize(texture,context,videoSource!!.capturerObserver)
+            frontCamera=enumerator.isFrontFacing(name)
             capturer!!.startCapture(640,480,24)
+            cameraRunning=true
             videoTrack = factory!!.createVideoTrack("liquid-video",videoSource).also {
                 peer!!.addTrack(it,listOf("liquid-stream"))
             }
+        }
+    }
+
+    // Native observer callbacks must not wait for the disposal gate: peer.close()
+    // may itself be waiting for the observer thread. This lock is released before close.
+    private fun receiveAudio(track:AudioTrack) {
+        synchronized(rendererLock) {
+            if(!closed){remoteAudio=track;track.setEnabled(!held)}
         }
     }
 
@@ -149,21 +232,18 @@ class CallEngine(private val context: Context, private val video: Boolean,
         }
     }
 
-    fun attachRenderer(renderer: SurfaceViewRenderer, local: Boolean) = synchronized(rendererLock) {
+    fun attachRenderer(renderer: CallTextureRenderer, local: Boolean) = synchronized(rendererLock) {
         if (closed) return@synchronized
-        renderer.init(egl.eglBaseContext,object:RendererCommon.RendererEvents {
-            override fun onFirstFrameRendered() {frameReceived(local)}
-            override fun onFrameResolutionChanged(width:Int,height:Int,rotation:Int) {}
-        })
-        renderer.setEnableHardwareScaler(true)
-        renderer.setMirror(local)
-        // Local preview is above the remote SurfaceView, below Compose controls.
-        renderer.setZOrderMediaOverlay(local)
+        renderer.init(egl.eglBaseContext) {frameReceived(local)}
+        renderer.setMirror(local&&frontCamera)
+        // Composition may attach a replacement before disposing the previous view.
+        if(local)localRenderer?.let {videoTrack?.removeSink(it)}
+        else remoteRenderer?.let {remoteVideo?.removeSink(it)}
         if (local) { localRenderer=renderer; videoTrack?.addSink(renderer) }
         else { remoteRenderer=renderer; remoteVideo?.addSink(renderer) }
     }
 
-    fun detachRenderer(renderer: SurfaceViewRenderer, local: Boolean) {
+    fun detachRenderer(renderer: CallTextureRenderer, local: Boolean) {
         synchronized(rendererLock) {
             if (local && localRenderer===renderer) {
                 videoTrack?.removeSink(renderer);localRenderer=null
@@ -174,33 +254,63 @@ class CallEngine(private val context: Context, private val video: Boolean,
         renderer.release()
     }
 
-    fun mute(mute:Boolean) = resourceGate.ifOpen {audioTrack?.setEnabled(!mute);Unit}
-    fun setCameraEnabled(enabled:Boolean) = resourceGate.ifOpen {videoTrack?.setEnabled(enabled);Unit}
-    fun switchCamera() = resourceGate.ifOpen {(capturer as? CameraVideoCapturer)?.switchCamera(null)}
+    fun mute(mute:Boolean) = resourceGate.ifOpen {micMuted=mute;audioTrack?.setEnabled(!mute&&!held);Unit}
+    fun hold(value:Boolean) = resourceGate.ifOpen {
+        held=value
+        peer?.setAudioRecording(!held)
+        peer?.setAudioPlayout(!held)
+        audioTrack?.setEnabled(!micMuted&&!held)
+        synchronized(rendererLock){remoteAudio?.setEnabled(!held)}
+        updateCapture()
+    }
+    private fun updateCapture() {
+        val enabled=CaptureIntent(micMuted,cameraWanted,held).captureVideo
+        videoTrack?.setEnabled(enabled)
+        if(enabled&&!cameraRunning&&capturer!=null) {capturer?.startCapture(640,480,24);cameraRunning=true}
+        if(!enabled&&cameraRunning) {capturer?.stopCapture();cameraRunning=false}
+    }
+    fun setCameraEnabled(enabled:Boolean) = resourceGate.ifOpen {cameraWanted=enabled;updateCapture()}
+    fun switchCamera() = resourceGate.ifOpen {
+        if(cameraRunning)(capturer as? CameraVideoCapturer)?.switchCamera(object:CameraVideoCapturer.CameraSwitchHandler {
+            override fun onCameraSwitchDone(isFrontCamera:Boolean) {synchronized(rendererLock){frontCamera=isFrontCamera;localRenderer?.setMirror(frontCamera)}}
+            override fun onCameraSwitchError(error:String?) {}
+        })
+    }
+    fun updateIceServers(servers:List<PeerConnection.IceServer>)=resourceGate.ifOpen {
+        if(servers.isNotEmpty())peer?.setConfiguration(PeerConnection.RTCConfiguration(listOf(PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer())+servers).apply {sdpSemantics=PeerConnection.SdpSemantics.UNIFIED_PLAN})
+        Unit
+    }
+    fun restartIce(servers:List<PeerConnection.IceServer> = emptyList())=resourceGate.ifOpen {
+        updateIceServers(servers);peer?.restartIce();Unit
+    }
     fun speaker(enabled:Boolean):Boolean {
         if(android.os.Build.VERSION.SDK_INT>=31) {
             val type=if(enabled)android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
             val devices=audioManager.availableCommunicationDevices
             val id=matchingCommunicationDeviceId(devices.map {it.id to it.type},type) ?: return false
             val device=devices.first {it.id==id}
-            return audioManager.setCommunicationDevice(device)
+            return selectAudioRoute(device.id)
         }
-        audioManager.isSpeakerphoneOn=enabled
-        return true
+        return selectAudioRoute(if(enabled)-2 else -1)
     }
     fun audioRoutes():List<Pair<Int,String>> = runCatching {
         if(android.os.Build.VERSION.SDK_INT>=31)audioManager.availableCommunicationDevices.map {it.id to deviceName(it)}
-        else listOf(-1 to "Earpiece / wired headset",-2 to "Speaker",-3 to "Bluetooth headset")
+        else buildList {
+            add(-1 to "Earpiece / wired headset");add(-2 to "Speaker")
+            if(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {it.type in listOf(7,8)})add(-3 to "Bluetooth headset")
+        }
     }.getOrDefault(emptyList())
     private fun deviceName(d:android.media.AudioDeviceInfo):String=when(d.type) {
         android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER->"Speaker"
         android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE->"Earpiece"
         else->d.productName.toString()
     }
-    fun routeName():String=if(android.os.Build.VERSION.SDK_INT>=31)audioManager.communicationDevice?.let(::deviceName).orEmpty() else if(audioManager.isSpeakerphoneOn)"Speaker" else "Earpiece / headset"
+    fun routeName():String=if(android.os.Build.VERSION.SDK_INT>=31)audioManager.communicationDevice?.let(::deviceName).orEmpty() else if(audioManager.isBluetoothScoOn)"Bluetooth headset" else if(audioManager.isSpeakerphoneOn)"Speaker" else if(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {it.type in listOf(3,4,22)})"Wired headset" else "Earpiece"
     fun selectAudioRoute(id:Int):Boolean=runCatching {
-        if(android.os.Build.VERSION.SDK_INT>=31)audioManager.availableCommunicationDevices.firstOrNull {it.id==id}?.let {audioManager.setCommunicationDevice(it)} ?: false
+        val accepted=if(android.os.Build.VERSION.SDK_INT>=31)audioManager.availableCommunicationDevices.firstOrNull {it.id==id}?.let {audioManager.setCommunicationDevice(it)} ?: false
         else {audioManager.isSpeakerphoneOn=id== -2;if(id== -3){audioManager.startBluetoothSco();audioManager.isBluetoothScoOn=true}else {audioManager.stopBluetoothSco();audioManager.isBluetoothScoOn=false};true}
+        if(accepted)manualRoute=id
+        accepted
     }.getOrDefault(false)
 
     private fun activePeer():PeerConnection=peer?.takeIf {!closed}
@@ -282,16 +392,21 @@ class CallEngine(private val context: Context, private val video: Boolean,
             remoteRenderer?.let {remoteVideo?.removeSink(it)}
             localRenderer=null
             remoteRenderer=null
-            remoteVideo=null
+            remoteVideo=null;remoteAudio=null
         }
         synchronized(queuedIce) {queuedIce.clear();remoteReady=false}
-        try {capturer?.stopCapture()} catch(_:InterruptedException) {Thread.currentThread().interrupt()}
-        capturer?.dispose()
-        texture?.dispose()
-        peer?.close();peer?.dispose()
-        videoTrack?.dispose();audioTrack?.dispose()
-        videoSource?.dispose();audioSource?.dispose()
-        factory?.dispose()
+        try {capturer?.stopCapture()} catch(_:InterruptedException) {Thread.currentThread().interrupt()} catch(_:RuntimeException) {}
+        runCatching {capturer?.dispose()}
+        runCatching {texture?.dispose()}
+        runCatching {peer?.close()};runCatching {peer?.dispose()}
+        runCatching {videoTrack?.dispose()};runCatching {audioTrack?.dispose()}
+        runCatching {videoSource?.dispose()};runCatching {audioSource?.dispose()}
+        runCatching {factory?.dispose()}
+        runCatching {context.unregisterReceiver(scoReceiver)}
+        runCatching {telephony.listen(phoneListener,android.telephony.PhoneStateListener.LISTEN_NONE)}
+        if(android.os.Build.VERSION.SDK_INT>=31)routeListener?.let {audioManager.removeOnCommunicationDeviceChangedListener(it)}
+        routeListener=null
+        audioManager.unregisterAudioDeviceCallback(deviceCallback)
         audioFocusRequest?.let {audioManager.abandonAudioFocusRequest(it)}
         audioFocusRequest=null
         if(android.os.Build.VERSION.SDK_INT>=31)audioManager.clearCommunicationDevice()

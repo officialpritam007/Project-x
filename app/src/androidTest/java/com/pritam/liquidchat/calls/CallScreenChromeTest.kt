@@ -69,6 +69,34 @@ class CallScreenChromeTest {
         }
     }
 
+    @Test fun voiceCallShowsTheOtherParticipantsHoldState() {
+        compose.setContent {
+            LiquidTheme(false) {
+                CallScreenChrome(connected.copy(remoteHeld=true),"Riya","02:34",false,true,
+                    onMinimize={},onAccept={},onDecline={},onMute={},onAudio={},onCamera={},
+                    onSwitch={},onHangup={},onClose={})
+            }
+        }
+        compose.onNodeWithText("Other participant is on hold").assertIsDisplayed()
+        compose.onNodeWithContentDescription("End call").assertIsDisplayed()
+    }
+
+    @Test fun moreMenuReportsItsLifetimeToTheAutoHideOwner() {
+        var menuOpen=false
+        var switched=0
+        compose.setContent {
+            LiquidTheme(false) {
+                CallScreenChrome(connected.copy(kind="video"),"Riya","02:34",true,true,
+                    onMinimize={},onAccept={},onDecline={},onMute={},onAudio={},onCamera={},
+                    onSwitch={switched++},onHangup={},onClose={},onMenuVisibilityChanged={menuOpen=it})
+            }
+        }
+        compose.onNodeWithContentDescription("More call options").performClick()
+        compose.runOnIdle {assertTrue(menuOpen)}
+        compose.onNodeWithContentDescription("Switch camera").performClick()
+        compose.runOnIdle {assertTrue(!menuOpen);assertEquals(1,switched)}
+    }
+
     @Test fun terminalCallOnlyOffersCloseAndNeverDispatchesHangup() {
         var closed=0
         var otherActions=0

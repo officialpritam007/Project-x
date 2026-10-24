@@ -50,7 +50,7 @@ import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.ui.*
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
-import org.webrtc.SurfaceViewRenderer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +62,7 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     var seconds by remember(c.id,c.connectedAt) {mutableLongStateOf(0)}
     LaunchedEffect(c.connectedAt) {while(c.connectedAt>0){seconds=(SystemClock.elapsedRealtime()-c.connectedAt)/1000;delay(1000)}}
     val timer="%02d:%02d".format(seconds/60,seconds%60)
-    val terminal=c.id==null&&c.status!="Preparing"
+    val terminal=c.terminal
     BackHandler(enabled=!c.minimized) {if(terminal)controller.dismissError() else controller.minimize()}
     val shouldRing=c.incoming&&c.status=="Incoming call"
     DisposableEffect(c.id,shouldRing) {
@@ -82,30 +82,63 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     }
     val needed=remember(c.video) {if(c.video)arrayOf(Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA) else arrayOf(Manifest.permission.RECORD_AUDIO)}
     var permissionError by remember(c.id) {mutableStateOf(false)}
+    var permissionPromptOpen by remember(c.conversation,c.peer) {mutableStateOf(false)}
     val request=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {result->
+        permissionPromptOpen=false
         if(needed.all {result[it]==true})controller.accept() else permissionError=true
     }
-    fun answer() {if(needed.all {ContextCompat.checkSelfPermission(context,it)==PackageManager.PERMISSION_GRANTED})controller.accept() else request.launch(needed)}
+    fun answer() {if(needed.all {ContextCompat.checkSelfPermission(context,it)==PackageManager.PERMISSION_GRANTED})controller.accept() else {permissionPromptOpen=true;request.launch(needed)}}
     LaunchedEffect(c.id,c.answerRequested) {if(c.answerRequested&&shouldRing)answer()}
     var routes by remember {mutableStateOf<List<Pair<Int,String>>?>(null)}
-    val bluetoothPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {routes=controller.audioRoutes()}
+    LaunchedEffect(c.audioDevicesRevision) {if(routes!=null)routes=controller.audioRoutes()}
+    var automaticPermissionRequested by remember(c.conversation,c.peer) {mutableStateOf(false)}
+    val automaticPermissions=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {permissionPromptOpen=false;controller.refreshAudioRoutes()}
+    LaunchedEffect(shouldRing,terminal) {
+        if(!shouldRing&&!terminal&&!automaticPermissionRequested) {
+            automaticPermissionRequested=true
+            val optional=buildList {
+                if(android.os.Build.VERSION.SDK_INT>=31)add(Manifest.permission.BLUETOOTH_CONNECT)
+                add(Manifest.permission.READ_PHONE_STATE)
+            }.filter {ContextCompat.checkSelfPermission(context,it)!=PackageManager.PERMISSION_GRANTED}
+            if(optional.isNotEmpty()){permissionPromptOpen=true;automaticPermissions.launch(optional.toTypedArray())}
+        }
+    }
+    val bluetoothPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {permissionPromptOpen=false;controller.refreshAudioRoutes();routes=controller.audioRoutes()}
     fun openAudioRoutes() {
         if(android.os.Build.VERSION.SDK_INT>=31 &&
             ContextCompat.checkSelfPermission(context,Manifest.permission.BLUETOOTH_CONNECT)!=PackageManager.PERMISSION_GRANTED)
-            bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            {permissionPromptOpen=true;bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)}
         else routes=controller.audioRoutes()
     }
     // The compact pill is laid out by Scaffold; video can instead float over the chat.
     if(c.minimized) {
         val minimizedEngine=controller.renderer()
         if(c.video && c.renderVideo && !c.compact && minimizedEngine!=null)
-            FloatingCallVideo(controller,minimizedEngine,c.id)
+            FloatingCallVideo(controller,minimizedEngine,c)
         return
     }
     val engine=controller.renderer()
     val activeVideo=c.renderVideo&&engine!=null&&!terminal
     var swapped by remember(c.id) {mutableStateOf(false)}
+    LaunchedEffect(c.systemPip) {if(c.systemPip)swapped=false}
+    var moreMenuOpen by remember(c.id) {mutableStateOf(false)}
     var controlsVisible by remember(c.id) {mutableStateOf(true)}
+    var lastInteraction by remember(c.id) {mutableLongStateOf(SystemClock.elapsedRealtime())}
+    val accessibility=context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+    var accessibilityEnabled by remember {mutableStateOf(accessibility.isEnabled)}
+    DisposableEffect(accessibility) {
+        val listener=android.view.accessibility.AccessibilityManager.AccessibilityStateChangeListener {accessibilityEnabled=it}
+        accessibility.addAccessibilityStateChangeListener(listener)
+        onDispose {accessibility.removeAccessibilityStateChangeListener(listener)}
+    }
+    LaunchedEffect(c.id,c.status,routes,permissionError,permissionPromptOpen,lastInteraction,c.systemPip,accessibilityEnabled,moreMenuOpen) {
+        controlsVisible=true
+        if(canAutoHideCallControls(c.status,routes!=null||moreMenuOpen,permissionPromptOpen||permissionError,accessibilityEnabled)) {
+            delay(accessibility.getRecommendedTimeoutMillis(4000,android.view.accessibility.AccessibilityManager.FLAG_CONTENT_CONTROLS).toLong())
+            if(!accessibility.isEnabled)controlsVisible=false
+        }
+    }
+
     var x by remember(c.id) {mutableFloatStateOf(0f)}
     var y by remember(c.id) {mutableFloatStateOf(-1f)}
     val density=LocalDensity.current
@@ -131,18 +164,37 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
             lightNavigation?.let {bars?.isAppearanceLightNavigationBars=it}
         }
     }
-    // SurfaceView video is outside Compose's blur capture. Its controls use the
-    // readable translucent material; contact posters retain source-backed blur.
+    // Video controls retain their readable translucent material;
+    // contact posters retain source-backed blur.
     CompositionLocalProvider(LocalGlassState provides if(activeVideo)null else callGlass,LocalGlassDark provides true) {
-    Surface(Modifier.fillMaxSize(),color=Color.Black) {
+    Surface(Modifier.fillMaxSize().pointerInput(c.id) {
+        awaitPointerEventScope {while(true) {
+            awaitPointerEvent(PointerEventPass.Initial)
+            lastInteraction=SystemClock.elapsedRealtime()
+        }}
+    },color=Color.Black) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val showChrome=!activeVideo||controlsVisible
+            val showChrome=(!activeVideo||controlsVisible)&&!c.systemPip
             val layoutDirection=LocalLayoutDirection.current
             if(!activeVideo) CallPoster(displayName,backend,avatar)
+            val remoteStatus=when {
+                c.remoteHeld->"Other participant is on hold"
+                !c.remoteCamera->"Other participant turned camera off"
+                c.status=="Reconnecting"->"Video unavailable · reconnecting"
+                !c.remoteVideoReady&&c.remoteVideoSeen->"Video unavailable"
+                !c.remoteVideoReady->"Waiting for remote video…"
+                else->null
+            }
             if(activeVideo&&engine!=null)key(engine,swapped) {
-                VideoRenderer(engine,swapped,Modifier.fillMaxSize())
+                if((swapped&&c.cameraEnabled&&!c.held)||(!swapped&&c.remoteCamera&&!c.remoteHeld))VideoRenderer(engine,swapped,Modifier.fillMaxSize())
+                if(remoteStatus!=null&&!swapped) {
+                    Text(remoteStatus,color=Color.White,textAlign=TextAlign.Center,
+                        modifier=Modifier.fillMaxSize().background(Color.Black).wrapContentSize(Alignment.Center).padding(32.dp)
+                            .background(Color.Black.copy(alpha=.55f),RoundedCornerShape(16.dp)).padding(12.dp))
+                }
+                if(swapped&&(!c.cameraEnabled||c.held))Text(if(c.held)"On hold" else "Camera off",color=Color.White,modifier=Modifier.align(Alignment.Center))
                 // Transparent touch surface belongs behind the inset preview, never over it.
-                Box(Modifier.fillMaxSize().clickable {controlsVisible=!controlsVisible})
+                Box(Modifier.fillMaxSize().clickable {controlsVisible=true;lastInteraction=SystemClock.elapsedRealtime()})
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
                     Color.Black.copy(alpha=.32f),Color.Transparent,Color.Black.copy(alpha=.28f)))))
                 val previewWidth=if(maxWidth<360.dp)100.dp else 116.dp
@@ -163,9 +215,10 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                 val maxY=(constraints.maxHeight-heightPx-safeTop-safeBottom-marginPx*2-bottomControlsPx).coerceAtLeast(0).toFloat()
                 val resolvedX=if(x<0f)maxX else x.coerceIn(0f,maxX)
                 val resolvedY=if(y<0f)maxY else y.coerceIn(0f,maxY)
-                Box(Modifier
+                if(!c.systemPip)Box(Modifier
                     .offset {IntOffset(safeStart+marginPx+resolvedX.roundToInt(),safeTop+marginPx+resolvedY.roundToInt())}
                     .size(previewWidth,previewHeight)
+                    .background(Color.Black,RoundedCornerShape(22.dp))
                     .clip(RoundedCornerShape(22.dp))
                     .border(1.dp,Color.White.copy(alpha=.38f),RoundedCornerShape(22.dp))
                     .testTag("call-self-preview")
@@ -178,20 +231,20 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                         }
                     }
                     .clickable {swapped=!swapped}) {
-                    VideoRenderer(engine,!swapped,Modifier.fillMaxSize())
+                    if((!swapped&&c.cameraEnabled&&!c.held)||(swapped&&c.remoteCamera&&!c.remoteHeld))VideoRenderer(engine,!swapped,Modifier.fillMaxSize(),22f)
+                    if(!swapped&&(!c.cameraEnabled||c.held))Text(if(c.held)"On hold" else "Camera off",color=Color.White,modifier=Modifier.align(Alignment.Center))
+                    if(swapped&&(!c.remoteCamera||c.remoteHeld||!c.remoteVideoReady))Text(if(c.remoteHeld)"On hold" else if(!c.remoteCamera)"Camera off" else if(c.remoteVideoSeen)"Video unavailable" else "Waiting for video",color=Color.White,modifier=Modifier.align(Alignment.Center).background(Color.Black).padding(8.dp))
                 }
             }
-            if(activeVideo&&!c.remoteVideoReady&&!swapped&&showChrome)
-                Text("Waiting for remote video…",color=Color.White,textAlign=TextAlign.Center,
-                    modifier=Modifier.align(Alignment.Center).padding(32.dp)
-                        .background(Color.Black.copy(alpha=.55f),RoundedCornerShape(16.dp)).padding(12.dp))
+            if(c.held&&!c.systemPip)TextButton(onClick=controller::resumeHeldCall,modifier=Modifier.align(Alignment.Center)) {Text("Resume call")}
             CallScreenChrome(
                 call=c,displayName=displayName,timer=timer,
-                activeVideo=activeVideo,controlsVisible=controlsVisible,
+                activeVideo=activeVideo,controlsVisible=controlsVisible&&!c.systemPip,
                 onMinimize=controller::minimize,onAccept=::answer,onDecline=controller::decline,
                 onMute=controller::toggleMute,onAudio=::openAudioRoutes,
                 onCamera=controller::toggleCamera,onSwitch=controller::switchCamera,
-                onHangup=controller::hangup,onClose=controller::dismissError
+                onHangup=controller::hangup,onClose=controller::dismissError,
+                onMenuVisibilityChanged={moreMenuOpen=it}
             )
         }
     }
@@ -281,7 +334,8 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
  * In-app Picture-in-Picture. Not Android system PiP: media stays in the existing foreground
  * call service and the window stays inside the app. Insets keep the camera above the IME.
  */
-@Composable private fun FloatingCallVideo(controller:CallController,engine:CallEngine,callId:String?) {
+@Composable private fun FloatingCallVideo(controller:CallController,engine:CallEngine,call:CallView) {
+    val callId=call.id
     val density=LocalDensity.current
     var x by remember(callId) {mutableFloatStateOf(-1f)}
     var y by remember(callId) {mutableFloatStateOf(-1f)}
@@ -310,9 +364,10 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                 .clickable {controller.expand()},Glass.card
         ) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
-                VideoRenderer(engine,false,Modifier.fillMaxSize())
+                if(call.remoteCamera&&!call.remoteHeld)VideoRenderer(engine,false,Modifier.fillMaxSize(),22f)
+                if(!call.remoteVideoReady||call.remoteHeld||!call.remoteCamera)Text(if(call.remoteHeld)"On hold" else if(!call.remoteCamera)"Camera off" else if(call.remoteVideoSeen)"Video unavailable" else "Waiting for video",color=Color.White,modifier=Modifier.fillMaxSize().background(Color.Black).wrapContentSize(Alignment.Center))
                 Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(width=36.dp,height=48.dp).clip(Glass.compact)) {
-                    VideoRenderer(engine,true,Modifier.fillMaxSize())
+                    if(call.cameraEnabled&&!call.held)VideoRenderer(engine,true,Modifier.fillMaxSize(),12f)
                 }
                 FilledIconButton(
                     onClick=controller::toggleCompact,
@@ -326,9 +381,17 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     }
 }
 
-@Composable private fun VideoRenderer(engine:CallEngine,local:Boolean,modifier:Modifier=Modifier) {
+@Composable private fun VideoRenderer(engine:CallEngine,local:Boolean,modifier:Modifier=Modifier,radius:Float=0f) {
     val context=LocalContext.current
-    val renderer=remember(engine,local) {SurfaceViewRenderer(context)}
+    val renderer=remember(engine,local) {CallTextureRenderer(context)}
     DisposableEffect(engine,renderer,local) {engine.attachRenderer(renderer,local);onDispose {engine.detachRenderer(renderer,local)}}
-    AndroidView(factory={renderer},modifier=modifier)
+    AndroidView(factory={renderer},modifier=modifier,update={view->
+        view.clipToOutline=radius>0
+        view.outlineProvider=object:android.view.ViewOutlineProvider() {
+            override fun getOutline(v:android.view.View,outline:android.graphics.Outline) {
+                outline.setRoundRect(0,0,v.width,v.height,radius*v.resources.displayMetrics.density)
+            }
+        }
+        view.invalidateOutline()
+    })
 }
