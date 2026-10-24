@@ -96,8 +96,9 @@ class ContactMediaUiTest {
 
     @Test fun actionSheetScrollsToDestructiveActionAndPreservesCallbacks() {
         var deleted=false
+        var open by mutableStateOf(true)
         compose.setContent {LiquidTheme(false) {
-            LiquidActionSheet("Conversation",onDismiss={}) {
+            if(open) LiquidActionSheet("Conversation",onDismiss={open=false}) {
                 repeat(12) {GlassActionRow("Action $it",Icons.Outlined.PhotoLibrary,onClick={})}
                 GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
                     destructive=true,onClick={deleted=true})
@@ -105,9 +106,10 @@ class ContactMediaUiTest {
         }}
         compose.onNodeWithText("Delete history for me").performScrollTo().performClick()
         compose.runOnIdle {assertTrue(deleted)}
-        compose.onNodeWithText("Done").performScrollTo().assertIsDisplayed()
-        // ModalBottomSheet has a separate Android window; target its scroll surface,
-        // rather than assuming the Activity and sheet share one semantics root.
-        capture("23-conversation-actions",compose.onNodeWithText("Done").onParent())
+        // Reference mode uses a close icon instead of the Liquid mode Done button.
+        compose.onNodeWithContentDescription("Close Conversation").assertIsDisplayed()
+        capture("23-conversation-actions",compose.onNodeWithText("Delete history for me").onParent())
+        compose.onNodeWithContentDescription("Close Conversation").performClick()
+        compose.onNodeWithText("Delete history for me").assertDoesNotExist()
     }
 }

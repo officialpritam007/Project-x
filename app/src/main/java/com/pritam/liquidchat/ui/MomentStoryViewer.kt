@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.AppViewModel
 import com.pritam.liquidchat.data.Images
@@ -65,6 +68,7 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
     var progress by remember(current.id) {mutableFloatStateOf(0f)}
     var imageReady by remember(current.id) {mutableStateOf(false)}
     var replay by remember(current.id) {mutableIntStateOf(0)}
+    var dragDistance by remember(current.id) {mutableFloatStateOf(0f)}
     val foreground by model.repository.foreground.collectAsStateWithLifecycle()
     val currentCall by model.calls.view.collectAsStateWithLifecycle()
     val effectivePause=paused||savingStory||!foreground||currentCall!=null
@@ -102,7 +106,24 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                 } else ProtectedImage(model.backend,current.media,
                     description="${current.name}'s story",modifier=Modifier.fillMaxSize(),
                     scale=ContentScale.Fit,onLoadState={imageReady=it})
-                Box(Modifier.fillMaxSize().pointerInput(current.id,stories.size) {
+                Box(Modifier.fillMaxSize()
+                    .pointerInput(current.id) {
+                        detectVerticalDragGestures(
+                            onDragStart={dragDistance=0f;paused=true},
+                            onVerticalDrag={change,amount->
+                                change.consume()
+                                dragDistance=(dragDistance+amount).coerceAtLeast(0f)
+                            },
+                            onDragEnd={
+                                val dismiss=dragDistance>size.height*.18f
+                                dragDistance=0f
+                                paused=false
+                                if(dismiss)onDismiss()
+                            },
+                            onDragCancel={dragDistance=0f;paused=false}
+                        )
+                    }
+                    .pointerInput(current.id,stories.size) {
                     detectTapGestures(
                         onPress={
                             paused=true

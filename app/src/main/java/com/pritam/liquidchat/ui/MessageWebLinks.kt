@@ -26,3 +26,8 @@ internal fun androidBrowserUrl(link:MessageWebLink):String {
     if(separator<=0)return link.url
     return link.url.substring(0,separator).lowercase(java.util.Locale.ROOT)+link.url.substring(separator)
 }
+
+/** Reconfirm each navigated HTTP page, including HTTPS-to-HTTP redirects. */
+internal fun webNavigationRequiresHttpConsent(url:String):Boolean = runCatching {
+    java.net.URI(url).scheme.equals("http",ignoreCase=true)
+}.getOrDefault(false)

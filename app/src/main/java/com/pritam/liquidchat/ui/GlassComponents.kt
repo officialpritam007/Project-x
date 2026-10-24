@@ -114,10 +114,9 @@ import androidx.compose.ui.focus.onFocusChanged
             topEnd=if(reference)22.dp else 30.dp),
         dragHandle={if(!reference)BottomSheetDefaults.DragHandle()},
         containerColor=glassPopupColor(),tonalElevation=0.dp) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+        Column(Modifier.fillMaxWidth()
             .padding(horizontal=if(reference)16.dp else 20.dp)
-            .padding(bottom=16.dp),
-            verticalArrangement=Arrangement.spacedBy(if(reference)0.dp else 4.dp)) {
+            .padding(bottom=16.dp)) {
             if(reference) {
                 // Owner-supplied mb_new_dialog_bottom.xml has a centered 17sp
                 // title, 16dp outer padding, a close action and 12dp gap.
@@ -135,9 +134,14 @@ import androidx.compose.ui.focus.onFocusChanged
                 }
             } else Text(title,style=MaterialTheme.typography.titleLarge,
                 modifier=Modifier.padding(horizontal=12.dp,vertical=8.dp))
-            content()
-            if(!reference)TextButton(onClick=onDismiss,
-                modifier=Modifier.align(Alignment.End)) {Text("Done")}
+            // Keep dismissal reachable while a long action list scrolls.
+            Column(Modifier.fillMaxWidth().weight(1f,fill=false)
+                .verticalScroll(rememberScrollState()),
+                verticalArrangement=Arrangement.spacedBy(if(reference)0.dp else 4.dp)) {
+                content()
+                if(!reference)TextButton(onClick=onDismiss,
+                    modifier=Modifier.align(Alignment.End)) {Text("Done")}
+            }
         }
     }
 }
