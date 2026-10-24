@@ -10,7 +10,8 @@ internal suspend fun Backend.imageUrl(
     require(id.isNotBlank() && id!="null")
     val key="signed-image:$id"
     repeat(2) {attempt->
-        val encoded=uiReads.load(account,key,40_000L,force=force||attempt>0) {
+        val encoded=try {
+            uiReads.load(account,key,40_000L,force=force||attempt>0) {
             val started=clock()
             val response=JSONObject(request("/functions/v1/media","POST",JSONObject().put("action","download").put("id",id)))
             val lifetime=response.optLong("expires_in",60).coerceIn(1,300)*1000
@@ -18,6 +19,14 @@ internal suspend fun Backend.imageUrl(
             if(!url.startsWith("https://"))throw IOException("Invalid protected image URL")
             JSONObject().put("url",url)
                 .put("valid_until",started+lifetime-minOf(5_000L,lifetime/10)).toString()
+        }
+            }
+        } catch (error: ApiException) {
+            // A fresh media authorization denial revokes previously issued link access.
+            // Leave ordinary API-level permission errors out of this media-specific path.
+            if(error.status==403 || error.status==404 || error.status==410)
+                invalidateRevokedMedia(account,id)
+            throw error
         }
         val response=runCatching {JSONObject(encoded)}.getOrNull()
         if(response!=null&&response.optLong("valid_until")>clock())return response.getString("url")
