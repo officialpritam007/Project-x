@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.sp
         modifier=Modifier.fillMaxWidth().heightIn(min=46.dp),
         contentPadding=PaddingValues(horizontal=14.dp,vertical=6.dp)
     ) {
-        Text("Bubble style",modifier=Modifier.weight(1f))
+        Text("Message bubble style",modifier=Modifier.weight(1f))
         Text(selected,style=MaterialTheme.typography.bodySmall)
     }
     if(expanded) ModalBottomSheet(
