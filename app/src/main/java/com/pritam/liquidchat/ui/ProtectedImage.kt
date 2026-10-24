@@ -18,6 +18,7 @@ import coil.compose.AsyncImage
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.pritam.liquidchat.data.ApiException
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.imageUrl
 import com.pritam.liquidchat.data.imageUrlRefreshDelay
@@ -42,6 +43,9 @@ import kotlinx.coroutines.isActive
     // Resource versions survive URL expiry, and change on auth or avatar invalidation.
     val version=remember(account,id,revision) {backend.uiReads.version(account,key)}
     val memoryKey="$account:$version:$id:$local"
+    // A remote 403 revokes this image until explicit retry or a new login.
+    // Keep the denial across resource-version changes caused by cache invalidation.
+    var denied by remember(backend,account,id,sessionEpoch) {mutableStateOf(false)}
     val imageLoader=Coil.imageLoader(context)
     val cached=remember(memoryKey) {imageLoader.memoryCache?.get(MemoryCache.Key(memoryKey))!=null}
     var url by remember(memoryKey) {mutableStateOf<String?>(local.takeIf {it.isNotEmpty()} ?: id.takeIf {cached})}
@@ -52,7 +56,8 @@ import kotlinx.coroutines.isActive
     // This also prevents cached avatars from flashing a placeholder on tab return.
     var hasRenderedBitmap by remember(memoryKey) {mutableStateOf(cached)}
     var loadingPixels by remember(memoryKey) {mutableStateOf(!cached)}
-    LaunchedEffect(memoryKey,retry,lifecycle) {
+    LaunchedEffect(memoryKey,retry,lifecycle,denied) {
+        if(denied) {currentLoadState(false);return@LaunchedEffect}
         // Returning to a tab with a decoded Coil bitmap must not pulse loading
         // or hide an already-visible avatar while renewing its signed URL.
         // Keep the explicit failure path below (and onError) fail-closed.
@@ -68,7 +73,16 @@ import kotlinx.coroutines.isActive
                     val signed=backend.imageUrl(account,id,force=retry>0)
                     if(backend.uiReads.epoch(account)==expectedEpoch) {url=signed;failed=false}
                 } catch(e:CancellationException) {throw e}
-                catch(_:Exception) {url=null;failed=true;currentLoadState(false);return@repeatOnLifecycle}
+                catch(error:Exception) {
+                    if(error is ApiException && error.status==403) {
+                        // Do not silently re-sign the same revoked image after
+                        // invalidateDeniedImageScope bumps the cache revision.
+                        denied=true
+                        hasRenderedBitmap=false
+                    }
+                    url=null;failed=true;currentLoadState(false)
+                    return@repeatOnLifecycle
+                }
                 delay(backend.imageUrlRefreshDelay(account,id))
             }
         }
@@ -99,8 +113,10 @@ import kotlinx.coroutines.isActive
                 else failed=true
             }
         )
-        if(failed && showLoadingSurface)
-            TextButton(onClick={url=null;failed=false;autoRetried=false;retry++}) {Text("Retry image")}
+        if((failed || denied) && showLoadingSurface)
+            TextButton(onClick={denied=false;url=null;failed=false;autoRetried=false;retry++}) {
+                Text("Retry image")
+            }
         else if(showLoadingSurface&&canLoad&&!hasRenderedBitmap&&(url==null||loadingPixels))
             CircularProgressIndicator(Modifier.size(24.dp))
     }
