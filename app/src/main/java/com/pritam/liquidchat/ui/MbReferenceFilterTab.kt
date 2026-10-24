@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -22,7 +23,7 @@ import androidx.compose.ui.unit.sp
             modifier=modifier.heightIn(min=48.dp),shape=Glass.capsule)
         return
     }
-    Column(modifier.heightIn(min=48.dp)
+    Column(modifier.testTag("reference-filter-$label").heightIn(min=48.dp)
         .selectable(selected=selected,role=Role.Tab,onClick=onClick)
         .semantics { this.selected=selected }
         .padding(horizontal=12.dp,vertical=5.dp),
