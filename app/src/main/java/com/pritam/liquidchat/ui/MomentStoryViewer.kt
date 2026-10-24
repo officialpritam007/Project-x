@@ -97,7 +97,12 @@ internal fun advancePhotoStory(progress:Float,elapsedMs:Long,paused:Boolean,read
                         onFinished={if(playback.autoAdvance) {
                             if(index<stories.lastIndex)currentId=stories[index+1].id else onDismiss()
                         }},
-                        modifier=Modifier.fillMaxSize()
+                        modifier=Modifier.fillMaxSize(),
+                        poster={
+                            ProtectedVideoThumbnail(model.backend,current.media,
+                                description="Story video poster",
+                                modifier=Modifier.fillMaxSize())
+                        }
                     )
                 } else ProtectedImage(model.backend,current.media,
                     description="${current.name}'s story",modifier=Modifier.fillMaxSize(),
