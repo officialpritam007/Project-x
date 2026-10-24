@@ -9,7 +9,7 @@
 [![Android](https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack-Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
-[![License](https://img.shields.io/badge/Release-Preview%20Candidate-orange?style=for-the-badge)](#project-status)
+[![Status](https://img.shields.io/badge/Release-Preview%20Candidate-orange?style=for-the-badge)](#project-status)
 
 **Built by [Pritam Pal](https://github.com/officialpritam007)**
 
