@@ -164,7 +164,7 @@ import java.util.UUID
         }},enabled=!busy){Text("Retry")}}}}
             if(visibleItems.isEmpty()&&loadedOnce&&!busy&&error==null&&!more)item {
                 GlassCard(Modifier.fillMaxWidth()) {
-                    Text(if(kind=="story")"No stories yet" else if(archived)"No archived posts" else "No posts yet...",style=MaterialTheme.typography.titleLarge)
+                    Text(if(kind=="story")"No stories yet" else if(archived)"No archived posts" else "No posts yet",style=MaterialTheme.typography.titleLarge)
                     Text(if(mine)"Share a photo with people in your saved contacts." else "Stories and posts appear when their creators save you as a contact.")
                     if(mine&&!archived)TextButton(onClick={editor=true},enabled=uid!=null){Text(if(kind=="story")"Add a story" else "Add a post")}
                 }
