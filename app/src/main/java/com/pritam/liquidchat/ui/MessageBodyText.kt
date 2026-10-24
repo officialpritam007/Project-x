@@ -22,12 +22,14 @@ internal fun linkedTextColor(preset:String,themeColor:Color,dark:Boolean):Color 
 /** Inline links remain plain text during message selection; no automatic URL requests. */
 @Composable internal fun MessageBodyText(
     body:String,fontSize:Int,expanded:Boolean,linksEnabled:Boolean,
-    textColor:Color=Color.Unspecified,onTextLayout:(TextLayoutResult)->Unit
+    textColor:Color=Color.Unspecified,
+    onBrowserOpen:((String)->Unit)?=null,
+    onTextLayout:(TextLayoutResult)->Unit
 ) {
     var browserLink by remember(body) {mutableStateOf<String?>(null)}
     val color=linkedTextColor(LocalDisplayOptions.current.linkColor,MaterialTheme.colorScheme.primary,LocalGlassDark.current)
     var failed by remember(body) {mutableStateOf(false)}
-    val annotated=remember(body,linksEnabled,color) {
+    val annotated=remember(body,linksEnabled,color,onBrowserOpen) {
         buildAnnotatedString {
             append(body)
             if(linksEnabled)messageWebLinks(body).forEach {link->
@@ -35,7 +37,10 @@ internal fun linkedTextColor(preset:String,themeColor:Color,dark:Boolean):Color 
                 addLink(LinkAnnotation.Url(browserUrl,
                     styles=TextLinkStyles(style=SpanStyle(color=color,textDecoration=TextDecoration.Underline)),
                     linkInteractionListener={
-                        if(safeBrowserDestination(browserUrl))browserLink=browserUrl
+                        if(safeBrowserDestination(browserUrl)) {
+                            if(onBrowserOpen!=null)onBrowserOpen(browserUrl)
+                            else browserLink=browserUrl
+                        }
                         else failed=true
                     }),link.start,link.end)
             }

@@ -85,9 +85,13 @@ class BackendCacheIsolationTest {
     @Test fun normalTokenRenewalRetainsReadCacheAndImageIdentity() = runBlocking { refresh(false) }
     @Test fun changedJwtPermissionsInvalidateSameUserReadCache() = runBlocking { refresh(true) }
 
-    @Test fun forbiddenResponseClearsVisibleProtectedDataOnlyOncePerAccessToken() = runBlocking {
-        val http = OkHttpClient.Builder().addInterceptor { chain -> response(chain.request(), "{\"code\":\"42501\"}", 403) }.build()
-        fixture("forbidden", http, session(jwt())) { backend ->
+    @Test fun unauthorizedTokenClearsVisibleProtectedDataOnlyOncePerAccessToken() = runBlocking {
+        // A rejected access token (401), unlike an RLS/membership denial (403),
+        // must rotate the authorization scope even if refreshing it also fails.
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            response(chain.request(), "{\"code\":\"invalid_token\"}", 401)
+        }.build()
+        fixture("unauthorized", http, session(jwt())) { backend ->
             backend.uiReads.load("cache-alice", "moments:post", 40_000) { "private fixture" }
             val before = backend.uiReads.sessionEpoch.value
             val beforeScope = backend.profileCacheScope("cache-alice")
@@ -97,13 +101,34 @@ class BackendCacheIsolationTest {
             assertNotEquals(before, denied)
             assertNotEquals(beforeScope, deniedScope)
             val context = ApplicationProvider.getApplicationContext<Context>()
-            val restarted = Backend(SessionStore(context, "backend-cache-forbidden"), http)
+            val restarted = Backend(SessionStore(context, "backend-cache-unauthorized"), http)
             restarted.restore()
-            assertEquals("Restart must not revive the profile from before authorization denial", deniedScope, restarted.profileCacheScope("cache-alice"))
+            assertEquals("Restart must not revive a rejected authorization scope",
+                deniedScope, restarted.profileCacheScope("cache-alice"))
             assertNull(backend.uiReads.peek("cache-alice", "moments:post", allowStale = true))
             assertTrue(runCatching { backend.request("/rest/v1/fixture") }.exceptionOrNull() is ApiException)
-            assertEquals("Repeated 403 must not create an endless UI reload loop", denied, backend.uiReads.sessionEpoch.value)
+            assertEquals("Repeated 401 must not create an endless UI reload loop",
+                denied, backend.uiReads.sessionEpoch.value)
             assertEquals(deniedScope, backend.profileCacheScope("cache-alice"))
+        }
+    }
+
+    @Test fun forbiddenRlsResponseDoesNotClearOtherAuthorizedConversations() = runBlocking {
+        // A 403 may deny one row or RPC without revoking the user's other reads.
+        // Clearing the whole account on 403 would hide otherwise authorized data.
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            response(chain.request(), "{\"code\":\"42501\"}", 403)
+        }.build()
+        fixture("forbidden", http, session(jwt())) { backend ->
+            backend.uiReads.load("cache-alice", "moments:post", 40_000) { "authorized fixture" }
+            val epoch = backend.uiReads.sessionEpoch.value
+            val scope = backend.profileCacheScope("cache-alice")
+            val denied = runCatching { backend.request("/rest/v1/fixture") }.exceptionOrNull()
+            assertTrue(denied is ApiException && denied.status == 403)
+            assertEquals(epoch, backend.uiReads.sessionEpoch.value)
+            assertEquals(scope, backend.profileCacheScope("cache-alice"))
+            assertEquals("authorized fixture",
+                backend.uiReads.peek("cache-alice", "moments:post", allowStale = true))
         }
     }
 

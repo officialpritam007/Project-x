@@ -97,10 +97,12 @@ class ContactMediaUiTest {
     @Test fun actionSheetScrollsToDestructiveActionAndPreservesCallbacks() {
         var deleted=false
         compose.setContent {LiquidTheme(false) {
+            CompositionLocalProvider(LocalDisplayOptions provides DisplayOptions(navBarStyle = "Liquid")) {
             LiquidActionSheet("Conversation",onDismiss={}) {
                 repeat(12) {GlassActionRow("Action $it",Icons.Outlined.PhotoLibrary,onClick={})}
                 GlassActionRow("Delete history for me",Icons.Outlined.DeleteOutline,
                     destructive=true,onClick={deleted=true})
+            }
             }
         }}
         compose.onNodeWithText("Delete history for me").performScrollTo().performClick()

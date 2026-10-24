@@ -13,38 +13,40 @@ class MbNavigationReorderRowsTest {
     @get:Rule val compose=createComposeRule()
 
     @Test fun holdAndDragMovesCallsOnePositionButKeepsAllDestinations() {
-        var currentOrder=""
+        val order=mutableStateOf(MbNavigationOrder.DEFAULT)
         compose.setContent {
-            var order by remember {mutableStateOf(MbNavigationOrder.DEFAULT)}
-            currentOrder=order
             LiquidTheme(false) {
-                MbNavigationReorderRows(order) {order=it}
+                MbNavigationReorderRows(order.value) {order.value=it}
             }
         }
         val callsTab=compose.onNodeWithTag("reorder-tab-1")
         val rowHeightPx=callsTab.fetchSemanticsNode().boundsInRoot.height
         callsTab.performTouchInput {
             down(center)
-            advanceEventTime(850)
-            moveBy(Offset(0f,rowHeightPx*1.4f))
+            // Let the platform's actual long-press timeout elapse before
+            // moving; Compose's drag detector needs time to process the drag
+            // while the pointer is still down before the UP event arrives.
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis+100)
+            moveBy(Offset(0f,rowHeightPx*0.65f))
+            advanceEventTime(100)
+            moveBy(Offset(0f,rowHeightPx*0.50f))
+            advanceEventTime(1000)
             up()
         }
         compose.runOnIdle {
-            assertEquals("0,2,1,3,4",currentOrder)
-            assertEquals(setOf(0,1,2,3,4),MbNavigationOrder.parse(currentOrder).toSet())
+            assertEquals("0,2,1,3,4",order.value)
+            assertEquals(setOf(0,1,2,3,4),MbNavigationOrder.parse(order.value).toSet())
         }
     }
 
     @Test fun accessibleArrowButtonsReorderWithoutDragging() {
-        var currentOrder=""
+        val order=mutableStateOf(MbNavigationOrder.DEFAULT)
         compose.setContent {
-            var order by remember {mutableStateOf(MbNavigationOrder.DEFAULT)}
-            currentOrder=order
-            LiquidTheme(false) {MbNavigationReorderRows(order) {order=it}}
+            LiquidTheme(false) {MbNavigationReorderRows(order.value) {order.value=it}}
         }
         compose.onNodeWithContentDescription("Move Calls right").performClick()
-        compose.runOnIdle {assertEquals("0,2,1,3,4",currentOrder)}
+        compose.runOnIdle {assertEquals("0,2,1,3,4",order.value)}
         compose.onNodeWithContentDescription("Move Calls left").performClick()
-        compose.runOnIdle {assertEquals(MbNavigationOrder.DEFAULT,currentOrder)}
+        compose.runOnIdle {assertEquals(MbNavigationOrder.DEFAULT,order.value)}
     }
 }

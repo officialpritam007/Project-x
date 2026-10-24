@@ -32,7 +32,10 @@ import kotlin.math.roundToInt
     onOrderChange:(String)->Unit
 ) {
     val callback by rememberUpdatedState(onOrderChange)
-    MbNavigationOrder.parse(order).forEachIndexed {position,destination ->
+    // Own the vertical layout: without a Column, standalone previews/tests
+    // compose all five rows at the same coordinates and intercept one another.
+    Column(Modifier.fillMaxWidth()) {
+        MbNavigationOrder.parse(order).forEachIndexed {position,destination ->
         val title=MbNavigationOrder.titles[destination]
         var dragOffset by remember(destination) {mutableFloatStateOf(0f)}
         Row(
@@ -84,6 +87,7 @@ import kotlin.math.roundToInt
                 Icon(Icons.Outlined.KeyboardArrowDown,
                     contentDescription="Move $title right")
             }
+        }
         }
     }
 }

@@ -53,10 +53,17 @@ class LiquidScreensTest {
         }
         compose.onNodeWithContentDescription("Calls").performClick();compose.onNodeWithText("No recent calls").assertExists();capture("02-calls")
         compose.onNodeWithContentDescription("Contacts").performClick();compose.onNodeWithText("Invite Friends").assertExists();compose.onNodeWithText("Saved contacts").assertExists();compose.onNodeWithContentDescription("Find friends").assertExists();capture("02-contacts")
-        compose.onNodeWithContentDescription("Settings").performClick();compose.onNodeWithText("Liquid Chat Settings").assertExists();compose.onNodeWithText("Chat Folders").assertDoesNotExist();compose.onNodeWithText("Devices").assertDoesNotExist();compose.onNodeWithText("Language").assertDoesNotExist();capture("03-settings")
-        compose.onNodeWithContentDescription("Profile").performClick();compose.onNodeWithText("Set Photo").assertExists();compose.onNodeWithText("Liquid Chat profile").assertExists();capture("04-profile")
+        compose.onNodeWithContentDescription("Settings").performClick();compose.onNode(hasText("Settings") and !hasClickAction()).assertExists();compose.onNodeWithText("Liquid Chat Preferences").assertExists();compose.onNodeWithText("Chat Settings").assertExists();compose.onNodeWithText("Chat Folders").assertDoesNotExist();compose.onNodeWithText("Devices").assertDoesNotExist();compose.onNodeWithText("Language").assertDoesNotExist();capture("03-settings")
+        compose.onNodeWithContentDescription("Profile").performClick();compose.onNodeWithText("Set Photo").assertExists();compose.onAllNodesWithText("My Profile").onFirst().assertIsDisplayed();capture("04-profile")
         compose.onNodeWithTag("moments-list").performScrollToNode(hasText("Add a post"));compose.onNodeWithText("Add a post").assertIsDisplayed();capture("04b-profile-posts")
-        compose.onNodeWithContentDescription("Chats").performClick();compose.onNodeWithText("Salma 💗✨👀").assertExists();compose.onNodeWithText("Conversations").assertExists();compose.onNodeWithText("1 shown").assertExists();capture("01-chats")
+        compose.onNodeWithContentDescription("Chats").performClick();
+        // The fixture has no authenticated session: even a supplied preview chat
+        // must not leak into an anonymous inbox or cross-account search results.
+        compose.onNodeWithText("Salma 💗✨👀").assertDoesNotExist()
+        compose.onNodeWithText("Conversations").assertExists()
+        compose.onNodeWithText("0 shown").assertExists()
+        compose.onNodeWithText("No conversations here yet.").assertExists()
+        capture("01-chats")
         compose.onNodeWithText("Search Chats").performTextInput("notfound");compose.onNodeWithText("Salma 💗✨👀").assertDoesNotExist()
         compose.runOnIdle {screen=5};compose.onNodeWithContentDescription("Hold to record voice message").assertExists();capture("05-conversation")
         compose.runOnIdle {screen=6};compose.onNodeWithText("An incoming message").assertExists();compose.onNodeWithText("edited").assertExists();compose.onNodeWithContentDescription("Starred").assertExists();capture("06-message-bubbles")

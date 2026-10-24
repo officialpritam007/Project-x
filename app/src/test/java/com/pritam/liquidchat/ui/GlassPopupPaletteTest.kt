@@ -6,6 +6,8 @@ import org.junit.Test
 
 /** Regression tests for themed popup surfaces used by action and media sheets. */
 class GlassPopupPaletteTest {
+    // Compose Color stores sRGB alpha at finite precision; allow one 8-bit step.
+
     @Test fun referencePalettePopupInheritsWhiteSurface() {
         val scheme=mbRecordedLightPalette(
             liquidAccentScheme(false,"Cyan"),DisplayOptions(),dark=false)

@@ -29,7 +29,8 @@ class ReadScreenStateTest {
     @Test fun signedOutPostPanelShowsStableEmptyStateAndDisabledEditor() {
         val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent {LiquidTheme(false) {MomentsPanel(model,"post",mine=true)}}
-        compose.onNodeWithText("No posts yet...").assertIsDisplayed()
+        compose.onNodeWithTag("moments-list").performScrollToNode(hasText("No posts yet"))
+        compose.onNodeWithText("No posts yet").assertIsDisplayed()
         compose.onNodeWithText("Add a post").assertIsDisplayed().assertIsNotEnabled()
         compose.onNodeWithTag("moments-loading").assertDoesNotExist()
     }
