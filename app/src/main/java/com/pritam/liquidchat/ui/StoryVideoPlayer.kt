@@ -154,6 +154,14 @@ import org.json.JSONObject
                 Text("Video unavailable",color=Color.White)
                 TextButton(onClick={retry++}) {Text("Retry video")}
             }
-        } else CircularProgressIndicator()
+        } else {
+            // The auth request itself can take time on slow connections.
+            // Keep the existing poster visible before a player/URL exists.
+            if(poster!=null) Box(Modifier.fillMaxSize(),
+                contentAlignment=Alignment.Center) {
+                poster()
+                CircularProgressIndicator(color=Color.White)
+            } else CircularProgressIndicator(color=Color.White)
+        }
     }
 }
