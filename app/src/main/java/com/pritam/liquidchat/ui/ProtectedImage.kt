@@ -28,7 +28,8 @@ import kotlinx.coroutines.isActive
 @Composable fun ProtectedImage(
     backend:Backend,id:String,local:String="",description:String,
     modifier:Modifier=Modifier,scale:ContentScale=ContentScale.Fit,
-    onLoadState:(Boolean)->Unit={}
+    onLoadState:(Boolean)->Unit={},
+    showLoadingSurface:Boolean=true
 ) {
     val currentLoadState by rememberUpdatedState(onLoadState)
     val session by backend.session.collectAsStateWithLifecycle()
@@ -79,7 +80,8 @@ import kotlinx.coroutines.isActive
     }
     val canLoad=local.isNotEmpty() ||
         (account!=null&&version!=null&&id.isNotBlank()&&id!="null")
-    Box(modifier.glassSource().background(MaterialTheme.colorScheme.surfaceVariant),
+    Box(modifier.glassSource().then(if(showLoadingSurface)
+        Modifier.background(MaterialTheme.colorScheme.surfaceVariant) else Modifier),
         contentAlignment=Alignment.Center) {
         if(url!=null) AsyncImage(
             model=request,imageLoader=imageLoader,contentDescription=description,
@@ -97,8 +99,9 @@ import kotlinx.coroutines.isActive
                 else failed=true
             }
         )
-        if(failed) TextButton(onClick={url=null;failed=false;autoRetried=false;retry++}) {Text("Retry image")}
-        else if(canLoad&&!hasRenderedBitmap&&(url==null||loadingPixels))
+        if(failed && showLoadingSurface)
+            TextButton(onClick={url=null;failed=false;autoRetried=false;retry++}) {Text("Retry image")}
+        else if(showLoadingSurface&&canLoad&&!hasRenderedBitmap&&(url==null||loadingPixels))
             CircularProgressIndicator(Modifier.size(24.dp))
     }
 }
