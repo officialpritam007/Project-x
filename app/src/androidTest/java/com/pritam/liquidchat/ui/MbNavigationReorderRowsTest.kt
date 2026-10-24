@@ -26,6 +26,9 @@ class MbNavigationReorderRowsTest {
         callsTab.performTouchInput {
             down(center)
             advanceEventTime(850)
+            // The first move establishes the post-long-press drag; a subsequent
+            // pointer move must carry the displacement before finger release.
+            moveBy(Offset(0f,rowHeightPx*0.2f))
             moveBy(Offset(0f,rowHeightPx*1.4f))
             up()
         }

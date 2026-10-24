@@ -101,6 +101,21 @@ class Backend(private val store: SessionStore, private val http:OkHttpClient = O
         try {rotateProfileScope()}
         finally {uiReads.activate(current.userId,authorization(current.access),force=true)}
     }
+    /**
+     * A denied private-image refresh must not leave a previously signed URL in
+     * memory or the offline profile. Unlike a general RPC 403, this is scoped
+     * to protected images. Ignore late denials from an older login/scope.
+     */
+    internal fun invalidateDeniedImageScope(account:String,expectedScope:String?)=synchronized(sessionMonitor) {
+        if(expectedScope==null || profileScope!=expectedScope || _session.value?.userId!=account)
+            return@synchronized
+        try {rotateProfileScope()}
+        catch (_:Exception) {
+            // rotateProfileScope already changes the in-memory scope on write failure.
+        } finally {
+            uiReads.invalidatePrefix(account,"signed-image:")
+        }
+    }
     private fun clearSession()=synchronized(sessionMonitor) {
         sessionGeneration++
         rejectedAccess=null
