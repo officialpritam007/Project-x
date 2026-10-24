@@ -79,10 +79,26 @@ import org.json.JSONObject
                     }
                 }
                 var playbackError by remember(media,source) {mutableStateOf(false)}
+                // A resolved signed URL does not mean ExoPlayer has decoded its
+                // first frame. Keep the loading affordance through buffering.
+                var videoReady by remember(media,source) {
+                    mutableStateOf(player.playbackState==Player.STATE_READY)
+                }
+                var buffering by remember(media,source) {
+                    mutableStateOf(player.playbackState!=Player.STATE_READY)
+                }
                 DisposableEffect(player) {
                     val observer=object:Player.Listener {
                         override fun onPlayerError(error:PlaybackException) {
                             playbackError=true
+                            buffering=false
+                        }
+                        override fun onPlaybackStateChanged(state:Int) {
+                            when(state) {
+                                Player.STATE_READY -> {videoReady=true;buffering=false}
+                                Player.STATE_BUFFERING,Player.STATE_IDLE -> buffering=true
+                                Player.STATE_ENDED -> buffering=false
+                            }
                         }
                     }
                     player.addListener(observer)
@@ -119,6 +135,13 @@ import org.json.JSONObject
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Text("Unable to play this private video",color=Color.White)
                         TextButton(onClick={url=null;retry++}) {Text("Retry playback")}
+                    }
+                } else if(buffering || !videoReady) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally,
+                        verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(color=Color.White)
+                        Text("Loading video…",color=Color.White,
+                            style=MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
