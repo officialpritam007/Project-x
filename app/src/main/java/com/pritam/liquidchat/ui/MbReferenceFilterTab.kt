@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
             color=if(selected)MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(5.dp))
-        if(selected)HorizontalDivider(thickness=2.dp,
+        if(selected)HorizontalDivider(modifier=Modifier.width(32.dp),thickness=2.dp,
             color=MaterialTheme.colorScheme.primary)
         else Spacer(Modifier.height(2.dp))
     }
