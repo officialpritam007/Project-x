@@ -19,7 +19,7 @@ class SettingsScreenAuditTest {
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
         compose.onNodeWithText("Themes").performScrollTo().performClick()
         compose.onNodeWithText("Saved themes on this device").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Restore defaults").performScrollTo().assertExists()
+        compose.onNodeWithText("Restore default appearance").performScrollTo().assertExists()
     }
 
     @Test fun powerSavingHasItsOwnControlsRatherThanAppearanceClones() {
