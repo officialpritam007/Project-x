@@ -47,6 +47,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
         compose.onNodeWithText("Home Screen").performScrollTo().performClick()
         compose.onNodeWithText("Bottom navigation & tabs").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Navigation bar").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("iOS navigation").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Liquid capsule").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Show navigation labels").performScrollTo().assertIsDisplayed()
@@ -71,7 +72,7 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Conversation Screen").performScrollTo().performClick()
         compose.onNodeWithText("Wallpaper & contrast").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Message bubble style").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Bubble style").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming and outgoing bubble colors").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Outgoing bubble").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming bubble").performScrollTo().assertIsDisplayed()
@@ -80,7 +81,8 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Message time").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Reactions & text").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Quick reaction emojis · choose 1–6").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Emoji picker size · 24 sp").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Emoji picker size").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("${model.display.value.emojiPickerSize} sp").assertExists()
         compose.onNodeWithText("Web link color").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Live message preview").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming message").performScrollTo().assertIsDisplayed()
@@ -116,7 +118,7 @@ class SettingsScreenAuditTest {
         compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
         compose.onNodeWithText("Chat Settings").performScrollTo().performClick()
         compose.onNodeWithText("Appearance").assertIsDisplayed()
-        compose.onNodeWithText("Animation level").assertIsDisplayed()
+        compose.onNodeWithText("Animation level").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Background delivery").assertDoesNotExist()
     }
 }
