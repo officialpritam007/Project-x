@@ -180,8 +180,11 @@ import java.util.UUID
                             ProtectedVideoThumbnail(model.backend,moment.media,
                                 description="${moment.name}'s video story poster",
                                 modifier=Modifier.fillMaxSize())
-                            Icon(Icons.Outlined.PlayCircle,"Play video story",
-                                modifier=Modifier.size(56.dp),tint=Color.White)
+                            Surface(shape=Glass.capsule,color=Color.Black.copy(alpha=.50f)) {
+                                Icon(Icons.Outlined.PlayCircle,"Play video story",
+                                    modifier=Modifier.padding(8.dp).size(56.dp),
+                                    tint=Color.White)
+                            }
                             Text("Video story · ${moment.durationMs/1000}s",
                                 Modifier.align(Alignment.BottomCenter).padding(12.dp),
                                 color=Color.White)
