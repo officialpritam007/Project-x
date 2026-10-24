@@ -81,7 +81,7 @@ import kotlinx.coroutines.flow.collect
     ModalBottomSheet(onDismissRequest=onDismiss,
         sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
         containerColor=glassPopupColor(),tonalElevation=0.dp,
-        dragHandle={if(!referenceSheet)BottomSheetDefaults.DragHandle()},
+        dragHandle={BottomSheetDefaults.DragHandle()},
         shape=androidx.compose.foundation.shape.RoundedCornerShape(
             topStart=if(referenceSheet)22.dp else 30.dp,
             topEnd=if(referenceSheet)22.dp else 30.dp)) {
