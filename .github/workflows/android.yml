@@ -62,21 +62,28 @@ jobs:
           with open(os.environ['GITHUB_ENV'],'a') as env:
               env.write('LIQUID_DEBUG_KEYSTORE_PATH='+str(key)+'\n')
           PYKEY
+      - name: Diagnose runner memory budget
+        run: |
+          echo "Available host memory:"
+          free -h
+          echo "cgroup memory limit:"
+          cat /sys/fs/cgroup/memory.max || true
+          echo "Compiler: in-process Kotlin, limited to 5600 MiB heap and 512 MiB metaspace."
       - name: Compile debug Kotlin
         # ConversationScreen contains a large Compose tree. Compile independently
         # first, so a Kotlin compiler failure is visible before lint/release work.
         # The previous 25-minute job limit killed compilation without diagnostics.
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --console=plain --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process :app:compileDebugKotlin
+          ./gradlew --no-daemon --console=plain --max-workers=1 -Dorg.gradle.jvmargs='-Xmx5600m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC -Dfile.encoding=UTF-8' -Pkotlin.compiler.execution.strategy=in-process :app:compileDebugKotlin
       - name: Debug tests, lint and APK
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --console=plain --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+          ./gradlew --no-daemon --console=plain --max-workers=1 -Dorg.gradle.jvmargs='-Xmx5600m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC -Dfile.encoding=UTF-8' -Pkotlin.compiler.execution.strategy=in-process testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
       - name: Release tests, lint and bundle
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --console=plain --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process testReleaseUnitTest lintRelease bundleRelease
+          ./gradlew --no-daemon --console=plain --max-workers=1 -Dorg.gradle.jvmargs='-Xmx5600m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC -Dfile.encoding=UTF-8' -Pkotlin.compiler.execution.strategy=in-process testReleaseUnitTest lintRelease bundleRelease
       - name: Inventory resolved release dependencies and declared licenses
         run: ./gradlew --no-daemon -I scripts/dependency_inventory.init.gradle :app:exportDependencyInventory
       - name: Validate APK signature, alignment and native page compatibility
