@@ -25,10 +25,15 @@ class MbNavigationReorderRowsTest {
         val rowHeightPx=callsTab.fetchSemanticsNode().boundsInRoot.height
         callsTab.performTouchInput {
             down(center)
-            advanceEventTime(1_000)
-            // A stationary hold is followed by real, separately timestamped
-            // pointer events. This drives the detector after its long-press
-            // threshold instead of injecting two moves in the same frame.
+            // Feed stationary MOVE events throughout the hold, rather than
+            // jumping straight from DOWN to a displaced MOVE after 1 second.
+            // This lets the long-press detector observe the held pointer on
+            // every emulator before any drag displacement is introduced.
+            repeat(8) {
+                advanceEventTime(125)
+                moveBy(Offset.Zero)
+            }
+            advanceEventTime(48)
             moveBy(Offset(0f,rowHeightPx*0.1f))
             repeat(12) {
                 advanceEventTime(24)
