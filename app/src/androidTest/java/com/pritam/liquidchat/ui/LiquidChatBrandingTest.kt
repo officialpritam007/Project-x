@@ -19,7 +19,8 @@ class LiquidChatBrandingTest {
         val version=pkg.versionName.orEmpty()
         assertEquals("Liquid Chat",label)
         assertEquals("com.pritam.liquidchat",context.packageName)
-        assertTrue(version.startsWith("1.0.0-rc11-liquid"))
+        assertTrue("Version must retain the Liquid Chat release-candidate identity: $version",
+            version.startsWith("1.0.0-rc") && version.contains("-liquid"))
         assertFalse(version.contains("mbwhatsapp",ignoreCase=true))
         assertFalse(version.contains("-mb-",ignoreCase=true))
     }

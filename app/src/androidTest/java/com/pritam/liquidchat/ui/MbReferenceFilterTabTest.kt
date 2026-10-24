@@ -31,7 +31,7 @@ class MbReferenceFilterTabTest {
         }
         compose.onNodeWithText("All").assertIsSelected()
         compose.onNodeWithText("Unread").assertIsNotSelected()
-        compose.onNodeWithText("Unread").performClick()
+        compose.onNodeWithTag("reference-filter-Unread").performClick()
         compose.runOnIdle { assertEquals("Unread", clicked) }
     }
 

@@ -85,7 +85,7 @@ class BackendCacheIsolationTest {
     @Test fun normalTokenRenewalRetainsReadCacheAndImageIdentity() = runBlocking { refresh(false) }
     @Test fun changedJwtPermissionsInvalidateSameUserReadCache() = runBlocking { refresh(true) }
 
-    @Test fun forbiddenResponseClearsVisibleProtectedDataOnlyOncePerAccessToken() = runBlocking {
+    @Test fun unrelatedForbiddenResponseDoesNotInvalidateOtherProtectedReads() = runBlocking {
         val http = OkHttpClient.Builder().addInterceptor { chain -> response(chain.request(), "{\"code\":\"42501\"}", 403) }.build()
         fixture("forbidden", http, session(jwt())) { backend ->
             backend.uiReads.load("cache-alice", "moments:post", 40_000) { "private fixture" }
@@ -94,13 +94,13 @@ class BackendCacheIsolationTest {
             assertTrue(runCatching { backend.request("/rest/v1/fixture") }.exceptionOrNull() is ApiException)
             val denied = backend.uiReads.sessionEpoch.value
             val deniedScope = backend.profileCacheScope("cache-alice")
-            assertNotEquals(before, denied)
-            assertNotEquals(beforeScope, deniedScope)
+            assertEquals("Unrelated RLS denial must not clear the active session",before, denied)
+            assertEquals(beforeScope, deniedScope)
             val context = ApplicationProvider.getApplicationContext<Context>()
             val restarted = Backend(SessionStore(context, "backend-cache-forbidden"), http)
             restarted.restore()
             assertEquals("Restart must not revive the profile from before authorization denial", deniedScope, restarted.profileCacheScope("cache-alice"))
-            assertNull(backend.uiReads.peek("cache-alice", "moments:post", allowStale = true))
+            assertEquals("private fixture", backend.uiReads.peek("cache-alice", "moments:post", allowStale = true))
             assertTrue(runCatching { backend.request("/rest/v1/fixture") }.exceptionOrNull() is ApiException)
             assertEquals("Repeated 403 must not create an endless UI reload loop", denied, backend.uiReads.sessionEpoch.value)
             assertEquals(deniedScope, backend.profileCacheScope("cache-alice"))
