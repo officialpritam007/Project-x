@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -173,9 +174,16 @@ import java.util.UUID
                     Text(moment.name,fontWeight=FontWeight.Bold)
                     Text(remember(moment.created){runCatching{java.time.Instant.parse(moment.created).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM · HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
                     if(moment.mediaKind=="story_video") {
-                        Box(Modifier.fillMaxWidth().height(190.dp).clickable {focused=moment},contentAlignment=Alignment.Center) {
-                            Icon(Icons.Outlined.PlayCircle,"Play video story",modifier=Modifier.size(56.dp),tint=MaterialTheme.colorScheme.primary)
-                            Text("Video story · ${(moment.durationMs/1000)}s",Modifier.align(Alignment.BottomCenter).padding(12.dp))
+                        Box(Modifier.fillMaxWidth().height(190.dp)
+                            .clip(Glass.compact)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .clickable {focused=moment},contentAlignment=Alignment.Center) {
+                            Icon(Icons.Outlined.PlayCircle,"Play video story",
+                                modifier=Modifier.size(56.dp),
+                                tint=MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("Video story · ${(moment.durationMs/1000)}s",
+                                Modifier.align(Alignment.BottomCenter).padding(12.dp),
+                                color=MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     } else ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=ContentScale.Crop)
                     if(moment.caption.isNotBlank()) {
