@@ -71,8 +71,6 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Conversation Screen").performScrollTo().performClick()
         compose.onNodeWithText("Wallpaper & contrast").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
-        // The Reference theme uses a modal "Bubble style" picker; the
-        // alternate theme uses the inline "Message bubble style" picker.
         compose.onNodeWithText("bubble style",substring=true,ignoreCase=true)
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Incoming and outgoing bubble colors").performScrollTo().assertIsDisplayed()
@@ -83,7 +81,6 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Message time").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Reactions & text").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Quick reaction emojis · choose 1–6").performScrollTo().assertIsDisplayed()
-        // Reference mode uses a seekbar instead of the inline 24 sp slider.
         compose.onNodeWithText("Emoji picker size",substring=true)
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Web link color").performScrollTo().assertIsDisplayed()
@@ -123,5 +120,28 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Appearance").assertIsDisplayed()
         compose.onNodeWithText("Animation level").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Background delivery").assertDoesNotExist()
+    }
+
+    @Test fun backTargetsRespectWhereSettingsWasOpened() {
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Help",false))
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Updates",false))
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Notifications",false))
+        org.junit.Assert.assertEquals("Liquid Chat Preferences",
+            referenceSettingsBackTarget("Liquid Chat Notifications",true))
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Preferences",true))
+    }
+
+    @Test fun helpTopicsReturnToHelpBeforeReturningToPreferences() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Tips and help").performScrollTo().performClick()
+        compose.onNodeWithText("Customize the conversation screen").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("Open").onFirst().performClick()
+        compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Tips & Help").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
     }
 }

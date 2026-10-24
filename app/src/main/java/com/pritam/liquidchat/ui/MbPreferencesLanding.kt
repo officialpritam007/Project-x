@@ -30,26 +30,13 @@ internal const val REFERENCE_SETTINGS_LANDING =
 /** Supported, intentionally Liquid Chat-owned routes seen in the owner's
  * October 22 reference screen recording. No foreign paid account or service API.
  */
+/** Return to the entry point, not to Preferences for a direct dashboard route. */
 internal fun referenceSettingsBackTarget(
     section: String?,
     enteredFromReference: Boolean
 ): String? = when {
     section == REFERENCE_SETTINGS_LANDING -> null
     enteredFromReference -> REFERENCE_SETTINGS_LANDING
-    section in setOf(
-        "Liquid Chat General Settings",
-        "Liquid Chat Conversation Screen",
-        "Liquid Chat Home Screen",
-        "Liquid Chat Themes",
-        "Liquid Chat Privacy",
-        "Liquid Chat Notifications",
-        "Liquid Chat Help",
-        "Liquid Chat Updates",
-        "Liquid Chat Multimedia",
-        "Liquid Chat Animations",
-        "Liquid Chat VIP Features",
-        "Liquid Chat Developer Information"
-    ) -> REFERENCE_SETTINGS_LANDING
     else -> null
 }
 

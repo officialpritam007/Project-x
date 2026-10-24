@@ -112,6 +112,7 @@ private val dashboardAccount=listOf(
     }.orEmpty()
     val context=LocalContext.current
     var settingsQuery by rememberSaveable { mutableStateOf("") }
+    var sharingUnavailable by rememberSaveable { mutableStateOf(false) }
     val normalizedQuery=settingsQuery.trim()
     fun matches(route:MbSettingsDashboardRoute):Boolean {
         if(normalizedQuery.isEmpty())return true
@@ -142,8 +143,10 @@ private val dashboardAccount=listOf(
             val intent=android.content.Intent(android.content.Intent.ACTION_SEND)
                 .setType("text/plain")
                 .putExtra(android.content.Intent.EXTRA_TEXT,invitation)
-            context.startActivity(android.content.Intent.createChooser(
-                intent,"Invite a friend"))
+            runCatching {
+                context.startActivity(android.content.Intent.createChooser(
+                    intent,"Invite a friend"))
+            }.onFailure { sharingUnavailable=true }
         } else onSection(target)
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -209,6 +212,11 @@ private val dashboardAccount=listOf(
                 style=MaterialTheme.typography.bodyMedium,
                 color=MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign=TextAlign.Center)
+        }
+        if(sharingUnavailable) {
+            Text("Sharing is not available on this device.",
+                color=MaterialTheme.colorScheme.error,
+                style=MaterialTheme.typography.bodySmall)
         }
         Text("Liquid Chat · ${BuildConfig.VERSION_NAME}",modifier=Modifier.fillMaxWidth(),
             textAlign=TextAlign.Center,

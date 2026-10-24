@@ -20,8 +20,10 @@ class SettingsMenuRegressionTest {
             referenceSettingsBackTarget("Account",true))
         assertEquals(REFERENCE_SETTINGS_LANDING,
             referenceSettingsBackTarget("Power Saving",true))
-        assertEquals(REFERENCE_SETTINGS_LANDING,
-            referenceSettingsBackTarget("Liquid Chat Themes",false))
+        // Direct dashboard routes return to Settings Home, never the Preferences hub.
+        assertEquals(null,referenceSettingsBackTarget("Liquid Chat Themes",false))
+        assertEquals(null,referenceSettingsBackTarget("Liquid Chat Help",false))
+        assertEquals(null,referenceSettingsBackTarget("Liquid Chat Updates",false))
         assertEquals(null,referenceSettingsBackTarget("Account",false))
     }
     @Test fun powerSavingNeverShowsAppearancePanel() {

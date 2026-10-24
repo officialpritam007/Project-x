@@ -16,6 +16,7 @@ import com.pritam.liquidchat.data.StoryVideo
 import com.pritam.liquidchat.data.SavedMedia
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
@@ -90,27 +92,33 @@ import kotlinx.coroutines.launch
     // Never bury account, help, storage and chat-list routes behind a Back action.
     var section by rememberSaveable {mutableStateOf<String?>(null)}
     var fromPreferences by rememberSaveable {mutableStateOf(false)}
+    var returnToHelp by rememberSaveable {mutableStateOf(false)}
+    fun backToParent() {
+        val target=if(returnToHelp)"Liquid Chat Help"
+            else referenceSettingsBackTarget(section,fromPreferences)
+        returnToHelp=false
+        section=target
+        if(target==null)fromPreferences=false
+    }
     var unavailable by remember {mutableStateOf<String?>(null)}
     if(section==null) {
         SettingsHome(model) {title->
             val destination=title
             if(destination in listOf("Devices","Language")) unavailable=destination else {
                 fromPreferences=false
+                returnToHelp=false
                 section=destination
             }
         }
         unavailable?.let {title->LiquidAlertDialog(onDismissRequest={unavailable=null},title={Text(title)},text={Text(when(title){"Language"->"English is the current app language.";"Chat Folders"->"Use All, Favorite, Archive and Unread in the Chats menu.";"Data and Storage"->"Shared images are loaded on demand. Automatic downloads are not enabled.";else->"Device management is not available in this version yet."})},confirmButton={TextButton(onClick={unavailable=null}){Text("OK")}})}
         return
     }
-    BackHandler {
-        section=referenceSettingsBackTarget(section,fromPreferences)
-        if(section==null)fromPreferences=false
-    }
+    BackHandler {backToParent()}
 
     if(section=="Liquid Chat Preferences") {
         MbPreferencesLanding(
-            onBack={section=null;fromPreferences=false},
-            onNavigate={destination->fromPreferences=true;section=destination}
+            onBack={section=null;fromPreferences=false;returnToHelp=false},
+            onNavigate={destination->fromPreferences=true;returnToHelp=false;section=destination}
         )
         return
     }
@@ -209,14 +217,14 @@ import kotlinx.coroutines.launch
         .padding(bottom=98.dp+WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         verticalArrangement=Arrangement.spacedBy(if(referenceSection)12.dp else 20.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min=if(referenceSection)47.dp else 0.dp),
-            verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={
-            section=referenceSettingsBackTarget(section,fromPreferences)
-            if(section==null)fromPreferences=false
-        }){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};
+            verticalAlignment=Alignment.CenterVertically) {IconButton(onClick={backToParent()}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back to Settings")};
             Text(section.orEmpty().removePrefix("Liquid Chat "),
                 style=if(referenceSection)MaterialTheme.typography.titleLarge
                     else MaterialTheme.typography.headlineSmall)}
-        if(section=="Liquid Chat Help") MbTipsAndHelp {destination->section=destination}
+        if(section=="Liquid Chat Help") MbTipsAndHelp {destination->
+            returnToHelp=true
+            section=destination
+        }
         if(section=="Liquid Chat Service Status") MbServiceStatus(model)
         if(section=="Liquid Chat Updates") MbAppUpdates()
         if(section=="Liquid Chat Developer Information") MbDeveloperInformation()
@@ -376,10 +384,11 @@ import kotlinx.coroutines.launch
             ) {Text("Remove photo")}
         }
         if(section=="Privacy & Security") GlassCard(Modifier.fillMaxWidth()) {Text("Your privacy matters",fontWeight=FontWeight.SemiBold);Text("Chat access is restricted to participants. This version does not use end-to-end encryption.")}
+        // Home and Conversation have their own appearance/interaction cards
+        // even though their route classification is OTHER, not APPEARANCE.
         if(settingsPanelFor(section)==SettingsPanel.APPEARANCE ||
-            section=="Liquid Chat Home Screen" || section=="Liquid Chat Conversation Screen") {
-            // These route-specific controls live in SettingsAppearanceControls too.
-            // Omitting them hides the navigation and message appearance panels.
+            section=="Liquid Chat Home Screen" ||
+            section=="Liquid Chat Conversation Screen") {
             SettingsAppearanceControls(model,display,section)
         }
         if(settingsPanelFor(section)==SettingsPanel.POWER_SAVING) GlassCard(Modifier.fillMaxWidth()) {
@@ -387,11 +396,12 @@ import kotlinx.coroutines.launch
             Text("Reduce animations to lower visual activity and improve battery comfort.",
                 style=MaterialTheme.typography.bodyMedium,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-                Text("Reduced motion",Modifier.weight(1f))
-                Switch(checked=display.reducedMotion,onCheckedChange={
+            Row(Modifier.fillMaxWidth().heightIn(min=56.dp)
+                .toggleable(value=display.reducedMotion,role=Role.Switch,onValueChange={
                     model.setDisplay(display.copy(reducedMotion=it))
-                })
+                }),verticalAlignment=Alignment.CenterVertically) {
+                Text("Reduced motion",Modifier.weight(1f))
+                Switch(checked=display.reducedMotion,onCheckedChange=null)
             }
             HorizontalDivider()
             Text("Media downloads",style=MaterialTheme.typography.titleSmall)
@@ -414,24 +424,28 @@ import kotlinx.coroutines.launch
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
 
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min=56.dp)
+                    .toggleable(value=display.preventScreenshots,role=Role.Switch,onValueChange={
+                        model.setDisplay(display.copy(preventScreenshots=it))
+                    }),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Block screenshots and app previews",style=MaterialTheme.typography.titleSmall)
                         Text("Android blocks screenshots and app-switcher thumbnails on this phone; a separate camera can still photograph the screen.",
                             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Switch(checked=display.preventScreenshots,
-                        onCheckedChange={model.setDisplay(display.copy(preventScreenshots=it))})
+                    Switch(checked=display.preventScreenshots,onCheckedChange=null)
                 }
                 HorizontalDivider()
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min=56.dp)
+                    .toggleable(value=display.hideOutgoingTyping,role=Role.Switch,onValueChange={
+                        model.setDisplay(display.copy(hideOutgoingTyping=it))
+                    }),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Hide outgoing typing",style=MaterialTheme.typography.titleSmall)
                         Text("This device will not advertise typing to contacts. Other signed-in devices have separate settings.",
                             style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Switch(checked=display.hideOutgoingTyping,
-                        onCheckedChange={model.setDisplay(display.copy(hideOutgoingTyping=it))})
+                    Switch(checked=display.hideOutgoingTyping,onCheckedChange=null)
                 }
                 HorizontalDivider()
 
@@ -461,7 +475,14 @@ import kotlinx.coroutines.launch
                 HorizontalDivider()
 
                 }
-            if(!settings.has("show_presence")) {Text("Connect to load your privacy settings.");TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {Text("Retry")}}
+            val requiredKey=if(privacyPage)"show_presence" else "notification_previews"
+            if(!settings.has(requiredKey)) {
+                Text(if(privacyPage)"Connect to load your privacy settings."
+                    else "Connect to load your notification settings.")
+                TextButton(onClick={model.action {model.repository.loadSettings()}},enabled=!busy) {
+                    Text("Retry")
+                }
+            }
             listOf("show_presence" to "Online & last seen","read_receipts" to "Read receipts","notification_previews" to "Notification previews").filter {if(section=="Notifications" || section=="Liquid Chat Notifications")it.first=="notification_previews" else it.first!="notification_previews"}.forEach { (key,label)->
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Text(label,Modifier.weight(1f))
@@ -495,8 +516,12 @@ import kotlinx.coroutines.launch
         }
         if(section=="Account") OutlinedButton(onClick={confirm=true},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text("Sign out")}
         if(section=="Account") TextButton(onClick={deleteAccount=true},enabled=!busy) {Text("Delete account",color=MaterialTheme.colorScheme.error)}
-        TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
-        Text("Developed by Pritam Pal\n© 2026 Liquid Chat",style=MaterialTheme.typography.bodySmall)
+        if(section in listOf("Account","Privacy & Security","Liquid Chat Privacy")) {
+            TextButton(onClick={showPolicy=true}) {Text("Privacy & User Policy")}
+        }
+        if(section in listOf("Account","Liquid Chat Developer Information","Liquid Chat Updates")) {
+            Text("Developed by Pritam Pal\n© 2026 Liquid Chat",style=MaterialTheme.typography.bodySmall)
+        }
     }
     if(showPolicy)LiquidAlertDialog(onDismissRequest={showPolicy=false},title={Text("Privacy & User Policy")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){UserPolicyText()}},confirmButton={TextButton(onClick={showPolicy=false}){Text("Done")}})
     if(deleteAccount) LiquidAlertDialog(onDismissRequest={deleteAccount=false;password=""},title={Text("Permanently delete account?")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
