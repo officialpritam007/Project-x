@@ -21,10 +21,12 @@ class MbNavigationReorderRowsTest {
                 MbNavigationReorderRows(order) {order=it}
             }
         }
-        compose.onNodeWithTag("reorder-tab-1").performTouchInput {
+        val callsTab=compose.onNodeWithTag("reorder-tab-1")
+        val rowHeightPx=callsTab.fetchSemanticsNode().boundsInRoot.height
+        callsTab.performTouchInput {
             down(center)
             advanceEventTime(850)
-            moveBy(Offset(0f,size.height*1.4f))
+            moveBy(Offset(0f,rowHeightPx*1.4f))
             up()
         }
         compose.runOnIdle {
