@@ -907,45 +907,14 @@ import kotlinx.coroutines.launch
     }
 
     }
-    if(textToolsOpen) LiquidActionSheet(
-        title="Text tools · offline",onDismiss={textToolsOpen=false}) {
-        Text("Only this unsent draft is transformed. This is not an AI service and your text stays on this phone.",
-            modifier=Modifier.padding(horizontal=16.dp,vertical=8.dp),
-            style=MaterialTheme.typography.bodySmall,
-            color=MaterialTheme.colorScheme.onSurfaceVariant)
-        OfflineTextAction.entries.forEach {option->
-            GlassActionRow(option.label,Icons.Outlined.TextFields,onClick={
-                textToolSource=body
-                textToolChoice=option
-                textToolsOpen=false
-            })
-        }
-    }
-    textToolChoice?.let {choice->
-        val result=remember(textToolSource,choice) {
-            transformDraftOffline(textToolSource,choice)
-        }
-        LiquidAlertDialog(
-            onDismissRequest={textToolChoice=null},
-            title={Text(choice.label)},
-            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                Text("Preview",style=MaterialTheme.typography.labelMedium)
-                Text(result,modifier=Modifier.fillMaxWidth().heightIn(max=240.dp)
-                    .verticalScroll(rememberScrollState()))
-                if(body!=textToolSource)Text("Your draft has changed. Close and open Text tools again.",
-                    color=MaterialTheme.colorScheme.error,
-                    style=MaterialTheme.typography.bodySmall)
-            }},
-            confirmButton={TextButton(onClick={
-                if(body==textToolSource) {
-                    updateInput(TextFieldValue(result,TextRange(result.length)))
-                }
-                textToolChoice=null
-            },enabled=draftReady&&!queueing&&body==textToolSource&&
-                result!=textToolSource) {Text("Apply to draft")}},
-            dismissButton={TextButton(onClick={textToolChoice=null}) {Text("Cancel")}}
-        )
-    }
+    ConversationOfflineTextTools(
+        open=textToolsOpen,selected=textToolChoice,body=body,sourceText=textToolSource,
+        draftReady=draftReady,queueing=queueing,
+        onCloseTools={textToolsOpen=false},
+        onSelectTool={option->textToolSource=body;textToolChoice=option;textToolsOpen=false},
+        onDismissPreview={textToolChoice=null},
+        onApply={result->updateInput(TextFieldValue(result,TextRange(result.length)))}
+    )
     if(attachments)LiquidActionSheet(title="Attach",onDismiss={attachments=false}) {
         if(display.navBarStyle=="Reference") {
             MbReferenceSwitchRow(
@@ -1321,79 +1290,25 @@ import kotlinx.coroutines.launch
         }},
         confirmButton={TextButton(onClick={quickRepliesOpen=false}) {Text("Done")}}
     )
-    if(appearance)LiquidAlertDialog(
-        onDismissRequest={appearance=false},
-        title={Text("Chat appearance")},
-        text={Column(Modifier.fillMaxWidth().heightIn(max=430.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("Choose a built-in palette, private photo or muted MP4 video from this phone.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Chat accent · header actions and send button",
-                style=MaterialTheme.typography.titleSmall)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                MbConversationAccent.choices.forEach {choice->
-                    FilterChip(selected=chatAccent==choice,
-                        onClick={
-                            session?.userId?.let {account->
-                                MbConversationAccent.save(context,account,cid,choice)
-                                chatAccent=choice
-                            }
-                        },
-                        label={Text(choice)})
-                }
+    if(appearance) ConversationAppearanceDialog(
+        cid=cid,account=session?.userId,palette=palette,chatAccent=chatAccent,
+        wallpaperRevision=wallpaperRevision,
+        onDismiss={appearance=false},
+        onAccentSelected={choice->
+            session?.userId?.let {account->
+                MbConversationAccent.save(context,account,cid,choice)
+                chatAccent=choice
             }
-            Text("Stored only on this device and isolated by account. Messages and calls are unchanged.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-            listOf("Ice","Lilac","Mint","Sand").forEach {choice->
-                TextButton(onClick={model.action {
-                    model.repository.setPalette(cid,choice)
-                    palette=choice
-                    appearance=false
-                }}) {Text(if(choice==palette)"✓ $choice" else choice)}
+        },
+        onPaletteSelected={choice->
+            model.action {
+                model.repository.setPalette(cid,choice)
+                palette=choice
+                appearance=false
             }
-            FilledTonalButton(
-                onClick={wallpaperPickerAccount=session?.userId;wallpaperPicker.launch("image/*")},
-                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                Icon(Icons.Outlined.AddPhotoAlternate,null)
-                Spacer(Modifier.width(8.dp))
-                Text("Choose photo wallpaper")
-            }
-            FilledTonalButton(
-                onClick={videoWallpaperPickerAccount=session?.userId;videoWallpaperPicker.launch("video/mp4")},
-                modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-                Icon(Icons.Outlined.Videocam,null)
-                Spacer(Modifier.width(8.dp))
-                Text("Choose MP4 video wallpaper")
-            }
-            val owner=session?.userId
-            if(owner!=null && remember(owner,cid,wallpaperRevision) {
-                runCatching {com.pritam.liquidchat.data.PersonalWallpaper.has(context,owner,cid)}
-                    .getOrDefault(false)
-            }) {
-                TextButton(onClick={model.action {
-                    model.repository.setPalette(cid,"Photo")
-                    palette="Photo"
-                    appearance=false
-                }}) {Text(if(palette=="Photo")"✓ My photo" else "My saved photo")}
-            }
-            if(owner!=null && remember(owner,cid,wallpaperRevision) {
-                runCatching {com.pritam.liquidchat.data.PrivateVideoWallpaper.has(context,owner,cid)}
-                    .getOrDefault(false)
-            }) {
-                TextButton(onClick={model.action {
-                    model.repository.setPalette(cid,"Video")
-                    palette="Video"
-                    appearance=false
-                }}) {Text(if(palette=="Video")"✓ My video" else "My saved video")}
-            }
-            Text("Photos and videos stay private on this phone. MP4 is limited to 30s / 24 MB, up to 1080p; playback loops silently and pauses in background or reduced motion. Files are erased on logout and chat deletion.",
-                style=MaterialTheme.typography.bodySmall,
-                color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }},
-        confirmButton={TextButton(onClick={appearance=false}) {Text("Done")}}
+        },
+        onPickPhoto={wallpaperPickerAccount=session?.userId;wallpaperPicker.launch("image/*")},
+        onPickVideo={videoWallpaperPickerAccount=session?.userId;videoWallpaperPicker.launch("video/mp4")}
     )
     speechCandidate?.let {candidate->
         LiquidAlertDialog(
