@@ -13,13 +13,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -28,12 +26,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -42,6 +48,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.ui.*
+import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import org.webrtc.SurfaceViewRenderer
 import kotlin.math.roundToInt
@@ -51,7 +58,6 @@ import kotlin.math.roundToInt
 fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=null,avatar:String="") {
     val call by controller.view.collectAsStateWithLifecycle()
     val c=call ?: return
-    val referenceCall=referenceListUsesFlatRows(LocalDisplayOptions.current)
     val context=LocalContext.current
     var seconds by remember(c.id,c.connectedAt) {mutableLongStateOf(0)}
     LaunchedEffect(c.connectedAt) {while(c.connectedAt>0){seconds=(SystemClock.elapsedRealtime()-c.connectedAt)/1000;delay(1000)}}
@@ -104,43 +110,66 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
     var y by remember(c.id) {mutableFloatStateOf(-1f)}
     val density=LocalDensity.current
     val rootView=LocalView.current
+    val callGlass=remember(c.id) {HazeState()}
     DisposableEffect(activeVideo,controlsVisible,context,rootView) {
         // Immersive mode hides Android chrome, not the draggable in-call self preview.
         var ownerContext:android.content.Context=context
         while(ownerContext !is Activity && ownerContext is ContextWrapper)ownerContext=ownerContext.baseContext
         val window=(ownerContext as? Activity)?.window
         val bars=window?.let {WindowCompat.getInsetsController(it,rootView)}
+        val lightStatus=bars?.isAppearanceLightStatusBars
+        val lightNavigation=bars?.isAppearanceLightNavigationBars
+        bars?.isAppearanceLightStatusBars=false
+        bars?.isAppearanceLightNavigationBars=false
         if(activeVideo&&!controlsVisible) {
             bars?.systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             bars?.hide(WindowInsetsCompat.Type.systemBars())
         } else bars?.show(WindowInsetsCompat.Type.systemBars())
-        onDispose {bars?.show(WindowInsetsCompat.Type.systemBars())}
+        onDispose {
+            bars?.show(WindowInsetsCompat.Type.systemBars())
+            lightStatus?.let {bars?.isAppearanceLightStatusBars=it}
+            lightNavigation?.let {bars?.isAppearanceLightNavigationBars=it}
+        }
     }
-    Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
-        BoxWithConstraints(Modifier.fillMaxSize().background(glassBackground())) {
+    // SurfaceView video is outside Compose's blur capture. Its controls use the
+    // readable translucent material; contact posters retain source-backed blur.
+    CompositionLocalProvider(LocalGlassState provides if(activeVideo)null else callGlass,LocalGlassDark provides true) {
+    Surface(Modifier.fillMaxSize(),color=Color.Black) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val showChrome=!activeVideo||controlsVisible
+            val layoutDirection=LocalLayoutDirection.current
+            if(!activeVideo) CallPoster(displayName,backend,avatar)
             if(activeVideo&&engine!=null)key(engine,swapped) {
                 VideoRenderer(engine,swapped,Modifier.fillMaxSize())
                 // Transparent touch surface belongs behind the inset preview, never over it.
                 Box(Modifier.fillMaxSize().clickable {controlsVisible=!controlsVisible})
-                if(!c.remoteVideoReady&&!swapped && controlsVisible)
-                    Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
-                        Text("Waiting for remote video…",color=Color.White)
-                    }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
+                    Color.Black.copy(alpha=.32f),Color.Transparent,Color.Black.copy(alpha=.28f)))))
                 val previewWidth=if(maxWidth<360.dp)100.dp else 116.dp
-                val previewHeight=if(maxHeight<620.dp)138.dp else 154.dp
+                val previewHeight=if(maxHeight<400.dp)96.dp else if(maxHeight<620.dp)138.dp else 154.dp
                 val widthPx=with(density){previewWidth.roundToPx()}
                 val heightPx=with(density){previewHeight.roundToPx()}
                 val marginPx=with(density){12.dp.roundToPx()}
                 val safeTop=WindowInsets.statusBars.getTop(density)
                 val safeBottom=WindowInsets.navigationBars.getBottom(density)
-                val maxX=(constraints.maxWidth-widthPx-marginPx*2).coerceAtLeast(0).toFloat()
-                val maxY=(constraints.maxHeight-heightPx-safeTop-safeBottom-marginPx*2).coerceAtLeast(0).toFloat()
+                val sideInsets=WindowInsets.systemBars.asPaddingValues()
+                val safeStart=with(density){sideInsets.calculateStartPadding(layoutDirection).roundToPx()}
+                val safeEnd=with(density){sideInsets.calculateEndPadding(layoutDirection).roundToPx()}
+                // Keep the always-available End control clear of the native video surface.
+                val horizontalControls=constraints.maxHeight-safeTop-safeBottom < with(density){270.dp.roundToPx()}
+                val railPx=with(density){if(showChrome&&!horizontalControls)72.dp.roundToPx() else 0}
+                val bottomControlsPx=with(density){if(showChrome&&horizontalControls)84.dp.roundToPx() else 0}
+                val maxX=(constraints.maxWidth-widthPx-marginPx*2-safeStart-safeEnd-railPx).coerceAtLeast(0).toFloat()
+                val maxY=(constraints.maxHeight-heightPx-safeTop-safeBottom-marginPx*2-bottomControlsPx).coerceAtLeast(0).toFloat()
                 val resolvedX=if(x<0f)maxX else x.coerceIn(0f,maxX)
-                val resolvedY=if(y<0f)with(density){84.dp.toPx()}.coerceAtMost(maxY) else y.coerceIn(0f,maxY)
+                val resolvedY=if(y<0f)maxY else y.coerceIn(0f,maxY)
                 Box(Modifier
-                    .offset {IntOffset(marginPx+resolvedX.roundToInt(),safeTop+marginPx+resolvedY.roundToInt())}
+                    .offset {IntOffset(safeStart+marginPx+resolvedX.roundToInt(),safeTop+marginPx+resolvedY.roundToInt())}
                     .size(previewWidth,previewHeight)
-                    .clip(Glass.card)
+                    .clip(RoundedCornerShape(22.dp))
+                    .border(1.dp,Color.White.copy(alpha=.38f),RoundedCornerShape(22.dp))
+                    .testTag("call-self-preview")
+                    .semantics {contentDescription=if(swapped)"Other participant preview; tap to swap video" else "Your video preview; tap to swap video"}
                     .pointerInput(c.id,maxX,maxY) {
                         detectDragGestures {change,drag->
                             change.consume()
@@ -152,58 +181,20 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
                     VideoRenderer(engine,!swapped,Modifier.fillMaxSize())
                 }
             }
-            Column(Modifier.fillMaxSize().systemBarsPadding().padding(18.dp),verticalArrangement=Arrangement.SpaceBetween,horizontalAlignment=Alignment.CenterHorizontally) {
-                AnimatedVisibility(visible=!activeVideo||controlsVisible,enter=fadeIn(),exit=fadeOut()) {
-                GlassSurface(Modifier.fillMaxWidth(),
-                    if(referenceCall)Glass.compact else Glass.hero) {
-                    Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(displayName ?: "Liquid Chat",style=MaterialTheme.typography.titleLarge)
-                            Text(if(c.video)"Video call" else "Voice call",style=MaterialTheme.typography.bodyMedium)
-                            Text(if(c.connectedAt>0&&!terminal)"$timer · ${c.status}" else c.status,color=MaterialTheme.colorScheme.primary)
-                        }
-                        if(!terminal)IconButton(onClick=controller::minimize) {Icon(Icons.Outlined.ExpandMore,"Minimize call")}
-                    }
-                }
-                }
-                if(!activeVideo)Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)) {
-                    if(backend!=null&&avatar.isNotBlank())ProtectedImage(backend,avatar,description="Caller photo",modifier=Modifier.size(136.dp).clip(CircleShape),scale=androidx.compose.ui.layout.ContentScale.Crop)
-                    else Surface(shape=CircleShape,color=MaterialTheme.colorScheme.primaryContainer,modifier=Modifier.size(136.dp)) {
-                        Box(contentAlignment=Alignment.Center) {Text(displayName?.take(1)?.uppercase() ?: "L",style=MaterialTheme.typography.displayLarge)}
-                    }
-                    Text(when {terminal->"Call finished";shouldRing->"Incoming ${if(c.video)"video" else "voice"} call";c.status=="Ringing"->"Calling…";else->c.status},style=MaterialTheme.typography.headlineSmall)
-                }
-                if(activeVideo&&!controlsVisible) Spacer(Modifier.height(1.dp))
-                else if(shouldRing)Row(horizontalArrangement=Arrangement.spacedBy(48.dp)) {
-                    CallControl("Decline",Icons.Outlined.CallEnd,{controller.decline()},true)
-                    CallControl("Accept",Icons.Outlined.Call,{answer()},false)
-                } else if(activeVideo) {
-                    // Do not cover a large part of the actual remote video with a
-                    // two-row toolbar. This narrow strip fits ordinary phones and
-                    // retains every capture/output control and End call action.
-                    ActiveVideoControlStrip(
-                        muted=c.muted,cameraEnabled=c.cameraEnabled,audioRoute=c.audioRoute,
-                        onMute=controller::toggleMute,onAudio=::openAudioRoutes,
-                        onCamera=controller::toggleCamera,onSwitch=controller::switchCamera,
-                        onHangup=controller::hangup
-                    )
-                } else GlassSurface(Modifier.fillMaxWidth(),
-                    if(referenceCall)Glass.compact else Glass.hero) {
-                    Column(Modifier.padding(12.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                        if(!terminal)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
-                            IconButton(onClick=controller::toggleMute) {Icon(if(c.muted)Icons.Outlined.MicOff else Icons.Outlined.Mic,if(c.muted)"Unmute" else "Mute")}
-                            IconButton(onClick=::openAudioRoutes) {Icon(Icons.Outlined.Headset,"Select audio output")}
-                            if(c.video) {
-                                IconButton(onClick=controller::toggleCamera) {Icon(if(c.cameraEnabled)Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,"Toggle camera")}
-                                IconButton(onClick=controller::switchCamera) {Icon(Icons.Outlined.Cameraswitch,"Switch camera")}
-                            }
-                        }
-                        if(c.audioRoute.isNotBlank())Text(c.audioRoute,style=MaterialTheme.typography.labelSmall)
-                        CallControl(if(terminal)"Close" else "End call",Icons.Outlined.CallEnd,{if(terminal)controller.dismissError() else controller.hangup()},true)
-                    }
-                }
-            }
+            if(activeVideo&&!c.remoteVideoReady&&!swapped&&showChrome)
+                Text("Waiting for remote video…",color=Color.White,textAlign=TextAlign.Center,
+                    modifier=Modifier.align(Alignment.Center).padding(32.dp)
+                        .background(Color.Black.copy(alpha=.55f),RoundedCornerShape(16.dp)).padding(12.dp))
+            CallScreenChrome(
+                call=c,displayName=displayName,timer=timer,
+                activeVideo=activeVideo,controlsVisible=controlsVisible,
+                onMinimize=controller::minimize,onAccept=::answer,onDecline=controller::decline,
+                onMute=controller::toggleMute,onAudio=::openAudioRoutes,
+                onCamera=controller::toggleCamera,onSwitch=controller::switchCamera,
+                onHangup=controller::hangup,onClose=controller::dismissError
+            )
         }
+    }
     }
     routes?.let {availableRoutes->
         // The same reference action sheet now serves call audio routing too.
@@ -255,47 +246,35 @@ fun CallOverlay(controller:CallController,displayName:String?,backend:Backend?=n
         )
     }
 }
-@Composable internal fun ActiveVideoControlStrip(
-    muted:Boolean,cameraEnabled:Boolean,audioRoute:String,
-    onMute:()->Unit,onAudio:()->Unit,onCamera:()->Unit,onSwitch:()->Unit,onHangup:()->Unit
-) {
-    GlassSurface(Modifier.fillMaxWidth(),
-        if(referenceListUsesFlatRows(LocalDisplayOptions.current))Glass.compact else Glass.capsule) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal=6.dp,vertical=4.dp),
-            verticalAlignment=Alignment.CenterVertically,
-            horizontalArrangement=Arrangement.SpaceEvenly
-        ) {
-            IconButton(onClick=onMute) {
-                Icon(if(muted)Icons.Outlined.MicOff else Icons.Outlined.Mic,
-                    if(muted)"Unmute microphone" else "Mute microphone")
-            }
-            IconButton(onClick=onAudio) {
-                Icon(Icons.Outlined.Headset,
-                    "Select audio output" + if(audioRoute.isBlank())"" else ", current: $audioRoute")
-            }
-            IconButton(onClick=onCamera) {
-                Icon(if(cameraEnabled)Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
-                    if(cameraEnabled)"Turn camera off" else "Turn camera on")
-            }
-            IconButton(onClick=onSwitch) {
-                Icon(Icons.Outlined.Cameraswitch,"Switch camera")
-            }
-            FilledIconButton(
-                onClick=onHangup,
-                modifier=Modifier.size(48.dp),
-                colors=IconButtonDefaults.filledIconButtonColors(containerColor=Color(0xFFC93B48))
-            ) {
-                Icon(Icons.Outlined.CallEnd,"End call",tint=Color.White)
-            }
+/** The real account-scoped contact photo becomes the poster; absent photos keep a quiet fallback. */
+@Composable private fun CallPoster(name:String?,backend:Backend?,avatar:String) {
+    val backdrop=Brush.linearGradient(listOf(Color(0xFF263C43),Color(0xFF26272C),Color(0xFF493A34)))
+    Box(Modifier.fillMaxSize().background(backdrop)) {
+        if(backend!=null&&avatar.isNotBlank())
+            ProtectedImage(backend,avatar,description="Caller photo",modifier=Modifier.fillMaxSize(),
+                scale=androidx.compose.ui.layout.ContentScale.Crop)
+        else Box(Modifier.fillMaxSize().background(backdrop).glassSource(zIndex=0f),contentAlignment=Alignment.Center) {
+            Text(name?.take(1)?.uppercase() ?: "L",fontSize=140.sp,fontWeight=FontWeight.Light,
+                color=Color.White.copy(alpha=.15f))
         }
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
+            Color.Black.copy(alpha=.55f),Color.Black.copy(alpha=.08f),Color.Black.copy(alpha=.12f),
+            Color.Black.copy(alpha=.75f)))))
     }
 }
 
-@Composable private fun CallControl(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector,action:()->Unit,danger:Boolean) {
-    Column(horizontalAlignment=Alignment.CenterHorizontally) {
-        FilledIconButton(onClick=action,modifier=Modifier.size(64.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=if(danger)Color(0xFFC93B48) else Color(0xFF16875A))) {Icon(icon,label,tint=Color.White)}
-        Text(label,style=MaterialTheme.typography.labelMedium,modifier=Modifier.padding(top=6.dp))
+@Composable internal fun IncomingCallControls(onDecline:()->Unit,onAccept:()->Unit) {
+    Row(horizontalArrangement=Arrangement.spacedBy(56.dp),verticalAlignment=Alignment.CenterVertically) {
+        Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            CallChromeButton("Decline",Icons.Outlined.CallEnd,onDecline,size=64.dp,
+                containerColor=Color(0xFFFF3B30))
+            Text("Decline",color=Color.White,style=MaterialTheme.typography.labelLarge)
+        }
+        Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            CallChromeButton("Accept",Icons.Outlined.Call,onAccept,size=64.dp,
+                containerColor=Color(0xFF30B85A))
+            Text("Accept",color=Color.White,style=MaterialTheme.typography.labelLarge)
+        }
     }
 }
 /**
