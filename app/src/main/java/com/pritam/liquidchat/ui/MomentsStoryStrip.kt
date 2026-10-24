@@ -151,8 +151,17 @@ import java.util.UUID
         ) {
             Box(Modifier.fillMaxSize().clip(shape),contentAlignment=Alignment.Center) {
                 if(moment?.mediaKind=="story_video")
-                    Icon(Icons.Outlined.Videocam,"Video story",
-                        modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
+                    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer),
+                        horizontalAlignment=Alignment.CenterHorizontally,
+                        verticalArrangement=Arrangement.Center) {
+                        Icon(Icons.Outlined.PlayCircleOutline,"Play video story",
+                            modifier=Modifier.size(32.dp),
+                            tint=MaterialTheme.colorScheme.onPrimaryContainer)
+                        if(moment.durationMs>0) Text("${moment.durationMs/1000}s",
+                            style=MaterialTheme.typography.labelSmall,
+                            color=MaterialTheme.colorScheme.onPrimaryContainer,
+                            maxLines=1)
+                    }
                 else if(moment!=null)
                     ProtectedImage(model.backend,moment.media,description="$title story",
                         modifier=Modifier.fillMaxSize(),scale=ContentScale.Crop)
