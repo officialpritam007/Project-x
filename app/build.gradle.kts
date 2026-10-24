@@ -67,6 +67,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
+    // Extract private MP4 poster frames off the UI thread; no public media endpoint.
+    implementation("io.coil-kt:coil-video:2.7.0")
     implementation("dev.chrisbanes.haze:haze:1.5.4")
     // Official Android emoji grid: categories, skin-tone variants and recent emoji.
     // 1.6.0 stays compatible with this project's compileSdk 36.

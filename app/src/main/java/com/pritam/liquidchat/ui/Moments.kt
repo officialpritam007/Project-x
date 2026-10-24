@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -147,6 +148,7 @@ import java.util.UUID
     // Expiry is enforced server-side. Remove an expired tile while this screen stays open too.
     LaunchedEffect(uid,sessionEpoch,cacheKey,foreground) {if(foreground&&kind=="story")while(true){delay(1000);items=unexpiredMoments(kind,items);focused?.let {if(items.none {m->m.id==it.id})focused=null}}}
     val busy=loading||mutating
+    val visibleItems=remember(items,mine,uid) {momentsForAudience(items,mine,uid)}
     LazyColumn(modifier=modifier.testTag("moments-list"),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=bottomPadding)) {
         header?.let { item(key="profile-header") {it()} }
         item(key="moment-controls") { Row(Modifier.fillMaxWidth()) {
@@ -160,21 +162,32 @@ import java.util.UUID
             val change=retryChange
             if(change!=null)changeMoment(change.first,change.second) else load(append=retryAppend,force=true)
         }},enabled=!busy){Text("Retry")}}}}
-            if(items.isEmpty()&&loadedOnce&&!busy&&error==null&&!more)item {
+            if(visibleItems.isEmpty()&&loadedOnce&&!busy&&error==null&&!more)item {
                 GlassCard(Modifier.fillMaxWidth()) {
-                    Text(if(kind=="story")"No stories yet" else if(archived)"No archived posts" else "No posts yet...",style=MaterialTheme.typography.titleLarge)
+                    Text(if(kind=="story")"No stories yet" else if(archived)"No archived posts" else "No posts yet",style=MaterialTheme.typography.titleLarge)
                     Text(if(mine)"Share a photo with people in your saved contacts." else "Stories and posts appear when their creators save you as a contact.")
                     if(mine&&!archived)TextButton(onClick={editor=true},enabled=uid!=null){Text(if(kind=="story")"Add a story" else "Add a post")}
                 }
             }
-            items(items,key={it.id}) {moment->
+            items(visibleItems,key={it.id}) {moment->
                 GlassCard(Modifier.fillMaxWidth()) {
                     Text(moment.name,fontWeight=FontWeight.Bold)
                     Text(remember(moment.created){runCatching{java.time.Instant.parse(moment.created).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM · HH:mm"))}.getOrDefault("")},style=MaterialTheme.typography.labelSmall)
                     if(moment.mediaKind=="story_video") {
-                        Box(Modifier.fillMaxWidth().height(190.dp).clickable {focused=moment},contentAlignment=Alignment.Center) {
-                            Icon(Icons.Outlined.PlayCircle,"Play video story",modifier=Modifier.size(56.dp),tint=MaterialTheme.colorScheme.primary)
-                            Text("Video story · ${(moment.durationMs/1000)}s",Modifier.align(Alignment.BottomCenter).padding(12.dp))
+                        Box(Modifier.fillMaxWidth().height(190.dp)
+                            .clip(Glass.compact)
+                            .clickable {focused=moment},contentAlignment=Alignment.Center) {
+                            ProtectedVideoThumbnail(model.backend,moment.media,
+                                description="${moment.name}'s video story poster",
+                                modifier=Modifier.fillMaxSize())
+                            Surface(shape=Glass.capsule,color=Color.Black.copy(alpha=.50f)) {
+                                Icon(Icons.Outlined.PlayCircle,"Play video story",
+                                    modifier=Modifier.padding(8.dp).size(56.dp),
+                                    tint=Color.White)
+                            }
+                            Text("Video story · ${moment.durationMs/1000}s",
+                                Modifier.align(Alignment.BottomCenter).padding(12.dp),
+                                color=Color.White)
                         }
                     } else ProtectedImage(model.backend,moment.media,description="${moment.name}'s ${if(kind=="story")"story" else "post"}",modifier=Modifier.fillMaxWidth().heightIn(max=320.dp).aspectRatio((moment.width.toFloat()/moment.height.coerceAtLeast(1)).coerceIn(.6f,1.8f)).clickable {focused=moment},scale=ContentScale.Crop)
                     if(moment.caption.isNotBlank()) {
@@ -197,8 +210,8 @@ import java.util.UUID
     }
     if(editor)key(uid,sessionEpoch,kind) {MomentEditor(model,kind,onDismiss={editor=false},onPublished={editor=false})}
     focused?.let {moment->
-        if(kind=="story") {
-            StoryViewer(model,items,moment.id,onDismiss={focused=null})
+        if(kind=="story" && visibleItems.any {it.id==moment.id}) {
+            StoryViewer(model,visibleItems,moment.id,onDismiss={focused=null})
         } else {
             androidx.compose.ui.window.Dialog(onDismissRequest={focused=null},
                 properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {

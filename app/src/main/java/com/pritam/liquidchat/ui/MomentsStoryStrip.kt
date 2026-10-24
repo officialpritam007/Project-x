@@ -3,6 +3,7 @@ package com.pritam.liquidchat.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -150,9 +151,19 @@ import java.util.UUID
             tonalElevation=if(reference)0.dp else 1.dp
         ) {
             Box(Modifier.fillMaxSize().clip(shape),contentAlignment=Alignment.Center) {
-                if(moment?.mediaKind=="story_video")
-                    Icon(Icons.Outlined.Videocam,"Video story",
-                        modifier=Modifier.size(32.dp),tint=MaterialTheme.colorScheme.primary)
+                if(moment?.mediaKind=="story_video") {
+                    ProtectedVideoThumbnail(model.backend,moment.media,
+                        description="$title video story poster",modifier=Modifier.fillMaxSize())
+                    Surface(shape=Glass.capsule,color=Color.Black.copy(alpha=.50f)) {
+                        Icon(Icons.Outlined.PlayCircleOutline,"Play video story",
+                            modifier=Modifier.padding(6.dp).size(32.dp),
+                            tint=Color.White)
+                    }
+                    if(moment.durationMs>0L) Text("${moment.durationMs/1000}s",
+                        modifier=Modifier.align(Alignment.BottomCenter).padding(4.dp),
+                        style=MaterialTheme.typography.labelSmall,
+                        color=Color.White,maxLines=1)
+                }
                 else if(moment!=null)
                     ProtectedImage(model.backend,moment.media,description="$title story",
                         modifier=Modifier.fillMaxSize(),scale=ContentScale.Crop)

@@ -25,9 +25,20 @@ import com.pritam.liquidchat.data.Chat
 
 /** Shared contact avatar and glass chat list row for all inbox surfaces. */
 @Composable fun Avatar(name:String,mediaId:String="",backend:com.pritam.liquidchat.data.Backend?=null,self:Boolean=false,size:androidx.compose.ui.unit.Dp=48.dp) {
-    Box(Modifier.size(size).clip(CircleShape).background(if(self)Color(0xFF07B4D8) else Color(0xFFB94799),CircleShape),contentAlignment=Alignment.Center) {
-        if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,description="Profile photo for $name",modifier=Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Crop)
-        else Text(if(self)name.split(" ").filter {it.firstOrNull()?.isLetter()==true}.take(2).joinToString(""){it.take(1)}.uppercase() else name.take(1).uppercase(),style=MaterialTheme.typography.titleLarge,color=Color.White)
+    Box(Modifier.size(size).clip(CircleShape).background(
+        if(self)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+        CircleShape),contentAlignment=Alignment.Center) {
+        // Render initials behind the photo until real pixels exist. When an avatar
+        // is loading (or unavailable), the user sees an identity cue instead of
+        // a blank circle. ProtectedImage still fails closed on revoked access.
+        Text(if(self)name.split(" ").filter {it.firstOrNull()?.isLetter()==true}
+            .take(2).joinToString(""){it.take(1)}.uppercase() else name.take(1).uppercase(),
+            style=MaterialTheme.typography.titleLarge,
+            color=if(self)MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onPrimaryContainer)
+        if(mediaId.isNotEmpty()&&backend!=null) ProtectedImage(backend,mediaId,
+            description="Profile photo for $name",modifier=Modifier.fillMaxSize(),
+            scale=androidx.compose.ui.layout.ContentScale.Crop,showLoadingSurface=false)
     }
 }
 @OptIn(ExperimentalFoundationApi::class)

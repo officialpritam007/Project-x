@@ -58,7 +58,7 @@ import androidx.compose.ui.window.DialogProperties
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement=Arrangement.SpaceEvenly) {
                             reactions.forEach {emoji->
-                                TextButton(onClick={onReact(emoji)},modifier=Modifier.size(44.dp),
+                                TextButton(onClick={onReact(emoji)},modifier=Modifier.size(48.dp),
                                     contentPadding=PaddingValues(0.dp)) {
                                     Text(emoji,style=MaterialTheme.typography.titleMedium)
                                 }

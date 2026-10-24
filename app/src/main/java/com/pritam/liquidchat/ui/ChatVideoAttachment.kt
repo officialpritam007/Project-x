@@ -55,15 +55,31 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
                 backend=model.backend,media=message.mediaId,
                 paused=!foreground,muted=muted,onProgress={},
                 onFinished={playing=false},
-                modifier=Modifier.fillMaxWidth().height(220.dp))
+                modifier=Modifier.fillMaxWidth().height(220.dp),
+                poster={
+                    ProtectedVideoThumbnail(model.backend,message.mediaId,
+                        description="Private video preview",modifier=Modifier.fillMaxSize())
+                })
         } else {
-            GlassSurface(modifier=Modifier.fillMaxWidth().height(130.dp),
+            // Preserve the media card height when playback starts or stops so the
+            // surrounding message timeline does not jump by 90dp.
+            GlassSurface(modifier=Modifier.fillMaxWidth().height(220.dp),
                 shape=Glass.compact) {
-                Box(contentAlignment=Alignment.Center) {
-                    Column(horizontalAlignment=Alignment.CenterHorizontally) {
+                Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+                    if(active) {
+                        ProtectedVideoThumbnail(model.backend,message.mediaId,
+                            description="Private chat video poster",
+                            modifier=Modifier.fillMaxSize())
+                        Surface(shape=Glass.capsule,
+                            color=androidx.compose.ui.graphics.Color.Black.copy(alpha=.50f)) {
+                            Icon(Icons.Outlined.PlayArrow,
+                                contentDescription="Play private video",
+                                modifier=Modifier.padding(6.dp).size(40.dp),
+                                tint=androidx.compose.ui.graphics.Color.White)
+                        }
+                    } else Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.Videocam,"Private video",Modifier.size(38.dp))
-                        Text(if(active)"Private video · up to 30 seconds"
-                            else "Video queued for private delivery",
+                        Text("Video queued for private delivery",
                             style=MaterialTheme.typography.labelSmall)
                     }
                 }

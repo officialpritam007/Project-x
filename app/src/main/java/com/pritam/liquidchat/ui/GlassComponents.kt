@@ -39,14 +39,19 @@ import coil.decode.SvgDecoder
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.onFocusChanged
 
-/** Dialog windows cannot reliably capture the activity's Haze source.
- * Use a readable translucent fallback rather than an opaque popup block.
+/** Dialog windows and bottom sheets cannot reliably capture the activity's
+ * Haze source. Follow the active Material surface (including Reference's
+ * white/green palette and user customizations) instead of using a fixed
+ * ice-blue popup. Near-opaque chrome keeps chat text from bleeding through
+ * long action lists. Reduced transparency is always completely opaque.
  */
-@Composable internal fun glassPopupColor():Color = if(LocalDisplayOptions.current.reducedTransparency) {
-    if(LocalGlassDark.current) Color(0xFF22364B) else Color(0xFFF8FCFF)
-} else {
-    if(LocalGlassDark.current) Color(0xED22364B) else Color(0xEAF8FCFF)
-}
+internal fun popupSurfaceColor(surface:Color,reducedTransparency:Boolean):Color =
+    surface.copy(alpha=if(reducedTransparency)1f else .985f)
+
+@Composable internal fun glassPopupColor():Color = popupSurfaceColor(
+    MaterialTheme.colorScheme.surface,
+    LocalDisplayOptions.current.reducedTransparency
+)
 
 @Composable internal fun LiquidDropdownMenu(
     expanded:Boolean,onDismissRequest:()->Unit,content:@Composable ColumnScope.()->Unit
@@ -64,15 +69,16 @@ import androidx.compose.ui.focus.onFocusChanged
     modifier:Modifier=Modifier,enabled:Boolean=true,destructive:Boolean=false
 ) {
     val ink=if(destructive)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    Column(modifier.heightIn(min=60.dp).clip(Glass.compact)
-        .background(MaterialTheme.colorScheme.surface.copy(alpha=.48f))
+    Column(modifier.heightIn(min=64.dp).clip(Glass.compact)
+        .background(MaterialTheme.colorScheme.surface.copy(alpha=.94f))
         .clickable(enabled=enabled,role=Role.Button,onClick=onClick)
         .padding(horizontal=2.dp,vertical=7.dp),
         horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.spacedBy(3.dp,Alignment.CenterVertically)) {
         Icon(icon,contentDescription=null,modifier=Modifier.size(21.dp),
             tint=ink.copy(alpha=if(enabled)1f else .4f))
-        Text(label,maxLines=1,overflow=TextOverflow.Ellipsis,
+        Text(label,maxLines=2,overflow=TextOverflow.Ellipsis,
+            textAlign=androidx.compose.ui.text.style.TextAlign.Center,
             style=MaterialTheme.typography.labelSmall,
             color=ink.copy(alpha=if(enabled)1f else .4f))
     }
@@ -112,7 +118,7 @@ import androidx.compose.ui.focus.onFocusChanged
         shape=androidx.compose.foundation.shape.RoundedCornerShape(
             topStart=if(reference)22.dp else 30.dp,
             topEnd=if(reference)22.dp else 30.dp),
-        dragHandle={if(!reference)BottomSheetDefaults.DragHandle()},
+        dragHandle={BottomSheetDefaults.DragHandle()},
         containerColor=glassPopupColor(),tonalElevation=0.dp) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .padding(horizontal=if(reference)16.dp else 20.dp)
@@ -123,12 +129,12 @@ import androidx.compose.ui.focus.onFocusChanged
                 // title, 16dp outer padding, a close action and 12dp gap.
                 Row(Modifier.fillMaxWidth().padding(bottom=12.dp),
                     verticalAlignment=Alignment.CenterVertically) {
-                    Spacer(Modifier.size(40.dp))
+                    Spacer(Modifier.size(48.dp))
                     Text(title,modifier=Modifier.weight(1f),
                         fontSize=17.sp,fontWeight=FontWeight.Bold,
                         textAlign=androidx.compose.ui.text.style.TextAlign.Center,
                         color=MaterialTheme.colorScheme.onSurface)
-                    IconButton(onClick=onDismiss,modifier=Modifier.size(40.dp)) {
+                    IconButton(onClick=onDismiss,modifier=Modifier.size(48.dp)) {
                         Icon(androidx.compose.material.icons.Icons.Outlined.Close,
                             contentDescription="Close $title")
                     }
@@ -302,8 +308,7 @@ internal fun referenceListUsesFlatRows(display:DisplayOptions):Boolean =
             ))
             .then(Modifier),
         shape=shape,
-        containerColor=if(dark)Color(0xFF22364B).copy(alpha=if(reduced)1f else .97f)
-            else Color(0xFFF8FCFF).copy(alpha=if(reduced)1f else .96f),
+        containerColor=popupSurfaceColor(MaterialTheme.colorScheme.surface,reduced),
         tonalElevation=0.dp,
         titleContentColor=MaterialTheme.colorScheme.onSurface,
         textContentColor=MaterialTheme.colorScheme.onSurfaceVariant

@@ -31,7 +31,8 @@ import org.json.JSONObject
     muted:Boolean,
     onProgress:(Float)->Unit,
     onFinished:()->Unit,
-    modifier:Modifier=Modifier
+    modifier:Modifier=Modifier,
+    poster:(@Composable ()->Unit)?=null
 ) {
     val context=LocalContext.current
     val account by backend.session.collectAsStateWithLifecycle()
@@ -80,10 +81,26 @@ import org.json.JSONObject
                     }
                 }
                 var playbackError by remember(media,source) {mutableStateOf(false)}
+                // A resolved signed URL does not mean ExoPlayer has decoded its
+                // first frame. Keep the loading affordance through buffering.
+                var videoReady by remember(media,source) {
+                    mutableStateOf(player.playbackState==Player.STATE_READY)
+                }
+                var buffering by remember(media,source) {
+                    mutableStateOf(player.playbackState!=Player.STATE_READY)
+                }
                 DisposableEffect(player) {
                     val observer=object:Player.Listener {
                         override fun onPlayerError(error:PlaybackException) {
                             playbackError=true
+                            buffering=false
+                        }
+                        override fun onPlaybackStateChanged(state:Int) {
+                            when(state) {
+                                Player.STATE_READY -> {videoReady=true;buffering=false}
+                                Player.STATE_BUFFERING,Player.STATE_IDLE -> buffering=true
+                                Player.STATE_ENDED -> buffering=false
+                            }
                         }
                     }
                     player.addListener(observer)
@@ -116,10 +133,20 @@ import org.json.JSONObject
                     update={it.player=player},
                     modifier=Modifier.fillMaxSize()
                 )
+                // Show the cached first frame until playback has prepared.
+                // Buffering after the first frame keeps the rendered frame.
+                if(!videoReady&&!playbackError) poster?.invoke()
                 if(playbackError) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Text("Unable to play this private video",color=Color.White)
                         TextButton(onClick={url=null;retry++}) {Text("Retry playback")}
+                    }
+                } else if(buffering || !videoReady) {
+                    Column(horizontalAlignment=Alignment.CenterHorizontally,
+                        verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(color=Color.White)
+                        Text("Loading video…",color=Color.White,
+                            style=MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -128,6 +155,14 @@ import org.json.JSONObject
                 Text("Video unavailable",color=Color.White)
                 TextButton(onClick={retry++}) {Text("Retry video")}
             }
-        } else CircularProgressIndicator()
+        } else {
+            // The auth request itself can take time on slow connections.
+            // Keep the existing poster visible before a player/URL exists.
+            if(poster!=null) Box(Modifier.fillMaxSize(),
+                contentAlignment=Alignment.Center) {
+                poster()
+                CircularProgressIndicator(color=Color.White)
+            } else CircularProgressIndicator(color=Color.White)
+        }
     }
 }

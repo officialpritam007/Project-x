@@ -251,12 +251,30 @@ if(section=="Liquid Chat Home Screen") {
                 Switch(checked=display.hideNavIcons,
                     onCheckedChange={model.setDisplay(display.copy(hideNavIcons=it))})
             }
-            Text("Navigation icon size · ${display.navIconSize} dp",style=MaterialTheme.typography.titleSmall)
-            Slider(value=display.navIconSize.toFloat(),onValueChange={model.setDisplay(display.copy(navIconSize=it.toInt()))},
-                valueRange=20f..50f,steps=29,modifier=Modifier.fillMaxWidth())
-            Text("Navigation label size · ${display.navLabelSize} sp",style=MaterialTheme.typography.titleSmall)
-            Slider(value=display.navLabelSize.toFloat(),onValueChange={model.setDisplay(display.copy(navLabelSize=it.toInt()))},
-                valueRange=8f..20f,steps=11,enabled=showEffectiveNavigationLabels(display),modifier=Modifier.fillMaxWidth())
+            // Keep drag preview responsive without writing preferences at
+            // every frame. Persist only when the slider gesture finishes.
+            var iconDraft by remember(display.navIconSize) {
+                mutableFloatStateOf(display.navIconSize.toFloat())
+            }
+            var labelDraft by remember(display.navLabelSize) {
+                mutableFloatStateOf(display.navLabelSize.toFloat())
+            }
+            Text("Navigation icon size · ${iconDraft.toInt()} dp",
+                style=MaterialTheme.typography.titleSmall)
+            Slider(value=iconDraft,onValueChange={iconDraft=it},
+                onValueChangeFinished={
+                    model.setDisplay(model.display.value.copy(
+                        navIconSize=iconDraft.toInt().coerceIn(20,50)))
+                },valueRange=20f..50f,steps=29,modifier=Modifier.fillMaxWidth())
+            Text("Navigation label size · ${labelDraft.toInt()} sp",
+                style=MaterialTheme.typography.titleSmall)
+            Slider(value=labelDraft,onValueChange={labelDraft=it},
+                onValueChangeFinished={
+                    model.setDisplay(model.display.value.copy(
+                        navLabelSize=labelDraft.toInt().coerceIn(8,20)))
+                },valueRange=8f..20f,steps=11,
+                enabled=showEffectiveNavigationLabels(display),
+                modifier=Modifier.fillMaxWidth())
             }
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Inbox header & filters",style=MaterialTheme.typography.titleMedium)

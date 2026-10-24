@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,10 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
 })
 
 /** Reverse layout anchors newest at zero; stable message keys preserve older viewport offsets. */
+/** Avoid jumping while reading within a tall newest-media item. */
+internal fun shouldAutoFollowLatest(index:Int,offsetPx:Int,thresholdPx:Int):Boolean =
+    index<=1 && offsetPx<=thresholdPx
+
 @Composable internal fun MessageTimeline(
     cid:String,messages:List<Message>,typing:Boolean,focus:String?,onFocused:()->Unit,
     loadOlder:suspend ()->Boolean,modifier:Modifier=Modifier,
@@ -55,7 +60,11 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
         var failed by remember {mutableStateOf(false)}
         val latestLoader by rememberUpdatedState(loadOlder)
         val reversed=remember(messages) {messages.asReversed()}
-        val nearBottom by remember {derivedStateOf {state.firstVisibleItemIndex<=1}}
+        val thresholdPx=with(LocalDensity.current){24.dp.roundToPx()}
+        val nearBottom by remember(thresholdPx) {derivedStateOf {
+            shouldAutoFollowLatest(state.firstVisibleItemIndex,
+                state.firstVisibleItemScrollOffset,thresholdPx)
+        }}
         val atHistory by remember(messages.size) {derivedStateOf {
             state.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let {it>=messages.size-3}==true
         }}
@@ -70,7 +79,10 @@ internal fun wallpaper(palette:String,dark:Boolean):Brush = Brush.linearGradient
         }
         // Capture the old viewport during composition, before stable-key reanchoring
         // moves its index for a batch of newly received messages.
-        val followOnAppend=remember(messages.lastOrNull()?.id,typing) {state.firstVisibleItemIndex<=1}
+        val followOnAppend=remember(messages.lastOrNull()?.id,typing,thresholdPx) {
+            shouldAutoFollowLatest(state.firstVisibleItemIndex,
+                state.firstVisibleItemScrollOffset,thresholdPx)
+        }
         LaunchedEffect(messages.lastOrNull()?.id,typing) {
             if(followOnAppend&&!state.isScrollInProgress)state.scrollToItem(0)
         }

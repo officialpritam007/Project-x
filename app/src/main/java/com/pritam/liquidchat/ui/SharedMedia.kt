@@ -81,7 +81,7 @@ import kotlinx.coroutines.flow.collect
     ModalBottomSheet(onDismissRequest=onDismiss,
         sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),
         containerColor=glassPopupColor(),tonalElevation=0.dp,
-        dragHandle={if(!referenceSheet)BottomSheetDefaults.DragHandle()},
+        dragHandle={BottomSheetDefaults.DragHandle()},
         shape=androidx.compose.foundation.shape.RoundedCornerShape(
             topStart=if(referenceSheet)22.dp else 30.dp,
             topEnd=if(referenceSheet)22.dp else 30.dp)) {
@@ -143,7 +143,8 @@ import kotlinx.coroutines.flow.collect
                         Column(Modifier.fillMaxWidth(),
                             horizontalAlignment=Alignment.CenterHorizontally,
                             verticalArrangement=Arrangement.spacedBy(if(iosStyle)12.dp else 8.dp)) {
-                            if(referenceProfile)Spacer(Modifier.height(60.dp))
+                            // Keep the identity visible without an arbitrary
+                            // 60dp blank strip at the top of the sheet.
                             if(iosStyle && !referenceProfile) Text("LIQUID CHAT CONTACT",
                                 style=MaterialTheme.typography.labelSmall,
                                 color=MaterialTheme.colorScheme.primary)
