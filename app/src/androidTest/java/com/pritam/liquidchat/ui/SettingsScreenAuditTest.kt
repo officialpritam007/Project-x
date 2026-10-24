@@ -119,4 +119,27 @@ class SettingsScreenAuditTest {
         compose.onNodeWithText("Animation level").assertIsDisplayed()
         compose.onNodeWithText("Background delivery").assertDoesNotExist()
     }
+
+    @Test fun backTargetsRespectWhereSettingsWasOpened() {
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Help",false))
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Updates",false))
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Notifications",false))
+        org.junit.Assert.assertEquals("Liquid Chat Preferences",
+            referenceSettingsBackTarget("Liquid Chat Notifications",true))
+        org.junit.Assert.assertNull(referenceSettingsBackTarget("Liquid Chat Preferences",true))
+    }
+
+    @Test fun helpTopicsReturnToHelpBeforeReturningToPreferences() {
+        val model=AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        compose.setContent {LiquidTheme(false) {SettingsScreen(model,busy=false)}}
+        compose.onNodeWithText("Liquid Chat Preferences").performScrollTo().performClick()
+        compose.onNodeWithText("Tips and help").performScrollTo().performClick()
+        compose.onNodeWithText("Customize the conversation screen").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("Open").onFirst().performClick()
+        compose.onNodeWithText("Message bubbles").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Tips & Help").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Liquid Chat Preferences").assertIsDisplayed()
+    }
 }
