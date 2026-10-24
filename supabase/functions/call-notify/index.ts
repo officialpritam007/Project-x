@@ -66,7 +66,10 @@ Deno.serve(async (req:Request)=>{
     if(!claimed)return json({accepted:false},202);
     const recipients:Array<string>=Array.isArray(claimed.tokens)?claimed.tokens:[];
     const delivered:string[]=[];
-    await Promise.all(recipients.slice(0,12).map(async (device:string)=>{
+    // Bound concurrency, not recipient coverage: one claim can contain more than
+    // twelve registered devices. Process every token in small parallel batches.
+    for(let offset=0;offset<recipients.length;offset+=12) {
+      await Promise.all(recipients.slice(offset,offset+12).map(async (device:string)=>{
       if(typeof device!=="string"||device.length>4096)return;
       try {
         const response=await fetch(`https://fcm.googleapis.com/v1/projects/${credentials.project_id}/messages:send`,{
@@ -87,11 +90,12 @@ Deno.serve(async (req:Request)=>{
             await admin.rpc("remove_invalid_device",{p_token:device,p_recipient:claimed.recipientId});
         }
       }catch { /* Do not leak FCM credentials or tokens to callers. */ }
-    }));
+      }));
+    }
     const {error:finishError}=await admin.rpc("finish_call_push",{p_call:input.callId,p_delivered:delivered});
     if(finishError)throw new Error("Dispatch completion unavailable");
     const complete=delivered.length===recipients.length;
-    return json({accepted:true,complete,attempted:Math.min(recipients.length,12),delivered:delivered.length},complete?200:503);
+    return json({accepted:true,complete,attempted:recipients.length,delivered:delivered.length},complete?200:503);
   }catch {
     return json({error:"Call push temporarily unavailable"},503);
   }
