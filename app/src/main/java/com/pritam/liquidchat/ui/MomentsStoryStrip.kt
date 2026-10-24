@@ -151,18 +151,17 @@ import java.util.UUID
             tonalElevation=if(reference)0.dp else 1.dp
         ) {
             Box(Modifier.fillMaxSize().clip(shape),contentAlignment=Alignment.Center) {
-                if(moment?.mediaKind=="story_video")
-                    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer),
-                        horizontalAlignment=Alignment.CenterHorizontally,
-                        verticalArrangement=Arrangement.Center) {
-                        Icon(Icons.Outlined.PlayCircleOutline,"Play video story",
-                            modifier=Modifier.size(32.dp),
-                            tint=MaterialTheme.colorScheme.onPrimaryContainer)
-                        if(moment.durationMs>0) Text("${moment.durationMs/1000}s",
-                            style=MaterialTheme.typography.labelSmall,
-                            color=MaterialTheme.colorScheme.onPrimaryContainer,
-                            maxLines=1)
-                    }
+                if(moment?.mediaKind=="story_video") {
+                    ProtectedVideoThumbnail(model.backend,moment.media,
+                        description="$title video story poster",modifier=Modifier.fillMaxSize())
+                    Icon(Icons.Outlined.PlayCircleOutline,"Play video story",
+                        modifier=Modifier.size(32.dp),
+                        tint=Color.White)
+                    if(moment.durationMs>0L) Text("${moment.durationMs/1000}s",
+                        modifier=Modifier.align(Alignment.BottomCenter).padding(4.dp),
+                        style=MaterialTheme.typography.labelSmall,
+                        color=Color.White,maxLines=1)
+                }
                 else if(moment!=null)
                     ProtectedImage(model.backend,moment.media,description="$title story",
                         modifier=Modifier.fillMaxSize(),scale=ContentScale.Crop)
