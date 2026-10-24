@@ -29,7 +29,9 @@ class MbNavigationReorderRowsTest {
             // The first move establishes the post-long-press drag; a subsequent
             // pointer move must carry the displacement before finger release.
             moveBy(Offset(0f,rowHeightPx*0.2f))
-            moveBy(Offset(0f,rowHeightPx*1.4f))
+            advanceEventTime(16)
+            moveBy(Offset(0f,rowHeightPx*1.2f))
+            advanceEventTime(16)
             up()
         }
         compose.runOnIdle {
@@ -47,7 +49,9 @@ class MbNavigationReorderRowsTest {
         }
         compose.onNodeWithContentDescription("Move Calls right").performClick()
         compose.runOnIdle {assertEquals("0,2,1,3,4",currentOrder)}
-        compose.onNodeWithContentDescription("Move Calls left").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Move Calls left").assertIsEnabled().performClick()
+        compose.waitForIdle()
         compose.runOnIdle {assertEquals(MbNavigationOrder.DEFAULT,currentOrder)}
     }
 }
