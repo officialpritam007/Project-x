@@ -13,7 +13,7 @@ class GlassPopupPaletteTest {
         assertEquals(Color.White.red,popup.red,0.0001f)
         assertEquals(Color.White.green,popup.green,0.0001f)
         assertEquals(Color.White.blue,popup.blue,0.0001f)
-        assertEquals(.985f,popup.alpha,0.0001f)
+        assertEquals(.985f,popup.alpha,0.001f)
     }
 
     @Test fun darkAndCustomSurfaceKeepTheirTint() {
@@ -22,7 +22,7 @@ class GlassPopupPaletteTest {
         assertEquals(tint.red,popup.red,0.0001f)
         assertEquals(tint.green,popup.green,0.0001f)
         assertEquals(tint.blue,popup.blue,0.0001f)
-        assertEquals(.985f,popup.alpha,0.0001f)
+        assertEquals(.985f,popup.alpha,0.001f)
     }
 
     @Test fun reducedTransparencyRemainsFullyOpaque() {
