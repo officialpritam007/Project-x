@@ -70,8 +70,13 @@ fun ChatVideoAttachment(model:AppViewModel,message:Message) {
                         ProtectedVideoThumbnail(model.backend,message.mediaId,
                             description="Private chat video poster",
                             modifier=Modifier.fillMaxSize())
-                        Icon(Icons.Outlined.PlayArrow,contentDescription="Play private video",
-                            modifier=Modifier.size(40.dp),tint=androidx.compose.ui.graphics.Color.White)
+                        Surface(shape=Glass.capsule,
+                            color=androidx.compose.ui.graphics.Color.Black.copy(alpha=.50f)) {
+                            Icon(Icons.Outlined.PlayArrow,
+                                contentDescription="Play private video",
+                                modifier=Modifier.padding(6.dp).size(40.dp),
+                                tint=androidx.compose.ui.graphics.Color.White)
+                        }
                     } else Column(horizontalAlignment=Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.Videocam,"Private video",Modifier.size(38.dp))
                         Text("Video queued for private delivery",
