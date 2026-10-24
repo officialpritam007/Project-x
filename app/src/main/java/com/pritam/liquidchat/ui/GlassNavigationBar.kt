@@ -45,8 +45,11 @@ internal fun showEffectiveNavigationLabels(options:DisplayOptions):Boolean =
 
 /** Scale the reference navigation with the user's icon/label preferences. */
 internal fun referenceNavigationHeight(options:DisplayOptions):Int {
-    val icon=if(options.navIconSize==24)30 else options.navIconSize
-    return maxOf(56,icon+if(showEffectiveNavigationLabels(options))options.navLabelSize+14 else 12)
+    val icon=if(options.hideNavIcons)0
+        else if(options.navIconSize==24)30 else options.navIconSize
+    val labelSpace=if(showEffectiveNavigationLabels(options))
+        options.navLabelSize+14 else 12
+    return maxOf(56,icon+labelSpace)
 }
 
 @Composable fun GlassNavigation(
