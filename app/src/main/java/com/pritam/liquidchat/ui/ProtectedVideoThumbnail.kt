@@ -13,13 +13,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.AsyncImage
 import coil.decode.VideoFrameDecoder
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.pritam.liquidchat.data.Backend
 import com.pritam.liquidchat.data.imageUrl
+import com.pritam.liquidchat.data.imageUrlRefreshDelay
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * Authorized, memory-only preview of a private video. No permanent public URL,
@@ -30,6 +36,7 @@ import kotlinx.coroutines.CancellationException
     backend:Backend,media:String,description:String,modifier:Modifier=Modifier
 ) {
     val context=LocalContext.current
+    val lifecycle=LocalLifecycleOwner.current.lifecycle
     val session by backend.session.collectAsStateWithLifecycle()
     val epoch by backend.uiReads.sessionEpoch.collectAsStateWithLifecycle()
     val revision by backend.uiReads.revision.collectAsStateWithLifecycle()
@@ -40,16 +47,28 @@ import kotlinx.coroutines.CancellationException
     var signed by remember(owner,epoch,media,version) {mutableStateOf<String?>(null)}
     var failed by remember(owner,epoch,media,version) {mutableStateOf(false)}
     var decoded by remember(owner,epoch,media,version) {mutableStateOf(false)}
-    LaunchedEffect(owner,epoch,media,version) {
+    LaunchedEffect(owner,epoch,media,version,lifecycle) {
         if(owner.isNullOrBlank()||media.isBlank()||media=="null" ||
             backend.uiReads.epoch(owner)!=epoch) return@LaunchedEffect
-        try {
-            val url=backend.imageUrl(owner,media)
-            if(backend.session.value?.userId==owner&&
-                backend.uiReads.epoch(owner)==epoch) signed=url
-        } catch(e:CancellationException) {throw e}
-          catch(_:Exception) {
-            if(backend.uiReads.epoch(owner)==epoch)failed=true
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while(isActive) {
+                try {
+                    val url=backend.imageUrl(owner,media)
+                    if(backend.session.value?.userId!=owner||
+                        backend.uiReads.epoch(owner)!=epoch)break
+                    signed=url
+                    failed=false
+                } catch(e:CancellationException) {throw e}
+                  catch(_:Exception) {
+                    // A revoked/expired permission must never leave the old
+                    // decoded poster visible on the screen.
+                    signed=null
+                    decoded=false
+                    failed=true
+                    break
+                }
+                delay(backend.imageUrlRefreshDelay(owner,media))
+            }
         }
     }
     val request=remember(signed,owner,epoch,media,version) {
