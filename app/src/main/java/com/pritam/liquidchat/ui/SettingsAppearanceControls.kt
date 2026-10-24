@@ -214,12 +214,15 @@ if(section=="Liquid Chat Home Screen") {
             GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
                 Text("Bottom navigation & tabs",style=MaterialTheme.typography.titleMedium)
                 Text("Navigation bar",style=MaterialTheme.typography.titleSmall)
-                Row(Modifier.horizontalScroll(rememberScrollState()),
+                // Both choices fit the card; avoid nested horizontal scrolling that
+                // can intercept accessibility scroll-to requests for the settings list.
+                Row(Modifier.fillMaxWidth(),
                     horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     listOf("Reference" to "iOS navigation", "Liquid" to "Liquid capsule").forEach { (value,label)->
                         FilterChip(selected=display.navBarStyle==value,
                             onClick={model.setDisplay(display.copy(navBarStyle=value))},
-                            label={Text(label)})
+                            label={Text(label,maxLines=2)},
+                            modifier=Modifier.weight(1f))
                     }
                 }
             Text("Hold and drag a handle to reorder tabs; use arrows for accessible controls.",
