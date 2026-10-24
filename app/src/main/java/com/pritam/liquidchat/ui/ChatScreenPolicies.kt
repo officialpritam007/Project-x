@@ -14,7 +14,8 @@ internal fun blockActionLabel(ownedBlocked:Boolean?):String =
 
 internal enum class SettingsPanel { APPEARANCE, POWER_SAVING, OTHER }
 internal fun settingsPanelFor(section:String?):SettingsPanel = when(section) {
-    "Chat Settings","Liquid Chat General Settings"->SettingsPanel.APPEARANCE
+    "Chat Settings","Appearance","Liquid Chat General Settings",
+    "Liquid Chat Home Screen","Liquid Chat Conversation Screen"->SettingsPanel.APPEARANCE
     "Power Saving"->SettingsPanel.POWER_SAVING
     else->SettingsPanel.OTHER
 }

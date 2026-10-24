@@ -25,7 +25,7 @@ class MbRecordedBubblePickerTest {
                 }
             }
         }
-        compose.onNodeWithText("Bubble style").performClick()
+        compose.onNodeWithText("Message bubble style").assertHasClickAction().performClick()
         compose.onNodeWithContentDescription("Choose bubble style Style 2").performClick()
         compose.runOnIdle {assertEquals("Style 2",chosen)}
     }

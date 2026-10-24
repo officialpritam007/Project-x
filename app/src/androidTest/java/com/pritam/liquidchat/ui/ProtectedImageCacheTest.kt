@@ -155,6 +155,10 @@ class ProtectedImageCacheTest {
             compose.onNodeWithContentDescription("Fixture image").assertDoesNotExist()
             assertEquals(1,downloads.get())
             assertTrue(signs.get() in 2..3)
+            val deniedCount=signs.get()
+            val stableUntil=SystemClock.uptimeMillis()+750
+            compose.waitUntil(2_000) {SystemClock.uptimeMillis()>=stableUntil}
+            assertEquals("Revoked image must not keep requesting fresh links",deniedCount,signs.get())
         }
     }
     @Test fun repeatedTransferRejectionStopsAndManualRetryIsBounded() {

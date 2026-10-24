@@ -87,13 +87,14 @@ import com.pritam.liquidchat.data.Images
         GlassCard(Modifier.fillMaxWidth(),Glass.hero) {
             val rows=listOf(
                 Triple("Liquid Chat Preferences","General and conversation customization",Icons.Outlined.Palette),
+                Triple("Themes","Saved themes, colors, import and export",Icons.Outlined.ColorLens),
                 Triple("Chat Settings","Appearance, motion and accessibility",Icons.Outlined.ChatBubbleOutline),
                 Triple("Privacy & Security","Last seen, read receipts and privacy",Icons.Outlined.Lock),
                 Triple("Notifications","Previews and Android notification controls",Icons.Outlined.Notifications),
                 Triple("Data and Storage","Storage, cache and media limits",Icons.Outlined.Storage)
             )
             rows.forEachIndexed {i,(title,subtitle,icon)->
-                PremiumSettingsTile(title,subtitle,icon) {onSection(title)}
+                PremiumSettingsTile(title,subtitle,icon) {onSection(if(title=="Themes")"Liquid Chat Themes" else title)}
                 if(i<rows.lastIndex)HorizontalDivider(
                     modifier=Modifier.padding(start=58.dp),
                     color=MaterialTheme.colorScheme.outlineVariant.copy(alpha=.5f))

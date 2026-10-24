@@ -42,21 +42,27 @@ class MessageBodyLinksTest {
         }
         compose.waitForIdle();assertTrue(opened.isEmpty())
         tapLink()
-        compose.runOnIdle {assertEquals(listOf("https://example.invalid/KeepCase?Token=AbC"),opened);enabled.value=false}
+        compose.onNodeWithText("Liquid Chat Browser").assertIsDisplayed()
+        compose.runOnIdle {assertTrue("Links must stay inside the app",opened.isEmpty())}
+        compose.onNodeWithText("Close").performClick()
+        compose.runOnIdle {enabled.value=false}
         tapLink()
-        compose.runOnIdle {assertEquals(1,opened.size)}
+        compose.onNodeWithText("Liquid Chat Browser").assertDoesNotExist()
+        compose.runOnIdle {assertTrue("Selection must not navigate",opened.isEmpty())}
     }
 
-    @Test fun noBrowserHandlerShowsRecoverableError() {
-        val handler=object:UriHandler {override fun openUri(uri:String) {throw IllegalArgumentException("fixture no handler")}}
+    @Test fun inAppBrowserWorksWithoutAnExternalUriHandler() {
+        val handler=object:UriHandler {
+            override fun openUri(uri:String) {throw AssertionError("The internal browser must not use external handlers")}
+        }
         compose.setContent {
             CompositionLocalProvider(LocalUriHandler provides handler) {
                 LiquidTheme(false) {MessageBodyText(body,16,false,true) {layout=it}}
             }
         }
         tapLink()
-        compose.onNodeWithText("No app could open this web link. You can copy the message instead.").assertIsDisplayed()
-        compose.onNodeWithText("OK").performClick()
-        compose.onNodeWithText("OK").assertDoesNotExist()
+        compose.onNodeWithText("Liquid Chat Browser").assertIsDisplayed()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithText("Liquid Chat Browser").assertDoesNotExist()
     }
 }

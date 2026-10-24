@@ -96,7 +96,7 @@ class CallScreenChromeTest {
     @Test fun landscapeLongCallerAtLargeTextKeepsIdentityAndVoiceActionsApart() {
         val name="Riya Chakraborty — a very long contact display name"
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f,1.6f)) {
+            CompositionLocalProvider(LocalDensity provides Density(0.5f,1.6f)) {
                 LiquidTheme(false) {
                     Box(Modifier.requiredSize(640.dp,320.dp)
                         .consumeWindowInsets(WindowInsets.systemBars)
@@ -117,6 +117,10 @@ class CallScreenChromeTest {
         val top=identityBounds.minOf {it.top}
         val bottom=identityBounds.maxOf {it.bottom}
         val host=compose.onNodeWithTag("call-chrome-landscape").fetchSemanticsNode().boundsInRoot
+        val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue("Landscape fixture must fit inside the emulator viewport",
+            host.left>=root.left-.5f && host.right<=root.right+.5f &&
+                host.top>=root.top-.5f && host.bottom<=root.bottom+.5f)
         listOf("Select audio output, current: Earpiece","Mute microphone","End call").forEach {description->
             val action=compose.onNodeWithContentDescription(description)
                 .assertIsDisplayed().assertHasClickAction()

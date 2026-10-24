@@ -28,7 +28,9 @@ class SettingsMenuRegressionTest {
         assertEquals(SettingsPanel.POWER_SAVING,settingsPanelFor("Power Saving"))
         assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Chat Settings"))
         assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Liquid Chat General Settings"))
-        assertEquals(SettingsPanel.OTHER,settingsPanelFor("Liquid Chat Conversation Screen"))
+        assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Liquid Chat Conversation Screen"))
+        assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Liquid Chat Home Screen"))
+        assertEquals(SettingsPanel.APPEARANCE,settingsPanelFor("Appearance"))
         assertEquals(SettingsPanel.OTHER,settingsPanelFor("Privacy & Security"))
         assertEquals(SettingsPanel.OTHER,settingsPanelFor("Notifications"))
     }
