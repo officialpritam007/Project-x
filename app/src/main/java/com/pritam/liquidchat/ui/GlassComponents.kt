@@ -69,15 +69,16 @@ internal fun popupSurfaceColor(surface:Color,reducedTransparency:Boolean):Color 
     modifier:Modifier=Modifier,enabled:Boolean=true,destructive:Boolean=false
 ) {
     val ink=if(destructive)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    Column(modifier.heightIn(min=60.dp).clip(Glass.compact)
-        .background(MaterialTheme.colorScheme.surface.copy(alpha=.48f))
+    Column(modifier.heightIn(min=64.dp).clip(Glass.compact)
+        .background(MaterialTheme.colorScheme.surface.copy(alpha=.94f))
         .clickable(enabled=enabled,role=Role.Button,onClick=onClick)
         .padding(horizontal=2.dp,vertical=7.dp),
         horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.spacedBy(3.dp,Alignment.CenterVertically)) {
         Icon(icon,contentDescription=null,modifier=Modifier.size(21.dp),
             tint=ink.copy(alpha=if(enabled)1f else .4f))
-        Text(label,maxLines=1,overflow=TextOverflow.Ellipsis,
+        Text(label,maxLines=2,overflow=TextOverflow.Ellipsis,
+            textAlign=androidx.compose.ui.text.style.TextAlign.Center,
             style=MaterialTheme.typography.labelSmall,
             color=ink.copy(alpha=if(enabled)1f else .4f))
     }
@@ -307,8 +308,7 @@ internal fun referenceListUsesFlatRows(display:DisplayOptions):Boolean =
             ))
             .then(Modifier),
         shape=shape,
-        containerColor=if(dark)Color(0xFF22364B).copy(alpha=if(reduced)1f else .97f)
-            else Color(0xFFF8FCFF).copy(alpha=if(reduced)1f else .96f),
+        containerColor=popupSurfaceColor(MaterialTheme.colorScheme.surface,reduced),
         tonalElevation=0.dp,
         titleContentColor=MaterialTheme.colorScheme.onSurface,
         textContentColor=MaterialTheme.colorScheme.onSurfaceVariant
